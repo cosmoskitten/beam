@@ -60,8 +60,7 @@ public abstract class RestrictionTracker<RestrictionT, PositionT> {
    * work: the old value of {@link #currentRestriction} is equivalent to the new value and the
    * return value of this method combined.
    *
-   * <p>Must be called at most once on a given object. Must not be called before the first
-   * successful {@link #tryClaim} call.
+   * <p>Must be called at most once on a given object.
    */
   public abstract RestrictionT checkpoint();
 

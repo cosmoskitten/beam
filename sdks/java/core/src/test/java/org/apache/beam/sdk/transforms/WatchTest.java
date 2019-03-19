@@ -22,26 +22,32 @@ import static org.apache.beam.sdk.transforms.Watch.Growth.afterTimeSinceNewOutpu
 import static org.apache.beam.sdk.transforms.Watch.Growth.allOf;
 import static org.apache.beam.sdk.transforms.Watch.Growth.eitherOf;
 import static org.apache.beam.sdk.transforms.Watch.Growth.never;
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.greaterThan;
+import static org.hamcrest.Matchers.contains;
 import static org.joda.time.Duration.standardSeconds;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertThat;
+import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
 import java.io.Serializable;
 import java.util.Arrays;
-import java.util.Collections;
 import java.util.List;
-import java.util.Map;
 import java.util.UUID;
 import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
 import javax.annotation.Nullable;
+import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.coders.VarIntCoder;
+import org.apache.beam.sdk.testing.CoderProperties;
 import org.apache.beam.sdk.testing.NeedsRunner;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
@@ -50,20 +56,24 @@ import org.apache.beam.sdk.transforms.Watch.Growth.PollFn;
 import org.apache.beam.sdk.transforms.Watch.Growth.PollResult;
 import org.apache.beam.sdk.transforms.Watch.GrowthState;
 import org.apache.beam.sdk.transforms.Watch.GrowthTracker;
-import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
+import org.apache.beam.sdk.transforms.Watch.NonPollingGrowthState;
+import org.apache.beam.sdk.transforms.Watch.PollingGrowthState;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TimestampedValue;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Function;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Lists;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Ordering;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Sets;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.hash.Funnel;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.hash.Funnels;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.hash.HashCode;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.hash.Hashing;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.joda.time.ReadableDuration;
-import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
@@ -73,24 +83,25 @@ import org.junit.runners.JUnit4;
 /** Tests for {@link Watch}. */
 @RunWith(JUnit4.class)
 public class WatchTest implements Serializable {
-  @Rule public transient TestPipeline p = TestPipeline.create();
+
+  @Rule
+  public transient TestPipeline p = TestPipeline.create();
 
   @Test
-  @Ignore("https://issues.apache.org/jira/browse/BEAM-6352")
   @Category(NeedsRunner.class)
   public void testSinglePollMultipleInputs() {
     PCollection<KV<String, String>> res =
         p.apply(Create.of("a", "b"))
             .apply(
                 Watch.growthOf(
-                        new PollFn<String, String>() {
-                          @Override
-                          public PollResult<String> apply(String element, Context c)
-                              throws Exception {
-                            return PollResult.complete(
-                                Instant.now(), Arrays.asList(element + ".foo", element + ".bar"));
-                          }
-                        })
+                    new PollFn<String, String>() {
+                      @Override
+                      public PollResult<String> apply(String element, Context c)
+                          throws Exception {
+                        return PollResult.complete(
+                            Instant.now(), Arrays.asList(element + ".foo", element + ".bar"));
+                      }
+                    })
                     .withPollInterval(Duration.ZERO));
 
     PAssert.that(res)
@@ -103,7 +114,6 @@ public class WatchTest implements Serializable {
   }
 
   @Test
-  @Ignore("https://issues.apache.org/jira/browse/BEAM-6352")
   @Category(NeedsRunner.class)
   public void testSinglePollMultipleInputsWithSideInput() {
     final PCollectionView<String> moo =
@@ -114,17 +124,17 @@ public class WatchTest implements Serializable {
         p.apply("input", Create.of("a", "b"))
             .apply(
                 Watch.growthOf(
-                        new PollFn<String, String>() {
-                          @Override
-                          public PollResult<String> apply(String element, Context c)
-                              throws Exception {
-                            return PollResult.complete(
-                                Instant.now(),
-                                Arrays.asList(
-                                    element + " " + c.sideInput(moo) + " " + c.sideInput(zoo)));
-                          }
-                        },
-                        requiresSideInputs(moo, zoo))
+                    new PollFn<String, String>() {
+                      @Override
+                      public PollResult<String> apply(String element, Context c)
+                          throws Exception {
+                        return PollResult.complete(
+                            Instant.now(),
+                            Arrays.asList(
+                                element + " " + c.sideInput(moo) + " " + c.sideInput(zoo)));
+                      }
+                    },
+                    requiresSideInputs(moo, zoo))
                     .withPollInterval(Duration.ZERO));
 
     PAssert.that(res)
@@ -134,14 +144,12 @@ public class WatchTest implements Serializable {
   }
 
   @Test
-  @Ignore("https://issues.apache.org/jira/browse/BEAM-6352")
   @Category(NeedsRunner.class)
   public void testMultiplePollsWithTerminationBecauseOutputIsFinal() {
     testMultiplePolls(false);
   }
 
   @Test
-  @Ignore("https://issues.apache.org/jira/browse/BEAM-6352")
   @Category(NeedsRunner.class)
   public void testMultiplePollsWithTerminationDueToTerminationCondition() {
     testMultiplePolls(true);
@@ -154,11 +162,11 @@ public class WatchTest implements Serializable {
         p.apply(Create.of("a"))
             .apply(
                 Watch.growthOf(
-                        new TimedPollFn<String, Integer>(
-                            all,
-                            standardSeconds(1) /* timeToOutputEverything */,
-                            standardSeconds(3) /* timeToDeclareOutputFinal */,
-                            standardSeconds(30) /* timeToFail */))
+                    new TimedPollFn<String, Integer>(
+                        all,
+                        standardSeconds(1) /* timeToOutputEverything */,
+                        standardSeconds(3) /* timeToDeclareOutputFinal */,
+                        standardSeconds(30) /* timeToFail */))
                     .withTerminationPerInput(
                         Growth.afterTotalOf(
                             standardSeconds(
@@ -179,7 +187,6 @@ public class WatchTest implements Serializable {
   }
 
   @Test
-  @Ignore("https://issues.apache.org/jira/browse/BEAM-6352")
   @Category(NeedsRunner.class)
   public void testMultiplePollsWithKeyExtractor() {
     List<KV<Integer, String>> polls =
@@ -208,14 +215,14 @@ public class WatchTest implements Serializable {
         p.apply(Create.of("a"))
             .apply(
                 Watch.growthOf(
-                        Contextful.of(
-                            new TimedPollFn<String, KV<Integer, String>>(
-                                polls,
-                                standardSeconds(1) /* timeToOutputEverything */,
-                                standardSeconds(3) /* timeToDeclareOutputFinal */,
-                                standardSeconds(30) /* timeToFail */),
-                            Requirements.empty()),
-                        KV::getKey)
+                    Contextful.of(
+                        new TimedPollFn<String, KV<Integer, String>>(
+                            polls,
+                            standardSeconds(1) /* timeToOutputEverything */,
+                            standardSeconds(3) /* timeToDeclareOutputFinal */,
+                            standardSeconds(30) /* timeToFail */),
+                        Requirements.empty()),
+                    KV::getKey)
                     .withTerminationPerInput(Growth.afterTotalOf(standardSeconds(5)))
                     .withPollInterval(Duration.millis(100))
                     .withOutputCoder(KvCoder.of(VarIntCoder.of(), StringUtf8Coder.of()))
@@ -229,7 +236,6 @@ public class WatchTest implements Serializable {
   }
 
   @Test
-  @Ignore("https://issues.apache.org/jira/browse/BEAM-6352")
   @Category(NeedsRunner.class)
   public void testMultiplePollsStopAfterTimeSinceNewOutput() {
     List<Integer> all = Arrays.asList(0, 1, 2, 3, 4, 5, 6, 7, 8, 9);
@@ -238,12 +244,12 @@ public class WatchTest implements Serializable {
         p.apply(Create.of("a"))
             .apply(
                 Watch.growthOf(
-                        new TimedPollFn<String, Integer>(
-                            all,
-                            standardSeconds(1) /* timeToOutputEverything */,
-                            // Never declare output final
-                            standardSeconds(1000) /* timeToDeclareOutputFinal */,
-                            standardSeconds(30) /* timeToFail */))
+                    new TimedPollFn<String, Integer>(
+                        all,
+                        standardSeconds(1) /* timeToOutputEverything */,
+                        // Never declare output final
+                        standardSeconds(1000) /* timeToDeclareOutputFinal */,
+                        standardSeconds(30) /* timeToFail */))
                     // Should terminate after 4 seconds - earlier than timeToFail
                     .withTerminationPerInput(afterTimeSinceNewOutput(standardSeconds(3)))
                     .withPollInterval(Duration.millis(300))
@@ -256,7 +262,6 @@ public class WatchTest implements Serializable {
   }
 
   @Test
-  @Ignore("https://issues.apache.org/jira/browse/BEAM-6352")
   @Category(NeedsRunner.class)
   public void testSinglePollWithManyResults() {
     // More than the default 100 elements per checkpoint for direct runner.
@@ -265,18 +270,18 @@ public class WatchTest implements Serializable {
         p.apply(Create.of("a"))
             .apply(
                 Watch.growthOf(
-                        new PollFn<String, KV<String, Integer>>() {
-                          @Override
-                          public PollResult<KV<String, Integer>> apply(String element, Context c)
-                              throws Exception {
-                            String pollId = UUID.randomUUID().toString();
-                            List<KV<String, Integer>> output = Lists.newArrayList();
-                            for (int i = 0; i < numResults; ++i) {
-                              output.add(KV.of(pollId, i));
-                            }
-                            return PollResult.complete(Instant.now(), output);
-                          }
-                        })
+                    new PollFn<String, KV<String, Integer>>() {
+                      @Override
+                      public PollResult<KV<String, Integer>> apply(String element, Context c)
+                          throws Exception {
+                        String pollId = UUID.randomUUID().toString();
+                        List<KV<String, Integer>> output = Lists.newArrayList();
+                        for (int i = 0; i < numResults; ++i) {
+                          output.add(KV.of(pollId, i));
+                        }
+                        return PollResult.complete(Instant.now(), output);
+                      }
+                    })
                     .withTerminationPerInput(Growth.afterTotalOf(standardSeconds(1)))
                     .withPollInterval(Duration.millis(1))
                     .withOutputCoder(KvCoder.of(StringUtf8Coder.of(), VarIntCoder.of())))
@@ -303,7 +308,6 @@ public class WatchTest implements Serializable {
   }
 
   @Test
-  @Ignore("https://issues.apache.org/jira/browse/BEAM-6352")
   @Category(NeedsRunner.class)
   public void testMultiplePollsWithManyResults() {
     final long numResults = 3000;
@@ -316,11 +320,11 @@ public class WatchTest implements Serializable {
         p.apply(Create.of("a"))
             .apply(
                 Watch.growthOf(
-                        new TimedPollFn<String, Integer>(
-                            all,
-                            standardSeconds(1) /* timeToOutputEverything */,
-                            standardSeconds(3) /* timeToDeclareOutputFinal */,
-                            standardSeconds(30) /* timeToFail */))
+                    new TimedPollFn<String, Integer>(
+                        all,
+                        standardSeconds(1) /* timeToOutputEverything */,
+                        standardSeconds(3) /* timeToDeclareOutputFinal */,
+                        standardSeconds(30) /* timeToFail */))
                     .withPollInterval(Duration.millis(500))
                     .withOutputCoder(VarIntCoder.of()))
             .apply(Reify.timestampsInValue())
@@ -346,29 +350,27 @@ public class WatchTest implements Serializable {
                     }
                   };
 
-              Ordering<TimestampedValue<Integer>> byValue =
-                  Ordering.natural().onResultOf(extractValueFn);
               Ordering<TimestampedValue<Integer>> byTimestamp =
                   Ordering.natural().onResultOf(extractTimestampFn);
               // New outputs appear in timestamp order because each output's assigned timestamp
               // is Instant.now() at the time of poll.
               assertTrue(
                   "Outputs must be in timestamp order",
-                  byTimestamp.isOrdered(byValue.sortedCopy(outputs)));
+                  byTimestamp.isOrdered(outputs));
               assertEquals(
                   "Yields all expected values",
                   numResults,
                   Sets.newHashSet(
-                          StreamSupport.stream(outputs.spliterator(), false)
-                              .map(extractValueFn::apply)
-                              .collect(Collectors.toList()))
+                      StreamSupport.stream(outputs.spliterator(), false)
+                          .map(extractValueFn::apply)
+                          .collect(Collectors.toList()))
                       .size());
               assertThat(
                   "Poll called more than once",
                   Sets.newHashSet(
-                          StreamSupport.stream(outputs.spliterator(), false)
-                              .map(extractTimestampFn::apply)
-                              .collect(Collectors.toList()))
+                      StreamSupport.stream(outputs.spliterator(), false)
+                          .map(extractTimestampFn::apply)
+                          .collect(Collectors.toList()))
                       .size(),
                   greaterThan(1));
               return null;
@@ -377,11 +379,29 @@ public class WatchTest implements Serializable {
     p.run();
   }
 
+  @Test
+  public void testCoder() throws Exception {
+    GrowthState pollingState = new PollingGrowthState<>(
+        ImmutableMap.of(
+            HashCode.fromString("0123456789abcdef0123456789abcdef"), Instant.now(),
+            HashCode.fromString("01230123012301230123012301230123"), Instant.now()),
+        Instant.now(),
+        "STATE");
+    GrowthState nonPollingState = new NonPollingGrowthState<>(
+        Growth.PollResult.incomplete(Instant.now(), Arrays.asList("A", "B")));
+    Coder<GrowthState> coder =
+        Watch.GrowthStateCoder.of(StringUtf8Coder.of(), StringUtf8Coder.of());
+
+    CoderProperties.coderDecodeEncodeEqual(coder, pollingState);
+    CoderProperties.coderDecodeEncodeEqual(coder, nonPollingState);
+  }
+
   /**
    * Gradually emits all items from the given list, pairing each one with a UUID that identifies the
    * round of polling, so a client can check how many rounds of polling there were.
    */
   private static class TimedPollFn<InputT, OutputT> extends PollFn<InputT, OutputT> {
+
     private final Instant baseTime;
     private final List<OutputT> outputs;
     private final Duration timeToOutputEverything;
@@ -468,7 +488,7 @@ public class WatchTest implements Serializable {
     Watch.Growth.AfterTotalOf<Object> b = Growth.afterTotalOf(standardSeconds(10));
 
     Watch.Growth.BinaryCombined<
-            Object, KV<Instant, ReadableDuration>, KV<Instant, ReadableDuration>>
+        Object, KV<Instant, ReadableDuration>, KV<Instant, ReadableDuration>>
         c = eitherOf(a, b);
     KV<KV<Instant, ReadableDuration>, KV<Instant, ReadableDuration>> state =
         c.forNewInput(now, null);
@@ -484,7 +504,7 @@ public class WatchTest implements Serializable {
     Watch.Growth.AfterTotalOf<Object> b = Growth.afterTotalOf(standardSeconds(10));
 
     Watch.Growth.BinaryCombined<
-            Object, KV<Instant, ReadableDuration>, KV<Instant, ReadableDuration>>
+        Object, KV<Instant, ReadableDuration>, KV<Instant, ReadableDuration>>
         c = allOf(a, b);
     KV<KV<Instant, ReadableDuration>, KV<Instant, ReadableDuration>> state =
         c.forNewInput(now, null);
@@ -493,319 +513,170 @@ public class WatchTest implements Serializable {
     assertTrue(c.canStopPolling(now.plus(standardSeconds(12)), state));
   }
 
-  private static GrowthTracker<String, String, Integer> newTracker(
-      GrowthState<String, String, Integer> state) {
-    return new GrowthTracker<>(
-        SerializableFunctions.identity(), StringUtf8Coder.of(), state, never());
+  private static GrowthTracker<String, Integer> newTracker(
+      GrowthState state) {
+    Funnel<String> coderFunnel = (from, into) -> {
+      try {
+        StringUtf8Coder.of().encode(from, Funnels.asOutputStream(into));
+      } catch (IOException e) {
+        throw new RuntimeException(e);
+      }
+    };
+    return new GrowthTracker<>(state, coderFunnel);
   }
 
-  private static GrowthTracker<String, String, Integer> newTracker() {
-    return newTracker(new GrowthState<>(never().forNewInput(Instant.now(), null)));
+  private static HashCode hash128(String value) {
+    Funnel<String> coderFunnel = (from, into) -> {
+      try {
+        StringUtf8Coder.of().encode(from, Funnels.asOutputStream(into));
+      } catch (IOException e) {
+        throw new RuntimeException(e);
+      }
+    };
+    return Hashing.murmur3_128().hashObject(value, coderFunnel);
   }
 
-  private String tryClaimNextPending(GrowthTracker<String, ?, ?> tracker) {
-    assertTrue(tracker.hasPending());
-    Map.Entry<HashCode, TimestampedValue<String>> entry = tracker.getNextPending();
-    tracker.tryClaim(entry.getKey());
-    return entry.getValue().getValue();
+  private static GrowthTracker<String, Integer> newPollingGrowthTracker() {
+    return newTracker(
+        new PollingGrowthState<>(never().forNewInput(Instant.now(), null)));
   }
 
   @Test
-  public void testGrowthTrackerCheckpointNonEmpty() {
+  public void testPollingGrowthTrackerCheckpointNonEmpty() {
     Instant now = Instant.now();
-    GrowthTracker<String, String, Integer> tracker = newTracker();
-    tracker.addNewAsPending(
-        PollResult.incomplete(
-                Arrays.asList(
-                    TimestampedValue.of("d", now.plus(standardSeconds(4))),
-                    TimestampedValue.of("c", now.plus(standardSeconds(3))),
-                    TimestampedValue.of("a", now.plus(standardSeconds(1))),
-                    TimestampedValue.of("b", now.plus(standardSeconds(2)))))
-            .withWatermark(now.plus(standardSeconds(7))));
+    GrowthTracker<String, Integer> tracker = newPollingGrowthTracker();
 
-    assertEquals(now.plus(standardSeconds(1)), tracker.getWatermark());
-    assertEquals("a", tryClaimNextPending(tracker));
-    assertEquals("b", tryClaimNextPending(tracker));
-    assertTrue(tracker.hasPending());
-    assertEquals(now.plus(standardSeconds(3)), tracker.getWatermark());
+    PollResult<String> claim = PollResult.incomplete(
+        Arrays.asList(
+            TimestampedValue.of("d", now.plus(standardSeconds(4))),
+            TimestampedValue.of("c", now.plus(standardSeconds(3))),
+            TimestampedValue.of("a", now.plus(standardSeconds(1))),
+            TimestampedValue.of("b", now.plus(standardSeconds(2)))))
+        .withWatermark(now.plus(standardSeconds(7)));
 
-    GrowthTracker<String, String, Integer> residualTracker = newTracker(tracker.checkpoint());
-    GrowthTracker<String, String, Integer> primaryTracker =
-        newTracker(tracker.currentRestriction());
+    assertTrue(tracker.tryClaim(KV.of(claim, 1 /* termination state */)));
+
+    PollingGrowthState<Integer> residual = (PollingGrowthState<Integer>) tracker.checkpoint();
+    NonPollingGrowthState<String> primary = (NonPollingGrowthState<String>) tracker
+        .currentRestriction();
+    tracker.checkDone();
 
     // Verify primary: should contain what the current tracker claimed, and nothing else.
-    assertEquals(now.plus(standardSeconds(1)), primaryTracker.getWatermark());
-    assertEquals("a", tryClaimNextPending(primaryTracker));
-    assertEquals("b", tryClaimNextPending(primaryTracker));
-    assertFalse(primaryTracker.hasPending());
-    assertFalse(primaryTracker.shouldPollMore());
-    // No more pending elements in primary restriction, and no polling.
-    primaryTracker.checkDone();
-    assertEquals(BoundedWindow.TIMESTAMP_MAX_VALUE, primaryTracker.getWatermark());
+    assertEquals(claim, primary.pending);
 
     // Verify residual: should contain what the current tracker didn't claim.
-    assertEquals(now.plus(standardSeconds(3)), residualTracker.getWatermark());
-    assertEquals("c", tryClaimNextPending(residualTracker));
-    assertEquals("d", tryClaimNextPending(residualTracker));
-    assertFalse(residualTracker.hasPending());
-    assertTrue(residualTracker.shouldPollMore());
-    // No more pending elements in residual restriction, but poll watermark still holds.
-    assertEquals(now.plus(standardSeconds(7)), residualTracker.getWatermark());
-
-    // Verify current tracker: it was checkpointed, so should contain nothing else.
-    assertFalse(tracker.hasPending());
-    tracker.checkDone();
-    assertFalse(tracker.shouldPollMore());
-    assertEquals(BoundedWindow.TIMESTAMP_MAX_VALUE, tracker.getWatermark());
+    assertEquals(now.plus(standardSeconds(7)), residual.pollWatermark);
+    assertThat(residual.completed.keySet(),
+        containsInAnyOrder(hash128("a"), hash128("b"), hash128("c"), hash128("d")));
+    assertEquals(1, (int) residual.terminationState);
   }
 
   @Test
-  public void testGrowthTrackerOutputFullyBeforeCheckpointIncomplete() {
-    Instant now = Instant.now();
-    GrowthTracker<String, String, Integer> tracker = newTracker();
-    tracker.addNewAsPending(
-        PollResult.incomplete(
-                Arrays.asList(
-                    TimestampedValue.of("d", now.plus(standardSeconds(4))),
-                    TimestampedValue.of("c", now.plus(standardSeconds(3))),
-                    TimestampedValue.of("a", now.plus(standardSeconds(1))),
-                    TimestampedValue.of("b", now.plus(standardSeconds(2)))))
-            .withWatermark(now.plus(standardSeconds(7))));
+  public void testPollingGrowthTrackerCheckpointEmpty() {
+    GrowthTracker<String, Integer> tracker = newPollingGrowthTracker();
 
-    assertEquals("a", tryClaimNextPending(tracker));
-    assertEquals("b", tryClaimNextPending(tracker));
-    assertEquals("c", tryClaimNextPending(tracker));
-    assertEquals("d", tryClaimNextPending(tracker));
-    assertFalse(tracker.hasPending());
-    assertEquals(now.plus(standardSeconds(7)), tracker.getWatermark());
-
-    GrowthTracker<String, String, Integer> residualTracker = newTracker(tracker.checkpoint());
-    GrowthTracker<String, String, Integer> primaryTracker =
-        newTracker(tracker.currentRestriction());
+    PollingGrowthState<Integer> residual = (PollingGrowthState<Integer>) tracker.checkpoint();
+    GrowthState primary = tracker.currentRestriction();
+    tracker.checkDone();
 
     // Verify primary: should contain what the current tracker claimed, and nothing else.
-    assertEquals(now.plus(standardSeconds(1)), primaryTracker.getWatermark());
-    assertEquals("a", tryClaimNextPending(primaryTracker));
-    assertEquals("b", tryClaimNextPending(primaryTracker));
-    assertEquals("c", tryClaimNextPending(primaryTracker));
-    assertEquals("d", tryClaimNextPending(primaryTracker));
-    assertFalse(primaryTracker.hasPending());
-    assertFalse(primaryTracker.shouldPollMore());
-    // No more pending elements in primary restriction, and no polling.
-    primaryTracker.checkDone();
-    assertEquals(BoundedWindow.TIMESTAMP_MAX_VALUE, primaryTracker.getWatermark());
+    assertEquals(GrowthTracker.EMPTY_STATE, primary);
 
     // Verify residual: should contain what the current tracker didn't claim.
-    assertFalse(residualTracker.hasPending());
-    assertTrue(residualTracker.shouldPollMore());
-    // No more pending elements in residual restriction, but poll watermark still holds.
-    assertEquals(now.plus(standardSeconds(7)), residualTracker.getWatermark());
+    assertNull(residual.pollWatermark);
+    assertEquals(0, residual.completed.size());
+    assertEquals(0, (int) residual.terminationState);
+  }
 
-    // Verify current tracker: it was checkpointed, so should contain nothing else.
+  @Test
+  public void testPollingGrowthTrackerHashAlreadyClaimed() {
+    Instant now = Instant.now();
+    GrowthTracker<String, Integer> tracker = newPollingGrowthTracker();
+
+    PollResult<String> claim = PollResult.incomplete(
+        Arrays.asList(
+            TimestampedValue.of("d", now.plus(standardSeconds(4))),
+            TimestampedValue.of("c", now.plus(standardSeconds(3))),
+            TimestampedValue.of("a", now.plus(standardSeconds(1))),
+            TimestampedValue.of("b", now.plus(standardSeconds(2)))))
+        .withWatermark(now.plus(standardSeconds(7)));
+
+    assertTrue(tracker.tryClaim(KV.of(claim, 1 /* termination state */)));
+
+    PollingGrowthState<Integer> residual = (PollingGrowthState<Integer>) tracker.checkpoint();
+
+    assertFalse(newTracker(residual).tryClaim(KV.of(claim, 2)));
+  }
+
+  @Test
+  public void testNonPollingGrowthTrackerCheckpointNonEmpty() {
+    Instant now = Instant.now();
+    PollResult<String> claim = PollResult.incomplete(
+        Arrays.asList(
+            TimestampedValue.of("d", now.plus(standardSeconds(4))),
+            TimestampedValue.of("c", now.plus(standardSeconds(3))),
+            TimestampedValue.of("a", now.plus(standardSeconds(1))),
+            TimestampedValue.of("b", now.plus(standardSeconds(2)))))
+        .withWatermark(now.plus(standardSeconds(7)));
+
+    GrowthTracker<String, Integer> tracker = newTracker(new NonPollingGrowthState<>(claim));
+
+    assertTrue(tracker.tryClaim(KV.of(claim, 1 /* termination state */)));
+    GrowthState residual = tracker.checkpoint();
+    NonPollingGrowthState<String> primary = (NonPollingGrowthState<String>) tracker
+        .currentRestriction();
     tracker.checkDone();
-    assertFalse(tracker.hasPending());
-    assertFalse(tracker.shouldPollMore());
-    assertEquals(BoundedWindow.TIMESTAMP_MAX_VALUE, tracker.getWatermark());
+
+    // Verify primary: should contain what the current tracker claimed, and nothing else.
+    assertEquals(claim, primary.pending);
+
+    // Verify residual: should contain what the current tracker didn't claim.
+    assertEquals(GrowthTracker.EMPTY_STATE, residual);
   }
 
   @Test
-  public void testGrowthTrackerPollAfterCheckpointIncompleteWithNewOutputs() {
+  public void testNonPollingGrowthTrackerCheckpointEmpty() {
     Instant now = Instant.now();
-    GrowthTracker<String, String, Integer> tracker = newTracker();
-    tracker.addNewAsPending(
-        PollResult.incomplete(
-                Arrays.asList(
-                    TimestampedValue.of("d", now.plus(standardSeconds(4))),
-                    TimestampedValue.of("c", now.plus(standardSeconds(3))),
-                    TimestampedValue.of("a", now.plus(standardSeconds(1))),
-                    TimestampedValue.of("b", now.plus(standardSeconds(2)))))
-            .withWatermark(now.plus(standardSeconds(7))));
+    PollResult<String> claim = PollResult.incomplete(
+        Arrays.asList(
+            TimestampedValue.of("d", now.plus(standardSeconds(4))),
+            TimestampedValue.of("c", now.plus(standardSeconds(3))),
+            TimestampedValue.of("a", now.plus(standardSeconds(1))),
+            TimestampedValue.of("b", now.plus(standardSeconds(2)))))
+        .withWatermark(now.plus(standardSeconds(7)));
 
-    assertEquals("a", tryClaimNextPending(tracker));
-    assertEquals("b", tryClaimNextPending(tracker));
-    assertEquals("c", tryClaimNextPending(tracker));
-    assertEquals("d", tryClaimNextPending(tracker));
+    GrowthTracker<String, Integer> tracker = newTracker(new NonPollingGrowthState<>(claim));
 
-    GrowthState<String, String, Integer> checkpoint = tracker.checkpoint();
-    // Simulate resuming from the checkpoint and adding more elements.
-    {
-      GrowthTracker<String, String, Integer> residualTracker = newTracker(checkpoint);
-      residualTracker.addNewAsPending(
-          PollResult.incomplete(
-                  Arrays.asList(
-                      TimestampedValue.of("e", now.plus(standardSeconds(5))),
-                      TimestampedValue.of("d", now.plus(standardSeconds(4))),
-                      TimestampedValue.of("c", now.plus(standardSeconds(3))),
-                      TimestampedValue.of("a", now.plus(standardSeconds(1))),
-                      TimestampedValue.of("b", now.plus(standardSeconds(2))),
-                      TimestampedValue.of("f", now.plus(standardSeconds(8)))))
-              .withWatermark(now.plus(standardSeconds(12))));
-
-      assertEquals(now.plus(standardSeconds(5)), residualTracker.getWatermark());
-      assertEquals("e", tryClaimNextPending(residualTracker));
-      assertEquals(now.plus(standardSeconds(8)), residualTracker.getWatermark());
-      assertEquals("f", tryClaimNextPending(residualTracker));
-
-      assertFalse(residualTracker.hasPending());
-      assertTrue(residualTracker.shouldPollMore());
-      assertEquals(now.plus(standardSeconds(12)), residualTracker.getWatermark());
-    }
-    // Try same without an explicitly specified watermark.
-    {
-      GrowthTracker<String, String, Integer> residualTracker = newTracker(checkpoint);
-      residualTracker.addNewAsPending(
-          PollResult.incomplete(
-              Arrays.asList(
-                  TimestampedValue.of("e", now.plus(standardSeconds(5))),
-                  TimestampedValue.of("d", now.plus(standardSeconds(4))),
-                  TimestampedValue.of("c", now.plus(standardSeconds(3))),
-                  TimestampedValue.of("a", now.plus(standardSeconds(1))),
-                  TimestampedValue.of("b", now.plus(standardSeconds(2))),
-                  TimestampedValue.of("f", now.plus(standardSeconds(8))))));
-
-      assertEquals(now.plus(standardSeconds(5)), residualTracker.getWatermark());
-      assertEquals("e", tryClaimNextPending(residualTracker));
-      assertEquals(now.plus(standardSeconds(5)), residualTracker.getWatermark());
-      assertEquals("f", tryClaimNextPending(residualTracker));
-
-      assertFalse(residualTracker.hasPending());
-      assertTrue(residualTracker.shouldPollMore());
-      assertEquals(now.plus(standardSeconds(5)), residualTracker.getWatermark());
-    }
-  }
-
-  @Test
-  public void testGrowthTrackerPollAfterCheckpointWithoutNewOutputs() {
-    Instant now = Instant.now();
-    GrowthTracker<String, String, Integer> tracker = newTracker();
-    tracker.addNewAsPending(
-        PollResult.incomplete(
-                Arrays.asList(
-                    TimestampedValue.of("d", now.plus(standardSeconds(4))),
-                    TimestampedValue.of("c", now.plus(standardSeconds(3))),
-                    TimestampedValue.of("a", now.plus(standardSeconds(1))),
-                    TimestampedValue.of("b", now.plus(standardSeconds(2)))))
-            .withWatermark(now.plus(standardSeconds(7))));
-
-    assertEquals("a", tryClaimNextPending(tracker));
-    assertEquals("b", tryClaimNextPending(tracker));
-    assertEquals("c", tryClaimNextPending(tracker));
-    assertEquals("d", tryClaimNextPending(tracker));
-
-    // Simulate resuming from the checkpoint but there are no new elements.
-    GrowthState<String, String, Integer> checkpoint = tracker.checkpoint();
-    {
-      GrowthTracker<String, String, Integer> residualTracker = newTracker(checkpoint);
-      residualTracker.addNewAsPending(
-          PollResult.incomplete(
-                  Arrays.asList(
-                      TimestampedValue.of("c", now.plus(standardSeconds(3))),
-                      TimestampedValue.of("d", now.plus(standardSeconds(4))),
-                      TimestampedValue.of("a", now.plus(standardSeconds(1))),
-                      TimestampedValue.of("b", now.plus(standardSeconds(2)))))
-              .withWatermark(now.plus(standardSeconds(12))));
-
-      assertFalse(residualTracker.hasPending());
-      assertTrue(residualTracker.shouldPollMore());
-      assertEquals(now.plus(standardSeconds(12)), residualTracker.getWatermark());
-    }
-    // Try the same without an explicitly specified watermark
-    {
-      GrowthTracker<String, String, Integer> residualTracker = newTracker(checkpoint);
-      residualTracker.addNewAsPending(
-          PollResult.incomplete(
-              Arrays.asList(
-                  TimestampedValue.of("c", now.plus(standardSeconds(3))),
-                  TimestampedValue.of("d", now.plus(standardSeconds(4))),
-                  TimestampedValue.of("a", now.plus(standardSeconds(1))),
-                  TimestampedValue.of("b", now.plus(standardSeconds(2))))));
-      // No new elements and no explicit watermark supplied - should reuse old watermark.
-      assertEquals(now.plus(standardSeconds(7)), residualTracker.getWatermark());
-    }
-  }
-
-  @Test
-  public void testGrowthTrackerPollAfterCheckpointWithoutNewOutputsNoWatermark() {
-    Instant now = Instant.now();
-    GrowthTracker<String, String, Integer> tracker = newTracker();
-    tracker.addNewAsPending(
-        PollResult.incomplete(
-            Arrays.asList(
-                TimestampedValue.of("d", now.plus(standardSeconds(4))),
-                TimestampedValue.of("c", now.plus(standardSeconds(3))),
-                TimestampedValue.of("a", now.plus(standardSeconds(1))),
-                TimestampedValue.of("b", now.plus(standardSeconds(2))))));
-    assertEquals("a", tryClaimNextPending(tracker));
-    assertEquals("b", tryClaimNextPending(tracker));
-    assertEquals("c", tryClaimNextPending(tracker));
-    assertEquals("d", tryClaimNextPending(tracker));
-    assertEquals(now.plus(standardSeconds(1)), tracker.getWatermark());
-
-    // Simulate resuming from the checkpoint but there are no new elements.
-    GrowthState<String, String, Integer> checkpoint = tracker.checkpoint();
-    GrowthTracker<String, String, Integer> residualTracker = newTracker(checkpoint);
-    residualTracker.addNewAsPending(
-        PollResult.incomplete(
-            Arrays.asList(
-                TimestampedValue.of("c", now.plus(standardSeconds(3))),
-                TimestampedValue.of("d", now.plus(standardSeconds(4))),
-                TimestampedValue.of("a", now.plus(standardSeconds(1))),
-                TimestampedValue.of("b", now.plus(standardSeconds(2))))));
-    // No new elements and no explicit watermark supplied - should keep old watermark.
-    assertEquals(now.plus(standardSeconds(1)), residualTracker.getWatermark());
-  }
-
-  @Test
-  public void testGrowthTrackerRepeatedEmptyPollWatermark() {
-    // Empty poll result with no watermark
-    {
-      GrowthTracker<String, String, Integer> tracker = newTracker();
-      tracker.addNewAsPending(PollResult.incomplete(Collections.emptyList()));
-      assertEquals(BoundedWindow.TIMESTAMP_MIN_VALUE, tracker.getWatermark());
-    }
-    // Empty poll result with watermark
-    {
-      Instant now = Instant.now();
-      GrowthTracker<String, String, Integer> tracker = newTracker();
-      tracker.addNewAsPending(
-          PollResult.incomplete(Collections.<TimestampedValue<String>>emptyList())
-              .withWatermark(now));
-      assertEquals(now, tracker.getWatermark());
-    }
-  }
-
-  @Test
-  public void testGrowthTrackerOutputFullyBeforeCheckpointComplete() {
-    Instant now = Instant.now();
-    GrowthTracker<String, String, Integer> tracker = newTracker();
-    tracker.addNewAsPending(
-        PollResult.complete(
-            Arrays.asList(
-                TimestampedValue.of("d", now.plus(standardSeconds(4))),
-                TimestampedValue.of("c", now.plus(standardSeconds(3))),
-                TimestampedValue.of("a", now.plus(standardSeconds(1))),
-                TimestampedValue.of("b", now.plus(standardSeconds(2))))));
-
-    assertEquals("a", tryClaimNextPending(tracker));
-    assertEquals("b", tryClaimNextPending(tracker));
-    assertEquals("c", tryClaimNextPending(tracker));
-    assertEquals("d", tryClaimNextPending(tracker));
-    assertFalse(tracker.hasPending());
-    assertEquals(BoundedWindow.TIMESTAMP_MAX_VALUE, tracker.getWatermark());
-
-    GrowthTracker<String, String, Integer> residualTracker = newTracker(tracker.checkpoint());
-
-    // Verify residual: should be empty, since output was final.
-    residualTracker.checkDone();
-    assertFalse(residualTracker.hasPending());
-    assertFalse(residualTracker.shouldPollMore());
-    // No more pending elements in residual restriction, but poll watermark still holds.
-    assertEquals(BoundedWindow.TIMESTAMP_MAX_VALUE, residualTracker.getWatermark());
-
-    // Verify current tracker: it was checkpointed, so should contain nothing else.
+    NonPollingGrowthState<String> residual = (NonPollingGrowthState<String>) tracker.checkpoint();
+    GrowthState primary = tracker.currentRestriction();
     tracker.checkDone();
-    assertFalse(tracker.hasPending());
-    assertFalse(tracker.shouldPollMore());
-    assertEquals(BoundedWindow.TIMESTAMP_MAX_VALUE, tracker.getWatermark());
+
+    // Verify primary: should contain what the current tracker claimed, and nothing else.
+    assertEquals(GrowthTracker.EMPTY_STATE, primary);
+
+    // Verify residual: should contain what the current tracker didn't claim.
+    assertEquals(claim, residual.pending);
+  }
+
+  @Test
+  public void testNonPollingGrowthTrackerFailedToClaimOtherPollResult() {
+    Instant now = Instant.now();
+    PollResult<String> claim = PollResult.incomplete(
+        Arrays.asList(
+            TimestampedValue.of("d", now.plus(standardSeconds(4))),
+            TimestampedValue.of("c", now.plus(standardSeconds(3))),
+            TimestampedValue.of("a", now.plus(standardSeconds(1))),
+            TimestampedValue.of("b", now.plus(standardSeconds(2)))))
+        .withWatermark(now.plus(standardSeconds(7)));
+
+    GrowthTracker<String, Integer> tracker = newTracker(new NonPollingGrowthState<>(claim));
+
+    PollResult<String> otherClaim = PollResult.incomplete(
+        Arrays.asList(
+            TimestampedValue.of("x", now.plus(standardSeconds(14))),
+            TimestampedValue.of("y", now.plus(standardSeconds(13))),
+            TimestampedValue.of("z", now.plus(standardSeconds(12)))))
+        .withWatermark(now.plus(standardSeconds(17)));
+    assertFalse(tracker.tryClaim(KV.of(otherClaim, 1)));
   }
 }
