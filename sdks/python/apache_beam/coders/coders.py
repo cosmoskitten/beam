@@ -314,20 +314,46 @@ def _pickle_from_runner_api_parameter(payload, components, context):
   return deserialize_coder(payload.value)
 
 
-class StrUtf8Coder(Coder):
-  """A coder used for reading and writing strings as UTF-8."""
+class FastCoder(Coder):
+  """Coder subclass used when a (faster) CoderImpl is supplied directly.
+
+  The Coder class defines _create_impl in terms of encode() and decode();
+  this class inverts that by defining encode() and decode() in terms of
+  _create_impl().
+  """
 
   def encode(self, value):
-    return value.encode('utf-8')
+    """Encodes the given object into a byte string."""
+    return self.get_impl().encode(value)
 
-  def decode(self, value):
-    return value.decode('utf-8')
+  def decode(self, encoded):
+    """Decodes the given byte string into the corresponding object."""
+    return self.get_impl().decode(encoded)
+
+  def estimate_size(self, value):
+    return self.get_impl().estimate_size(value)
+
+  def _create_impl(self):
+    raise NotImplementedError
+
+
+class StrUtf8Coder(FastCoder):
+  """A coder used for reading and writing strings as UTF-8."""
+
+  def _create_impl(self):
+    return coder_impl.StrUtf8CoderImpl()
 
   def is_deterministic(self):
     return True
 
   def to_type_hint(self):
     return unicode
+
+  def __eq__(self, other):
+    return type(self) == type(other)
+
+  def __hash__(self):
+    return hash(type(self))
 
 
 Coder.register_structured_urn(
@@ -354,29 +380,6 @@ class ToStringCoder(Coder):
 
   def is_deterministic(self):
     return True
-
-
-class FastCoder(Coder):
-  """Coder subclass used when a (faster) CoderImpl is supplied directly.
-
-  The Coder class defines _create_impl in terms of encode() and decode();
-  this class inverts that by defining encode() and decode() in terms of
-  _create_impl().
-  """
-
-  def encode(self, value):
-    """Encodes the given object into a byte string."""
-    return self.get_impl().encode(value)
-
-  def decode(self, encoded):
-    """Decodes the given byte string into the corresponding object."""
-    return self.get_impl().decode(encoded)
-
-  def estimate_size(self, value):
-    return self.get_impl().estimate_size(value)
-
-  def _create_impl(self):
-    raise NotImplementedError
 
 
 class BytesCoder(FastCoder):

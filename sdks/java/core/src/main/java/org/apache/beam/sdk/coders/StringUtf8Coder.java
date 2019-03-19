@@ -23,8 +23,6 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.io.UTFDataFormatException;
 import java.nio.charset.StandardCharsets;
-import org.apache.beam.sdk.util.ExposedByteArrayOutputStream;
-import org.apache.beam.sdk.util.StreamUtils;
 import org.apache.beam.sdk.util.VarInt;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Utf8;
@@ -65,44 +63,20 @@ public class StringUtf8Coder extends AtomicCoder<String> {
 
   @Override
   public void encode(String value, OutputStream outStream) throws IOException {
-    encode(value, outStream, Context.NESTED);
-  }
-
-  @Override
-  public void encode(String value, OutputStream outStream, Context context) throws IOException {
     if (value == null) {
       throw new CoderException("cannot encode a null String");
     }
-    if (context.isWholeStream) {
-      byte[] bytes = value.getBytes(StandardCharsets.UTF_8);
-      if (outStream instanceof ExposedByteArrayOutputStream) {
-        ((ExposedByteArrayOutputStream) outStream).writeAndOwn(bytes);
-      } else {
-        outStream.write(bytes);
-      }
-    } else {
-      writeString(value, outStream);
-    }
+    writeString(value, outStream);
   }
 
   @Override
   public String decode(InputStream inStream) throws IOException {
-    return decode(inStream, Context.NESTED);
-  }
-
-  @Override
-  public String decode(InputStream inStream, Context context) throws IOException {
-    if (context.isWholeStream) {
-      byte[] bytes = StreamUtils.getBytesWithoutClosing(inStream);
-      return new String(bytes, StandardCharsets.UTF_8);
-    } else {
-      try {
-        return readString(inStream);
-      } catch (EOFException | UTFDataFormatException exn) {
-        // These exceptions correspond to decoding problems, so change
-        // what kind of exception they're branded as.
-        throw new CoderException(exn);
-      }
+    try {
+      return readString(inStream);
+    } catch (EOFException | UTFDataFormatException exn) {
+      // These exceptions correspond to decoding problems, so change
+      // what kind of exception they're branded as.
+      throw new CoderException(exn);
     }
   }
 
