@@ -30,11 +30,12 @@ class GenerateSequence(ptransform.PTransform):
     A PTransform that provides a bounded or unbounded stream of integers.
   """
 
+  URN = 'beam:external:java:generate_sequence:v1'
+
   def __init__(self, start, stop=None,
                elements_per_period=None, max_read_time=None,
                expansion_service=None):
     super(GenerateSequence, self).__init__()
-    self._urn = 'beam:external:java:generate_sequence:v1'
     self.start = start
     self.stop = stop
     self.elements_per_period = elements_per_period
@@ -69,6 +70,6 @@ class GenerateSequence(ptransform.PTransform):
     payload = ExternalConfigurationPayload(configuration=args)
     return pbegin.apply(
         ExternalTransform(
-            self._urn,
+            self.URN,
             payload.SerializeToString(),
             self.expansion_service))
