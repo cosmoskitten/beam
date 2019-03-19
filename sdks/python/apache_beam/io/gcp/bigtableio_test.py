@@ -46,12 +46,9 @@ except ImportError:
 @unittest.skipIf(Client is None, 'GCP Bigtable dependencies are not installed')
 class BigtableSourceTest(unittest.TestCase):
   def setUp(self):
-    #self.project_id = 'project_id'
-    self.project_id = 'grass-clump-479'
-    #self.instance_id = 'instance_id'
-    self.instance_id = 'python-write-2'
-    #self.table_id = 'table_id'
-    self.table_id = 'testmillion7abb2dc3'
+    self.project_id = 'project_id'
+    self.instance_id = 'instance_id'
+    self.table_id = 'table_id'
     if not hasattr(self, 'client'):
       self.client = Client(project=self.project_id, admin=True)
       self.instance = self.client.instance(self.instance_id)
