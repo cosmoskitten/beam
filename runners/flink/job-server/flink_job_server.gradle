@@ -155,3 +155,14 @@ task validatesPortableRunner() {
   dependsOn validatesPortableRunnerBatch
   dependsOn validatesPortableRunnerStreaming
 }
+
+project.ext.validatesCrossLanguageRunner = createCrossLanguageValidatesRunnerTask(
+  jobServerDriver: "org.apache.beam.runners.flink.FlinkJobServerDriver",
+  jobServerConfig: "--clean-artifacts-per-job,--job-host=localhost,--job-port=0,--artifact-port=0",
+  testClasspathConfiguration: configurations.validatesPortableRunner,
+  numParallelTests: 1,
+  pipelineOpts: [
+    "--parallelism=2",
+    "--shutdownSourcesOnFinalWatermark",
+  ]
+)

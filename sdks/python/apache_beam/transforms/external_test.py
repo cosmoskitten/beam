@@ -25,36 +25,25 @@ import sys
 import unittest
 
 import grpc
+from nose.plugins.attrib import attr
 from past.builtins import unicode
 
 import apache_beam as beam
-from apache_beam.io.external.generate_sequence import GenerateSequence
-from apache_beam.portability import python_urns
 from apache_beam.runners.portability import expansion_service
+from apache_beam.runners.portability.expansion_service_test import FibTransform
+from apache_beam.testing.test_pipeline import TestPipeline
 from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
-from apache_beam.transforms import ptransform
 
 
+@attr('UsesCrossLanguageTransforms')
 class ExternalTransformTest(unittest.TestCase):
 
   # This will be overwritten if set via a flag.
   expansion_service_jar = None
+  expansion_port = None
 
   def test_simple(self):
-
-    @ptransform.PTransform.register_urn('simple', None)
-    class SimpleTransform(ptransform.PTransform):
-      def expand(self, pcoll):
-        return pcoll | beam.Map(lambda x: 'Simple(%s)' % x)
-
-      def to_runner_api_parameter(self, unused_context):
-        return 'simple', None
-
-      @staticmethod
-      def from_runner_api_parameter(unused_parameter, unused_context):
-        return SimpleTransform()
-
     with beam.Pipeline() as p:
       res = (
           p
@@ -66,26 +55,6 @@ class ExternalTransformTest(unittest.TestCase):
       assert_that(res, equal_to(['Simple(a)', 'Simple(b)']))
 
   def test_multi(self):
-
-    @ptransform.PTransform.register_urn('multi', None)
-    class MutltiTransform(ptransform.PTransform):
-      def expand(self, pcolls):
-        return {
-            'main':
-                (pcolls['main1'], pcolls['main2'])
-                | beam.Flatten()
-                | beam.Map(lambda x, s: x + s,
-                           beam.pvalue.AsSingleton(pcolls['side'])),
-            'side': pcolls['side'] | beam.Map(lambda x: x + x),
-        }
-
-      def to_runner_api_parameter(self, unused_context):
-        return 'multi', None
-
-      @staticmethod
-      def from_runner_api_parameter(unused_parameter, unused_context):
-        return MutltiTransform()
-
     with beam.Pipeline() as p:
       main1 = p | 'Main1' >> beam.Create(['a', 'bb'], reshuffle=False)
       main2 = p | 'Main2' >> beam.Create(['x', 'yy', 'zzz'], reshuffle=False)
@@ -96,22 +65,6 @@ class ExternalTransformTest(unittest.TestCase):
       assert_that(res['side'], equal_to(['ss']), label='CheckSide')
 
   def test_payload(self):
-
-    @ptransform.PTransform.register_urn('payload', bytes)
-    class PayloadTransform(ptransform.PTransform):
-      def __init__(self, payload):
-        self._payload = payload
-
-      def expand(self, pcoll):
-        return pcoll | beam.Map(lambda x, s: x + s, self._payload)
-
-      def to_runner_api_parameter(self, unused_context):
-        return b'payload', self._payload.encode('ascii')
-
-      @staticmethod
-      def from_runner_api_parameter(payload, unused_context):
-        return PayloadTransform(payload.decode('ascii'))
-
     with beam.Pipeline() as p:
       res = (
           p
@@ -122,64 +75,35 @@ class ExternalTransformTest(unittest.TestCase):
       assert_that(res, equal_to(['as', 'bbs']))
 
   def test_nested(self):
-    @ptransform.PTransform.register_urn('fib', bytes)
-    class FibTransform(ptransform.PTransform):
-      def __init__(self, level):
-        self._level = level
-
-      def expand(self, p):
-        if self._level <= 2:
-          return p | beam.Create([1])
-        else:
-          a = p | 'A' >> beam.ExternalTransform(
-              'fib', str(self._level - 1).encode('ascii'),
-              expansion_service.ExpansionServiceServicer())
-          b = p | 'B' >> beam.ExternalTransform(
-              'fib', str(self._level - 2).encode('ascii'),
-              expansion_service.ExpansionServiceServicer())
-          return (
-              (a, b)
-              | beam.Flatten()
-              | beam.CombineGlobally(sum).without_defaults())
-
-      def to_runner_api_parameter(self, unused_context):
-        return 'fib', str(self._level).encode('ascii')
-
-      @staticmethod
-      def from_runner_api_parameter(level, unused_context):
-        return FibTransform(int(level.decode('ascii')))
-
     with beam.Pipeline() as p:
       assert_that(p | FibTransform(6), equal_to([8]))
 
   def test_java_expansion(self):
-    if not self.expansion_service_jar:
-      raise unittest.SkipTest('No expansion service jar provided.')
+    test_pipeline = TestPipeline()
+
+    self.expansion_port = test_pipeline.get_option("expansion_port")
+
+    if not (self.expansion_service_jar or self.expansion_port):
+      raise unittest.SkipTest('No expansion service jar or port provided.')
 
     # The actual definitions of these transforms is in
     # org.apache.beam.runners.core.construction.TestExpansionService.
-    TEST_COUNT_URN = "pytest:beam:transforms:count"
-    TEST_FILTER_URN = "pytest:beam:transforms:filter_less_than"
+    TEST_COUNT_URN = "beam:transforms:xlang:count"
+    TEST_FILTER_URN = "beam:transforms:xlang:filter_less_than_eq"
 
-    # Run as cheaply as possible on the portable runner.
-    # TODO(robertwb): Support this directly in the direct runner.
-    options = beam.options.pipeline_options.PipelineOptions(
-        runner='PortableRunner',
-        experiments=['beam_fn_api'],
-        environment_type=python_urns.EMBEDDED_PYTHON,
-        job_endpoint='embed')
-
+    server = None
     try:
-      # Start the java server and wait for it to be ready.
-      port = '8091'
+      port = self.expansion_port or '8091'
       address = 'localhost:%s' % port
-      server = subprocess.Popen(
-          ['java', '-jar', self.expansion_service_jar, port])
+      if self.expansion_service_jar:
+        # Start the java server and wait for it to be ready.
+        server = subprocess.Popen(
+            ['java', '-jar', self.expansion_service_jar, port])
       with grpc.insecure_channel(address) as channel:
         grpc.channel_ready_future(channel).result()
 
       # Run a simple count-filtered-letters pipeline.
-      with beam.Pipeline(options=options) as p:
+      with test_pipeline as p:
         res = (
             p
             | beam.Create(list('aaabccxyyzzz'))
@@ -194,18 +118,9 @@ class ExternalTransformTest(unittest.TestCase):
 
         assert_that(res, equal_to(['a: 3', 'b: 1', 'c: 2']))
 
-      # Test GenerateSequence Java transform
-      with beam.Pipeline(options=options) as p:
-        res = (
-            p
-            | GenerateSequence(start=1, stop=10,
-                               expansion_service=address)
-        )
-
-        assert_that(res, equal_to([i for i in range(1, 10)]))
-
     finally:
-      server.kill()
+      if server:
+        server.kill()
 
 
 if __name__ == '__main__':

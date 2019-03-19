@@ -15,6 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+import com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar
 
 plugins { id 'org.apache.beam.module' }
 applyJavaNature()
@@ -49,6 +50,9 @@ dependencies {
   shadowTest library.java.jackson_annotations
   shadowTest library.java.jackson_dataformat_yaml
   shadowTest project(path: ":beam-model-fn-execution", configuration: "shadow")
+  // for test expansion service
+  shadowTest project(path: ":beam-sdks-java-io-parquet", configuration: "shadow")
+  shadowTest project(path: ":beam-sdks-java-core", configuration: "shadowTest")
 }
 
 task runExpansionService (type: JavaExec) {
@@ -63,17 +67,18 @@ task runTestExpansionService (type: JavaExec) {
   args = [project.findProperty("constructionService.port") ?: "8097"]
 }
 
-task buildTestExpansionServiceJar(type: Jar) {
-  dependsOn = [shadowJar, shadowTestJar]
+task buildTestExpansionServiceJar(type: ShadowJar) {
+  configurations = [project.configurations.shadow, project.configurations.shadowTest]
   appendix = "testExpansionService"
   // Use zip64 mode to avoid "Archive contains more than 65535 entries".
   zip64 = true
+  mergeServiceFiles()
   manifest {
     attributes(
             'Main-Class': 'org.apache.beam.runners.core.construction.expansion.TestExpansionService'
     )
   }
-  from { configurations.testRuntime.collect { it.isDirectory() ? it : zipTree(it) }}
+  from { project.configurations.testRuntime.collect { it.isDirectory() ? it : zipTree(it) }}
   from sourceSets.main.output
   from sourceSets.test.output
 }

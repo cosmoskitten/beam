@@ -19,8 +19,17 @@ package org.apache.beam.runners.core.construction.expansion;
 
 import com.google.auto.service.AutoService;
 import java.util.Map;
+
+import org.apache.avro.Schema;
+import org.apache.avro.generic.GenericRecord;
+import org.apache.beam.sdk.coders.AvroGenericCoder;
+import org.apache.beam.sdk.io.FileIO;
+import org.apache.beam.sdk.io.parquet.ParquetIO;
 import org.apache.beam.sdk.transforms.Count;
 import org.apache.beam.sdk.transforms.Filter;
+import org.apache.beam.sdk.transforms.PTransform;
+import org.apache.beam.sdk.transforms.Values;
+import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.vendor.grpc.v1p13p1.io.grpc.Server;
 import org.apache.beam.vendor.grpc.v1p13p1.io.grpc.ServerBuilder;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableMap;
@@ -30,21 +39,49 @@ import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableMap
  */
 public class TestExpansionService {
 
-  private static final String TEST_COUNT_URN = "pytest:beam:transforms:count";
-  private static final String TEST_FILTER_URN = "pytest:beam:transforms:filter_less_than";
+  private static final String TEST_COUNT_URN = "beam:transforms:xlang:count";
+  private static final String TEST_FILTER_URN = "beam:transforms:xlang:filter_less_than_eq";
+  private static final String TEST_PARQUET_READ_URN = "beam:transforms:xlang:parquet_read";
+  private static final String TEST_PARQUET_WRITE_URN = "beam:transforms:xlang:parquet_write";
 
   /** Registers a single test transformation. */
   @AutoService(ExpansionService.ExpansionServiceRegistrar.class)
   public static class TestTransforms implements ExpansionService.ExpansionServiceRegistrar {
+    String SCHEMA =
+        "{ \"type\": \"record\", \"name\": \"testrecord\", \"fields\": " +
+        "[ {\"name\": \"name\", \"type\": \"string\"} ]}";
     @Override
     public Map<String, ExpansionService.TransformProvider> knownTransforms() {
+      Schema schema = new Schema.Parser().parse(SCHEMA);
       return ImmutableMap.of(
           TEST_COUNT_URN, spec -> Count.perElement(),
           TEST_FILTER_URN,
               spec ->
                   Filter.lessThanEq(
                       // TODO(BEAM-6587): Use strings directly rather than longs.
-                      (long) spec.getPayload().toStringUtf8().charAt(0)));
+                      (long) spec.getPayload().toStringUtf8().charAt(0)),
+          TEST_PARQUET_READ_URN,
+              spec -> new PTransform<PCollection<String>, PCollection<GenericRecord>>() {
+                @Override
+                public PCollection<GenericRecord> expand(PCollection<String> input) {
+                  return input
+                    .apply(FileIO.matchAll()).apply(FileIO.readMatches())
+                    .apply(ParquetIO.readFiles(schema))
+                    .setCoder(AvroGenericCoder.of(schema));
+                }
+              },
+          TEST_PARQUET_WRITE_URN,
+              spec -> new PTransform<PCollection<GenericRecord>, PCollection<String>>() {
+                @Override
+                public PCollection<String> expand(PCollection<GenericRecord> input) {
+                  return input
+                    .apply(FileIO.<GenericRecord>write().via(
+                      ParquetIO.sink(schema)).to(spec.getPayload().toStringUtf8())).getPerDestinationOutputFilenames()
+                    .apply(Values.create());
+
+                }
+              }
+      );
     }
   }
 
