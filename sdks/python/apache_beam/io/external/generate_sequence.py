@@ -27,6 +27,7 @@ from apache_beam.portability.api.external_transforms_pb2 import ExternalConfigur
 
 
 class GenerateSequence(ExternalTransform):
+  URN = 'beam:external:java:generate_sequence:v1'
 
   def __init__(self, start, stop=None,
                elements_per_period=None, max_read_time=None,
@@ -54,6 +55,6 @@ class GenerateSequence(ExternalTransform):
 
     payload = ExternalConfigurationPayload(configuration=args)
     super(GenerateSequence, self).__init__(
-        'beam:external:java:generate_sequence:v1',
+        self.URN,
         payload.SerializeToString(),
         expansion_service)

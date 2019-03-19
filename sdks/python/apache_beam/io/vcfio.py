@@ -34,7 +34,6 @@ from future.utils import iteritems
 from past.builtins import long
 from past.builtins import unicode
 
-from apache_beam.coders import coders
 from apache_beam.io import filebasedsource
 from apache_beam.io.filesystem import CompressionTypes
 from apache_beam.io.iobase import Read
@@ -298,7 +297,6 @@ class _VcfSource(filebasedsource.FileBasedSource):
           0,  # min_bundle_size
           compression_type,
           True,  # strip_trailing_newlines
-          coders.StrUtf8Coder(),  # coder
           validate=False,
           header_processor_fns=(lambda x: x.startswith('#'),
                                 self._store_header_lines),

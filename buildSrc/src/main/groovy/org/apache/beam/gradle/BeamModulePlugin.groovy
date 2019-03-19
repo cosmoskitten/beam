@@ -21,6 +21,7 @@ package org.apache.beam.gradle
 import com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar
 import groovy.json.JsonOutput
 import groovy.json.JsonSlurper
+import java.util.concurrent.atomic.AtomicInteger
 import org.gradle.api.GradleException
 import org.gradle.api.Plugin
 import org.gradle.api.Project
@@ -71,6 +72,7 @@ class BeamModulePlugin implements Plugin<Project> {
  * limitations under the License.
  */
 """
+  static AtomicInteger startingExpansionPortNumber = new AtomicInteger(18091)
 
   /** A class defining the set of configurable properties accepted by applyJavaNature. */
   class JavaNatureConfiguration {
@@ -269,6 +271,29 @@ class BeamModulePlugin implements Plugin<Project> {
       PROCESS,  // Process-based Harness execution
       EMBEDDED, // Execute directly inside the execution engine (testing only)
     }
+  }
+
+  // A class defining the configuration for CrossLanguageValidatesRunner.
+  class CrossLanguageValidatesRunnerConfiguration {
+    // Task name for cross-language validate runner case.
+    String name = 'validatesCrossLanguageRunner'
+    // Fully qualified JobServerClass name to use.
+    String jobServerDriver
+    // A string representing the jobServer Configuration.
+    String jobServerConfig
+    // Number of parallel test runs.
+    Integer numParallelTests = 1
+    // Extra options to pass to TestPipeline
+    String[] pipelineOpts = []
+    // Categories for tests to run.
+    Closure testCategories = {
+      includeCategories 'org.apache.beam.sdk.testing.UsesCrossLanguageTransforms'
+      // Use the following to include / exclude categories:
+      // includeCategories 'org.apache.beam.sdk.testing.ValidatesRunner'
+      // excludeCategories 'org.apache.beam.sdk.testing.FlattenWithHeterogeneousCoders'
+    }
+    // Configuration for the classpath when running the test.
+    Configuration testClasspathConfiguration
   }
 
   def isRelease(Project project) {
@@ -1569,6 +1594,109 @@ class BeamModulePlugin implements Plugin<Project> {
         if (config.environment == PortableValidatesRunnerConfiguration.Environment.DOCKER) {
           dependsOn ':beam-sdks-java-container:docker'
         }
+      }
+    }
+
+    /** ***********************************************************************************************/
+
+    // Method to create the crossLanguageValidatesRunnerTask.
+    // The method takes crossLanguageValidatesRunnerConfiguration as parameter.
+    project.ext.createCrossLanguageValidatesRunnerTask = {
+      def config = it ? it as CrossLanguageValidatesRunnerConfiguration : new CrossLanguageValidatesRunnerConfiguration()
+
+      project.evaluationDependsOn(":beam-sdks-python")
+      project.evaluationDependsOn(":beam-sdks-java-test-expansion-service")
+      project.evaluationDependsOn(":beam-sdks-java-io-parquet")
+      project.evaluationDependsOn(":beam-runners-core-construction-java")
+
+      // Task for launching expansion services
+      def envDir = project.project(":beam-sdks-python").envdir
+      def pythonDir = project.project(":beam-sdks-python").projectDir
+      def javaPort = startingExpansionPortNumber.getAndDecrement()
+      def pythonPort = startingExpansionPortNumber.getAndDecrement()
+      def expansionServiceOpts = [
+        "group_id": project.name,
+        "java_expansion_service_jar": "${project.project(':beam-sdks-java-test-expansion-service').buildTestExpansionServiceJar.archivePath}",
+        "java_port": javaPort,
+        "python_virtualenv_dir": envDir,
+        "python_expansion_service_module": "apache_beam.runners.portability.expansion_service_test",
+        "python_port": pythonPort
+      ]
+      def serviceArgs = project.project(':beam-sdks-python').mapToArgString(expansionServiceOpts)
+      def setupTask = project.tasks.create(name: config.name+"Setup", type: Exec) {
+        dependsOn ':beam-sdks-java-container:docker'
+        dependsOn ':beam-sdks-python-container:docker'
+        dependsOn ':beam-sdks-java-test-expansion-service:buildTestExpansionServiceJar'
+        dependsOn ":beam-sdks-python:installGcpTest"
+        // setup test env
+        executable 'sh'
+        args '-c', "$pythonDir/scripts/run_expansion_services.sh start $serviceArgs"
+      }
+
+      def mainTask = project.tasks.create(name: config.name) {
+        group = "Verification"
+        description = "Validates cross-language capability of runner"
+      }
+
+      def cleanupTask = project.tasks.create(name: config.name+'Cleanup', type: Exec) {
+        // teardown test env
+        executable 'sh'
+        args '-c', "$pythonDir/scripts/run_expansion_services.sh stop --group_id ${project.name}"
+      }
+      setupTask.finalizedBy cleanupTask
+
+      // Task for running testcases in Java SDK
+      def beamJavaTestPipelineOptions = [
+        "--runner=org.apache.beam.runners.reference.testing.TestPortableRunner",
+        "--jobServerDriver=${config.jobServerDriver}",
+        "--environmentCacheMillis=10000"
+      ]
+      beamJavaTestPipelineOptions.addAll(config.pipelineOpts)
+      if (config.jobServerConfig) {
+        beamJavaTestPipelineOptions.add("--jobServerConfig=${config.jobServerConfig}")
+      }
+      ['Java': javaPort, 'Python': pythonPort].each { sdk, port ->
+        def javaTask = project.tasks.create(name: config.name+"JavaUsing"+sdk, type: Test) {
+          group = "Verification"
+          description = "Validates runner for cross-language capability of using ${sdk} transforms from Java SDK"
+          systemProperty "beamTestPipelineOptions", JsonOutput.toJson(beamJavaTestPipelineOptions)
+          classpath = config.testClasspathConfiguration
+          testClassesDirs = project.files(project.project(":beam-runners-core-construction-java").sourceSets.test.output.classesDirs)
+          maxParallelForks config.numParallelTests
+          useJUnit(config.testCategories)
+          // increase maxHeapSize as this is directly correlated to direct memory,
+          // see https://issues.apache.org/jira/browse/BEAM-6698
+          maxHeapSize = '4g'
+          dependsOn setupTask
+        }
+        mainTask.dependsOn javaTask
+        cleanupTask.mustRunAfter javaTask
+
+        // Task for running testcases in Python SDK
+        def testOpts = [
+          "--attr=UsesCrossLanguageTransforms"
+        ]
+        def pipelineOpts = [
+          "--runner=PortableRunner",
+          "--experiments=xlang_test",
+          "--environment_cache_millis=10000",
+          "--expansion_port=$port"
+        ]
+        def beamPythonTestPipelineOptions = [
+          "pipeline_opts": pipelineOpts,
+          "test_opts": testOpts
+        ]
+        def cmdArgs = project.project(':beam-sdks-python').mapToArgString(beamPythonTestPipelineOptions)
+        def pythonTask = project.tasks.create(name: config.name+"PythonUsing"+sdk, type: Exec) {
+          group = "Verification"
+          description = "Validates runner for cross-language capability of using ${sdk} transforms from Python SDK"
+          environment "PARQUETIO_JAR", project.project(":beam-sdks-java-io-parquet").shadowJar.archivePath
+          executable 'sh'
+          args '-c', ". $envDir/bin/activate && cd $pythonDir && ./scripts/run_integration_test.sh $cmdArgs"
+          dependsOn setupTask
+        }
+        mainTask.dependsOn pythonTask
+        cleanupTask.mustRunAfter pythonTask
       }
     }
 
