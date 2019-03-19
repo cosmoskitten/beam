@@ -383,12 +383,11 @@ class _BigTableSource(iobase.BoundedSource):
                                 end_key=range_tracker.stop_position(),
                                 filter_=filter_)
 
-    for row in read_rows:
-      if range_tracker.stop_position() != b'':
-        if range_tracker.try_claim(row.row_key):
-          return
+    for row_ in read_rows:
+      try_claim = range_tracker.try_claim(row_.row_key)
+      print('Try Claim', try_claim)
       self.read_row.inc()
-      yield row
+      yield row_
 
   def display_data(self):
     ret = {'projectId': DisplayDataItem(self.beam_options['project_id'],
