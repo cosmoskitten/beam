@@ -38,6 +38,7 @@
 #     streaming     -> True if a streaming job.
 #     worker_jar    -> Customized worker jar for dataflow runner.
 #     kms_key_name  -> Name of Cloud KMS encryption key to use in some tests.
+#     expansion_port-> Local port number for test expansion service
 #     pipeline_opts -> List of space separated pipeline options. If this
 #                      flag is specified, all above flag will be ignored.
 #                      Please include all required pipeline options when
@@ -127,6 +128,11 @@ case $key in
         shift # past argument
         shift # past value
         ;;
+    --expansion_port)
+        EXPANSION_PORT="$2"
+        shift # past argument
+        shift # past value
+        ;;
     --dataflow_endpoint)
         DATAFLOW_ENDPOINT="$2"
         shift # past argument
@@ -209,6 +215,10 @@ if [[ -z $PIPELINE_OPTS ]]; then
       "--kms_key_name=$KMS_KEY_NAME"
       "--dataflow_kms_key=$KMS_KEY_NAME"
     )
+  fi
+
+  if [[ ! -z "$EXPANSION_PORT" ]]; then
+    opts+=("--expansion_port=$EXPANSION_PORT")
   fi
 
   if [[ ! -z "$DATAFLOW_ENDPOINT" ]]; then
