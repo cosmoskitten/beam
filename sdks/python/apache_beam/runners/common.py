@@ -741,7 +741,7 @@ class DoFnRunner(Receiver):
       self._reraise_augmented(exn)
 
   def process_with_restriction(self, windowed_value):
-    (element, restriction), size = windowed_value.value
+    (element, restriction), _ = windowed_value.value
     return self.do_fn_invoker.invoke_process(
         windowed_value.with_value(element),
         restriction_tracker=self.do_fn_invoker.invoke_create_tracker(
