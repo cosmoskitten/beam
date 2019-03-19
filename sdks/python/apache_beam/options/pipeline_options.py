@@ -714,6 +714,18 @@ class SetupOptions(PipelineOptions):
          'job submission, the files will be staged in the staging area '
          '(--staging_location option) and the workers will install them in '
          'same order they were specified on the command line.'))
+    parser.add_argument(
+        '--jar_package', '--jar_packages',
+        dest='jar_packages',
+        action='append',
+        default=None,
+        help=
+        ('Local path to a Java package file. The file is expected to be '
+         'a jar file (".jar"). Multiple --jar_package options can be specified '
+         'if more than one jar is needed. During job submission, the files '
+         'will be staged in the staging area (--staging_location option) and '
+         'the workers will use them as a classpath in same order they were '
+         'specified on the command line.'))
 
 
 class PortableOptions(PipelineOptions):
