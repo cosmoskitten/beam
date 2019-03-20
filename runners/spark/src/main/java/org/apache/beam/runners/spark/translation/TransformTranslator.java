@@ -69,6 +69,7 @@ import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Optional;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.FluentIterable;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Lists;
 import org.apache.spark.Accumulator;
+import org.apache.spark.HashPartitioner;
 import org.apache.spark.Partitioner;
 import org.apache.spark.api.java.JavaPairRDD;
 import org.apache.spark.api.java.JavaRDD;
@@ -318,12 +319,7 @@ public final class TransformTranslator {
 
         JavaPairRDD<K, Iterable<WindowedValue<KV<K, AccumT>>>> accumulatePerKey =
             GroupCombineFunctions.combinePerKey(
-                inRdd,
-                sparkCombineFn,
-                inputCoder.getKeyCoder(),
-                vaCoder,
-                windowingStrategy,
-                getPartitioner(context));
+                inRdd, sparkCombineFn, inputCoder.getKeyCoder(), vaCoder, windowingStrategy);
 
         JavaRDD<WindowedValue<KV<K, OutputT>>> outRdd =
             accumulatePerKey
@@ -573,7 +569,7 @@ public final class TransformTranslator {
     Long bundleSize =
         context.getSerializableOptions().get().as(SparkPipelineOptions.class).getBundleSize();
     return (bundleSize > 0)
-        ? CustomSparkHashPartitioner.of(context.getSparkContext().defaultParallelism())
+        ? new HashPartitioner(context.getSparkContext().defaultParallelism())
         : null;
   }
 
