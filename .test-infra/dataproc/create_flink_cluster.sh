@@ -21,7 +21,7 @@
 #
 #    CLUSTER_NAME: Cluster name
 #    GCS_BUCKET: GCS bucket url for Dataproc resources (init actions)
-#    HARNESS_IMAGES_TO_PULL: Urls to SDK Harness' images to pull on dataproc workers (accepts 1 or more urls)
+#    HARNESS_IMAGES_TO_PULL: Urls to SDK Harness' images to pull on dataproc workers (optional)
 #    FLINK_DOWNLOAD_URL: Url to Flink .tar archive to be installed on the cluster
 #    FLINK_NUM_WORKERS: Number of Flink workers
 #    TASK_MANAGER_SLOTS: Number of Flink slots per worker
@@ -101,10 +101,13 @@ function start_tunnel() {
 }
 
 function create_cluster() {
-  local metadata="beam-images-to-pull=${HARNESS_IMAGES_TO_PULL},"
-  metadata+="flink-snapshot-url=${FLINK_DOWNLOAD_URL},"
+  local metadata="flink-snapshot-url=${FLINK_DOWNLOAD_URL},"
   metadata+="flink-start-yarn-session=true"
 
+  if [[ "${HARNESS_IMAGES_TO_PULL:=none}" != "none" ]]
+  then
+    metadata+=",beam-images-to-pull=${HARNESS_IMAGES_TO_PULL}"
+  fi
 
   local image_version=${DATAPROC_VERSION:=1.2}
 
@@ -116,7 +119,7 @@ function create_cluster() {
 }
 
 function main() {
-  upload_init_actions
+  #upload_init_actions
   create_cluster # Comment this line to use existing cluster.
   get_leader
   start_tunnel
