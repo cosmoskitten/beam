@@ -366,6 +366,15 @@ class BigQueryFileLoadsIT(unittest.TestCase):
     output_table_2 = '%s%s' % (self.output_table, 2)
     output_table_3 = '%s%s' % (self.output_table, 3)
     output_table_4 = '%s%s' % (self.output_table, 4)
+    schema1 = bigquery.WriteToBigQuery.get_dict_table_schema(
+        bigquery_tools.parse_table_schema_from_json(self.BIG_QUERY_SCHEMA))
+    schema2 = bigquery.WriteToBigQuery.get_dict_table_schema(
+        bigquery_tools.parse_table_schema_from_json(self.BIG_QUERY_SCHEMA_2))
+
+    schema_kv_pairs = [(output_table_1, schema1),
+                       (output_table_2, schema2),
+                       (output_table_3, schema1),
+                       (output_table_4, schema2)]
     pipeline_verifiers = [
         BigqueryFullResultMatcher(
             project=self.project,
@@ -398,6 +407,9 @@ class BigQueryFileLoadsIT(unittest.TestCase):
     with beam.Pipeline(argv=args) as p:
       input = p | beam.Create(_ELEMENTS)
 
+      schema_map_pcv = beam.pvalue.AsDict(
+          p | "MakeSchemas" >> beam.Create(schema_kv_pairs))
+
       # Get all input in same machine
       input = (input
                | beam.Map(lambda x: (None, x))
@@ -409,6 +421,8 @@ class BigQueryFileLoadsIT(unittest.TestCase):
                table=lambda x: (output_table_1
                                 if 'language' in x
                                 else output_table_2),
+               schema=lambda dest, schema_map: schema_map.get(dest, None),
+               schema_side_inputs=(schema_map_pcv,),
                create_disposition=beam.io.BigQueryDisposition.CREATE_IF_NEEDED,
                write_disposition=beam.io.BigQueryDisposition.WRITE_EMPTY))
 
@@ -417,6 +431,8 @@ class BigQueryFileLoadsIT(unittest.TestCase):
                table=lambda x: (output_table_3
                                 if 'language' in x
                                 else output_table_4),
+               schema=lambda dest, schema_map: schema_map.get(dest, None),
+               schema_side_inputs=(schema_map_pcv,),
                create_disposition=beam.io.BigQueryDisposition.CREATE_IF_NEEDED,
                write_disposition=beam.io.BigQueryDisposition.WRITE_EMPTY,
                max_file_size=20,
