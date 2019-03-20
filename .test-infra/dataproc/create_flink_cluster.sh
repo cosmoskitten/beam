@@ -38,6 +38,10 @@
 #    DETACHED_MODE=false \
 #    ./create_flink_cluster.sh
 #
+
+# If not set prevent error by setting to "none" otherwise the script will fail.
+HARNESS_IMAGES_TO_PULL=${HARNESS_IMAGES_TO_PULL:=none}
+
 set -Eeuxo pipefail
 
 DATAPROC_VERSION=1.2
@@ -101,10 +105,13 @@ function start_tunnel() {
 }
 
 function create_cluster() {
-  local metadata="beam-images-to-pull=${HARNESS_IMAGES_TO_PULL},"
-  metadata+="flink-snapshot-url=${FLINK_DOWNLOAD_URL},"
+  local metadata="flink-snapshot-url=${FLINK_DOWNLOAD_URL},"
   metadata+="flink-start-yarn-session=true"
 
+  if [[ "${HARNESS_IMAGES_TO_PULL}" != "none" ]]
+  then
+    metadata+=",beam-images-to-pull=${HARNESS_IMAGES_TO_PULL}"
+  fi
 
   local image_version=${DATAPROC_VERSION:=1.2}
 
@@ -116,7 +123,7 @@ function create_cluster() {
 }
 
 function main() {
-  upload_init_actions
+  #upload_init_actions
   create_cluster # Comment this line to use existing cluster.
   get_leader
   start_tunnel
