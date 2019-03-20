@@ -187,7 +187,7 @@ class BigtableSourceTest(unittest.TestCase):
     self.assertEqual(count, count_size)
 
   def __read_list(self):
-    for i in range(72496, 72500):
+    for i in range(672496, 672500):
       key = 'beam_key'+str(i)
       if sys.version_info < (3, 0):
         key = bytes(key)
@@ -200,8 +200,8 @@ class BigtableSourceTest(unittest.TestCase):
     mock_read_rows.return_value = self.__read_list()
     bigtable = BigTableSource(self.project_id, self.instance_id,
                               self.table_id)
-    start_position = b''
-    stop_position = b''
+    start_position = b'beam_key0672496'
+    stop_position = b'beam_key1582279'
     read = bigtable.read(bigtable.get_range_tracker(start_position, stop_position))
     new_read = bigtable.read(bigtable.get_range_tracker(start_position, stop_position))
     new_read_count = len(list(new_read))
