@@ -101,10 +101,13 @@ function start_tunnel() {
 }
 
 function create_cluster() {
-  local metadata="beam-images-to-pull=${HARNESS_IMAGES_TO_PULL},"
-  metadata+="flink-snapshot-url=${FLINK_DOWNLOAD_URL},"
+  local metadata="flink-snapshot-url=${FLINK_DOWNLOAD_URL},"
   metadata+="flink-start-yarn-session=true"
 
+  if [[ ! -z "$HARNESS_IMAGES_TO_PULL" ]]
+  then
+    metadata+=",beam-images-to-pull=${HARNESS_IMAGES_TO_PULL}"
+  fi
 
   local image_version=${DATAPROC_VERSION:=1.2}
 
