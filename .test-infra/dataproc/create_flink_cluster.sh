@@ -21,7 +21,7 @@
 #
 #    CLUSTER_NAME: Cluster name
 #    GCS_BUCKET: GCS bucket url for Dataproc resources (init actions)
-#    HARNESS_IMAGES_TO_PULL: Urls to SDK Harness' images to pull on dataproc workers (accepts 1 or more urls)
+#    HARNESS_IMAGES_TO_PULL: Urls to SDK Harness' images to pull on dataproc workers (optional)
 #    FLINK_DOWNLOAD_URL: Url to Flink .tar archive to be installed on the cluster
 #    FLINK_NUM_WORKERS: Number of Flink workers
 #    TASK_MANAGER_SLOTS: Number of Flink slots per worker
@@ -71,7 +71,7 @@ function get_leader() {
     application_ids[$i]=`echo $line | sed "s/ .*//"`
     application_masters[$i]=`echo $line | sed "s/.*$CLUSTER_NAME/$CLUSTER_NAME/" | sed "s/ .*//"`
     i=$((i+1))
-  done <<< $(gcloud compute ssh yarn@$MASTER_NAME --command="yarn application -list" | grep "$CLUSTER_NAME")
+  done <<< $(gcloud compute ssh yarn@$MASTER_NAME --quiet --command="yarn application -list" | grep "$CLUSTER_NAME")
 
   if [ $i != 1 ]; then
     echo "Multiple applications found. Make sure that only 1 application is running on the cluster."
@@ -101,10 +101,13 @@ function start_tunnel() {
 }
 
 function create_cluster() {
-  local metadata="beam-images-to-pull=${HARNESS_IMAGES_TO_PULL},"
-  metadata+="flink-snapshot-url=${FLINK_DOWNLOAD_URL},"
+  local metadata="flink-snapshot-url=${FLINK_DOWNLOAD_URL},"
   metadata+="flink-start-yarn-session=true"
 
+  if [[ "${HARNESS_IMAGES_TO_PULL:=none}" != "none" ]]
+  then
+    metadata+=",beam-images-to-pull=${HARNESS_IMAGES_TO_PULL}"
+  fi
 
   local image_version=${DATAPROC_VERSION:=1.2}
 
@@ -112,11 +115,11 @@ function create_cluster() {
 
   # Docker init action restarts yarn so we need to start yarn session after this restart happens.
   # This is why flink init action is invoked last.
-  gcloud dataproc clusters create $CLUSTER_NAME --num-workers=$FLINK_NUM_WORKERS --initialization-actions $DOCKER_INIT,$BEAM_INIT,$FLINK_INIT --metadata "${metadata}", --image-version=$image_version
+  gcloud dataproc clusters create $CLUSTER_NAME --num-workers=$FLINK_NUM_WORKERS --initialization-actions $DOCKER_INIT,$BEAM_INIT,$FLINK_INIT --metadata "${metadata}", --image-version=$image_version --quiet
 }
 
 function main() {
-  upload_init_actions
+  #upload_init_actions
   create_cluster # Comment this line to use existing cluster.
   get_leader
   start_tunnel
