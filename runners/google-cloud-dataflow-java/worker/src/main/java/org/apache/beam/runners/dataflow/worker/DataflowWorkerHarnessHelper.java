@@ -21,11 +21,13 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.security.Security;
+import java.util.ServiceLoader;
 import java.util.logging.Handler;
 import java.util.logging.LogManager;
 import javax.annotation.Nullable;
 import org.apache.beam.model.pipeline.v1.Endpoints;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
+import org.apache.beam.runners.dataflow.DataflowWorkerInitializer;
 import org.apache.beam.runners.dataflow.options.DataflowWorkerHarnessOptions;
 import org.apache.beam.runners.dataflow.worker.ExperimentContext.Experiment;
 import org.apache.beam.runners.dataflow.worker.logging.DataflowWorkerLoggingInitializer;
@@ -93,6 +95,17 @@ public final class DataflowWorkerHarnessHelper {
   public static void configureLogging(DataflowWorkerHarnessOptions pipelineOptions) {
 
     DataflowWorkerLoggingInitializer.configure(pipelineOptions);
+  }
+
+  public static void runUserDefinedInitialization() {
+    ServiceLoader<DataflowWorkerInitializer> loader =
+        ServiceLoader.load(DataflowWorkerInitializer.class);
+    for (DataflowWorkerInitializer initializer : loader) {
+      LOG.info(
+          "Executing DataflowWorkerInitializer implementation {}",
+          initializer.getClass().getName());
+      initializer.setup();
+    }
   }
 
   public static Endpoints.ApiServiceDescriptor parseApiServiceDescriptorFromText(

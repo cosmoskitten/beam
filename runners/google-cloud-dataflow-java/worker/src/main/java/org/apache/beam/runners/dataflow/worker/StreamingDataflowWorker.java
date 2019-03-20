@@ -246,6 +246,7 @@ public class StreamingDataflowWorker {
         DataflowWorkerHarnessHelper.initializeGlobalStateAndPipelineOptions(
             StreamingDataflowWorker.class);
     DataflowWorkerHarnessHelper.configureLogging(options);
+    DataflowWorkerHarnessHelper.runUserDefinedInitialization();
     checkArgument(
         options.isStreaming(),
         "%s instantiated with options indicating batch use",

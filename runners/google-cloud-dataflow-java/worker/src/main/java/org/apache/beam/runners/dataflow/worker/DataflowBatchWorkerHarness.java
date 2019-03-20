@@ -59,6 +59,7 @@ public class DataflowBatchWorkerHarness {
             DataflowBatchWorkerHarness.class);
     DataflowBatchWorkerHarness batchHarness = new DataflowBatchWorkerHarness(pipelineOptions);
     DataflowWorkerHarnessHelper.configureLogging(pipelineOptions);
+    DataflowWorkerHarnessHelper.runUserDefinedInitialization();
     batchHarness.run();
   }
 
