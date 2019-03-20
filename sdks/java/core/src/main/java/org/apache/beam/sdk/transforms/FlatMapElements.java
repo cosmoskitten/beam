@@ -210,7 +210,7 @@ public class FlatMapElements<InputT, OutputT>
    *         .into(TypeDescriptors.strings())
    *         // Could throw ArrayIndexOutOfBoundsException
    *         .via((String line) -> Arrays.asList(Arrays.copyOfRange(line.split(" "), 1, 5)))
-   *         .withExceptionHandler(new WithFailures.ExceptionAsMapHandler<String>() {}));
+   *         .exceptionsVia(new WithFailures.ExceptionAsMapHandler<String>() {}));
    * PCollection<String> output = result.output();
    * PCollection<String> failures = result.failures();
    * }</pre>
@@ -265,9 +265,10 @@ public class FlatMapElements<InputT, OutputT>
      * Result<PCollection<String>, String>> result = words.apply(
      *     FlatMapElements
      *         .into(TypeDescriptors.strings())
+     *         // Could throw ArrayIndexOutOfBoundsException
      *         .via((String line) -> Arrays.asList(Arrays.copyOfRange(line.split(" "), 1, 5)))
      *         .exceptionsInto(TypeDescriptors.strings())
-     *         .exceptionsVia(ee -> e.exception().getMessage());
+     *         .exceptionsVia((ExceptionElement<String> ee) -> ee.exception().getMessage()));
      * PCollection<String> output = result.output();
      * PCollection<String> failures = result.failures();
      * }</pre>
@@ -280,7 +281,7 @@ public class FlatMapElements<InputT, OutputT>
 
     @Override
     public WithFailures.Result<PCollection<OutputT>, FailureT> expand(PCollection<InputT> input) {
-      checkArgument(exceptionHandler != null, ".withExceptionHandler() is required");
+      checkArgument(exceptionHandler != null, ".exceptionsVia() is required");
       MapFn doFn = new MapFn();
       PCollectionTuple tuple =
           input.apply(

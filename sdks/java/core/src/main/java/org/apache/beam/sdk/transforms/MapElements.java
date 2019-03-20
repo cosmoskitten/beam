@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.transforms;
 
+import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkArgument;
 import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkNotNull;
 import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkState;
 
@@ -193,9 +194,8 @@ public class MapElements<InputT, OutputT>
    * Result<PCollection<String>, String>> result = words.apply(
    *     MapElements
    *         .into(TypeDescriptors.integers())
-   *         // Could throw ArithmeticException
-   *         .via((String word) -> 1 / word.length)
-   *         .withExceptionHandler(new WithFailures.ExceptionAsMapHandler<String>() {}));
+   *         .via((String word) -> 1 / word.length)  // Could throw ArithmeticException
+   *         .exceptionsVia(new WithFailures.ExceptionAsMapHandler<String>() {}));
    * PCollection<Integer> output = result.output();
    * PCollection<String> failures = result.failures();
    * }</pre>
@@ -250,10 +250,9 @@ public class MapElements<InputT, OutputT>
      * Result<PCollection<Integer>, String> result = words.apply(
      *     MapElements
      *         .into(TypeDescriptors.integers())
-     *         // Could throw ArithmeticException
-     *         .via((String word) -> 1 / word.length())
+     *         .via((String word) -> 1 / word.length())  // Could throw ArithmeticException
      *         .exceptionsInto(TypeDescriptors.strings())
-     *         .exceptionsVia(ee -> e.exception().getMessage()));
+     *         .exceptionsVia((ExceptionElement<String> ee) -> ee.exception().getMessage()));
      * PCollection<Integer> output = result.output();
      * PCollection<String> failures = result.failures();
      * }</pre>
@@ -266,6 +265,7 @@ public class MapElements<InputT, OutputT>
 
     @Override
     public WithFailures.Result<PCollection<OutputT>, FailureT> expand(PCollection<InputT> input) {
+      checkArgument(exceptionHandler != null, ".exceptionsVia() is required");
       MapFn doFn = new MapFn();
       PCollectionTuple tuple =
           input.apply(

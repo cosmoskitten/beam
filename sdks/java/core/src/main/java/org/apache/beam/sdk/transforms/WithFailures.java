@@ -59,9 +59,9 @@ import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableMap
  * <pre>{@code
  * PCollection<Integer> input = ...
  * List<PCollection<Map<String, String>> failureCollections = new ArrayList<>();
- * input.apply(MapElements...withExceptionHandler()...)
+ * input.apply(MapElements.via(...).exceptionsVia(...))
  *      .failuresTo(failureCollections)
- *      .apply(MapElements...withExceptionHandler()...)
+ *      .apply(MapElements.via(...).exceptionsVia(...))
  *      .failuresTo(failureCollections);
  * PCollection<Map<String, String>> failures = PCollectionList.of(failureCollections)
  *      .apply("FlattenFailureCollections", Flatten.pCollections());
