@@ -194,7 +194,7 @@ public class FlatMapElements<InputT, OutputT>
   /**
    * Returns a new {@link FlatMapWithFailures} transform that catches exceptions raised while
    * mapping elements, passing the raised exception instance and the input element being processed
-   * through the given {@code exceptionHandler} and emitting the result to an failure collection.
+   * through the given {@code exceptionHandler} and emitting the result to a failure collection.
    *
    * <p>This method takes advantage of the type information provided by {@link InferableFunction},
    * meaning that a call to {@link #exceptionsInto(TypeDescriptor)} may not be necessary.

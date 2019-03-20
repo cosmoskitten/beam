@@ -40,7 +40,7 @@ import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableMap
  *
  * <p>Consuming transforms such as {@link MapElements.MapWithFailures} follow the general pattern of
  * taking in a user-defined exception handler of type {@code
- * ProcessFunction<ExceptionElement<InputT>, FailureOutputT} where the input {@link
+ * ProcessFunction<ExceptionElement<InputT>, FailureOutputT>} where the input {@link
  * ExceptionElement} contains an exception along with the input element that was being processed
  * when the exception was raised. This handler is responsible for producing some output element that
  * captures relevant details of the failure and can be encoded as part of a failure output {@link
