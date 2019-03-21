@@ -86,7 +86,6 @@ class _BigTableSource(iobase.BoundedSource):
     table_id(str): GCP Table ID
     row_set(RowSet): Creating a set of row keys and row ranges.
     filter_(RowFilter): Filter to apply to cells in a row.
-
   """
   def __init__(self, project_id, instance_id, table_id,
                row_set=None, filter_=None):
@@ -135,11 +134,9 @@ class _BigTableSource(iobase.BoundedSource):
 
   def get_sample_row_keys(self):
     ''' Get a sample of row keys in the table.
-
     The returned row keys will delimit contiguous sections of the table of
     approximately equal size, which can be used to break up the data for
     distributed tasks like mapreduces.
-
     :returns: A cancel-able iterator. Can be consumed by calling ``next()``
                   or by casting to a :class:`list` and can be cancelled by
                   calling ``cancel()``.
@@ -155,14 +152,12 @@ class _BigTableSource(iobase.BoundedSource):
     Bundles should be approximately of ``desired_bundle_size`` bytes, if this
     bundle its bigger, it use the ``range_split_fraction`` to split the bundles
     in fractions.
-
     :param desired_bundle_size: the desired size (in bytes) of the bundles
     returned.
     :param start_position: if specified the given position must be used as
     the starting position of the first bundle.
     :param stop_position: if specified the given position must be used as
     the ending position of the last bundle.
-
     Returns:
       an iterator of objects of type 'SourceBundle' that gives information
       about the generated bundles.
@@ -196,13 +191,6 @@ class _BigTableSource(iobase.BoundedSource):
           start_key = sample_row_key.row_key
           addition_size = 0
         last_offset = sample_row_key.offset_bytes
-
-      full_size = [k.offset_bytes for k in self.get_sample_row_keys()][-1]
-      if current_size == full_size:
-        last_bundle_size = full_size
-      else:
-        last_bundle_size = full_size - current_size
-      yield iobase.SourceBundle(last_bundle_size, self, start_key, end_key)
 
   def split_range_size(self, desired_size, sample_row_keys, range_):
     ''' This method split the row_set ranges using the desired_bundle_size
@@ -244,7 +232,6 @@ class _BigTableSource(iobase.BoundedSource):
                            end_key):
     ''' This method is used to send a range[start_key, end_key) to the
     ``split_range_subranges`` method.
-
     :param current_size: the size of the range.
     :param desired_bundle_size: the size you want to split.
     :param start_key(byte): The start key row in the range.
@@ -259,7 +246,6 @@ class _BigTableSource(iobase.BoundedSource):
     ''' We use the ``fraction_to_position`` method in
     ``LexicographicKeyRangeTracker`` class to split a
     range into two chunks.
-
     :param position:
     :param range_start:
     :param range_stop:
@@ -277,13 +263,13 @@ class _BigTableSource(iobase.BoundedSource):
     ``desired_bundle_size`` as a limit size, It compares the
     size of the range and the ``desired_bundle size`` if it is necessary
     to split a range, it uses the ``fraction_to_position`` method.
-
     :param sample_size_bytes: The size of the Range.
     :param desired_bundle_size: The desired size to split the Range.
     :param ranges: the Range to split.
     '''
     start_key = ranges.start_position()
     end_key = ranges.stop_position()
+    last_key = ranges.stop_position()
 
     split_ = float(desired_bundle_size)/float(sample_size_bytes)
     split_count = int(math.ceil(split_))
@@ -303,6 +289,7 @@ class _BigTableSource(iobase.BoundedSource):
                                     start_key,
                                     end_key)
           start_key = position
+      yield iobase.SourceBundle(sample_size_bytes, self, start_key, last_key)
     else:
       yield iobase.SourceBundle(sample_size_bytes, self, start_key, end_key)
 
@@ -313,18 +300,16 @@ class _BigTableSource(iobase.BoundedSource):
                                 end_key=range_tracker.stop_position(),
                                 filter_=filter_)
 
-    for therow in read_rows:
-      try_claim = range_tracker.try_claim(therow.row_key)
+    for row in read_rows:
+      try_claim = range_tracker.try_claim(row.row_key)
       # if you get all the rows from bigtable
       # the last bundle get `b''` as stop_position
-      # so, the try_claim get True and break the loop.
+      # so, the try_claim get False and break the loop.
       if range_tracker.stop_position() != b'':
-        if try_claim:
+        if not try_claim:
           return
       self.read_row.inc()
-      yield therow
-      print('Row', therow)
-      print('TryClaim', try_claim)
+      yield row
 
   def display_data(self):
     ret = {'projectId': DisplayDataItem(self.beam_options['project_id'],
