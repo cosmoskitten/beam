@@ -196,6 +196,7 @@ public class PubsubUnboundedSource extends PTransform<PBegin, PCollection<Pubsub
 
   private static final Combine.BinaryCombineLongFn SUM = Sum.ofLongs();
 
+
   // ================================================================================
   // Checkpoint
   // ================================================================================
@@ -1155,9 +1156,6 @@ public class PubsubUnboundedSource extends PTransform<PBegin, PCollection<Pubsub
   /** Factory for creating underlying Pubsub transport. */
   private final PubsubClientFactory pubsubFactory;
 
-  /** Project under which to create a subscription if only the {@link #topic} was given. */
-  @Nullable private final ValueProvider<ProjectPath> project;
-
   /**
    * Topic to read from. If {@literal null}, then {@link #subscription} must be given. Otherwise
    * {@link #subscription} must be null.
@@ -1168,7 +1166,7 @@ public class PubsubUnboundedSource extends PTransform<PBegin, PCollection<Pubsub
    * Subscription to read from. If {@literal null} then {@link #topic} must be given. Otherwise
    * {@link #topic} must be null.
    *
-   * <p>If no subscription is given a random one will be created when the transorm is applied. This
+   * <p>If no subscription is given a random one will be created when the transform is applied. This
    * field will be update with that subscription's path. The created subscription is never deleted.
    */
   @Nullable private ValueProvider<SubscriptionPath> subscription;
@@ -1192,7 +1190,6 @@ public class PubsubUnboundedSource extends PTransform<PBegin, PCollection<Pubsub
   PubsubUnboundedSource(
       Clock clock,
       PubsubClientFactory pubsubFactory,
-      @Nullable ValueProvider<ProjectPath> project,
       @Nullable ValueProvider<TopicPath> topic,
       @Nullable ValueProvider<SubscriptionPath> subscription,
       @Nullable String timestampAttribute,
@@ -1203,7 +1200,6 @@ public class PubsubUnboundedSource extends PTransform<PBegin, PCollection<Pubsub
         "Exactly one of topic and subscription must be given");
     this.clock = clock;
     this.pubsubFactory = checkNotNull(pubsubFactory);
-    this.project = project;
     this.topic = topic;
     this.subscription = subscription;
     this.timestampAttribute = timestampAttribute;
@@ -1214,7 +1210,6 @@ public class PubsubUnboundedSource extends PTransform<PBegin, PCollection<Pubsub
   /** Construct an unbounded source to consume from the Pubsub {@code subscription}. */
   public PubsubUnboundedSource(
       PubsubClientFactory pubsubFactory,
-      @Nullable ValueProvider<ProjectPath> project,
       @Nullable ValueProvider<TopicPath> topic,
       @Nullable ValueProvider<SubscriptionPath> subscription,
       @Nullable String timestampAttribute,
@@ -1223,18 +1218,11 @@ public class PubsubUnboundedSource extends PTransform<PBegin, PCollection<Pubsub
     this(
         null,
         pubsubFactory,
-        project,
         topic,
         subscription,
         timestampAttribute,
         idAttribute,
         needsAttributes);
-  }
-
-  /** Get the project path. */
-  @Nullable
-  public ProjectPath getProject() {
-    return project == null ? null : project.get();
   }
 
   /** Get the topic being read from. */
@@ -1293,16 +1281,8 @@ public class PubsubUnboundedSource extends PTransform<PBegin, PCollection<Pubsub
     TopicPath topicPath = topic.get();
 
     ProjectPath projectPath;
-    if (project != null) {
-      projectPath = project.get();
-    } else {
-      String projectId = options.as(GcpOptions.class).getProject();
-      checkState(
-          projectId != null,
-          "Cannot create subscription to topic %s because pipeline option 'project' not specified",
-          topicPath);
-      projectPath = PubsubClient.projectPathFromId(options.as(GcpOptions.class).getProject());
-    }
+    String projectId = getProjectId(options, topicPath);
+    projectPath = PubsubClient.projectPathFromId(projectId);
 
     try {
       try (PubsubClient pubsubClient =
@@ -1325,4 +1305,12 @@ public class PubsubUnboundedSource extends PTransform<PBegin, PCollection<Pubsub
           e);
     }
   }
+
+  private String getProjectId(PipelineOptions options, TopicPath topicPath) {
+    if (options instanceof GcpOptions) {
+      return ((GcpOptions) options).getProject();
+    }
+    return topicPath.getProject();
+  }
+
 }
