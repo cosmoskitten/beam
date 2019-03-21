@@ -95,7 +95,7 @@ public class AssignEventTime<InputT> extends Operator<InputT>
     /**
      * @param fn the event time extraction function
      * @param allowedTimestampSkew allowed timestamp skew when assigning timestamps back in time
-     *     {@see DoFn#getAllowedTimestampSkew}.
+     *     {@link DoFn#getAllowedTimestampSkew}.
      * @return the next builder to complete the setup
      * @see FlatMap.EventTimeBuilder#eventTimeBy(ExtractEventTime)
      */
