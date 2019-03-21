@@ -110,4 +110,5 @@ public class FlatMapTest extends AbstractOperatorTest {
           }
         });
   }
+
 }
