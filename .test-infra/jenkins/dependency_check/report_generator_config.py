@@ -21,7 +21,7 @@ import os
 class ReportGeneratorConfig:
 
   # Jenkins Working Space
-  WORKING_SPACE = os.environ['WORKSPACE']
+  WORKING_SPACE = 'aa'#os.environ['WORKSPACE']
 
   # Constants for dependency prioritization
   GCLOUD_PROJECT_ID     = 'apache-beam-testing'
@@ -38,8 +38,8 @@ class ReportGeneratorConfig:
 
   # Constants for JIRA automation
   BEAM_JIRA_HOST        = 'https://issues.apache.org/jira/'
-  BEAM_JIRA_BOT_USRENAME= os.environ['BEAM_JIRA_BOT_USERNAME']
-  BEAM_JIRA_BOT_PASSWORD= os.environ['BEAM_JIRA_BOT_PASSWORD']
+  BEAM_JIRA_BOT_USRENAME= 'aa'#os.environ['BEAM_JIRA_BOT_USERNAME']
+  BEAM_JIRA_BOT_PASSWORD= 'aa'#os.environ['BEAM_JIRA_BOT_PASSWORD']
 
   # Dependency Owners
   JAVA_DEP_OWNERS       = WORKING_SPACE + '/src/ownership/JAVA_DEPENDENCY_OWNERS.yaml'
