@@ -38,7 +38,6 @@ those generated rows in the table.
 from __future__ import absolute_import
 from __future__ import division
 
-import copy
 import math
 
 import apache_beam as beam
@@ -46,35 +45,16 @@ from apache_beam.io import iobase
 from apache_beam.io.range_trackers import LexicographicKeyRangeTracker
 from apache_beam.metrics import Metrics
 from apache_beam.transforms.display import DisplayDataItem
-from apache_beam.transforms import ptransform
-from apache_beam.transforms import core
-from apache_beam.portability import common_urns
-from apache_beam.transforms import window
-from apache_beam.portability.api import beam_runner_api_pb2
-from apache_beam.io.iobase import BoundedSource
 
 try:
-  from google.cloud._helpers import _microseconds_from_datetime
-  from google.cloud._helpers import UTC
-  from google.cloud.bigtable import row
   from google.cloud.bigtable.batcher import FLUSH_COUNT, MAX_ROW_BYTES
   from google.cloud.bigtable import Client
-  from google.cloud.bigtable import column_family
-  from google.cloud.bigtable import enums
-
-  from grpc import StatusCode
-
-  from google.api_core.retry import if_exception_type
-  from google.api_core.retry import Retry
-
-  from google.cloud.bigtable.instance import Instance
-  from google.cloud.bigtable.batcher import MutationsBatcher
-  from google.cloud.bigtable.table import Table
 except ImportError:
   FLUSH_COUNT = 1000
   MAX_MUTATIONS = 100000
 
-__all__ = ['WriteToBigTable','ReadFromBigTable']
+
+__all__ = ['WriteToBigTable', 'ReadFromBigTable']
 
 
 class _BigTableSource(iobase.BoundedSource):
@@ -142,6 +122,7 @@ class _BigTableSource(iobase.BoundedSource):
                   calling ``cancel()``.
     '''
     return self._getTable().sample_row_keys()
+
 
   def get_range_tracker(self, start_position, stop_position):
     return LexicographicKeyRangeTracker(start_position, stop_position)
@@ -269,7 +250,7 @@ class _BigTableSource(iobase.BoundedSource):
     '''
     start_key = ranges.start_position()
     end_key = ranges.stop_position()
-    last_key = ranges.stop_position()
+
 
     split_ = float(desired_bundle_size)/float(sample_size_bytes)
     split_count = int(math.ceil(split_))
@@ -289,7 +270,6 @@ class _BigTableSource(iobase.BoundedSource):
                                     start_key,
                                     end_key)
           start_key = position
-      yield iobase.SourceBundle(sample_size_bytes, self, start_key, last_key)
     else:
       yield iobase.SourceBundle(sample_size_bytes, self, start_key, end_key)
 
@@ -421,7 +401,7 @@ class WriteToBigTable(beam.PTransform):
 
   """
   def __init__(self, project_id=None, instance_id=None,
-               table_id=None,flush_count=FLUSH_COUNT,
+               table_id=None, flush_count=FLUSH_COUNT,
                max_row_bytes=MAX_ROW_BYTES):
     """ The PTransform to access the Bigtable Write connector
     Args:

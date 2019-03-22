@@ -25,10 +25,8 @@ import unittest
 
 import mock
 
-from beam_bigtable import BigTableSource
-import apache_beam.io.source_test_utils as source_test_utils
-#from apache_beam.io.gcp.bigtableio import _BigTableSource as BigTableSource
-from apache_beam.io.range_trackers import LexicographicKeyRangeTracker
+#import apache_beam.io.source_test_utils as source_test_utils
+from apache_beam.io.gcp.bigtableio import _BigTableSource as BigTableSource
 
 
 # Protect against environments where bigquery library is not available.
@@ -42,7 +40,6 @@ try:
 except ImportError:
   Client = None
   Table = None
-
 
 @unittest.skipIf(Table is None, 'GCP Bigtable dependencies are not installed')
 @unittest.skipIf(Client is None, 'GCP Bigtable dependencies are not installed')
@@ -135,7 +132,7 @@ class BigtableSourceTest(unittest.TestCase):
                                                             desired_bundle_size,
                                                             start_key,
                                                             end_key)))
-    desired_bundle_count = current_size/desired_bundle_size
+    desired_bundle_count = int(current_size/desired_bundle_size)
     self.assertEqual(count_all, desired_bundle_count)
 
   # Split Range Sized Subranges
@@ -194,29 +191,29 @@ class BigtableSourceTest(unittest.TestCase):
         key = bytes(key, 'utf8')
       yield PartialRowData(key)
 
+  def __read_list_rebalancing(self):
+    for i in range(600000, 672500):
+      key = 'beam_key'+str(i)
+      if sys.version_info < (3, 0):
+        key = bytes(key)
+      else:
+        key = bytes(key, 'utf8')
+      yield PartialRowData(key)
+
   @mock.patch.object(Table, 'read_rows')
   def test_read(self, mock_read_rows):
     mock_read_rows.return_value = self.__read_list()
     bigtable = BigTableSource(self.project_id, self.instance_id,
                               self.table_id)
-    start_position = b'beam_key0672496'
-    stop_position = b'beam_key1582279'
-    read = bigtable.read(bigtable.get_range_tracker(start_position, stop_position))
-    new_read = bigtable.read(bigtable.get_range_tracker(start_position, stop_position))
-    new_read_count = len(list(new_read))
-    self.assertEqual(new_read_count, 4)
+    start_position = b''
+    stop_position = b''
+    read = list(bigtable.read(bigtable.get_range_tracker(start_position,
+                                                         stop_position)))
+    new_read = read
+    self.assertEqual(len(new_read), 4)
     for i in read:
       self.assertIsInstance(i, PartialRowData)
       self.assertNotEqual(i.row_key, b'')
-
-  @mock.patch.object(Table, 'read_rows')
-  @mock.patch.object(BigTableSource, 'get_sample_row_keys')
-  def test_dynamic_work_rebalancing(self, mock_my_method, mock_read_rows):
-    mock_my_method.return_value = self.sample_row_keys()
-    mock_read_rows.return_value = self.__read_list()
-    source = BigTableSource(self.project_id, self.instance_id,
-                              self.table_id)
-
 
 if __name__ == '__main__':
   logging.getLogger().setLevel(logging.INFO)
