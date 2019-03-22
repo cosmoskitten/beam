@@ -49,9 +49,6 @@ import zlib
 from builtins import object
 from functools import partial
 
-import avro
-from avro import io as avroio
-from avro import datafile
 from fastavro.read import block_reader
 from fastavro.write import Writer
 
@@ -65,10 +62,14 @@ from apache_beam.transforms import PTransform
 
 # pylint: disable=wrong-import-order, wrong-import-position, ungrouped-imports
 try:
-  from avro.schema import Parse # avro-python3 library for python3
+  from avro.schema import parse # avro library for python2
+  import avro
+  from avro import io as avroio
+  from avro import datafile
 except ImportError:
-  from avro.schema import parse as Parse # avro library for python2
+  pass
 # pylint: enable=wrong-import-order, wrong-import-position, ungrouped-imports
+
 
 __all__ = ['ReadFromAvro', 'ReadAllFromAvro', 'WriteToAvro']
 
@@ -318,7 +319,7 @@ class _AvroBlock(object):
     # iteration.
     self._decompressed_block_bytes = self._decompress_bytes(block_bytes, codec)
     self._num_records = num_records
-    self._schema = Parse(schema_string)
+    self._schema = parse(schema_string)
     self._offset = offset
     self._size = size
 
@@ -562,9 +563,8 @@ def _create_avro_sink(file_path_prefix,
       )
 
 
-class _AvroSink(filebasedsink.FileBasedSink):
-  """A sink for avro files."""
-
+class _BaseAvroSink(filebasedsink.FileBasedSink):
+  """A FileBasedSink """
   def __init__(self,
                file_path_prefix,
                schema,
@@ -573,7 +573,7 @@ class _AvroSink(filebasedsink.FileBasedSink):
                num_shards,
                shard_name_template,
                mime_type):
-    super(_AvroSink, self).__init__(
+    super(_BaseAvroSink, self).__init__(
         file_path_prefix,
         file_name_suffix=file_name_suffix,
         num_shards=num_shards,
@@ -586,30 +586,32 @@ class _AvroSink(filebasedsink.FileBasedSink):
     self._schema = schema
     self._codec = codec
 
+  def display_data(self):
+    res = super(_BaseAvroSink, self).display_data()
+    res['codec'] = str(self._codec)
+    res['schema'] = str(self._schema)
+    return res
+
+
+class _AvroSink(_BaseAvroSink):
+  """A sink for avro files using Avro. """
   def open(self, temp_path):
-    file_handle = super(_AvroSink, self).open(temp_path)
+    file_handle = super(_BaseAvroSink, self).open(temp_path)
     return avro.datafile.DataFileWriter(
         file_handle, avro.io.DatumWriter(), self._schema, self._codec)
 
   def write_record(self, writer, value):
     writer.append(value)
 
-  def display_data(self):
-    res = super(_AvroSink, self).display_data()
-    res['codec'] = str(self._codec)
-    res['schema'] = str(self._schema)
-    return res
 
-
-class _FastAvroSink(_AvroSink):
-  """A sink for avro files that uses the `fastavro` library"""
+class _FastAvroSink(_BaseAvroSink):
+  """A sink for avro files using FastAvro. """
   def open(self, temp_path):
-    file_handle = super(_AvroSink, self).open(temp_path)
-    return Writer(file_handle, self._schema.to_json(), self._codec)
+    file_handle = super(_BaseAvroSink, self).open(temp_path)
+    return Writer(file_handle, self._schema, self._codec)
 
   def write_record(self, writer, value):
     writer.write(value)
 
   def close(self, writer):
     writer.flush()
-    super(_FastAvroSink, self).close(writer.fo)
