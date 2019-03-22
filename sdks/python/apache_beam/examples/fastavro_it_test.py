@@ -45,12 +45,14 @@ Usage:
 from __future__ import absolute_import
 from __future__ import division
 
+import json
 import logging
 import os
 import sys
 import unittest
 import uuid
 
+from fastavro import parse_schema
 from nose.plugins.attrib import attr
 
 from apache_beam.io.avroio import ReadAllFromAvro
@@ -66,9 +68,11 @@ from apache_beam.transforms.util import CoGroupByKey
 
 # pylint: disable=wrong-import-order, wrong-import-position
 try:
-  from avro.schema import Parse # avro-python3 library for python3
+  from avro.schema import parse
 except ImportError:
-  from avro.schema import parse as Parse # avro library for python2
+  # Never used but defined to allow nosetest to SKIP
+  # instead of raising a syntax error
+  parse = lambda x: x
 # pylint: enable=wrong-import-order, wrong-import-position
 
 LABELS = ['abc', 'def', 'ghi', 'jkl', 'mno', 'pqr', 'stu', 'vwx']
@@ -86,11 +90,11 @@ def record(i):
 
 @unittest.skipIf(sys.version_info[0] == 3 and
                  os.environ.get('RUN_SKIPPED_PY3_TESTS') != '1',
-                 'This test still needs to be fixed on Python 3'
-                 'TODO: BEAM-6522')
+                 'Deprecating Avro in favor of FastAvro on Python 3 '
+                 'See BEAM-6522')
 class FastavroIT(unittest.TestCase):
 
-  SCHEMA = Parse('''
+  SCHEMA_STRING = '''
     {"namespace": "example.avro",
      "type": "record",
      "name": "User",
@@ -101,7 +105,7 @@ class FastavroIT(unittest.TestCase):
          {"name": "color", "type": ["string", "null"]}
      ]
     }
-    ''')
+    '''
 
   def setUp(self):
     self.test_pipeline = TestPipeline(is_integration_test=True)
@@ -139,13 +143,11 @@ class FastavroIT(unittest.TestCase):
     fastavro_output = '/'.join([self.output, 'fastavro'])
     avro_output = '/'.join([self.output, 'avro'])
 
-    self.addCleanup(delete_files, [self.output + '*'])
-
     # pylint: disable=expression-not-assigned
     records_pcoll \
     | 'write_fastavro' >> WriteToAvro(
         fastavro_output,
-        self.SCHEMA,
+        parse_schema(json.loads(self.SCHEMA_STRING)),
         use_fastavro=True
     )
 
@@ -153,7 +155,7 @@ class FastavroIT(unittest.TestCase):
     records_pcoll \
     | 'write_avro' >> WriteToAvro(
         avro_output,
-        self.SCHEMA,
+        parse(self.SCHEMA_STRING),
         use_fastavro=False
     )
 
@@ -196,6 +198,7 @@ class FastavroIT(unittest.TestCase):
     | CoGroupByKey() \
     | Map(check)
 
+    self.addCleanup(delete_files, [self.output])
     fastavro_read_pipeline.run().wait_until_finish()
     assert result.state == PipelineState.DONE
 
