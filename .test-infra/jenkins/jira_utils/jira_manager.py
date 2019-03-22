@@ -40,7 +40,7 @@ class JiraManager:
     basic_auth = (jira_username, jira_password)
     self.jira = JiraClient(options, basic_auth, _JIRA_PROJECT_NAME)
     with open(owners_file) as f:
-      owners = yaml.load(f)
+      owners = yaml.load(f, Loader=yaml.BaseLoader)
     self.owners_map = owners['deps']
     logging.getLogger().setLevel(logging.INFO)
 
