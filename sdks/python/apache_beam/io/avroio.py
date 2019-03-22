@@ -45,6 +45,8 @@ from __future__ import absolute_import
 
 import io
 import os
+import sys
+import warnings
 import zlib
 from builtins import object
 from functools import partial
@@ -70,7 +72,14 @@ except ImportError:
   from avro.schema import parse as Parse # avro library for python2
 # pylint: enable=wrong-import-order, wrong-import-position, ungrouped-imports
 
+
 __all__ = ['ReadFromAvro', 'ReadAllFromAvro', 'WriteToAvro']
+def _use_fastavro():
+  if sys.version_info[0] >= 3:
+    fastavro_default = True
+  else:
+    fastavro_default = False
+  return fastavro_default
 
 
 class ReadFromAvro(PTransform):
@@ -78,7 +87,7 @@ class ReadFromAvro(PTransform):
   files."""
 
   def __init__(self, file_pattern=None, min_bundle_size=0, validate=True,
-               use_fastavro=False):
+               use_fastavro=_use_fastavro()):
     """Initializes :class:`ReadFromAvro`.
 
     Uses source :class:`~apache_beam.io._AvroSource` to read a set of Avro
@@ -146,6 +155,10 @@ class ReadFromAvro(PTransform):
       use_fastavro (bool); when set, use the `fastavro` library for IO, which
         is significantly faster, and will likely become the default
     """
+    if sys.version_info[0] >= 3 and not use_fastavro:
+      warnings.warn("Due to a known issue in avro-python3 package, it is "
+                    "recommended to use fastavro with Beam Avro IO on "
+                    "Python 3 until BEAM-6522 is addressed.")
     super(ReadFromAvro, self).__init__()
     self._source = _create_avro_source(
         file_pattern,
@@ -172,7 +185,7 @@ class ReadAllFromAvro(PTransform):
 
   def __init__(self, min_bundle_size=0,
                desired_bundle_size=DEFAULT_DESIRED_BUNDLE_SIZE,
-               use_fastavro=False,
+               use_fastavro=_use_fastavro(),
                label='ReadAllFiles'):
     """Initializes ``ReadAllFromAvro``.
 
@@ -182,6 +195,9 @@ class ReadAllFromAvro(PTransform):
       desired_bundle_size: the desired size in bytes, to be considered when
                        splitting the input into bundles.
     """
+    if sys.version_info[0] >= 3 and not use_fastavro:
+      warnings.warn("setting use_fastavro to false in combination with"
+                    "Python 3 is not supported, see: BEAM-6522.")
     source_from_file = partial(
         _create_avro_source,
         min_bundle_size=min_bundle_size,
@@ -292,7 +308,7 @@ class _AvroUtils(object):
 def _create_avro_source(file_pattern=None,
                         min_bundle_size=0,
                         validate=False,
-                        use_fastavro=False):
+                        use_fastavro=_use_fastavro()):
   return \
       _FastAvroSource(
           file_pattern=file_pattern,
@@ -480,7 +496,7 @@ class WriteToAvro(beam.transforms.PTransform):
                num_shards=0,
                shard_name_template=None,
                mime_type='application/x-avro',
-               use_fastavro=False):
+               use_fastavro=_use_fastavro()):
     """Initialize a WriteToAvro transform.
 
     Args:
@@ -562,9 +578,8 @@ def _create_avro_sink(file_path_prefix,
       )
 
 
-class _AvroSink(filebasedsink.FileBasedSink):
-  """A sink for avro files."""
-
+class _BaseAvroSink(filebasedsink.FileBasedSink):
+  """A FileBasedSink """
   def __init__(self,
                file_path_prefix,
                schema,
@@ -573,7 +588,7 @@ class _AvroSink(filebasedsink.FileBasedSink):
                num_shards,
                shard_name_template,
                mime_type):
-    super(_AvroSink, self).__init__(
+    super(_BaseAvroSink, self).__init__(
         file_path_prefix,
         file_name_suffix=file_name_suffix,
         num_shards=num_shards,
@@ -586,6 +601,15 @@ class _AvroSink(filebasedsink.FileBasedSink):
     self._schema = schema
     self._codec = codec
 
+  def display_data(self):
+    res = super(_BaseAvroSink, self).display_data()
+    res['codec'] = str(self._codec)
+    res['schema'] = str(self._schema)
+    return res
+
+
+class _AvroSink(_BaseAvroSink):
+  """A sink for avro files using Avro. """
   def open(self, temp_path):
     file_handle = super(_AvroSink, self).open(temp_path)
     return avro.datafile.DataFileWriter(
@@ -594,22 +618,15 @@ class _AvroSink(filebasedsink.FileBasedSink):
   def write_record(self, writer, value):
     writer.append(value)
 
-  def display_data(self):
-    res = super(_AvroSink, self).display_data()
-    res['codec'] = str(self._codec)
-    res['schema'] = str(self._schema)
-    return res
 
-
-class _FastAvroSink(_AvroSink):
-  """A sink for avro files that uses the `fastavro` library"""
+class _FastAvroSink(_BaseAvroSink):
+  """A sink for avro files using FastAvro. """
   def open(self, temp_path):
-    file_handle = super(_AvroSink, self).open(temp_path)
-    return Writer(file_handle, self._schema.to_json(), self._codec)
+    file_handle = super(_FastAvroSink, self).open(temp_path)
+    return Writer(file_handle, self._schema, self._codec)
 
   def write_record(self, writer, value):
     writer.write(value)
 
   def close(self, writer):
     writer.flush()
-    super(_FastAvroSink, self).close(writer.fo)
