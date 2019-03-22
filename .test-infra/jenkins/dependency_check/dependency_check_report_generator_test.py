@@ -103,21 +103,21 @@ class DependencyCheckReportGeneratorTest(unittest.TestCase):
       self.assertIn('group3:artifact3', report[2])
 
 
-  @patch('dependency_check.dependency_check_report_generator.find_release_time_from_maven_central',
-         side_effect = [_LP_CURR_VERSION_DATE,
-                        _LATEST_VERSION_DATE,])
-  @patch('jira_utils.jira_manager.JiraManager.run',
-         side_effect = [MockedJiraIssue('BEAM-1000', 'summary', 'description', 'Open'),])
-  def test_dep_with_nondigit_major_versions(self, *args):
-    """
-    Test on a outdated dependency with non-digit major number.
-    Expect: group1:artifact1
-    """
-    deps = [" - group1:artifact1 [Release1-123 -> Release2-456]"]
-    with patch('__builtin__.open', mock_open(read_data=_MOCKED_OWNERS_FILE)):
-      report = prioritize_dependencies(deps, _SDK_TYPE)
-      self.assertEqual(len(report), 1)
-      self.assertIn('group1:artifact1', report[0])
+  # @patch('dependency_check.dependency_check_report_generator.find_release_time_from_maven_central',
+  #        side_effect = [_LP_CURR_VERSION_DATE,
+  #                       _LATEST_VERSION_DATE,])
+  # @patch('jira_utils.jira_manager.JiraManager.run',
+  #        side_effect = [MockedJiraIssue('BEAM-1000', 'summary', 'description', 'Open'),])
+  # def test_dep_with_nondigit_major_versions(self, *args):
+  #   """
+  #   Test on a outdated dependency with non-digit major number.
+  #   Expect: group1:artifact1
+  #   """
+  #   deps = [" - group1:artifact1 [Release1-123 -> Release2-456]"]
+  #   with patch('__builtin__.open', mock_open(read_data=_MOCKED_OWNERS_FILE)):
+  #     report = prioritize_dependencies(deps, _SDK_TYPE)
+  #     self.assertEqual(len(report), 1)
+  #     self.assertIn('group1:artifact1', report[0])
 
 
   @patch('dependency_check.dependency_check_report_generator.find_release_time_from_maven_central',
