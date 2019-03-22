@@ -23,6 +23,7 @@ import static org.mockito.Matchers.any;
 import static org.mockito.Matchers.eq;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.timeout;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -32,6 +33,8 @@ import java.util.List;
 import java.util.concurrent.TimeUnit;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Stopwatch;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableList;
+import org.joda.time.Duration;
+import org.joda.time.Instant;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
@@ -51,8 +54,11 @@ public class ShardReadersPoolTest {
   @Mock private ShardCheckpoint firstCheckpoint, secondCheckpoint;
   @Mock private SimplifiedKinesisClient kinesis;
   @Mock private KinesisRecord a, b, c, d;
+  @Mock private KinesisWatermarkPolicyFactory factory;
 
+  private KinesisReaderCheckpoint checkpoint;
   private ShardReadersPool shardReadersPool;
+  private final Instant now = Instant.now();
 
   @Before
   public void setUp() throws TransientKinesisException {
@@ -68,9 +74,15 @@ public class ShardReadersPoolTest {
     when(secondIterator.getCheckpoint()).thenReturn(secondCheckpoint);
     when(thirdIterator.getShardId()).thenReturn("shard3");
     when(fourthIterator.getShardId()).thenReturn("shard4");
-    KinesisReaderCheckpoint checkpoint =
-        new KinesisReaderCheckpoint(ImmutableList.of(firstCheckpoint, secondCheckpoint));
-    shardReadersPool = Mockito.spy(new ShardReadersPool(kinesis, checkpoint));
+
+    KinesisWatermarkPolicy policy =
+        KinesisWatermarkPolicyFactory.withArrivalTimePolicy().createKinesisWatermarkPolicy();
+
+    checkpoint = new KinesisReaderCheckpoint(ImmutableList.of(firstCheckpoint, secondCheckpoint));
+    shardReadersPool = Mockito.spy(new ShardReadersPool(kinesis, checkpoint, factory));
+
+    when(factory.createKinesisWatermarkPolicy()).thenReturn(policy);
+
     doReturn(firstIterator).when(shardReadersPool).createShardIterator(kinesis, firstCheckpoint);
     doReturn(secondIterator).when(shardReadersPool).createShardIterator(kinesis, secondCheckpoint);
   }
@@ -164,7 +176,11 @@ public class ShardReadersPoolTest {
     when(firstIterator.readNextBatch()).thenReturn(ImmutableList.of(a, b, c));
     KinesisReaderCheckpoint checkpoint =
         new KinesisReaderCheckpoint(ImmutableList.of(firstCheckpoint, secondCheckpoint));
-    ShardReadersPool shardReadersPool = new ShardReadersPool(kinesis, checkpoint, 2);
+
+    KinesisWatermarkPolicyFactory watermarkPolicyFactory =
+        KinesisWatermarkPolicyFactory.withArrivalTimePolicy();
+    ShardReadersPool shardReadersPool =
+        new ShardReadersPool(kinesis, checkpoint, watermarkPolicyFactory, 2);
     shardReadersPool.start();
 
     Stopwatch stopwatch = Stopwatch.createStarted();
@@ -239,7 +255,10 @@ public class ShardReadersPoolTest {
   @Test
   public void shouldReturnAbsentOptionalWhenStartedWithNoIterators() throws Exception {
     KinesisReaderCheckpoint checkpoint = new KinesisReaderCheckpoint(Collections.emptyList());
-    shardReadersPool = Mockito.spy(new ShardReadersPool(kinesis, checkpoint));
+    KinesisWatermarkPolicyFactory watermarkPolicyFactory =
+        KinesisWatermarkPolicyFactory.withArrivalTimePolicy();
+    shardReadersPool =
+        Mockito.spy(new ShardReadersPool(kinesis, checkpoint, watermarkPolicyFactory));
     doReturn(firstIterator)
         .when(shardReadersPool)
         .createShardIterator(eq(kinesis), any(ShardCheckpoint.class));
@@ -264,5 +283,23 @@ public class ShardReadersPoolTest {
         .extracting("shardId", String.class)
         .containsOnly("shard2")
         .doesNotContain("shard1");
+  }
+
+  @Test
+  public void shouldReturnTheLeastWatermarkOfAllShards() throws TransientKinesisException {
+    Instant oneMin = now.minus(Duration.standardMinutes(1));
+    Instant twoMin = now.minus(Duration.standardMinutes(2));
+    Instant threeMin = now.minus(Duration.standardMinutes(3));
+
+    when(firstIterator.getShardWatermark()).thenReturn(oneMin).thenReturn(threeMin);
+    when(secondIterator.getShardWatermark()).thenReturn(twoMin);
+
+    shardReadersPool.start();
+
+    assertThat(shardReadersPool.getWatermark()).isEqualTo(twoMin);
+    assertThat(shardReadersPool.getWatermark()).isEqualTo(threeMin);
+
+    verify(firstIterator, times(2)).getShardWatermark();
+    verify(secondIterator, times(2)).getShardWatermark();
   }
 }
