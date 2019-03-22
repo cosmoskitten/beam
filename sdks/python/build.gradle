@@ -69,18 +69,18 @@ assemble.dependsOn docs
 toxTask "cover", "cover"
 
 task preCommitPy2() {
-  dependsOn "docs"
-  dependsOn "testPy2Cython"
+//  dependsOn "docs"
+//  dependsOn "testPy2Cython"
   dependsOn "testPython2"
-  dependsOn "testPy2Gcp"
-  dependsOn "lint"
+//  dependsOn "testPy2Gcp"
+//  dependsOn "lint"
 }
 
 task portablePreCommit() {
-  dependsOn ':beam-runners-flink_2.11-job-server-container:docker'
-  dependsOn ':beam-sdks-python-container:docker'
-  dependsOn portableWordCountTask('portableWordCountBatch', false)
-  dependsOn portableWordCountTask('portableWordCountStreaming', true)
+//  dependsOn ':beam-runners-flink_2.11-job-server-container:docker'
+//  dependsOn ':beam-sdks-python-container:docker'
+//  dependsOn portableWordCountTask('portableWordCountBatch', false)
+//  dependsOn portableWordCountTask('portableWordCountStreaming', true)
 }
 
 
