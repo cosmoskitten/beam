@@ -183,7 +183,6 @@ class BigtableSourceTest(unittest.TestCase):
     count = len(split_list)
     size = 10468982784
     count_size = size/desired_bundle_size
-    count_size += 1
     self.assertEqual(count, count_size)
 
   def __read_list(self):
@@ -217,50 +216,6 @@ class BigtableSourceTest(unittest.TestCase):
     mock_read_rows.return_value = self.__read_list()
     source = BigTableSource(self.project_id, self.instance_id,
                               self.table_id)
-  # @mock.patch.object(Table, 'read_rows')
-  # @mock.patch.object(BigTableSource, 'get_sample_row_keys')
-  # def test_dynamic_work_rebalancing(self, mock_my_method, mock_read_rows):
-  #   mock_my_method.return_value = self.sample_row_keys()
-  #   mock_read_rows.return_value = self.__read_list()
-  #   source = BigTableSource(self.project_id, self.instance_id,
-  #                           self.table_id)
-  #   splits = list(source.split(desired_bundle_size=805306368))
-
-  #   s_source = splits[1].source
-  #   start_position = splits[1].start_position
-  #   stop_position = splits[1].stop_position
-
-  #   assert len(splits) == 1
-  #   source_test_utils.assert_split_at_fraction_exhaustive(
-  #       s_source, start_position, stop_position)
-
-  # @mock.patch.object(Table, 'read_rows')
-  # @mock.patch.object(BigTableSource, 'get_sample_row_keys')
-  # def test_dynamic_work_rebalancing_windows_eol(self, mock_my_method,
-  #                                               mock_read_rows):
-  #   mock_my_method.return_value = self.sample_row_keys()
-  #   mock_read_rows.return_value = self.__read_list()
-  #   source = BigTableSource(self.project_id, self.instance_id,
-  #                           self.table_id)
-  #   splits = list(source.split(desired_bundle_size=805306368))
-  #   assert len(splits) == 1
-  #   source_test_utils.assert_split_at_fraction_exhaustive(
-  #       splits[0].source, splits[0].start_position, splits[0].stop_position,
-  #       perform_multi_threaded_test=False)
-
-  # @mock.patch.object(Table, 'read_rows')
-  # @mock.patch.object(BigTableSource, 'get_sample_row_keys')
-  # def test_dynamic_work_rebalancing_mixed_eol(self, mock_my_method,
-  #                                             mock_read_rows):
-  #   mock_my_method.return_value = self.sample_row_keys()
-  #   mock_read_rows.return_value = self.__read_list()
-  #   source = BigTableSource(self.project_id, self.instance_id,
-  #                           self.table_id)
-  #   splits = list(source.split(desired_bundle_size=805306368))
-  #   assert len(splits) == 1
-  #   source_test_utils.assert_split_at_fraction_exhaustive(
-  #       splits[0].source, splits[0].start_position, splits[0].stop_position,
-  #       perform_multi_threaded_test=False)
 
 
 if __name__ == '__main__':
