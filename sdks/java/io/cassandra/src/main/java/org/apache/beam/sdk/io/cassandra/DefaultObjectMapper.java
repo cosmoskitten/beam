@@ -30,24 +30,24 @@ import java.util.concurrent.Future;
  */
 public class DefaultObjectMapper<T> implements Mapper<T> {
 
-  com.datastax.driver.mapping.Mapper<T> datastaxMapper;
+  com.datastax.driver.mapping.Mapper<T> mapper;
 
   public DefaultObjectMapper(com.datastax.driver.mapping.Mapper mapper) {
-    this.datastaxMapper = mapper;
+    this.mapper = mapper;
   }
 
   @Override
   public Iterator<T> map(ResultSet resultSet) {
-    return datastaxMapper.map(resultSet).iterator();
+    return mapper.map(resultSet).iterator();
   }
 
   @Override
   public Future<Void> deleteAsync(T entity) {
-    return datastaxMapper.deleteAsync(entity);
+    return mapper.deleteAsync(entity);
   }
 
   @Override
   public Future<Void> saveAsync(T entity) {
-    return datastaxMapper.saveAsync(entity);
+    return mapper.saveAsync(entity);
   }
 }
