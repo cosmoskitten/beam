@@ -15,22 +15,27 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.io.cassandra.mapper;
+package org.apache.beam.sdk.io.cassandra;
 
-import com.datastax.driver.core.ResultSet;
-import java.util.Iterator;
-import java.util.concurrent.Future;
+import com.datastax.driver.core.Session;
+import com.datastax.driver.mapping.MappingManager;
 
 /**
- * This interface allows you to create custom object mappers for the Beam CassandraIO.
+ * Factory implementation that CassandraIO uses to initialize the Default Object Mapper for mapping
+ * POJOs to CRUD events in Cassandra.
  *
- * @see org.apache.beam.sdk.io.cassandra.mapper.MapperFactory
+ * @see org.apache.beam.sdk.io.cassandra.DefaultObjectMapper
  */
-public interface Mapper<T> {
+public class DefaultObjectMapperFactory<T> implements MapperFactory<T> {
 
-  Iterator<T> map(ResultSet resultSet);
+  private MappingManager mappingManager;
 
-  Future<Void> deleteAsync(T entity);
+  @Override
+  public Mapper<T> getMapper(Session session, Class<T> entity) {
+    if (mappingManager == null) {
+      this.mappingManager = new MappingManager(session);
+    }
 
-  Future<Void> saveAsync(T entity);
+    return new DefaultObjectMapper<T>(mappingManager.mapper(entity));
+  }
 }

@@ -15,39 +15,22 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.io.cassandra.mapper;
+package org.apache.beam.sdk.io.cassandra;
 
 import com.datastax.driver.core.ResultSet;
 import java.util.Iterator;
 import java.util.concurrent.Future;
 
 /**
- * Default Object mapper implementation that uses the <a
- * href="https://docs.datastax.com/en/developer/java-driver/3.1/manual/object_mapper">Cassandra
- * Object Mapper</a> for mapping POJOs to CRUD events in Cassandra.
+ * This interface allows you to create custom object mappers for the Beam CassandraIO.
  *
- * @see org.apache.beam.sdk.io.cassandra.mapper.DefaultObjectMapperFactory
+ * @see org.apache.beam.sdk.io.cassandra.MapperFactory
  */
-public class DefaultObjectMapper<T> implements Mapper<T> {
+public interface Mapper<T> {
 
-  com.datastax.driver.mapping.Mapper<T> datastaxMapper;
+  Iterator<T> map(ResultSet resultSet);
 
-  public DefaultObjectMapper(com.datastax.driver.mapping.Mapper mapper) {
-    this.datastaxMapper = mapper;
-  }
+  Future<Void> deleteAsync(T entity);
 
-  @Override
-  public Iterator<T> map(ResultSet resultSet) {
-    return datastaxMapper.map(resultSet).iterator();
-  }
-
-  @Override
-  public Future<Void> deleteAsync(T entity) {
-    return datastaxMapper.deleteAsync(entity);
-  }
-
-  @Override
-  public Future<Void> saveAsync(T entity) {
-    return datastaxMapper.saveAsync(entity);
-  }
+  Future<Void> saveAsync(T entity);
 }

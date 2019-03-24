@@ -15,7 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.io.cassandra.mapper;
+package org.apache.beam.sdk.io.cassandra;
 
 import com.datastax.driver.core.Session;
 
@@ -38,8 +38,8 @@ import com.datastax.driver.core.Session;
  * }</pre>
  *
  * @see org.apache.beam.sdk.io.cassandra.CassandraIO
- * @see org.apache.beam.sdk.io.cassandra.mapper.MapperFactory
- * @see org.apache.beam.sdk.io.cassandra.mapper.Mapper
+ * @see org.apache.beam.sdk.io.cassandra.MapperFactory
+ * @see org.apache.beam.sdk.io.cassandra.Mapper
  */
 public interface MapperFactory<T> {
 

@@ -53,8 +53,6 @@ import javax.management.remote.JMXServiceURL;
 import org.apache.beam.sdk.coders.SerializableCoder;
 import org.apache.beam.sdk.io.BoundedSource;
 import org.apache.beam.sdk.io.cassandra.CassandraIO.CassandraSource.TokenRange;
-import org.apache.beam.sdk.io.cassandra.mapper.Mapper;
-import org.apache.beam.sdk.io.cassandra.mapper.MapperFactory;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.testing.PAssert;
