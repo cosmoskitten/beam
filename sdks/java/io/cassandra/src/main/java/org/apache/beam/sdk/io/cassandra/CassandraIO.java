@@ -165,10 +165,12 @@ public class CassandraIO {
     @Nullable
     abstract ValueProvider<Integer> minNumberOfSplits();
 
-    @Nullable
     abstract MapperFactory<T> mapperFactory();
 
-    abstract Builder<T> builder();
+    Builder<T> builder() {
+      return new AutoValue_CassandraIO_Read.Builder<T>()
+          .setMapperFactory(new DefaultObjectMapperFactory<T>());
+    }
 
     /** Specify the hosts of the Apache Cassandra instances. */
     public Read<T> withHosts(List<String> hosts) {
@@ -759,12 +761,7 @@ public class CassandraIO {
       }
 
       private Mapper<T> getMapper(Session session, Class<T> enitity) {
-        if (source.spec.mapperFactory() != null) {
-          return source.spec.mapperFactory().getMapper(session, enitity);
-        } else {
-          DefaultObjectMapperFactory<T> factory = new DefaultObjectMapperFactory<T>();
-          return factory.getMapper(session, enitity);
-        }
+        return source.spec.mapperFactory().getMapper(session, enitity);
       }
     }
   }
@@ -807,13 +804,14 @@ public class CassandraIO {
 
     abstract MutationType mutationType();
 
-    @Nullable
     abstract MapperFactory<T> mapperFactory();
 
     abstract Builder<T> builder();
 
     static <T> Builder<T> builder(MutationType mutationType) {
-      return new AutoValue_CassandraIO_Write.Builder<T>().setMutationType(mutationType);
+      return new AutoValue_CassandraIO_Write.Builder<T>()
+          .setMutationType(mutationType)
+          .setMapperFactory(new DefaultObjectMapperFactory<T>());
     }
 
     /** Specify the Cassandra instance hosts where to write data. */
@@ -1125,11 +1123,7 @@ public class CassandraIO {
               spec.consistencyLevel());
       this.session = cluster.connect(spec.keyspace());
       this.entityClass = spec.entity();
-      if (spec.mapperFactory() != null) {
-        this.mapperFactory = spec.mapperFactory();
-      } else {
-        this.mapperFactory = new DefaultObjectMapperFactory<T>();
-      }
+      this.mapperFactory = spec.mapperFactory();
       this.mutateFutures = new ArrayList<>();
       this.mutator = mutator;
       this.operationName = operationName;
