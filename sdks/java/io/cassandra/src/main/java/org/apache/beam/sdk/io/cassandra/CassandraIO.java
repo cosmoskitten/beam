@@ -166,7 +166,7 @@ public class CassandraIO {
     abstract ValueProvider<Integer> minNumberOfSplits();
 
     @Nullable
-    abstract MapperFactory<T> customMapperFactory();
+    abstract MapperFactory<T> mapperFactory();
 
     abstract Builder<T> builder();
 
@@ -332,12 +332,11 @@ public class CassandraIO {
       return builder().setMinNumberOfSplits(minNumberOfSplits).build();
     }
 
-    public Read<T> withCustomMapperFactory(MapperFactory<T> mapperFactory) {
+    public Read<T> withMapperFactory(MapperFactory<T> mapperFactory) {
       checkArgument(
           mapperFactory != null,
-          "CassandraIO.withCustomMapperFactory"
-              + "(withCustomMapperFactory) called with null value");
-      return builder().setCustomMapperFactory(mapperFactory).build();
+          "CassandraIO.withMapperFactory" + "(withMapperFactory) called with null value");
+      return builder().setMapperFactory(mapperFactory).build();
     }
 
     @Override
@@ -377,7 +376,7 @@ public class CassandraIO {
 
       abstract Builder<T> setMinNumberOfSplits(ValueProvider<Integer> minNumberOfSplits);
 
-      abstract Builder<T> setCustomMapperFactory(MapperFactory<T> mapperFactory);
+      abstract Builder<T> setMapperFactory(MapperFactory<T> mapperFactory);
 
       abstract Read<T> build();
     }
@@ -760,8 +759,8 @@ public class CassandraIO {
       }
 
       private Mapper<T> getMapper(Session session, Class<T> enitity) {
-        if (source.spec.customMapperFactory() != null) {
-          return source.spec.customMapperFactory().getMapper(session, enitity);
+        if (source.spec.mapperFactory() != null) {
+          return source.spec.mapperFactory().getMapper(session, enitity);
         } else {
           DefaultObjectMapperFactory<T> factory = new DefaultObjectMapperFactory<T>();
           return factory.getMapper(session, enitity);
@@ -809,7 +808,7 @@ public class CassandraIO {
     abstract MutationType mutationType();
 
     @Nullable
-    abstract MapperFactory<T> customMapperFactory();
+    abstract MapperFactory<T> mapperFactory();
 
     abstract Builder<T> builder();
 
@@ -911,14 +910,14 @@ public class CassandraIO {
       return builder().setConsistencyLevel(consistencyLevel).build();
     }
 
-    public Write<T> withCustomMapperFactory(MapperFactory<T> mapperFactory) {
+    public Write<T> withMapperFactory(MapperFactory<T> mapperFactory) {
       checkArgument(
           mapperFactory != null,
           "CassandraIO."
               + getMutationTypeName()
-              + "().withCustomMapperFactory"
-              + "(withCustomMapperFactory) called with null value");
-      return builder().setCustomMapperFactory(mapperFactory).build();
+              + "().withMapperFactory"
+              + "(withMapperFactory) called with null value");
+      return builder().setMapperFactory(mapperFactory).build();
     }
 
     @Override
@@ -984,7 +983,7 @@ public class CassandraIO {
 
       abstract Builder<T> setMutationType(MutationType mutationType);
 
-      abstract Builder<T> setCustomMapperFactory(MapperFactory<T> mapperFactory);
+      abstract Builder<T> setMapperFactory(MapperFactory<T> mapperFactory);
 
       abstract Write<T> build();
     }
@@ -1126,8 +1125,8 @@ public class CassandraIO {
               spec.consistencyLevel());
       this.session = cluster.connect(spec.keyspace());
       this.entityClass = spec.entity();
-      if (spec.customMapperFactory() != null) {
-        this.mapperFactory = spec.customMapperFactory();
+      if (spec.mapperFactory() != null) {
+        this.mapperFactory = spec.mapperFactory();
       } else {
         this.mapperFactory = new DefaultObjectMapperFactory<T>();
       }

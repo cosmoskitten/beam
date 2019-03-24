@@ -377,7 +377,7 @@ public class CassandraIOTest implements Serializable {
             .withTable(CASSANDRA_TABLE)
             .withCoder(SerializableCoder.of(String.class))
             .withEntity(String.class)
-            .withCustomMapperFactory(factory));
+            .withMapperFactory(factory));
     pipeline.run();
 
     assertEquals(NUM_ROWS, counter.intValue());
@@ -397,7 +397,7 @@ public class CassandraIOTest implements Serializable {
                 .withHosts(Arrays.asList(CASSANDRA_HOST))
                 .withPort(CASSANDRA_PORT)
                 .withKeyspace(CASSANDRA_KEYSPACE)
-                .withCustomMapperFactory(factory)
+                .withMapperFactory(factory)
                 .withEntity(String.class));
     pipeline.run();
 
@@ -418,7 +418,7 @@ public class CassandraIOTest implements Serializable {
                 .withHosts(Arrays.asList(CASSANDRA_HOST))
                 .withPort(CASSANDRA_PORT)
                 .withKeyspace(CASSANDRA_KEYSPACE)
-                .withCustomMapperFactory(factory)
+                .withMapperFactory(factory)
                 .withEntity(String.class));
     pipeline.run();
 
