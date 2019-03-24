@@ -110,7 +110,9 @@ public class CassandraIO {
 
   /** Provide a {@link Read} {@link PTransform} to read data from a Cassandra database. */
   public static <T> Read<T> read() {
-    return new AutoValue_CassandraIO_Read.Builder<T>().build();
+    return new AutoValue_CassandraIO_Read.Builder<T>()
+        .setMapperFactory(new DefaultObjectMapperFactory<T>())
+        .build();
   }
 
   /** Provide a {@link Write} {@link PTransform} to write data to a Cassandra database. */
@@ -167,10 +169,7 @@ public class CassandraIO {
 
     abstract MapperFactory<T> mapperFactory();
 
-    Builder<T> builder() {
-      return new AutoValue_CassandraIO_Read.Builder<T>()
-          .setMapperFactory(new DefaultObjectMapperFactory<T>());
-    }
+    abstract Builder<T> builder();
 
     /** Specify the hosts of the Apache Cassandra instances. */
     public Read<T> withHosts(List<String> hosts) {
