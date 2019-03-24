@@ -19,6 +19,7 @@ package org.apache.beam.sdk.io.cassandra;
 
 import com.datastax.driver.core.Session;
 import com.datastax.driver.mapping.MappingManager;
+import java.io.Serializable;
 
 /**
  * Factory implementation that CassandraIO uses to initialize the Default Object Mapper for mapping
@@ -26,9 +27,9 @@ import com.datastax.driver.mapping.MappingManager;
  *
  * @see org.apache.beam.sdk.io.cassandra.DefaultObjectMapper
  */
-public class DefaultObjectMapperFactory<T> implements MapperFactory<T> {
+public class DefaultObjectMapperFactory<T> implements MapperFactory<T>, Serializable {
 
-  private MappingManager mappingManager;
+  private transient MappingManager mappingManager;
 
   @Override
   public Mapper<T> getMapper(Session session, Class<T> entity) {

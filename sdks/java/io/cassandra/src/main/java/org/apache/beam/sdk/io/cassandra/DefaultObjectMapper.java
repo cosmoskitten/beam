@@ -18,6 +18,7 @@
 package org.apache.beam.sdk.io.cassandra;
 
 import com.datastax.driver.core.ResultSet;
+import java.io.Serializable;
 import java.util.Iterator;
 import java.util.concurrent.Future;
 
@@ -28,9 +29,9 @@ import java.util.concurrent.Future;
  *
  * @see org.apache.beam.sdk.io.cassandra.DefaultObjectMapperFactory
  */
-public class DefaultObjectMapper<T> implements Mapper<T> {
+public class DefaultObjectMapper<T> implements Mapper<T>, Serializable {
 
-  com.datastax.driver.mapping.Mapper<T> mapper;
+  private transient com.datastax.driver.mapping.Mapper<T> mapper;
 
   public DefaultObjectMapper(com.datastax.driver.mapping.Mapper mapper) {
     this.mapper = mapper;
