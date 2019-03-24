@@ -1113,7 +1113,7 @@ public class CassandraIO {
     private List<Future<Void>> mutateFutures;
     private final BiFunction<Mapper<T>, T, Future<Void>> mutator;
     private final String operationName;
-    private final Class<T> entitiyClass;
+    private final Class<T> entityClass;
 
     Mutator(Write<T> spec, BiFunction<Mapper<T>, T, Future<Void>> mutator, String operationName) {
       this.cluster =
@@ -1125,7 +1125,7 @@ public class CassandraIO {
               spec.localDc(),
               spec.consistencyLevel());
       this.session = cluster.connect(spec.keyspace());
-      this.entitiyClass = spec.entity();
+      this.entityClass = spec.entity();
       if (spec.customMapperFactory() != null) {
         this.mapperFactory = spec.customMapperFactory();
       } else {
@@ -1144,7 +1144,7 @@ public class CassandraIO {
      * complete, to guarantee all writes have succeeded.
      */
     void mutate(T entity) throws ExecutionException, InterruptedException {
-      Mapper<T> mapper = mapperFactory.getMapper(session, entitiyClass);
+      Mapper<T> mapper = mapperFactory.getMapper(session, entityClass);
       this.mutateFutures.add(mutator.apply(mapper, entity));
       if (this.mutateFutures.size() == CONCURRENT_ASYNC_QUERIES) {
         // We reached the max number of allowed in flight queries.
