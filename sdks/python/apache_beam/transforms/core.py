@@ -398,7 +398,7 @@ class DoFn(WithTypeHints, HasDisplayData, urns.RunnerApiFn):
     If specified, following default arguments are used by the ``DoFnRunner`` to
     be able to pass the parameters correctly.
 
-    ``DoFn.ElementParam``: element to be processed.
+    ``DoFn.ElementParam``: element to be processed, should not be mutated.
     ``DoFn.SideInputParam``: a side input that may be used when processing.
     ``DoFn.TimestampParam``: timestamp of the input element.
     ``DoFn.WindowParam``: ``Window`` the input element belongs to.
@@ -603,8 +603,9 @@ class CombineFn(WithTypeHints, HasDisplayData, urns.RunnerApiFn):
     CombineFn implementors must override add_input.
 
     Args:
-      accumulator: the current accumulator
-      element: the element to add
+      accumulator: the current accumulator,
+        may be modified and returned, for efficiency
+      element: the element to add, should not be mutated
       *args: Additional arguments and side inputs.
       **kwargs: Additional arguments and side inputs.
     """
@@ -618,8 +619,9 @@ class CombineFn(WithTypeHints, HasDisplayData, urns.RunnerApiFn):
     over the inputs invoking add_input for each one.
 
     Args:
-      accumulator: the current accumulator
-      elements: the elements to add
+      accumulator: the current accumulator,
+        may be modified and returned, for efficiency
+      elements: the elements to add, should not be mutated
       *args: Additional arguments and side inputs.
       **kwargs: Additional arguments and side inputs.
     """
@@ -632,7 +634,9 @@ class CombineFn(WithTypeHints, HasDisplayData, urns.RunnerApiFn):
     to a single accumulator value.
 
     Args:
-      accumulators: the accumulators to merge
+      accumulators: the accumulators to merge,
+        only the first accumulator may be modified and returned, for efficiency;
+        the other accumulators should not be mutated
       *args: Additional arguments and side inputs.
       **kwargs: Additional arguments and side inputs.
     """
