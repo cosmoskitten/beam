@@ -25,7 +25,6 @@ import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.io.Serializable;
-import javax.annotation.Nullable;
 import org.apache.beam.runners.spark.coders.CoderHelpers;
 import org.apache.beam.runners.spark.util.ByteArray;
 import org.apache.beam.sdk.coders.Coder;
@@ -40,7 +39,6 @@ import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Optional;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Iterables;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Lists;
-import org.apache.spark.Partitioner;
 import org.apache.spark.api.java.JavaPairRDD;
 import org.apache.spark.api.java.JavaRDD;
 import org.apache.spark.api.java.function.Function;
@@ -55,22 +53,13 @@ public class GroupCombineFunctions {
    * org.apache.beam.runners.core.GroupByKeyViaGroupByKeyOnly.GroupByKeyOnly} for the Spark runner.
    */
   public static <K, V> JavaRDD<KV<K, Iterable<WindowedValue<V>>>> groupByKeyOnly(
-      JavaRDD<WindowedValue<KV<K, V>>> rdd,
-      Coder<K> keyCoder,
-      WindowedValueCoder<V> wvCoder,
-      @Nullable Partitioner partitioner) {
+      JavaRDD<WindowedValue<KV<K, V>>> rdd, Coder<K> keyCoder, WindowedValueCoder<V> wvCoder) {
     // we use coders to convert objects in the PCollection to byte arrays, so they
     // can be transferred over the network for the shuffle.
-    JavaPairRDD<ByteArray, byte[]> pairRDD =
-        rdd.map(new ReifyTimestampsAndWindowsFunction<>())
-            .mapToPair(TranslationUtils.toPairFunction())
-            .mapToPair(CoderHelpers.toByteFunction(keyCoder, wvCoder));
-
-    // If no partitioner is passed, the default group by key operation is called
-    JavaPairRDD<ByteArray, Iterable<byte[]>> groupedRDD =
-        (partitioner != null) ? pairRDD.groupByKey(partitioner) : pairRDD.groupByKey();
-
-    return groupedRDD
+    return rdd.map(new ReifyTimestampsAndWindowsFunction<>())
+        .mapToPair(TranslationUtils.toPairFunction())
+        .mapToPair(CoderHelpers.toByteFunction(keyCoder, wvCoder))
+        .groupByKey()
         .mapToPair(CoderHelpers.fromByteFunctionIterable(keyCoder, wvCoder))
         .map(TranslationUtils.fromPairFunction());
   }

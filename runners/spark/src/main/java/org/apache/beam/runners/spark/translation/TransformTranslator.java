@@ -145,9 +145,8 @@ public final class TransformTranslator {
         } else {
 
           // --- group by key only.
-          Partitioner partitioner = getPartitioner(context);
           JavaRDD<KV<K, Iterable<WindowedValue<V>>>> groupedByKeyOnly =
-              GroupCombineFunctions.groupByKeyOnly(inRDD, keyCoder, wvCoder, partitioner);
+              GroupCombineFunctions.groupByKeyOnly(inRDD, keyCoder, wvCoder);
 
           // --- now group also by window.
           // for batch, GroupAlsoByWindow uses an in-memory StateInternals.
@@ -389,7 +388,6 @@ public final class TransformTranslator {
                   (KvCoder) context.getInput(transform).getCoder(),
                   windowingStrategy.getWindowFn().windowCoder(),
                   (JavaRDD) inRDD,
-                  getPartitioner(context),
                   (MultiDoFnFunction) multiDoFnFunction);
         } else {
           all = inRDD.mapPartitionsToPair(multiDoFnFunction);
@@ -433,7 +431,6 @@ public final class TransformTranslator {
       KvCoder<K, V> kvCoder,
       Coder<? extends BoundedWindow> windowCoder,
       JavaRDD<WindowedValue<KV<K, V>>> kvInRDD,
-      Partitioner partitioner,
       MultiDoFnFunction<KV<K, V>, OutputT> doFnFunction) {
     Coder<K> keyCoder = kvCoder.getKeyCoder();
 
@@ -441,7 +438,7 @@ public final class TransformTranslator {
         WindowedValue.FullWindowedValueCoder.of(kvCoder.getValueCoder(), windowCoder);
 
     JavaRDD<KV<K, Iterable<WindowedValue<V>>>> groupRDD =
-        GroupCombineFunctions.groupByKeyOnly(kvInRDD, keyCoder, wvCoder, partitioner);
+        GroupCombineFunctions.groupByKeyOnly(kvInRDD, keyCoder, wvCoder);
 
     return groupRDD
         .map(
