@@ -20,18 +20,11 @@ limitations under the License.
 
 # Try Apache Beam
 
-This small snippets show you how a simple minimal version of WordCount looks like.
-You can run these and interactively play with the code to see how it is affected.
-
-If you're interested in contributing to the Apache Beam codebase, see the [Contribution Guide]({{ site.baseurl }}/contribute).
-
-* TOC
-{:toc}
+Our interactive [Colab](https://colab.research.google.com) notebooks allow you to try Apache Beam without needing to install anything or modify your system. The notebooks show you what a simple, minimal version of a WordCount pipeline looks like. You can also interactively modify the code to see how your changes affect the pipeline.
 
 ## Interactive WordCount in Colab
 
-Before you begin, try an interactive notebook hosted in [Colab](https://colab.research.google.com) with a minimal version of WordCount.
-You don't have to install or modify your system in any way to run this.
+To run these notebooks in Colab, select the **RUN IN COLAB** button that is below the code snippet.
 
 ```java
 package samples.quickstart;
@@ -149,7 +142,7 @@ func main() {
 </a>
 
 {:.language-java}
-To learn how to install and run the Apache Beam Java SDK in your own machine, you can follow the instructions in the [Java Quickstart]({{ site.baseurl }}/get-started/quickstart-java).
+To learn how to install and run the Apache Beam SDK for Java on your own machine, follow the instructions in the [Java Quickstart]({{ site.baseurl }}/get-started/quickstart-java).
 
 {:.language-py}
 <a class="button button--primary" target="_blank"
@@ -162,7 +155,7 @@ To learn how to install and run the Apache Beam Java SDK in your own machine, yo
 </a>
 
 {:.language-py}
-To learn how to install and run the Apache Beam Python SDK in your own machine, you can follow the instructions in the [Python Quickstart]({{ site.baseurl }}/get-started/quickstart-py).
+To learn how to install and run the Apache Beam SDK for Python on your own machine, follow the instructions in the [Python Quickstart]({{ site.baseurl }}/get-started/quickstart-py).
 
 {:.language-go}
 <a class="button button--primary" target="_blank"
@@ -175,15 +168,18 @@ To learn how to install and run the Apache Beam Python SDK in your own machine, 
 </a>
 
 {:.language-go}
-To learn how to install and run the Apache Beam Go SDK in your own machine, please follow the instructions in the [Go Quickstart]({{ site.baseurl }}/get-started/quickstart-go).
+To learn how to install and run the Apache Beam SDK for Go on your own machine, follow the instructions in the [Go Quickstart]({{ site.baseurl }}/get-started/quickstart-go).
 
-For a more detailed explanation on how WordCount works, please go through the [WordCount Example Walkthrough]({{ site.baseurl }}/get-started/wordcount-example).
+For a more detailed explanation about how WordCount works, see the [WordCount Example Walkthrough]({{ site.baseurl }}/get-started/wordcount-example).
 
 ## Next Steps
 
-* Walk through these WordCount examples in the [WordCount Example Walkthrough]({{ site.baseurl }}/get-started/wordcount-example).
-* Take a self-paced tour through our [Learning Resources]({{ site.baseurl }}/documentation/resources/learning-resources).
-* Dive in to some of our favorite [Videos and Podcasts]({{ site.baseurl }}/documentation/resources/videos-and-podcasts).
+* Walk through additional WordCount examples in the [WordCount example walkthrough]({{ site.baseurl }}/get-started/wordcount-example).
+* Learn about more complex functionality in the [mobile gaming walkthrough]({{ site.baseurl }}/get-started/mobile-gaming-example).
+* Read the [Apache Beam programming guide]({{ site.baseurl }}/documentation/programming-guide).
+* Take a self-paced tour through our [learning resources]({{ site.baseurl }}/documentation/resources/learning-resources).
+* Dive in to some of our favorite [videos and podcasts]({{ site.baseurl }}/documentation/resources/videos-and-podcasts).
 * Join the Beam [users@]({{ site.baseurl }}/community/contact-us) mailing list.
+* If you're interested in contributing to the Apache Beam codebase, see the [contribution guide]({{ site.baseurl }}/contribute).
 
 Please don't hesitate to [reach out]({{ site.baseurl }}/community/contact-us) if you encounter any issues!
