@@ -666,7 +666,8 @@ class BigQueryWriteFn(DoFn):
         table_reference.datasetId,
         table_reference.tableId,
         table_schema,
-        self.create_disposition, self.write_disposition)
+        self.create_disposition, self.write_disposition,
+        kms_key=self.kms_key)
     self._observed_tables.add(str_table_reference)
 
   def process(self, element, unused_create_fn_output=None):
@@ -969,15 +970,18 @@ bigquery_v2_messages.TableSchema):
             'File Loads to BigQuery are only supported on Batch pipelines.')
 
       from apache_beam.io.gcp import bigquery_file_loads
-      return pcoll | bigquery_file_loads.BigQueryBatchFileLoads(
-          destination=self.table_reference,
-          schema=self.schema,
-          create_disposition=self.create_disposition,
-          write_disposition=self.write_disposition,
-          max_file_size=self.max_file_size,
-          max_files_per_bundle=self.max_files_per_bundle,
-          gs_location=self.gs_location,
-          test_client=self.test_client)
+      return (pcoll
+              | bigquery_file_loads.BigQueryBatchFileLoads(
+                  destination=self.table_reference,
+                  schema=self.schema,
+                  create_disposition=self.create_disposition,
+                  write_disposition=self.write_disposition,
+                  max_file_size=self.max_file_size,
+                  max_files_per_bundle=self.max_files_per_bundle,
+                  custom_gcs_temp_location=self.custom_gcs_temp_location,
+                  test_client=self.test_client,
+                  kms_key=self.kms_key,
+                  validate=self._validate))
 
   def display_data(self):
     res = {}
