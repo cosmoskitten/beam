@@ -21,11 +21,7 @@ import com.datastax.driver.core.ResultSet;
 import java.util.Iterator;
 import java.util.concurrent.Future;
 
-/**
- * This interface allows you to create custom object mappers for the Beam CassandraIO.
- *
- * @see org.apache.beam.sdk.io.cassandra.MapperFactory
- */
+/** This interface allows you to create custom object mappers for the Beam CassandraIO. */
 public interface Mapper<T> {
 
   Iterator<T> map(ResultSet resultSet);

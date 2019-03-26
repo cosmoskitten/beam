@@ -33,7 +33,12 @@ import com.datastax.driver.core.policies.DCAwareRoundRobinPolicy;
 import com.datastax.driver.core.policies.TokenAwarePolicy;
 import com.google.auto.value.AutoValue;
 import java.math.BigInteger;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Iterator;
+import java.util.List;
+import java.util.NoSuchElementException;
+import java.util.Optional;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
 import java.util.function.BiFunction;
@@ -49,7 +54,6 @@ import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.display.DisplayData;
-import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PDone;
@@ -108,8 +112,7 @@ public class CassandraIO {
 
   /** Provide a {@link Read} {@link PTransform} to read data from a Cassandra database. */
   public static <T> Read<T> read() {
-    return new AutoValue_CassandraIO_Read.Builder<T>()
-        .build();
+    return new AutoValue_CassandraIO_Read.Builder<T>().build();
   }
 
   /** Provide a {@link Write} {@link PTransform} to write data to a Cassandra database. */
@@ -385,8 +388,9 @@ public class CassandraIO {
 
       public Read<T> build() {
 
-        if(!mapperFactoryFn().isPresent() && entity().isPresent())
+        if (!mapperFactoryFn().isPresent() && entity().isPresent()) {
           setMapperFactoryFn(new DefaultObjectMapperFactory(entity().get()));
+        }
         return autoBuild();
       }
     }
@@ -818,8 +822,7 @@ public class CassandraIO {
     abstract Builder<T> builder();
 
     static <T> Builder<T> builder(MutationType mutationType) {
-      return new AutoValue_CassandraIO_Write.Builder<T>()
-          .setMutationType(mutationType);
+      return new AutoValue_CassandraIO_Write.Builder<T>().setMutationType(mutationType);
     }
 
     /** Specify the Cassandra instance hosts where to write data. */
@@ -918,7 +921,7 @@ public class CassandraIO {
 
     public Write<T> withMapperFactoryFn(SerializableFunction<Session, Mapper> mapperFactoryFn) {
       checkArgument(
-              mapperFactoryFn != null,
+          mapperFactoryFn != null,
           "CassandraIO."
               + getMutationTypeName()
               + "().mapperFactoryFn"
@@ -999,8 +1002,9 @@ public class CassandraIO {
 
       public Write<T> build() {
 
-        if(!mapperFactoryFn().isPresent() && entity().isPresent())
+        if (!mapperFactoryFn().isPresent() && entity().isPresent()) {
           setMapperFactoryFn(new DefaultObjectMapperFactory(entity().get()));
+        }
         return autoBuild();
       }
     }
