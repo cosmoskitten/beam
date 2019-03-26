@@ -17,11 +17,6 @@
  */
 package org.apache.beam.sdk.transforms.splittabledofn;
 
-import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkNotNull;
-import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkState;
-
-import javax.annotation.Nullable;
-import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.transforms.DoFn;
 
 /**

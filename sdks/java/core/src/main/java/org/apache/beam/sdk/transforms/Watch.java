@@ -32,7 +32,6 @@ import java.io.OutputStream;
 import java.io.Serializable;
 import java.util.Arrays;
 import java.util.Collections;
-import java.util.Comparator;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -69,7 +68,6 @@ import org.apache.beam.sdk.values.TypeDescriptors;
 import org.apache.beam.sdk.values.TypeDescriptors.TypeVariableExtractor;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableMap;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableSet;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Lists;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Maps;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Ordering;
@@ -191,17 +189,15 @@ public class Watch {
 
       /**
        * Returns a new {@link PollResult} like this one with the provided watermark. The watermark
-       * represents an approximate lower bound on timestamps of future new outputs from
-       * the {@link PollFn}.
+       * represents an approximate lower bound on timestamps of future new outputs from the {@link
+       * PollFn}.
        */
       public PollResult<OutputT> withWatermark(Instant watermark) {
         checkNotNull(watermark, "watermark");
         return new PollResult<>(outputs, watermark);
       }
 
-      /**
-       * Returns a new {@link PollResult} like this one with the provided outputs.
-       */
+      /** Returns a new {@link PollResult} like this one with the provided outputs. */
       public PollResult<OutputT> withOutputs(List<TimestampedValue<OutputT>> outputs) {
         checkNotNull(outputs);
         return new PollResult<>(outputs, watermark);
@@ -267,8 +263,7 @@ public class Watch {
           return false;
         }
         PollResult<?> that = (PollResult<?>) o;
-        return Objects.equals(outputs, that.outputs)
-            && Objects.equals(watermark, that.watermark);
+        return Objects.equals(outputs, that.outputs) && Objects.equals(watermark, that.watermark);
       }
 
       @Override
@@ -731,20 +726,22 @@ public class Watch {
         }
       }
 
-      PCollection<KV<InputT, List<TimestampedValue<OutputT>>>> polledPc = input
-          .apply(
-              ParDo.of(new WatchGrowthFn<>(this, outputCoder, outputKeyFn, outputKeyCoder))
-                  .withSideInputs(getPollFn().getRequirements().getSideInputs()))
-          .setCoder(KvCoder.of(input.getCoder(), ListCoder.of(TimestampedValue.TimestampedValueCoder.of(outputCoder))));
-      return polledPc.apply(ParDo.of(new PollResultSplitFn<>()))
+      PCollection<KV<InputT, List<TimestampedValue<OutputT>>>> polledPc =
+          input
+              .apply(
+                  ParDo.of(new WatchGrowthFn<>(this, outputCoder, outputKeyFn, outputKeyCoder))
+                      .withSideInputs(getPollFn().getRequirements().getSideInputs()))
+              .setCoder(
+                  KvCoder.of(
+                      input.getCoder(),
+                      ListCoder.of(TimestampedValue.TimestampedValueCoder.of(outputCoder))));
+      return polledPc
+          .apply(ParDo.of(new PollResultSplitFn<>()))
           .setCoder(KvCoder.of(input.getCoder(), outputCoder));
     }
   }
 
-
-  /**
-   * A splittable {@link DoFn} that emits {@link PollResult}s outputs.
-   */
+  /** A splittable {@link DoFn} that emits {@link PollResult}s outputs. */
   @BoundedPerElement
   private static class PollResultSplitFn<InputT, OutputT>
       extends DoFn<KV<InputT, List<TimestampedValue<OutputT>>>, KV<InputT, OutputT>> {
@@ -809,13 +806,10 @@ public class Watch {
     @ProcessElement
     public ProcessContinuation process(
         ProcessContext c,
-        RestrictionTracker<
-            GrowthState,
-            KV<Growth.PollResult<OutputT>, TerminationStateT>> tracker)
+        RestrictionTracker<GrowthState, KV<Growth.PollResult<OutputT>, TerminationStateT>> tracker)
         throws Exception {
 
-      GrowthState currentRestriction =
-          tracker.currentRestriction();
+      GrowthState currentRestriction = tracker.currentRestriction();
       if (currentRestriction instanceof NonPollingGrowthState) {
         Growth.PollResult<OutputT> priorPoll =
             ((NonPollingGrowthState<OutputT>) currentRestriction).pending;
@@ -842,9 +836,8 @@ public class Watch {
       PollingGrowthState<TerminationStateT> pollingRestriction =
           (PollingGrowthState<TerminationStateT>) currentRestriction;
       // Produce a poll result that only contains never seen before results.
-      Growth.PollResult<OutputT> newResults = computeNeverSeenBeforeResults(
-          pollingRestriction,
-          res);
+      Growth.PollResult<OutputT> newResults =
+          computeNeverSeenBeforeResults(pollingRestriction, res);
 
       // If we had zero new results, attempt to update the watermark if the poll result
       // provided a watermark. Otherwise attempt to claim all pending outputs.
@@ -858,7 +851,8 @@ public class Watch {
 
       TerminationStateT terminationState = pollingRestriction.terminationState;
       if (!newResults.getOutputs().isEmpty()) {
-        terminationState = getTerminationCondition().onSeenNewOutput(Instant.now(), terminationState);
+        terminationState =
+            getTerminationCondition().onSeenNewOutput(Instant.now(), terminationState);
       }
 
       if (!tracker.tryClaim(KV.of(newResults, terminationState))) {
@@ -876,7 +870,8 @@ public class Watch {
 
       Instant currentTime = Instant.now();
       if (getTerminationCondition().canStopPolling(currentTime, terminationState)) {
-        LOG.info("{} - told to stop polling by polling function at {} with termination state {}.",
+        LOG.info(
+            "{} - told to stop polling by polling function at {} with termination state {}.",
             c.element(),
             currentTime,
             getTerminationCondition().toString(terminationState));
@@ -889,9 +884,7 @@ public class Watch {
       }
 
       LOG.info(
-          "{} - will resume polling in {} ms.",
-          c.element(),
-          spec.getPollInterval().getMillis());
+          "{} - will resume polling in {} ms.", c.element(), spec.getPollInterval().getMillis());
       return resume().withResumeDelay(spec.getPollInterval());
     }
 
@@ -900,8 +893,7 @@ public class Watch {
     }
 
     private Growth.PollResult computeNeverSeenBeforeResults(
-        PollingGrowthState<TerminationStateT> state,
-        Growth.PollResult<OutputT> pollResult) {
+        PollingGrowthState<TerminationStateT> state, Growth.PollResult<OutputT> pollResult) {
       // Collect results to include as newly pending. Note that the poll result may in theory
       // contain multiple outputs mapping to the the same output key - we need to ignore duplicates
       // here already.
@@ -932,7 +924,8 @@ public class Watch {
 
     @GetInitialRestriction
     public GrowthState getInitialRestriction(InputT element) {
-      return new PollingGrowthState<>(getTerminationCondition().forNewInput(Instant.now(), element));
+      return new PollingGrowthState<>(
+          getTerminationCondition().forNewInput(Instant.now(), element));
     }
 
     @NewTracker
@@ -948,15 +941,12 @@ public class Watch {
     }
   }
 
-  /**
-   * A base class for all restrictions related to the {@link Growth} SplittableDoFn.
-   */
-  abstract static class GrowthState {
-  }
+  /** A base class for all restrictions related to the {@link Growth} SplittableDoFn. */
+  abstract static class GrowthState {}
 
   /**
-   * Stores the prior pending poll results related to the {@link Growth} SplittableDoFn. Used
-   * to represent the primary restriction during checkpoint which should be replayed if the primary
+   * Stores the prior pending poll results related to the {@link Growth} SplittableDoFn. Used to
+   * represent the primary restriction during checkpoint which should be replayed if the primary
    * ever needs to be re-executed.
    */
   @VisibleForTesting
@@ -971,9 +961,7 @@ public class Watch {
 
     @Override
     public String toString() {
-      return MoreObjects.toStringHelper(this)
-          .add("pending", pending)
-          .toString();
+      return MoreObjects.toStringHelper(this).add("pending", pending).toString();
     }
 
     @Override
@@ -996,8 +984,8 @@ public class Watch {
 
   /**
    * A restriction for the {@link Growth} transform which represents a polling state. The
-   * restriction represents an unbounded amount of work until one of the termination conditions
-   * of the {@link Growth} transform are met.
+   * restriction represents an unbounded amount of work until one of the termination conditions of
+   * the {@link Growth} transform are met.
    */
   @VisibleForTesting
   static class PollingGrowthState<TerminationStateT> extends GrowthState {
@@ -1056,9 +1044,7 @@ public class Watch {
 
   @VisibleForTesting
   static class GrowthTracker<OutputT, TerminationStateT>
-      extends RestrictionTracker<
-          GrowthState,
-          KV<Growth.PollResult<OutputT>, TerminationStateT>> {
+      extends RestrictionTracker<GrowthState, KV<Growth.PollResult<OutputT>, TerminationStateT>> {
 
     static final GrowthState EMPTY_STATE =
         new NonPollingGrowthState<>(new PollResult<>(Collections.emptyList(), null));
@@ -1076,8 +1062,7 @@ public class Watch {
     // Whether we should stop claiming poll results.
     private boolean shouldStop;
 
-    GrowthTracker(GrowthState state,
-        Funnel<OutputT> coderFunnel) {
+    GrowthTracker(GrowthState state, Funnel<OutputT> coderFunnel) {
       this.state = state;
       this.coderFunnel = coderFunnel;
       this.shouldStop = false;
@@ -1111,11 +1096,13 @@ public class Watch {
         ImmutableMap.Builder<HashCode, Instant> newCompleted = ImmutableMap.builder();
         newCompleted.putAll(currentState.completed);
         newCompleted.putAll(claimedHashes);
-        residual = new PollingGrowthState<>(
-            newCompleted.build(),
-            Ordering.natural().nullsFirst().max(
-                currentState.pollWatermark, claimedPollResult.watermark),
-            claimedTerminationState);
+        residual =
+            new PollingGrowthState<>(
+                newCompleted.build(),
+                Ordering.natural()
+                    .nullsFirst()
+                    .max(currentState.pollWatermark, claimedPollResult.watermark),
+                claimedTerminationState);
         state = new NonPollingGrowthState<>(claimedPollResult);
       }
 
@@ -1129,8 +1116,8 @@ public class Watch {
 
     @Override
     public void checkDone() throws IllegalStateException {
-      checkState(shouldStop, "Missing tryClaim()/checkpoint() call. Expected "
-          + "one or the other.");
+      checkState(
+          shouldStop, "Missing tryClaim()/checkpoint() call. Expected " + "one or the other.");
     }
 
     @Override
@@ -1149,14 +1136,13 @@ public class Watch {
       if (state instanceof PollingGrowthState) {
         // If we have previously claimed one of these hashes then return false.
         if (!Collections.disjoint(
-            newClaimedHashes.keySet(),
-            ((PollingGrowthState) state).completed.keySet())) {
+            newClaimedHashes.keySet(), ((PollingGrowthState) state).completed.keySet())) {
           return false;
         }
       } else {
         Set<HashCode> expectedHashesToClaim = new HashSet<>();
-        for (TimestampedValue<OutputT> value
-            : ((NonPollingGrowthState<OutputT>) state).pending.getOutputs()) {
+        for (TimestampedValue<OutputT> value :
+            ((NonPollingGrowthState<OutputT>) state).pending.getOutputs()) {
           expectedHashesToClaim.add(hash128(value.getValue()));
         }
         // We expect to claim the entire poll result from a NonPollingGrowthState. This is
@@ -1212,21 +1198,20 @@ public class Watch {
     }
   }
 
-  static class GrowthStateCoder<OutputT, TerminationStateT>
-      extends StructuredCoder<GrowthState> {
+  static class GrowthStateCoder<OutputT, TerminationStateT> extends StructuredCoder<GrowthState> {
 
     private static final int POLLING_GROWTH_STATE = 0;
     private static final int NON_POLLING_GROWTH_STATE = 1;
 
-    public static <OutputT, TerminationStateT>
-        GrowthStateCoder<OutputT, TerminationStateT> of(
-            Coder<OutputT> outputCoder, Coder<TerminationStateT> terminationStateCoder) {
+    public static <OutputT, TerminationStateT> GrowthStateCoder<OutputT, TerminationStateT> of(
+        Coder<OutputT> outputCoder, Coder<TerminationStateT> terminationStateCoder) {
       return new GrowthStateCoder<>(outputCoder, terminationStateCoder);
     }
 
     private static final MapCoder<HashCode, Instant> COMPLETED_CODER =
         MapCoder.of(HashCode128Coder.of(), InstantCoder.of());
-    private static final Coder<Instant> NULLABLE_INSTANT_CODER = NullableCoder.of(InstantCoder.of());
+    private static final Coder<Instant> NULLABLE_INSTANT_CODER =
+        NullableCoder.of(InstantCoder.of());
 
     private final Coder<OutputT> outputCoder;
     private final Coder<List<TimestampedValue<OutputT>>> timestampedOutputCoder;
@@ -1236,12 +1221,12 @@ public class Watch {
         Coder<OutputT> outputCoder, Coder<TerminationStateT> terminationStateCoder) {
       this.outputCoder = outputCoder;
       this.terminationStateCoder = terminationStateCoder;
-      this.timestampedOutputCoder = ListCoder.of(TimestampedValue.TimestampedValueCoder.of(outputCoder));
+      this.timestampedOutputCoder =
+          ListCoder.of(TimestampedValue.TimestampedValueCoder.of(outputCoder));
     }
 
     @Override
-    public void encode(GrowthState value, OutputStream os)
-        throws IOException {
+    public void encode(GrowthState value, OutputStream os) throws IOException {
       if (value instanceof PollingGrowthState) {
         VarInt.encode(POLLING_GROWTH_STATE, os);
         encodePollingGrowthState((PollingGrowthState<TerminationStateT>) value, os);
@@ -1260,8 +1245,8 @@ public class Watch {
       COMPLETED_CODER.encode(value.completed, os);
     }
 
-    private void encodeNonPollingGrowthState(
-        NonPollingGrowthState<OutputT> value, OutputStream os) throws IOException {
+    private void encodeNonPollingGrowthState(NonPollingGrowthState<OutputT> value, OutputStream os)
+        throws IOException {
       NULLABLE_INSTANT_CODER.encode(value.pending.getWatermark(), os);
       timestampedOutputCoder.encode(value.pending.getOutputs(), os);
     }
@@ -1289,10 +1274,7 @@ public class Watch {
       TerminationStateT terminationState = terminationStateCoder.decode(is);
       Instant watermark = NULLABLE_INSTANT_CODER.decode(is);
       Map<HashCode, Instant> completed = COMPLETED_CODER.decode(is);
-      return new PollingGrowthState<>(
-          ImmutableMap.copyOf(completed),
-          watermark,
-          terminationState);
+      return new PollingGrowthState<>(ImmutableMap.copyOf(completed), watermark, terminationState);
     }
 
     @Override

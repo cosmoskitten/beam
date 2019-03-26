@@ -25,7 +25,6 @@ import static org.apache.beam.sdk.transforms.Watch.Growth.never;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.greaterThan;
-import static org.hamcrest.Matchers.contains;
 import static org.joda.time.Duration.standardSeconds;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
@@ -33,8 +32,6 @@ import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
-import java.io.ByteArrayInputStream;
-import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.Serializable;
 import java.util.Arrays;
@@ -84,8 +81,7 @@ import org.junit.runners.JUnit4;
 @RunWith(JUnit4.class)
 public class WatchTest implements Serializable {
 
-  @Rule
-  public transient TestPipeline p = TestPipeline.create();
+  @Rule public transient TestPipeline p = TestPipeline.create();
 
   @Test
   @Category(NeedsRunner.class)
@@ -94,14 +90,14 @@ public class WatchTest implements Serializable {
         p.apply(Create.of("a", "b"))
             .apply(
                 Watch.growthOf(
-                    new PollFn<String, String>() {
-                      @Override
-                      public PollResult<String> apply(String element, Context c)
-                          throws Exception {
-                        return PollResult.complete(
-                            Instant.now(), Arrays.asList(element + ".foo", element + ".bar"));
-                      }
-                    })
+                        new PollFn<String, String>() {
+                          @Override
+                          public PollResult<String> apply(String element, Context c)
+                              throws Exception {
+                            return PollResult.complete(
+                                Instant.now(), Arrays.asList(element + ".foo", element + ".bar"));
+                          }
+                        })
                     .withPollInterval(Duration.ZERO));
 
     PAssert.that(res)
@@ -124,17 +120,17 @@ public class WatchTest implements Serializable {
         p.apply("input", Create.of("a", "b"))
             .apply(
                 Watch.growthOf(
-                    new PollFn<String, String>() {
-                      @Override
-                      public PollResult<String> apply(String element, Context c)
-                          throws Exception {
-                        return PollResult.complete(
-                            Instant.now(),
-                            Arrays.asList(
-                                element + " " + c.sideInput(moo) + " " + c.sideInput(zoo)));
-                      }
-                    },
-                    requiresSideInputs(moo, zoo))
+                        new PollFn<String, String>() {
+                          @Override
+                          public PollResult<String> apply(String element, Context c)
+                              throws Exception {
+                            return PollResult.complete(
+                                Instant.now(),
+                                Arrays.asList(
+                                    element + " " + c.sideInput(moo) + " " + c.sideInput(zoo)));
+                          }
+                        },
+                        requiresSideInputs(moo, zoo))
                     .withPollInterval(Duration.ZERO));
 
     PAssert.that(res)
@@ -162,11 +158,11 @@ public class WatchTest implements Serializable {
         p.apply(Create.of("a"))
             .apply(
                 Watch.growthOf(
-                    new TimedPollFn<String, Integer>(
-                        all,
-                        standardSeconds(1) /* timeToOutputEverything */,
-                        standardSeconds(3) /* timeToDeclareOutputFinal */,
-                        standardSeconds(30) /* timeToFail */))
+                        new TimedPollFn<String, Integer>(
+                            all,
+                            standardSeconds(1) /* timeToOutputEverything */,
+                            standardSeconds(3) /* timeToDeclareOutputFinal */,
+                            standardSeconds(30) /* timeToFail */))
                     .withTerminationPerInput(
                         Growth.afterTotalOf(
                             standardSeconds(
@@ -215,14 +211,14 @@ public class WatchTest implements Serializable {
         p.apply(Create.of("a"))
             .apply(
                 Watch.growthOf(
-                    Contextful.of(
-                        new TimedPollFn<String, KV<Integer, String>>(
-                            polls,
-                            standardSeconds(1) /* timeToOutputEverything */,
-                            standardSeconds(3) /* timeToDeclareOutputFinal */,
-                            standardSeconds(30) /* timeToFail */),
-                        Requirements.empty()),
-                    KV::getKey)
+                        Contextful.of(
+                            new TimedPollFn<String, KV<Integer, String>>(
+                                polls,
+                                standardSeconds(1) /* timeToOutputEverything */,
+                                standardSeconds(3) /* timeToDeclareOutputFinal */,
+                                standardSeconds(30) /* timeToFail */),
+                            Requirements.empty()),
+                        KV::getKey)
                     .withTerminationPerInput(Growth.afterTotalOf(standardSeconds(5)))
                     .withPollInterval(Duration.millis(100))
                     .withOutputCoder(KvCoder.of(VarIntCoder.of(), StringUtf8Coder.of()))
@@ -244,12 +240,12 @@ public class WatchTest implements Serializable {
         p.apply(Create.of("a"))
             .apply(
                 Watch.growthOf(
-                    new TimedPollFn<String, Integer>(
-                        all,
-                        standardSeconds(1) /* timeToOutputEverything */,
-                        // Never declare output final
-                        standardSeconds(1000) /* timeToDeclareOutputFinal */,
-                        standardSeconds(30) /* timeToFail */))
+                        new TimedPollFn<String, Integer>(
+                            all,
+                            standardSeconds(1) /* timeToOutputEverything */,
+                            // Never declare output final
+                            standardSeconds(1000) /* timeToDeclareOutputFinal */,
+                            standardSeconds(30) /* timeToFail */))
                     // Should terminate after 4 seconds - earlier than timeToFail
                     .withTerminationPerInput(afterTimeSinceNewOutput(standardSeconds(3)))
                     .withPollInterval(Duration.millis(300))
@@ -270,18 +266,18 @@ public class WatchTest implements Serializable {
         p.apply(Create.of("a"))
             .apply(
                 Watch.growthOf(
-                    new PollFn<String, KV<String, Integer>>() {
-                      @Override
-                      public PollResult<KV<String, Integer>> apply(String element, Context c)
-                          throws Exception {
-                        String pollId = UUID.randomUUID().toString();
-                        List<KV<String, Integer>> output = Lists.newArrayList();
-                        for (int i = 0; i < numResults; ++i) {
-                          output.add(KV.of(pollId, i));
-                        }
-                        return PollResult.complete(Instant.now(), output);
-                      }
-                    })
+                        new PollFn<String, KV<String, Integer>>() {
+                          @Override
+                          public PollResult<KV<String, Integer>> apply(String element, Context c)
+                              throws Exception {
+                            String pollId = UUID.randomUUID().toString();
+                            List<KV<String, Integer>> output = Lists.newArrayList();
+                            for (int i = 0; i < numResults; ++i) {
+                              output.add(KV.of(pollId, i));
+                            }
+                            return PollResult.complete(Instant.now(), output);
+                          }
+                        })
                     .withTerminationPerInput(Growth.afterTotalOf(standardSeconds(1)))
                     .withPollInterval(Duration.millis(1))
                     .withOutputCoder(KvCoder.of(StringUtf8Coder.of(), VarIntCoder.of())))
@@ -320,11 +316,11 @@ public class WatchTest implements Serializable {
         p.apply(Create.of("a"))
             .apply(
                 Watch.growthOf(
-                    new TimedPollFn<String, Integer>(
-                        all,
-                        standardSeconds(1) /* timeToOutputEverything */,
-                        standardSeconds(3) /* timeToDeclareOutputFinal */,
-                        standardSeconds(30) /* timeToFail */))
+                        new TimedPollFn<String, Integer>(
+                            all,
+                            standardSeconds(1) /* timeToOutputEverything */,
+                            standardSeconds(3) /* timeToDeclareOutputFinal */,
+                            standardSeconds(30) /* timeToFail */))
                     .withPollInterval(Duration.millis(500))
                     .withOutputCoder(VarIntCoder.of()))
             .apply(Reify.timestampsInValue())
@@ -354,23 +350,21 @@ public class WatchTest implements Serializable {
                   Ordering.natural().onResultOf(extractTimestampFn);
               // New outputs appear in timestamp order because each output's assigned timestamp
               // is Instant.now() at the time of poll.
-              assertTrue(
-                  "Outputs must be in timestamp order",
-                  byTimestamp.isOrdered(outputs));
+              assertTrue("Outputs must be in timestamp order", byTimestamp.isOrdered(outputs));
               assertEquals(
                   "Yields all expected values",
                   numResults,
                   Sets.newHashSet(
-                      StreamSupport.stream(outputs.spliterator(), false)
-                          .map(extractValueFn::apply)
-                          .collect(Collectors.toList()))
+                          StreamSupport.stream(outputs.spliterator(), false)
+                              .map(extractValueFn::apply)
+                              .collect(Collectors.toList()))
                       .size());
               assertThat(
                   "Poll called more than once",
                   Sets.newHashSet(
-                      StreamSupport.stream(outputs.spliterator(), false)
-                          .map(extractTimestampFn::apply)
-                          .collect(Collectors.toList()))
+                          StreamSupport.stream(outputs.spliterator(), false)
+                              .map(extractTimestampFn::apply)
+                              .collect(Collectors.toList()))
                       .size(),
                   greaterThan(1));
               return null;
@@ -381,14 +375,16 @@ public class WatchTest implements Serializable {
 
   @Test
   public void testCoder() throws Exception {
-    GrowthState pollingState = new PollingGrowthState<>(
-        ImmutableMap.of(
-            HashCode.fromString("0123456789abcdef0123456789abcdef"), Instant.now(),
-            HashCode.fromString("01230123012301230123012301230123"), Instant.now()),
-        Instant.now(),
-        "STATE");
-    GrowthState nonPollingState = new NonPollingGrowthState<>(
-        Growth.PollResult.incomplete(Instant.now(), Arrays.asList("A", "B")));
+    GrowthState pollingState =
+        new PollingGrowthState<>(
+            ImmutableMap.of(
+                HashCode.fromString("0123456789abcdef0123456789abcdef"), Instant.now(),
+                HashCode.fromString("01230123012301230123012301230123"), Instant.now()),
+            Instant.now(),
+            "STATE");
+    GrowthState nonPollingState =
+        new NonPollingGrowthState<>(
+            Growth.PollResult.incomplete(Instant.now(), Arrays.asList("A", "B")));
     Coder<GrowthState> coder =
         Watch.GrowthStateCoder.of(StringUtf8Coder.of(), StringUtf8Coder.of());
 
@@ -488,7 +484,7 @@ public class WatchTest implements Serializable {
     Watch.Growth.AfterTotalOf<Object> b = Growth.afterTotalOf(standardSeconds(10));
 
     Watch.Growth.BinaryCombined<
-        Object, KV<Instant, ReadableDuration>, KV<Instant, ReadableDuration>>
+            Object, KV<Instant, ReadableDuration>, KV<Instant, ReadableDuration>>
         c = eitherOf(a, b);
     KV<KV<Instant, ReadableDuration>, KV<Instant, ReadableDuration>> state =
         c.forNewInput(now, null);
@@ -504,7 +500,7 @@ public class WatchTest implements Serializable {
     Watch.Growth.AfterTotalOf<Object> b = Growth.afterTotalOf(standardSeconds(10));
 
     Watch.Growth.BinaryCombined<
-        Object, KV<Instant, ReadableDuration>, KV<Instant, ReadableDuration>>
+            Object, KV<Instant, ReadableDuration>, KV<Instant, ReadableDuration>>
         c = allOf(a, b);
     KV<KV<Instant, ReadableDuration>, KV<Instant, ReadableDuration>> state =
         c.forNewInput(now, null);
@@ -513,32 +509,32 @@ public class WatchTest implements Serializable {
     assertTrue(c.canStopPolling(now.plus(standardSeconds(12)), state));
   }
 
-  private static GrowthTracker<String, Integer> newTracker(
-      GrowthState state) {
-    Funnel<String> coderFunnel = (from, into) -> {
-      try {
-        StringUtf8Coder.of().encode(from, Funnels.asOutputStream(into));
-      } catch (IOException e) {
-        throw new RuntimeException(e);
-      }
-    };
+  private static GrowthTracker<String, Integer> newTracker(GrowthState state) {
+    Funnel<String> coderFunnel =
+        (from, into) -> {
+          try {
+            StringUtf8Coder.of().encode(from, Funnels.asOutputStream(into));
+          } catch (IOException e) {
+            throw new RuntimeException(e);
+          }
+        };
     return new GrowthTracker<>(state, coderFunnel);
   }
 
   private static HashCode hash128(String value) {
-    Funnel<String> coderFunnel = (from, into) -> {
-      try {
-        StringUtf8Coder.of().encode(from, Funnels.asOutputStream(into));
-      } catch (IOException e) {
-        throw new RuntimeException(e);
-      }
-    };
+    Funnel<String> coderFunnel =
+        (from, into) -> {
+          try {
+            StringUtf8Coder.of().encode(from, Funnels.asOutputStream(into));
+          } catch (IOException e) {
+            throw new RuntimeException(e);
+          }
+        };
     return Hashing.murmur3_128().hashObject(value, coderFunnel);
   }
 
   private static GrowthTracker<String, Integer> newPollingGrowthTracker() {
-    return newTracker(
-        new PollingGrowthState<>(never().forNewInput(Instant.now(), null)));
+    return newTracker(new PollingGrowthState<>(never().forNewInput(Instant.now(), null)));
   }
 
   @Test
@@ -546,19 +542,20 @@ public class WatchTest implements Serializable {
     Instant now = Instant.now();
     GrowthTracker<String, Integer> tracker = newPollingGrowthTracker();
 
-    PollResult<String> claim = PollResult.incomplete(
-        Arrays.asList(
-            TimestampedValue.of("d", now.plus(standardSeconds(4))),
-            TimestampedValue.of("c", now.plus(standardSeconds(3))),
-            TimestampedValue.of("a", now.plus(standardSeconds(1))),
-            TimestampedValue.of("b", now.plus(standardSeconds(2)))))
-        .withWatermark(now.plus(standardSeconds(7)));
+    PollResult<String> claim =
+        PollResult.incomplete(
+                Arrays.asList(
+                    TimestampedValue.of("d", now.plus(standardSeconds(4))),
+                    TimestampedValue.of("c", now.plus(standardSeconds(3))),
+                    TimestampedValue.of("a", now.plus(standardSeconds(1))),
+                    TimestampedValue.of("b", now.plus(standardSeconds(2)))))
+            .withWatermark(now.plus(standardSeconds(7)));
 
     assertTrue(tracker.tryClaim(KV.of(claim, 1 /* termination state */)));
 
     PollingGrowthState<Integer> residual = (PollingGrowthState<Integer>) tracker.checkpoint();
-    NonPollingGrowthState<String> primary = (NonPollingGrowthState<String>) tracker
-        .currentRestriction();
+    NonPollingGrowthState<String> primary =
+        (NonPollingGrowthState<String>) tracker.currentRestriction();
     tracker.checkDone();
 
     // Verify primary: should contain what the current tracker claimed, and nothing else.
@@ -566,7 +563,8 @@ public class WatchTest implements Serializable {
 
     // Verify residual: should contain what the current tracker didn't claim.
     assertEquals(now.plus(standardSeconds(7)), residual.pollWatermark);
-    assertThat(residual.completed.keySet(),
+    assertThat(
+        residual.completed.keySet(),
         containsInAnyOrder(hash128("a"), hash128("b"), hash128("c"), hash128("d")));
     assertEquals(1, (int) residual.terminationState);
   }
@@ -593,13 +591,14 @@ public class WatchTest implements Serializable {
     Instant now = Instant.now();
     GrowthTracker<String, Integer> tracker = newPollingGrowthTracker();
 
-    PollResult<String> claim = PollResult.incomplete(
-        Arrays.asList(
-            TimestampedValue.of("d", now.plus(standardSeconds(4))),
-            TimestampedValue.of("c", now.plus(standardSeconds(3))),
-            TimestampedValue.of("a", now.plus(standardSeconds(1))),
-            TimestampedValue.of("b", now.plus(standardSeconds(2)))))
-        .withWatermark(now.plus(standardSeconds(7)));
+    PollResult<String> claim =
+        PollResult.incomplete(
+                Arrays.asList(
+                    TimestampedValue.of("d", now.plus(standardSeconds(4))),
+                    TimestampedValue.of("c", now.plus(standardSeconds(3))),
+                    TimestampedValue.of("a", now.plus(standardSeconds(1))),
+                    TimestampedValue.of("b", now.plus(standardSeconds(2)))))
+            .withWatermark(now.plus(standardSeconds(7)));
 
     assertTrue(tracker.tryClaim(KV.of(claim, 1 /* termination state */)));
 
@@ -611,20 +610,21 @@ public class WatchTest implements Serializable {
   @Test
   public void testNonPollingGrowthTrackerCheckpointNonEmpty() {
     Instant now = Instant.now();
-    PollResult<String> claim = PollResult.incomplete(
-        Arrays.asList(
-            TimestampedValue.of("d", now.plus(standardSeconds(4))),
-            TimestampedValue.of("c", now.plus(standardSeconds(3))),
-            TimestampedValue.of("a", now.plus(standardSeconds(1))),
-            TimestampedValue.of("b", now.plus(standardSeconds(2)))))
-        .withWatermark(now.plus(standardSeconds(7)));
+    PollResult<String> claim =
+        PollResult.incomplete(
+                Arrays.asList(
+                    TimestampedValue.of("d", now.plus(standardSeconds(4))),
+                    TimestampedValue.of("c", now.plus(standardSeconds(3))),
+                    TimestampedValue.of("a", now.plus(standardSeconds(1))),
+                    TimestampedValue.of("b", now.plus(standardSeconds(2)))))
+            .withWatermark(now.plus(standardSeconds(7)));
 
     GrowthTracker<String, Integer> tracker = newTracker(new NonPollingGrowthState<>(claim));
 
     assertTrue(tracker.tryClaim(KV.of(claim, 1 /* termination state */)));
     GrowthState residual = tracker.checkpoint();
-    NonPollingGrowthState<String> primary = (NonPollingGrowthState<String>) tracker
-        .currentRestriction();
+    NonPollingGrowthState<String> primary =
+        (NonPollingGrowthState<String>) tracker.currentRestriction();
     tracker.checkDone();
 
     // Verify primary: should contain what the current tracker claimed, and nothing else.
@@ -637,13 +637,14 @@ public class WatchTest implements Serializable {
   @Test
   public void testNonPollingGrowthTrackerCheckpointEmpty() {
     Instant now = Instant.now();
-    PollResult<String> claim = PollResult.incomplete(
-        Arrays.asList(
-            TimestampedValue.of("d", now.plus(standardSeconds(4))),
-            TimestampedValue.of("c", now.plus(standardSeconds(3))),
-            TimestampedValue.of("a", now.plus(standardSeconds(1))),
-            TimestampedValue.of("b", now.plus(standardSeconds(2)))))
-        .withWatermark(now.plus(standardSeconds(7)));
+    PollResult<String> claim =
+        PollResult.incomplete(
+                Arrays.asList(
+                    TimestampedValue.of("d", now.plus(standardSeconds(4))),
+                    TimestampedValue.of("c", now.plus(standardSeconds(3))),
+                    TimestampedValue.of("a", now.plus(standardSeconds(1))),
+                    TimestampedValue.of("b", now.plus(standardSeconds(2)))))
+            .withWatermark(now.plus(standardSeconds(7)));
 
     GrowthTracker<String, Integer> tracker = newTracker(new NonPollingGrowthState<>(claim));
 
@@ -661,22 +662,24 @@ public class WatchTest implements Serializable {
   @Test
   public void testNonPollingGrowthTrackerFailedToClaimOtherPollResult() {
     Instant now = Instant.now();
-    PollResult<String> claim = PollResult.incomplete(
-        Arrays.asList(
-            TimestampedValue.of("d", now.plus(standardSeconds(4))),
-            TimestampedValue.of("c", now.plus(standardSeconds(3))),
-            TimestampedValue.of("a", now.plus(standardSeconds(1))),
-            TimestampedValue.of("b", now.plus(standardSeconds(2)))))
-        .withWatermark(now.plus(standardSeconds(7)));
+    PollResult<String> claim =
+        PollResult.incomplete(
+                Arrays.asList(
+                    TimestampedValue.of("d", now.plus(standardSeconds(4))),
+                    TimestampedValue.of("c", now.plus(standardSeconds(3))),
+                    TimestampedValue.of("a", now.plus(standardSeconds(1))),
+                    TimestampedValue.of("b", now.plus(standardSeconds(2)))))
+            .withWatermark(now.plus(standardSeconds(7)));
 
     GrowthTracker<String, Integer> tracker = newTracker(new NonPollingGrowthState<>(claim));
 
-    PollResult<String> otherClaim = PollResult.incomplete(
-        Arrays.asList(
-            TimestampedValue.of("x", now.plus(standardSeconds(14))),
-            TimestampedValue.of("y", now.plus(standardSeconds(13))),
-            TimestampedValue.of("z", now.plus(standardSeconds(12)))))
-        .withWatermark(now.plus(standardSeconds(17)));
+    PollResult<String> otherClaim =
+        PollResult.incomplete(
+                Arrays.asList(
+                    TimestampedValue.of("x", now.plus(standardSeconds(14))),
+                    TimestampedValue.of("y", now.plus(standardSeconds(13))),
+                    TimestampedValue.of("z", now.plus(standardSeconds(12)))))
+            .withWatermark(now.plus(standardSeconds(17)));
     assertFalse(tracker.tryClaim(KV.of(otherClaim, 1)));
   }
 }

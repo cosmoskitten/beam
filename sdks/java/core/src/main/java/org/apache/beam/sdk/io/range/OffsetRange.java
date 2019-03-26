@@ -23,7 +23,6 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.io.Serializable;
-import java.lang.reflect.Type;
 import java.util.ArrayList;
 import java.util.List;
 import org.apache.beam.sdk.coders.AtomicCoder;
@@ -107,12 +106,11 @@ public class OffsetRange
     return res;
   }
 
-  /**
-   * A coder for {@link OffsetRange}s.
-   */
+  /** A coder for {@link OffsetRange}s. */
   public static class Coder extends AtomicCoder<OffsetRange> {
     private static final Coder INSTANCE = new Coder();
-    private static final TypeDescriptor<OffsetRange> TYPE_DESCRIPTOR = new TypeDescriptor<OffsetRange>() {};
+    private static final TypeDescriptor<OffsetRange> TYPE_DESCRIPTOR =
+        new TypeDescriptor<OffsetRange>() {};
 
     public static Coder of() {
       return INSTANCE;
@@ -127,9 +125,7 @@ public class OffsetRange
 
     @Override
     public OffsetRange decode(InputStream inStream) throws CoderException, IOException {
-      return new OffsetRange(
-          VarInt.decodeLong(inStream),
-          VarInt.decodeLong(inStream));
+      return new OffsetRange(VarInt.decodeLong(inStream), VarInt.decodeLong(inStream));
     }
 
     @Override
