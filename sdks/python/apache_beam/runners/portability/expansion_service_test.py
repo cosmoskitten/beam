@@ -142,9 +142,12 @@ def main(unused_argv):
   )
   server.add_insecure_port('localhost:{}'.format(options.port))
   server.start()
-  while True:
-    logging.info('Listening for expansion requests at %d', options.port)
-    time.sleep(300)
+  try:
+    while True:
+      logging.info('Listening for expansion requests at %d', options.port)
+      time.sleep(300)
+  except KeyboardInterrupt:
+    server.stop(None)
 
 
 if __name__ == '__main__':
