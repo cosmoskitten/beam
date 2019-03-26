@@ -19,6 +19,9 @@ package org.apache.beam.sdk.io.cassandra;
 
 import com.datastax.driver.core.Session;
 import com.datastax.driver.mapping.MappingManager;
+import org.apache.beam.sdk.transforms.SerializableFunction;
+import org.apache.beam.sdk.values.KV;
+
 import java.io.Serializable;
 
 /**
@@ -27,12 +30,16 @@ import java.io.Serializable;
  *
  * @see org.apache.beam.sdk.io.cassandra.DefaultObjectMapper
  */
-public class DefaultObjectMapperFactory<T> implements MapperFactory<T>, Serializable {
+class DefaultObjectMapperFactory<T> implements SerializableFunction<Session, Mapper> {
 
   private transient MappingManager mappingManager;
+  Class<T> entity;
 
+  DefaultObjectMapperFactory(Class<T> entity){
+    this.entity = entity;
+  }
   @Override
-  public Mapper<T> getMapper(Session session, Class<T> entity) {
+  public Mapper apply(Session session) {
     if (mappingManager == null) {
       this.mappingManager = new MappingManager(session);
     }

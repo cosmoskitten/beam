@@ -58,10 +58,7 @@ import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.SourceTestUtils;
 import org.apache.beam.sdk.testing.TestPipeline;
-import org.apache.beam.sdk.transforms.Count;
-import org.apache.beam.sdk.transforms.Create;
-import org.apache.beam.sdk.transforms.MapElements;
-import org.apache.beam.sdk.transforms.SimpleFunction;
+import org.apache.beam.sdk.transforms.*;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Objects;
@@ -323,10 +320,10 @@ public class CassandraIOTest implements Serializable {
 
   static AtomicInteger counter = new AtomicInteger();
 
-  private static class NOOPMapperFactory implements MapperFactory<String>, Serializable {
+  private static class NOOPMapperFactory implements SerializableFunction<Session, Mapper> {
 
     @Override
-    public Mapper getMapper(Session session, Class entity) {
+    public Mapper apply(Session input) {
       return new NOOPMapper();
     }
   }
@@ -367,7 +364,7 @@ public class CassandraIOTest implements Serializable {
     insertRecords();
     counter.set(0);
 
-    MapperFactory<String> factory = new NOOPMapperFactory();
+    SerializableFunction<Session, Mapper> factory = new NOOPMapperFactory();
 
     pipeline.apply(
         CassandraIO.<String>read()
@@ -377,7 +374,7 @@ public class CassandraIOTest implements Serializable {
             .withTable(CASSANDRA_TABLE)
             .withCoder(SerializableCoder.of(String.class))
             .withEntity(String.class)
-            .withMapperFactory(factory));
+            .withMapperFactoryFn(factory));
     pipeline.run();
 
     assertEquals(NUM_ROWS, counter.intValue());
@@ -388,7 +385,7 @@ public class CassandraIOTest implements Serializable {
     insertRecords();
     counter.set(0);
 
-    MapperFactory<String> factory = new NOOPMapperFactory();
+    SerializableFunction<Session, Mapper> factory = new NOOPMapperFactory();
 
     pipeline
         .apply(Create.of(""))
@@ -397,7 +394,7 @@ public class CassandraIOTest implements Serializable {
                 .withHosts(Arrays.asList(CASSANDRA_HOST))
                 .withPort(CASSANDRA_PORT)
                 .withKeyspace(CASSANDRA_KEYSPACE)
-                .withMapperFactory(factory)
+                .withMapperFactoryFn(factory)
                 .withEntity(String.class));
     pipeline.run();
 
@@ -409,7 +406,7 @@ public class CassandraIOTest implements Serializable {
     insertRecords();
     counter.set(0);
 
-    MapperFactory<String> factory = new NOOPMapperFactory();
+    SerializableFunction<Session, Mapper> factory = new NOOPMapperFactory();
 
     pipeline
         .apply(Create.of(""))
@@ -418,7 +415,7 @@ public class CassandraIOTest implements Serializable {
                 .withHosts(Arrays.asList(CASSANDRA_HOST))
                 .withPort(CASSANDRA_PORT)
                 .withKeyspace(CASSANDRA_KEYSPACE)
-                .withMapperFactory(factory)
+                .withMapperFactoryFn(factory)
                 .withEntity(String.class));
     pipeline.run();
 
