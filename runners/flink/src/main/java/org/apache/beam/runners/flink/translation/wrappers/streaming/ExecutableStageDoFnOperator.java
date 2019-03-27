@@ -35,6 +35,8 @@ import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.function.BiConsumer;
+import java.util.function.Consumer;
+import java.util.stream.Collectors;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.ProcessBundleProgressResponse;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.ProcessBundleResponse;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateKey.TypeCase;
@@ -714,75 +716,118 @@ public class ExecutableStageDoFnOperator<InputT, OutputT> extends DoFnOperator<I
     }
     // Takes care of state cleanup via StatefulDoFnRunner
     Coder windowCoder = windowingStrategy.getWindowFn().windowCoder();
-    StatefulDoFnRunner.CleanupTimer<InputT> cleanupTimer =
-        new StatefulDoFnRunner.CleanupTimer<InputT>() {
+    CleanupTimer<InputT> cleanupTimer =
+        new CleanupTimer<>(
+            timerInternals,
+            stateBackendLock,
+            windowingStrategy,
+            keyCoder,
+            windowCoder,
+            sdkHarnessRunner::setCurrentTimerKey,
+            getKeyedStateBackend());
 
-          private static final String GC_TIMER_ID = "__user-state-cleanup__";
-
-          @Override
-          public Instant currentInputWatermarkTime() {
-            return timerInternals.currentInputWatermarkTime();
-          }
-
-          @Override
-          public void setForWindow(InputT input, BoundedWindow window) {
-            Preconditions.checkNotNull(input, "Null input passed to CleanupTimer");
-            // make sure this fires after any window.maxTimestamp() timers
-            Instant gcTime = LateDataUtils.garbageCollectionTime(window, windowingStrategy).plus(1);
-            ByteBuffer key;
-            try {
-              key =
-                  ByteBuffer.wrap(
-                      CoderUtils.encodeToByteArray((Coder) keyCoder, ((KV) input).getKey()));
-            } catch (CoderException e) {
-              throw new RuntimeException("Failed to encode key for Flink state backend", e);
-            }
-            // Ensure the state backend is not concurrently accessed by the state requests
-            try {
-              stateBackendLock.lock();
-              // Set these two to ensure correct timer registration
-              // 1) For the timer setting
-              sdkHarnessRunner.setCurrentTimerKey(key);
-              // 2) For the timer deduplication
-              getKeyedStateBackend().setCurrentKey(key);
-              timerInternals.setTimer(
-                  StateNamespaces.window(windowCoder, window),
-                  GC_TIMER_ID,
-                  gcTime,
-                  TimeDomain.EVENT_TIME);
-            } finally {
-              stateBackendLock.unlock();
-            }
-          }
-
-          @Override
-          public boolean isForWindow(
-              String timerId, BoundedWindow window, Instant timestamp, TimeDomain timeDomain) {
-            boolean isEventTimer = timeDomain.equals(TimeDomain.EVENT_TIME);
-            Instant gcTime = LateDataUtils.garbageCollectionTime(window, windowingStrategy);
-            gcTime = gcTime.plus(1);
-            return isEventTimer && GC_TIMER_ID.equals(timerId) && gcTime.equals(timestamp);
-          }
-        };
-
-    @SuppressWarnings({"unchecked", "rawtypes"})
-    StatefulDoFnRunner.StateCleaner<BoundedWindow> stateCleaner =
-        window -> {
-          try {
-            stateBackendLock.lock();
-            for (UserStateReference userState : executableStage.getUserStates()) {
-              StateNamespace namespace = StateNamespaces.window(windowCoder, window);
-              BagState<Object> state =
-                  keyedStateInternals.state(namespace, StateTags.bag(userState.localName(), null));
-              state.clear();
-            }
-          } finally {
-            stateBackendLock.unlock();
-          }
-        };
+    List<String> userStates =
+        executableStage.getUserStates().stream()
+            .map(UserStateReference::localName)
+            .collect(Collectors.toList());
+    StateCleaner stateCleaner = new StateCleaner(userStates, windowCoder, keyedStateInternals);
 
     return DoFnRunners.defaultStatefulDoFnRunner(
         doFn, sdkHarnessRunner, windowingStrategy, cleanupTimer, stateCleaner);
+  }
+
+  static class CleanupTimer<InputT> implements StatefulDoFnRunner.CleanupTimer<InputT> {
+    private static final String GC_TIMER_ID = "__user-state-cleanup__";
+
+    private final TimerInternals timerInternals;
+    private final Lock stateBackendLock;
+    private final WindowingStrategy windowingStrategy;
+    private final Coder keyCoder;
+    private final Coder windowCoder;
+    private final Consumer<ByteBuffer> currentKeyConsumer;
+    private final KeyedStateBackend<ByteBuffer> keyedStateBackend;
+
+    CleanupTimer(
+        TimerInternals timerInternals,
+        Lock stateBackendLock,
+        WindowingStrategy windowingStrategy,
+        Coder keyCoder,
+        Coder windowCoder,
+        Consumer<ByteBuffer> currentKeyConsumer,
+        KeyedStateBackend<ByteBuffer> keyedStateBackend) {
+      this.timerInternals = timerInternals;
+      this.stateBackendLock = stateBackendLock;
+      this.windowingStrategy = windowingStrategy;
+      this.keyCoder = keyCoder;
+      this.windowCoder = windowCoder;
+      this.currentKeyConsumer = currentKeyConsumer;
+      this.keyedStateBackend = keyedStateBackend;
+    }
+
+    @Override
+    public Instant currentInputWatermarkTime() {
+      return timerInternals.currentInputWatermarkTime();
+    }
+
+    @Override
+    public void setForWindow(InputT input, BoundedWindow window) {
+      Preconditions.checkNotNull(input, "Null input passed to CleanupTimer");
+      // make sure this fires after any window.maxTimestamp() timers
+      Instant gcTime = LateDataUtils.garbageCollectionTime(window, windowingStrategy).plus(1);
+      final ByteBuffer key;
+      try {
+        key = ByteBuffer.wrap(CoderUtils.encodeToByteArray(keyCoder, ((KV) input).getKey()));
+      } catch (CoderException e) {
+        throw new RuntimeException("Failed to encode key for Flink state backend", e);
+      }
+      // Ensure the state backend is not concurrently accessed by the state requests
+      try {
+        stateBackendLock.lock();
+        // Set these two to ensure correct timer registration
+        // 1) For the timer setting
+        currentKeyConsumer.accept(key);
+        // 2) For the timer deduplication
+        keyedStateBackend.setCurrentKey(key);
+        timerInternals.setTimer(
+            StateNamespaces.window(windowCoder, window),
+            GC_TIMER_ID,
+            gcTime,
+            TimeDomain.EVENT_TIME);
+      } finally {
+        stateBackendLock.unlock();
+      }
+    }
+
+    @Override
+    public boolean isForWindow(
+        String timerId, BoundedWindow window, Instant timestamp, TimeDomain timeDomain) {
+      boolean isEventTimer = timeDomain.equals(TimeDomain.EVENT_TIME);
+      Instant gcTime = LateDataUtils.garbageCollectionTime(window, windowingStrategy).plus(1);
+      return isEventTimer && GC_TIMER_ID.equals(timerId) && gcTime.equals(timestamp);
+    }
+  }
+
+  static class StateCleaner implements StatefulDoFnRunner.StateCleaner<BoundedWindow> {
+
+    private final List<String> userStateNames;
+    private final Coder windowCoder;
+    private final StateInternals stateInternals;
+
+    StateCleaner(List<String> userStateNames, Coder windowCoder, StateInternals stateInternals) {
+      this.userStateNames = userStateNames;
+      this.windowCoder = windowCoder;
+      this.stateInternals = stateInternals;
+    }
+
+    @Override
+    public void clearForWindow(BoundedWindow window) {
+      // Executed in the context of onTimer(..) where the correct key will be set
+      for (String userState : userStateNames) {
+        StateNamespace namespace = StateNamespaces.window(windowCoder, window);
+        BagState<?> state = stateInternals.state(namespace, StateTags.bag(userState, null));
+        state.clear();
+      }
+    }
   }
 
   private static class NoOpDoFn<InputT, OutputT> extends DoFn<InputT, OutputT> {
