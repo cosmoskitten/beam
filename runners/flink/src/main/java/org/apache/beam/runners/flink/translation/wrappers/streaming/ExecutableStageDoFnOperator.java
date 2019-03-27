@@ -353,11 +353,11 @@ public class ExecutableStageDoFnOperator<InputT, OutputT> extends DoFnOperator<I
   public void setKeyContextElement1(StreamRecord record) {}
 
   /**
-   * We don't to set anything here. This is due to asynchronous nature of processing elements from
-   * the SDK Harness. The Flink runtime sets the current key before calling {@code processElement},
-   * but this does not work when sending elements to the SDK harness which may be processed at an
-   * arbitrary later point in time. State for keys is also accessed asynchronously via state
-   * requests.
+   * We don't want to set anything here. This is due to asynchronous nature of processing elements
+   * from the SDK Harness. The Flink runtime sets the current key before calling {@code
+   * processElement}, but this does not work when sending elements to the SDK harness which may be
+   * processed at an arbitrary later point in time. State for keys is also accessed asynchronously
+   * via state requests.
    *
    * <p>We set the key only as it is required for 1) State requests 2) Timers (setting/firing).
    */
