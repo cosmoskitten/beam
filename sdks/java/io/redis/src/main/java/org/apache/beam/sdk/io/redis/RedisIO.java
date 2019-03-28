@@ -79,6 +79,16 @@ import redis.clients.jedis.ScanResult;
  *
  * }</pre>
  *
+ * <p>It's also possible to enable Redis SSL connection with the corresponding methods:
+ *
+ * <pre>{@code
+ * pipeline.apply(RedisIO.read()
+ *   .withEndpoint("::1", 6379)
+ *   .withKeyPattern("foo*"))
+ *   .enableSSL()
+ *
+ * }</pre>
+ *
  * <p>{@link #readAll()} can be used to request Redis server using input PCollection elements as key
  * pattern (as String).
  *
@@ -197,6 +207,10 @@ public class RedisIO {
 
     public Read withBatchSize(int batchSize) {
       return builder().setBatchSize(batchSize).build();
+    }
+
+    public Read enableSSL() {
+      return builder().setConnectionConfiguration(connectionConfiguration().enableSSL()).build();
     }
 
     @Override
