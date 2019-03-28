@@ -251,6 +251,8 @@ class _BigTableSource(iobase.BoundedSource):
     end_position = ranges.stop_position()
     start_key = start_position
     end_key = end_position
+    split_ = float(desired_bundle_size)/float(sample_size_bytes)
+    split_ = math.floor(split_*100)/100
 
     if start_position == b'' or end_position == b'':
       yield iobase.SourceBundle(sample_size_bytes,
