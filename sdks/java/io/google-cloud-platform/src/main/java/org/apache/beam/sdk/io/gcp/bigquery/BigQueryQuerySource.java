@@ -21,6 +21,7 @@ import static org.apache.beam.sdk.io.gcp.bigquery.BigQueryHelpers.createJobIdTok
 import static org.apache.beam.sdk.io.gcp.bigquery.BigQueryHelpers.createTempTableReference;
 import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkNotNull;
 
+import com.google.api.services.bigquery.model.JobStatistics;
 import com.google.api.services.bigquery.model.TableReference;
 import java.io.IOException;
 import java.io.ObjectInputStream;
@@ -73,7 +74,7 @@ class BigQueryQuerySource<T> extends BigQuerySourceBase<T> {
   private final String location;
   private final String kmsKey;
 
-  private transient AtomicReference<BigQueryQueryHelper> queryHelperReference;
+  private transient AtomicReference<JobStatistics> dryRunJobStats;
 
   private BigQueryQuerySource(
       String stepUuid,
@@ -93,7 +94,7 @@ class BigQueryQuerySource<T> extends BigQuerySourceBase<T> {
     this.priority = priority;
     this.location = location;
     this.kmsKey = kmsKey;
-    queryHelperReference = new AtomicReference<>();
+    dryRunJobStats = new AtomicReference<>();
   }
 
   /**
@@ -104,21 +105,37 @@ class BigQueryQuerySource<T> extends BigQuerySourceBase<T> {
    */
   private void readObject(ObjectInputStream in) throws ClassNotFoundException, IOException {
     in.defaultReadObject();
-    queryHelperReference = new AtomicReference<>();
+    dryRunJobStats = new AtomicReference<>();
   }
 
   @Override
   public long getEstimatedSizeBytes(PipelineOptions options) throws Exception {
-    BigQueryOptions bqOptions = options.as(BigQueryOptions.class);
-    BigQueryQueryHelper queryHelper = getQueryHelper();
-    return queryHelper.dryRunQueryIfNeeded(bqOptions).getQuery().getTotalBytesProcessed();
+    return BigQueryQueryHelper.dryRunQueryIfNeeded(
+            bqServices,
+            options.as(BigQueryOptions.class),
+            dryRunJobStats,
+            query.get(),
+            flattenResults,
+            useLegacySql,
+            location)
+        .getQuery()
+        .getTotalBytesProcessed();
   }
 
   @Override
   protected TableReference getTableToExtract(BigQueryOptions bqOptions)
       throws IOException, InterruptedException {
-    BigQueryQueryHelper queryHelper = getQueryHelper();
-    return queryHelper.executeQuery(bqOptions);
+    return BigQueryQueryHelper.executeQuery(
+        bqServices,
+        bqOptions,
+        dryRunJobStats,
+        stepUuid,
+        query.get(),
+        flattenResults,
+        useLegacySql,
+        priority,
+        location,
+        kmsKey);
   }
 
   @Override
@@ -138,22 +155,5 @@ class BigQueryQuerySource<T> extends BigQuerySourceBase<T> {
   public void populateDisplayData(DisplayData.Builder builder) {
     super.populateDisplayData(builder);
     builder.add(DisplayData.item("query", query));
-  }
-
-  private synchronized BigQueryQueryHelper getQueryHelper() {
-    if (queryHelperReference.get() == null) {
-      BigQueryQueryHelper queryHelper =
-          new BigQueryQueryHelper(
-              stepUuid,
-              query,
-              flattenResults,
-              useLegacySql,
-              priority,
-              location,
-              kmsKey,
-              bqServices);
-      queryHelperReference.compareAndSet(null, queryHelper);
-    }
-    return queryHelperReference.get();
   }
 }

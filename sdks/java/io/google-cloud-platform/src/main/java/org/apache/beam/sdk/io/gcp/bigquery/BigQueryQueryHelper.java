@@ -19,7 +19,6 @@ package org.apache.beam.sdk.io.gcp.bigquery;
 
 import static org.apache.beam.sdk.io.gcp.bigquery.BigQueryHelpers.createJobIdToken;
 import static org.apache.beam.sdk.io.gcp.bigquery.BigQueryHelpers.createTempTableReference;
-import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkNotNull;
 
 import com.google.api.services.bigquery.model.EncryptionConfiguration;
 import com.google.api.services.bigquery.model.Job;
@@ -36,7 +35,6 @@ import org.apache.beam.sdk.io.gcp.bigquery.BigQueryHelpers.Status;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.TypedRead.QueryPriority;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryServices.DatasetService;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryServices.JobService;
-import org.apache.beam.sdk.options.ValueProvider;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -52,57 +50,56 @@ class BigQueryQueryHelper {
 
   private static final Logger LOG = LoggerFactory.getLogger(BigQueryQueryHelper.class);
 
-  private final String stepUuid;
-  private final ValueProvider<String> queryProvider;
-  private final Boolean flattenResults;
-  private final Boolean useLegacySql;
-  private final QueryPriority priority;
-  private final String location;
-  private final String kmsKey;
-  private final BigQueryServices bqServices;
-
-  private AtomicReference<JobStatistics> dryRunJobStats;
-
-  public BigQueryQueryHelper(
-      String stepUuid,
-      ValueProvider<String> queryProvider,
+  public static JobStatistics dryRunQueryIfNeeded(
+      BigQueryServices bqServices,
+      BigQueryOptions options,
+      AtomicReference<JobStatistics> dryRunJobStats,
+      String query,
       Boolean flattenResults,
       Boolean useLegacySql,
-      QueryPriority priority,
-      @Nullable String location,
-      @Nullable String kmsKey,
-      BigQueryServices bqServices) {
-    this.stepUuid = checkNotNull(stepUuid, "stepUuid");
-    this.queryProvider = checkNotNull(queryProvider, "queryProvider");
-    this.flattenResults = checkNotNull(flattenResults, "flattenResults");
-    this.useLegacySql = checkNotNull(useLegacySql, "useLegacySql");
-    this.priority = checkNotNull(priority, "priority");
-    this.location = location;
-    this.kmsKey = kmsKey;
-    this.bqServices = checkNotNull(bqServices, "bqServices");
-    this.dryRunJobStats = new AtomicReference<>();
-  }
-
-  public synchronized JobStatistics dryRunQueryIfNeeded(BigQueryOptions options)
+      @Nullable String location)
       throws InterruptedException, IOException {
     if (dryRunJobStats.get() == null) {
       JobStatistics jobStatistics =
           bqServices
               .getJobService(options)
-              .dryRunQuery(options.getProject(), createBasicQueryConfig(), location);
+              .dryRunQuery(
+                  options.getProject(),
+                  createBasicQueryConfig(query, flattenResults, useLegacySql),
+                  location);
       dryRunJobStats.compareAndSet(null, jobStatistics);
     }
+
     return dryRunJobStats.get();
   }
 
-  public TableReference executeQuery(BigQueryOptions options)
+  public static TableReference executeQuery(
+      BigQueryServices bqServices,
+      BigQueryOptions options,
+      AtomicReference<JobStatistics> dryRunJobStats,
+      String stepUuid,
+      String query,
+      Boolean flattenResults,
+      Boolean useLegacySql,
+      QueryPriority priority,
+      @Nullable String location,
+      @Nullable String kmsKey)
       throws InterruptedException, IOException {
     // Step 1: Find the effective location of the query.
     String effectiveLocation = location;
     DatasetService tableService = bqServices.getDatasetService(options);
     if (effectiveLocation == null) {
       List<TableReference> referencedTables =
-          dryRunQueryIfNeeded(options).getQuery().getReferencedTables();
+          dryRunQueryIfNeeded(
+                  bqServices,
+                  options,
+                  dryRunJobStats,
+                  query,
+                  flattenResults,
+                  useLegacySql,
+                  location)
+              .getQuery()
+              .getReferencedTables();
       if (referencedTables != null && !referencedTables.isEmpty()) {
         TableReference referencedTable = referencedTables.get(0);
         effectiveLocation = tableService.getTable(referencedTable).getLocation();
@@ -138,7 +135,7 @@ class BigQueryQueryHelper {
             .setJobId(queryJobId);
 
     JobConfigurationQuery queryConfiguration =
-        createBasicQueryConfig()
+        createBasicQueryConfig(query, flattenResults, useLegacySql)
             .setAllowLargeResults(true)
             .setDestinationTable(queryResultTable)
             .setCreateDisposition("CREATE_IF_NEEDED")
@@ -164,9 +161,10 @@ class BigQueryQueryHelper {
     return queryResultTable;
   }
 
-  private JobConfigurationQuery createBasicQueryConfig() {
+  private static JobConfigurationQuery createBasicQueryConfig(
+      String query, Boolean flattenResults, Boolean useLegacySql) {
     return new JobConfigurationQuery()
-        .setQuery(queryProvider.get())
+        .setQuery(query)
         .setFlattenResults(flattenResults)
         .setUseLegacySql(useLegacySql);
   }
