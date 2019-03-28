@@ -27,7 +27,6 @@ import mock
 
 from apache_beam.io.gcp.bigtableio import _BigTableSource as BigTableSource
 
-
 # Protect against environments where bigquery library is not available.
 # pylint: disable=wrong-import-order, wrong-import-position
 try:

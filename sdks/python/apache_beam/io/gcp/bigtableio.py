@@ -38,6 +38,8 @@ those generated rows in the table.
 from __future__ import absolute_import
 from __future__ import division
 
+import math
+
 import apache_beam as beam
 from apache_beam.io import iobase
 from apache_beam.io.range_trackers import LexicographicKeyRangeTracker
