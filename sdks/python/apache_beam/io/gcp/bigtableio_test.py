@@ -22,12 +22,11 @@ from __future__ import division
 import logging
 import sys
 import unittest
-import uuid
 
 import mock
 
 from apache_beam.io.gcp.bigtableio import _BigTableSource as BigTableSource
-from apache_beam.io.range_trackers import LexicographicKeyRangeTracker
+
 
 # Protect against environments where bigquery library is not available.
 # pylint: disable=wrong-import-order, wrong-import-position
@@ -46,14 +45,14 @@ except ImportError:
 @unittest.skipIf(Client is None, 'GCP Bigtable dependencies are not installed')
 class BigtableSourceTest(unittest.TestCase):
   def setUp(self):
-    DEFAULT_TABLE_PREFIX = "pythonreadtest"
+    #self.project_id = 'project_id'
+    #self.instance_id = 'instance_id'
+    #self.table_id = 'table_id'
 
-    #self.project_id = 'grass-clump-479'
-    self.project_id = 'project_id'
-    #self.instance_id = 'python-write-2'
-    self.instance_id = 'instance_id'
-    #self.table_id = 'testmillion7abb2dc3'
-    self.table_id = DEFAULT_TABLE_PREFIX + str(uuid.uuid4())[:8]
+    self.project_id = 'grass-clump-479'
+    self.instance_id = 'python-write-2'
+    self.table_id = 'testmillion1c1d2c39'
+
     if not hasattr(self, 'client'):
       self.client = Client(project=self.project_id, admin=True)
       self.instance = self.client.instance(self.instance_id)
@@ -138,7 +137,7 @@ class BigtableSourceTest(unittest.TestCase):
                                                             desired_bundle_size,
                                                             start_key,
                                                             end_key)))
-    desired_bundle_count = current_size/desired_bundle_size
+    desired_bundle_count = int(current_size/desired_bundle_size)
     self.assertEqual(count_all, desired_bundle_count)
 
   # Split Range Sized Subranges
@@ -186,12 +185,24 @@ class BigtableSourceTest(unittest.TestCase):
     count = len(split_list)
     size = 10468982784
     count_size = size/desired_bundle_size
-    count_size += 1
+    # The split takes the first bundle
+    # and last bundle and didn't split it.
+    count_size = count_size - 2
     self.assertEqual(count, count_size)
 
   def __read_list(self):
-    for i in range(72496, 72500):
+    for i in range(672496, 672500):
       key = 'beam_key'+str(i)
+      if sys.version_info < (3, 0):
+        key = bytes(key)
+      else:
+        key = bytes(key, 'utf8')
+      yield PartialRowData(key)
+
+  def __read_list_rebalancing(self):
+    for i in range(35000, 1214999):
+      prefix = 'beam_key'
+      key = prefix + "%07d" % (i)
       if sys.version_info < (3, 0):
         key = bytes(key)
       else:
@@ -203,14 +214,15 @@ class BigtableSourceTest(unittest.TestCase):
     mock_read_rows.return_value = self.__read_list()
     bigtable = BigTableSource(self.project_id, self.instance_id,
                               self.table_id)
-    start_position = b'beam_key0672496'
-    stop_position = b'beam_key1582279'
-    range_tracker = LexicographicKeyRangeTracker(start_position, stop_position)
-    read = bigtable.read(range_tracker)
-    new_read = bigtable.read(range_tracker)
-    self.assertEqual(len(list(new_read)), 4)
+    start_position = b''
+    stop_position = b''
+    read = list(bigtable.read(bigtable.get_range_tracker(start_position,
+                                                         stop_position)))
+    new_read = read
+    self.assertEqual(len(new_read), 4)
     for i in read:
       self.assertIsInstance(i, PartialRowData)
+      self.assertNotEqual(i.row_key, b'')
 
 
 if __name__ == '__main__':

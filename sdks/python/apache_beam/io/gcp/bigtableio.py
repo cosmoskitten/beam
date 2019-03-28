@@ -38,8 +38,6 @@ those generated rows in the table.
 from __future__ import absolute_import
 from __future__ import division
 
-import math
-
 import apache_beam as beam
 from apache_beam.io import iobase
 from apache_beam.io.range_trackers import LexicographicKeyRangeTracker
@@ -47,106 +45,14 @@ from apache_beam.metrics import Metrics
 from apache_beam.transforms.display import DisplayDataItem
 
 try:
+  from google.cloud.bigtable.batcher import FLUSH_COUNT, MAX_ROW_BYTES
   from google.cloud.bigtable import Client
 except ImportError:
-  pass
+  FLUSH_COUNT = 1000
+  MAX_ROW_BYTES = 100000
+
 
 __all__ = ['WriteToBigTable', 'ReadFromBigTable']
-
-
-class _BigTableWriteFn(beam.DoFn):
-  """ Creates the connector can call and add_row to the batcher using each
-  row in beam pipe line
-  Args:
-    project_id(str): GCP Project ID
-    instance_id(str): GCP Instance ID
-    table_id(str): GCP Table ID
-
-  """
-
-  def __init__(self, project_id, instance_id, table_id):
-    """ Constructor of the Write connector of Bigtable
-    Args:
-      project_id(str): GCP Project of to write the Rows
-      instance_id(str): GCP Instance to write the Rows
-      table_id(str): GCP Table to write the `DirectRows`
-    """
-    super(_BigTableWriteFn, self).__init__()
-    self.beam_options = {'project_id': project_id,
-                         'instance_id': instance_id,
-                         'table_id': table_id}
-    self.table = None
-    self.batcher = None
-    self.written = Metrics.counter(self.__class__, 'Written Row')
-
-  def __getstate__(self):
-    return self.beam_options
-
-  def __setstate__(self, options):
-    self.beam_options = options
-    self.table = None
-    self.batcher = None
-    self.written = Metrics.counter(self.__class__, 'Written Row')
-
-  def start_bundle(self):
-    if self.table is None:
-      client = Client(project=self.beam_options['project_id'])
-      instance = client.instance(self.beam_options['instance_id'])
-      self.table = instance.table(self.beam_options['table_id'])
-    self.batcher = self.table.mutations_batcher()
-
-  def process(self, row):
-    self.written.inc()
-    # You need to set the timestamp in the cells in this row object,
-    # when we do a retry we will mutating the same object, but, with this
-    # we are going to set our cell with new values.
-    # Example:
-    # direct_row.set_cell('cf1',
-    #                     'field1',
-    #                     'value1',
-    #                     timestamp=datetime.datetime.now())
-    self.batcher.mutate(row)
-    return row
-
-  def finish_bundle(self):
-    self.batcher.flush()
-    self.batcher = None
-
-  def display_data(self):
-    return {'projectId': DisplayDataItem(self.beam_options['project_id'],
-                                         label='Bigtable Project Id'),
-            'instanceId': DisplayDataItem(self.beam_options['instance_id'],
-                                          label='Bigtable Instance Id'),
-            'tableId': DisplayDataItem(self.beam_options['table_id'],
-                                       label='Bigtable Table Id')
-           }
-
-
-class WriteToBigTable(beam.PTransform):
-  """ A transform to write to the Bigtable Table.
-
-  A PTransform that write a list of `DirectRow` into the Bigtable Table
-
-  """
-  def __init__(self, project_id=None, instance_id=None,
-               table_id=None):
-    """ The PTransform to access the Bigtable Write connector
-    Args:
-      project_id(str): GCP Project of to write the Rows
-      instance_id(str): GCP Instance to write the Rows
-      table_id(str): GCP Table to write the `DirectRows`
-    """
-    super(WriteToBigTable, self).__init__()
-    self.beam_options = {'project_id': project_id,
-                         'instance_id': instance_id,
-                         'table_id': table_id}
-
-  def expand(self, pvalue):
-    beam_options = self.beam_options
-    return (pvalue
-            | beam.ParDo(_BigTableWriteFn(beam_options['project_id'],
-                                          beam_options['instance_id'],
-                                          beam_options['table_id'])))
 
 
 class _BigTableSource(iobase.BoundedSource):
@@ -158,7 +64,6 @@ class _BigTableSource(iobase.BoundedSource):
     table_id(str): GCP Table ID
     row_set(RowSet): Creating a set of row keys and row ranges.
     filter_(RowFilter): Filter to apply to cells in a row.
-
   """
   def __init__(self, project_id, instance_id, table_id,
                row_set=None, filter_=None):
@@ -173,7 +78,7 @@ class _BigTableSource(iobase.BoundedSource):
       filter_(RowFilter): Get some expected rows, bases on
       certainly information in the row.
     """
-    super(self.__class__, self).__init__()
+    super(_BigTableSource, self).__init__()
     self.beam_options = {'project_id': project_id,
                          'instance_id': instance_id,
                          'table_id': table_id,
@@ -191,6 +96,8 @@ class _BigTableSource(iobase.BoundedSource):
                          'table_id': options['table_id'],
                          'row_set': options['row_set'],
                          'filter_': options['filter_']}
+    self.table = None
+    self.read_row = Metrics.counter(self.__class__.__name__, 'read_row')
 
   def _getTable(self):
     if self.table is None:
@@ -205,11 +112,9 @@ class _BigTableSource(iobase.BoundedSource):
 
   def get_sample_row_keys(self):
     ''' Get a sample of row keys in the table.
-
     The returned row keys will delimit contiguous sections of the table of
     approximately equal size, which can be used to break up the data for
     distributed tasks like mapreduces.
-
     :returns: A cancel-able iterator. Can be consumed by calling ``next()``
                   or by casting to a :class:`list` and can be cancelled by
                   calling ``cancel()``.
@@ -217,7 +122,10 @@ class _BigTableSource(iobase.BoundedSource):
     return self._getTable().sample_row_keys()
 
   def get_range_tracker(self, start_position, stop_position):
-    return LexicographicKeyRangeTracker(start_position, stop_position)
+    if stop_position == b'':
+      return LexicographicKeyRangeTracker(start_position)
+    else:
+      return LexicographicKeyRangeTracker(start_position, stop_position)
 
   def split(self, desired_bundle_size, start_position=None, stop_position=None):
     ''' Splits the source into a set of bundles, using the row_set if it is
@@ -225,14 +133,12 @@ class _BigTableSource(iobase.BoundedSource):
     Bundles should be approximately of ``desired_bundle_size`` bytes, if this
     bundle its bigger, it use the ``range_split_fraction`` to split the bundles
     in fractions.
-
     :param desired_bundle_size: the desired size (in bytes) of the bundles
     returned.
     :param start_position: if specified the given position must be used as
     the starting position of the first bundle.
     :param stop_position: if specified the given position must be used as
     the ending position of the last bundle.
-
     Returns:
       an iterator of objects of type 'SourceBundle' that gives information
       about the generated bundles.
@@ -241,10 +147,10 @@ class _BigTableSource(iobase.BoundedSource):
     # The row_set is variable to get only certain ranges of rows, this
     # variable is set in the constructor of this class.
     if self.beam_options['row_set'] is not None:
-      for sample_row_key in self.beam_options['row_set'].row_ranges:
+      for row_range in self.beam_options['row_set'].row_ranges:
         for row_split in self.split_range_size(desired_bundle_size,
                                                self.get_sample_row_keys(),
-                                               sample_row_key):
+                                               row_range):
           yield row_split
     else:
       addition_size = 0
@@ -261,18 +167,12 @@ class _BigTableSource(iobase.BoundedSource):
           end_key = sample_row_key.row_key
           for fraction in self.range_split_fraction(addition_size,
                                                     desired_bundle_size,
-                                                    start_key, end_key):
+                                                    start_key,
+                                                    end_key):
             yield fraction
           start_key = sample_row_key.row_key
           addition_size = 0
         last_offset = sample_row_key.offset_bytes
-
-      full_size = 10468982784
-      if current_size == full_size:
-        last_bundle_size = full_size
-      else:
-        last_bundle_size = full_size - current_size
-      yield iobase.SourceBundle(last_bundle_size, self, start_key, end_key)
 
   def split_range_size(self, desired_size, sample_row_keys, range_):
     ''' This method split the row_set ranges using the desired_bundle_size
@@ -314,7 +214,6 @@ class _BigTableSource(iobase.BoundedSource):
                            end_key):
     ''' This method is used to send a range[start_key, end_key) to the
     ``split_range_subranges`` method.
-
     :param current_size: the size of the range.
     :param desired_bundle_size: the size you want to split.
     :param start_key(byte): The start key row in the range.
@@ -329,7 +228,6 @@ class _BigTableSource(iobase.BoundedSource):
     ''' We use the ``fraction_to_position`` method in
     ``LexicographicKeyRangeTracker`` class to split a
     range into two chunks.
-
     :param position:
     :param range_start:
     :param range_stop:
@@ -339,42 +237,41 @@ class _BigTableSource(iobase.BoundedSource):
                                                              range_start,
                                                              range_stop)
 
-  def split_range_subranges(self,
-                            sample_size_bytes,
-                            desired_bundle_size,
-                            ranges):
+  def split_range_subranges(self, sample_size_bytes,
+                            desired_bundle_size, ranges):
     ''' This method split the range you get using the
     ``desired_bundle_size`` as a limit size, It compares the
     size of the range and the ``desired_bundle size`` if it is necessary
     to split a range, it uses the ``fraction_to_position`` method.
-
     :param sample_size_bytes: The size of the Range.
     :param desired_bundle_size: The desired size to split the Range.
     :param ranges: the Range to split.
     '''
-    start_key = ranges.start_position()
-    end_key = ranges.stop_position()
+    start_position = ranges.start_position()
+    end_position = ranges.stop_position()
+    start_key = start_position
+    end_key = end_position
 
-    split_ = float(desired_bundle_size)/float(sample_size_bytes)
-    split_count = int(math.ceil(split_))
-    portions = (1/split_)
-    if portions > 1:
-      for i in range(split_count):
-        estimate_position = ((i + 1) * split_)
-
-        for i in range(int(portions)):
-          temp_estimate = estimate_position*(i+1)
-          position = self.fraction_to_position(temp_estimate,
-                                               ranges.start_position(),
-                                               ranges.stop_position())
-          end_key = position
-          yield iobase.SourceBundle(sample_size_bytes * split_,
-                                    self,
-                                    start_key,
-                                    end_key)
-          start_key = position
+    if start_position == b'' or end_position == b'':
+      yield iobase.SourceBundle(sample_size_bytes,
+                                self,
+                                start_position,
+                                end_position)
     else:
-      yield iobase.SourceBundle(sample_size_bytes, self, start_key, end_key)
+      size_portion = int(sample_size_bytes*split_)
+      sum_portion = size_portion
+      while sum_portion < sample_size_bytes:
+        fraction_portion = float(sum_portion)/float(sample_size_bytes)
+        position = self.fraction_to_position(fraction_portion,
+                                             start_position,
+                                             end_position)
+        end_key = position
+        yield iobase.SourceBundle(size_portion, self, start_key, end_key)
+        start_key = position
+        sum_portion += size_portion
+      last_portion = (sum_portion-size_portion)
+      last_size = sample_size_bytes-last_portion
+      yield iobase.SourceBundle(last_size, self, end_key, end_position)
 
   def read(self, range_tracker):
     filter_ = self.beam_options['filter_']
@@ -384,11 +281,10 @@ class _BigTableSource(iobase.BoundedSource):
                                 filter_=filter_)
 
     for row in read_rows:
-      if range_tracker.stop_position() != b'':
-        if range_tracker.try_claim(row.row_key):
-          return
-      self.read_row.inc()
-      yield row
+      try_claim = range_tracker.try_claim(row.row_key)
+      if try_claim:
+        self.read_row.inc()
+        yield row
 
   def display_data(self):
     ret = {'projectId': DisplayDataItem(self.beam_options['project_id'],
@@ -417,3 +313,109 @@ class ReadFromBigTable(beam.PTransform):
             | 'ReadFromBigtable' >> beam.io.Read(_BigTableSource(project_id,
                                                                  instance_id,
                                                                  table_id)))
+
+
+class _BigTableWriteFn(beam.DoFn):
+  """ Creates the connector can call and add_row to the batcher using each
+  row in beam pipe line
+  Args:
+    project_id(str): GCP Project ID
+    instance_id(str): GCP Instance ID
+    table_id(str): GCP Table ID
+
+  """
+
+  def __init__(self, project_id, instance_id, table_id,
+               flush_count=FLUSH_COUNT,
+               max_row_bytes=MAX_ROW_BYTES):
+    """ Constructor of the Write connector of Bigtable
+    Args:
+      project_id(str): GCP Project of to write the Rows
+      instance_id(str): GCP Instance to write the Rows
+      table_id(str): GCP Table to write the `DirectRows`
+    """
+    super(_BigTableWriteFn, self).__init__()
+    self.beam_options = {'project_id': project_id,
+                         'instance_id': instance_id,
+                         'table_id': table_id,
+                         'flush_count': flush_count,
+                         'max_row_bytes': max_row_bytes}
+    self.table = None
+    self.batcher = None
+    self.written = Metrics.counter(self.__class__, 'Written Row')
+
+  def __getstate__(self):
+    return self.beam_options
+
+  def __setstate__(self, options):
+    self.beam_options = options
+    self.table = None
+    self.batcher = None
+    self.written = Metrics.counter(self.__class__, 'Written Row')
+
+  def start_bundle(self):
+    if self.table is None:
+      client = Client(project=self.beam_options['project_id'])
+      instance = client.instance(self.beam_options['instance_id'])
+      self.table = instance.table(self.beam_options['table_id'])
+    flush_count = self.beam_options['flush_count']
+    max_row_bytes = self.beam_options['max_row_bytes']
+    self.batcher = self.table.mutations_batcher(flush_count,
+                                                max_row_bytes)
+
+  def process(self, element):
+    self.written.inc()
+    # You need to set the timestamp in the cells in this row object,
+    # when we do a retry we will mutating the same object, but, with this
+    # we are going to set our cell with new values.
+    # Example:
+    # direct_row.set_cell('cf1',
+    #                     'field1',
+    #                     'value1',
+    #                     timestamp=datetime.datetime.now())
+    self.batcher.mutate(element)
+
+  def finish_bundle(self):
+    self.batcher.flush()
+    self.batcher = None
+
+  def display_data(self):
+    return {'projectId': DisplayDataItem(self.beam_options['project_id'],
+                                         label='Bigtable Project Id'),
+            'instanceId': DisplayDataItem(self.beam_options['instance_id'],
+                                          label='Bigtable Instance Id'),
+            'tableId': DisplayDataItem(self.beam_options['table_id'],
+                                       label='Bigtable Table Id')
+           }
+
+
+class WriteToBigTable(beam.PTransform):
+  """ A transform to write to the Bigtable Table.
+
+  A PTransform that write a list of `DirectRow` into the Bigtable Table
+
+  """
+  def __init__(self, project_id=None, instance_id=None,
+               table_id=None, flush_count=FLUSH_COUNT,
+               max_row_bytes=MAX_ROW_BYTES):
+    """ The PTransform to access the Bigtable Write connector
+    Args:
+      project_id(str): GCP Project of to write the Rows
+      instance_id(str): GCP Instance to write the Rows
+      table_id(str): GCP Table to write the `DirectRows`
+    """
+    super(WriteToBigTable, self).__init__()
+    self.beam_options = {'project_id': project_id,
+                         'instance_id': instance_id,
+                         'table_id': table_id,
+                         'flush_count': flush_count,
+                         'max_row_bytes': max_row_bytes}
+
+  def expand(self, pvalue):
+    beam_options = self.beam_options
+    return (pvalue
+            | beam.ParDo(_BigTableWriteFn(beam_options['project_id'],
+                                          beam_options['instance_id'],
+                                          beam_options['table_id'],
+                                          beam_options['flush_count'],
+                                          beam_options['max_row_bytes'])))
