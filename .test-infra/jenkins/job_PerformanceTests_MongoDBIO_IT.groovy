@@ -38,7 +38,9 @@ job(jobName) {
     def pipelineOptions = [
             tempRoot       : 'gs://temp-storage-for-perf-tests',
             project        : 'apache-beam-testing',
-            numberOfRecords: '10000000'
+            numberOfRecords: '10000000',
+            bigQueryDataset: 'beam_performance',
+            bigQueryTable  : 'test_mongodb_it'
     ]
 
     String namespace = commonJobProperties.getKubernetesNamespace(jobName)
