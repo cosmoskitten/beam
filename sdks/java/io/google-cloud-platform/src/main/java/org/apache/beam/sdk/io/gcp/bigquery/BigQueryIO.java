@@ -1007,6 +1007,8 @@ public class BigQueryIO {
                                 c.getPipelineOptions().as(BigQueryOptions.class);
                             String jobUuid = c.element();
                             // Execute the query and get the destination table holding the results.
+                            // The getTargetTable call runs a new instance of the query and returns
+                            // the destination table created to hold the results.
                             BigQueryStorageQuerySource<T> querySource =
                                 createStorageQuerySource(jobUuid, outputCoder);
                             Table queryResultTable = querySource.getTargetTable(options);
@@ -1074,6 +1076,9 @@ public class BigQueryIO {
                                         outputCoder,
                                         getBigQueryServices());
 
+                                // Read all of the data from the stream. In the event that this work
+                                // item fails and is rescheduled, the same rows will be returned in
+                                // the same order.
                                 BoundedSource.BoundedReader<T> reader =
                                     streamSource.createReader(c.getPipelineOptions());
                                 for (boolean more = reader.start(); more; more = reader.advance()) {

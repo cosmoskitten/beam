@@ -726,7 +726,7 @@ public class BigQueryIOReadTest implements Serializable {
    * tables when the dry run of the query is performed.
    */
   @Test
-  public void testBigQueryNoTableQuerySourceInitSplit() throws Exception {
+  public void testBigQueryQuerySourceInitSplit_NoReferencedTables() throws Exception {
 
     PipelineOptions options = PipelineOptionsFactory.create();
     BigQueryOptions bqOptions = options.as(BigQueryOptions.class);
