@@ -21,6 +21,7 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
 import org.apache.beam.model.pipeline.v1.MetricsApi.MonitoringInfo;
+import org.apache.beam.runners.core.metrics.MonitoringInfoConstants.Labels;
 import org.apache.beam.runners.core.metrics.MonitoringInfoConstants.TypeUrns;
 import org.apache.beam.runners.core.metrics.MonitoringInfoConstants.Urns;
 import org.junit.Before;
@@ -60,8 +61,8 @@ public class SpecMonitoringInfoValidatorTest {
         MonitoringInfo.newBuilder()
             .setUrn(MonitoringInfoConstants.Urns.ELEMENT_COUNT)
             .setType(TypeUrns.SUM_INT64)
-            .putLabels("PTRANSFORM", "value")
-            .putLabels("PCOLLECTION", "anotherValue")
+            .putLabels(MonitoringInfoConstants.Labels.PTRANFORM, "value")
+            .putLabels(MonitoringInfoConstants.Labels.PCOLLECTION, "anotherValue")
             .build();
     assertFalse(testObject.validate(testInput).isPresent());
   }
@@ -72,7 +73,7 @@ public class SpecMonitoringInfoValidatorTest {
         MonitoringInfo.newBuilder()
             .setUrn(MonitoringInfoConstants.Urns.ELEMENT_COUNT)
             .setType(TypeUrns.SUM_INT64)
-            .putLabels("PTRANSFORM", "unexpectedLabel")
+            .putLabels(MonitoringInfoConstants.Labels.PTRANFORM, "unexpectedLabel")
             .build();
     assertTrue(testObject.validate(testInput).isPresent());
   }
