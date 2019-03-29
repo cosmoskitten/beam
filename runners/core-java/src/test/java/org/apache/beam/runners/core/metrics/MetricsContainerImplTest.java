@@ -27,6 +27,7 @@ import static org.junit.Assert.assertThat;
 import java.util.ArrayList;
 import java.util.HashMap;
 import org.apache.beam.model.pipeline.v1.MetricsApi.MonitoringInfo;
+import org.apache.beam.runners.core.metrics.MonitoringInfoConstants.Labels;
 import org.apache.beam.sdk.metrics.MetricName;
 import org.junit.Assert;
 import org.junit.Test;
@@ -182,14 +183,14 @@ public class MetricsContainerImplTest {
   public void testMonitoringInfosArePopulatedForABeamCounter() {
     MetricsContainerImpl testObject = new MetricsContainerImpl("step1");
     HashMap<String, String> labels = new HashMap<String, String>();
-    labels.put(SimpleMonitoringInfoBuilder.PCOLLECTION_LABEL, "pcollection");
+    labels.put(Labels.PCOLLECTION, "pcollection");
     MetricName name =
-        MonitoringInfoMetricName.named(SimpleMonitoringInfoBuilder.ELEMENT_COUNT_URN, labels);
+        MonitoringInfoMetricName.named(MonitoringInfoConstants.Urns.ELEMENT_COUNT, labels);
     CounterCell c1 = testObject.getCounter(name);
     c1.inc(2L);
 
     SimpleMonitoringInfoBuilder builder1 = new SimpleMonitoringInfoBuilder();
-    builder1.setUrn(SimpleMonitoringInfoBuilder.ELEMENT_COUNT_URN);
+    builder1.setUrn(MonitoringInfoConstants.Urns.ELEMENT_COUNT);
     builder1.setPCollectionLabel("pcollection");
     builder1.setInt64Value(2);
     builder1.build();

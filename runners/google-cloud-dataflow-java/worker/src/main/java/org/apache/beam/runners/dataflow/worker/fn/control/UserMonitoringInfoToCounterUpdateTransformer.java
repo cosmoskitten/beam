@@ -28,6 +28,7 @@ import java.util.Optional;
 import javax.annotation.Nullable;
 import org.apache.beam.model.pipeline.v1.MetricsApi.MonitoringInfo;
 import org.apache.beam.model.pipeline.v1.MetricsApi.MonitoringInfoSpecs.Enum;
+import org.apache.beam.runners.core.metrics.MonitoringInfoConstants;
 import org.apache.beam.runners.core.metrics.SpecMonitoringInfoValidator;
 import org.apache.beam.runners.dataflow.worker.DataflowExecutionContext.DataflowStepContext;
 import org.apache.beam.runners.dataflow.worker.MetricsToCounterUpdateConverter.Origin;
@@ -72,7 +73,8 @@ class UserMonitoringInfoToCounterUpdateTransformer
               BEAM_METRICS_USER_PREFIX, urn));
     }
 
-    final String ptransform = monitoringInfo.getLabelsMap().get("PTRANSFORM");
+    final String ptransform =
+        monitoringInfo.getLabelsMap().get(MonitoringInfoConstants.Labels.PTRANSFORM);
     DataflowStepContext stepContext = transformIdMapping.get(ptransform);
     if (stepContext == null) {
       return Optional.of(
@@ -99,7 +101,8 @@ class UserMonitoringInfoToCounterUpdateTransformer
     long value = monitoringInfo.getMetric().getCounterData().getInt64Value();
     String urn = monitoringInfo.getUrn();
 
-    final String ptransform = monitoringInfo.getLabelsMap().get("PTRANSFORM");
+    final String ptransform =
+        monitoringInfo.getLabelsMap().get(MonitoringInfoConstants.Labels.PTRANSFORM);
 
     CounterStructuredNameAndMetadata name = new CounterStructuredNameAndMetadata();
 
