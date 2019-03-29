@@ -49,7 +49,7 @@ public final class MonitoringInfoConstants {
 
     // todomigryz utilize this class wherever labels are used. Utilize search to find references.
     public final static class Labels {
-        public static final String PTRANFORM = extractLabel(MonitoringInfoLabels.TRANSFORM);
+        public static final String PTRANSFORM = extractLabel(MonitoringInfoLabels.TRANSFORM);
         public static final String PCOLLECTION = extractLabel(MonitoringInfoLabels.PCOLLECTION);
         public static final String WINDOWING_STRATEGY = extractLabel(
             MonitoringInfoLabels.WINDOWING_STRATEGY);
