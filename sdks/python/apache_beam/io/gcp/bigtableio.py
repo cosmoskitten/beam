@@ -38,6 +38,7 @@ those generated rows in the table.
 from __future__ import absolute_import
 from __future__ import division
 
+import copy
 import math
 
 import apache_beam as beam
@@ -88,16 +89,12 @@ class _BigTableSource(iobase.BoundedSource):
                          'filter_': filter_}
     self.table = None
     self.read_row = Metrics.counter(self.__class__.__name__, 'read_row')
-
+    self.sample_row_keys = None
   def __getstate__(self):
     return self.beam_options
 
   def __setstate__(self, options):
-    self.beam_options = {'project_id': options['project_id'],
-                         'instance_id': options['instance_id'],
-                         'table_id': options['table_id'],
-                         'row_set': options['row_set'],
-                         'filter_': options['filter_']}
+    self.beam_options = options
     self.table = None
     self.read_row = Metrics.counter(self.__class__.__name__, 'read_row')
 
@@ -121,7 +118,9 @@ class _BigTableSource(iobase.BoundedSource):
                   or by casting to a :class:`list` and can be cancelled by
                   calling ``cancel()``.
     '''
-    return self._getTable().sample_row_keys()
+    if self.sample_row_keys == None:
+      self.sample_row_keys = list(self._getTable().sample_row_keys())
+    return copy.deepcopy(self.sample_row_keys)
 
   def get_range_tracker(self, start_position, stop_position):
     if stop_position == b'':
@@ -130,8 +129,7 @@ class _BigTableSource(iobase.BoundedSource):
       return LexicographicKeyRangeTracker(start_position, stop_position)
 
   def split(self, desired_bundle_size, start_position=None, stop_position=None):
-    ''' Splits the source into a set of bundles, using the row_set if it is
-    neccessary.
+    ''' Splits the source into a set of bundles, using the row_set if it is set.
     Bundles should be approximately of ``desired_bundle_size`` bytes, if this
     bundle its bigger, it use the ``range_split_fraction`` to split the bundles
     in fractions.
@@ -146,35 +144,39 @@ class _BigTableSource(iobase.BoundedSource):
       about the generated bundles.
     '''
 
-    # The row_set is variable to get only certain ranges of rows, this
-    # variable is set in the constructor of this class.
-    if self.beam_options['row_set'] is not None:
-      for row_range in self.beam_options['row_set'].row_ranges:
-        for row_split in self.split_range_size(desired_bundle_size,
-                                               self.get_sample_row_keys(),
-                                               row_range):
-          yield row_split
+    if start_position is not None and stop_position is not None:
+      yield iobase.SourceBundle(1, self, start_position, stop_position)
     else:
-      addition_size = 0
-      last_offset = 0
-      current_size = 0
+      # The row_set is variable to get only certain ranges of rows, this
+      # variable is set in the constructor of this class.
+      sample_row_keys = self.get_sample_row_keys()
+      if self.beam_options['row_set'] is not None:
+        for row_range in self.beam_options['row_set'].row_ranges:
+          for row_split in self.split_range_size(desired_bundle_size,
+                                                 sample_row_keys,
+                                                 row_range):
+            yield row_split
+      else:
+        addition_size = 0
+        last_offset = 0
+        current_size = 0
 
-      start_key = b''
-      end_key = b''
+        start_key = b''
+        end_key = b''
 
-      for sample_row_key in self.get_sample_row_keys():
-        current_size = sample_row_key.offset_bytes - last_offset
-        addition_size += current_size
-        if addition_size >= desired_bundle_size:
-          end_key = sample_row_key.row_key
-          for fraction in self.range_split_fraction(addition_size,
-                                                    desired_bundle_size,
-                                                    start_key,
-                                                    end_key):
-            yield fraction
-          start_key = sample_row_key.row_key
-          addition_size = 0
-        last_offset = sample_row_key.offset_bytes
+        for sample_row_key in sample_row_keys:
+          current_size = sample_row_key.offset_bytes - last_offset
+          addition_size += current_size
+          if addition_size >= desired_bundle_size:
+            end_key = sample_row_key.row_key
+            for fraction in self.range_split_fraction(addition_size,
+                                                      desired_bundle_size,
+                                                      start_key,
+                                                      end_key):
+              yield fraction
+            start_key = sample_row_key.row_key
+            addition_size = 0
+          last_offset = sample_row_key.offset_bytes
 
   def split_range_size(self, desired_size, sample_row_keys, range_):
     ''' This method split the row_set ranges using the desired_bundle_size
@@ -226,19 +228,6 @@ class _BigTableSource(iobase.BoundedSource):
                                       desired_bundle_size,
                                       range_tracker)
 
-  def fraction_to_position(self, position, range_start, range_stop):
-    ''' We use the ``fraction_to_position`` method in
-    ``LexicographicKeyRangeTracker`` class to split a
-    range into two chunks.
-    :param position:
-    :param range_start:
-    :param range_stop:
-    :return:
-    '''
-    return LexicographicKeyRangeTracker.fraction_to_position(position,
-                                                             range_start,
-                                                             range_stop)
-
   def split_range_subranges(self, sample_size_bytes,
                             desired_bundle_size, ranges):
     ''' This method split the range you get using the
@@ -251,8 +240,8 @@ class _BigTableSource(iobase.BoundedSource):
     '''
     start_position = ranges.start_position()
     end_position = ranges.stop_position()
-    start_key = start_position
-    end_key = end_position
+    start_key = start_position #current_start_key
+    end_key = end_position # current_end_key
     split_ = float(desired_bundle_size)/float(sample_size_bytes)
     split_ = math.floor(split_*100)/100
 
@@ -285,10 +274,27 @@ class _BigTableSource(iobase.BoundedSource):
                                 filter_=filter_)
 
     for row in read_rows:
-      try_claim = range_tracker.try_claim(row.row_key)
-      if try_claim:
+      claimed = range_tracker.try_claim(row.row_key)
+      if claimed:
         self.read_row.inc()
         yield row
+      else:
+        break
+        # Read row need to be cancel
+      
+
+  def fraction_to_position(self, position, range_start, range_stop):
+    ''' We use the ``fraction_to_position`` method in
+    ``LexicographicKeyRangeTracker`` class to split a
+    range into two chunks.
+    :param position:
+    :param range_start:
+    :param range_stop:
+    :return:
+    '''
+    return LexicographicKeyRangeTracker.fraction_to_position(position,
+                                                             range_start,
+                                                             range_stop)
 
   def display_data(self):
     ret = {'projectId': DisplayDataItem(self.beam_options['project_id'],
