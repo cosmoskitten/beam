@@ -24,6 +24,7 @@ import com.google.api.services.dataflow.model.IntegerMean;
 import com.google.api.services.dataflow.model.NameAndKind;
 import java.util.Map;
 import java.util.Optional;
+import javax.annotation.Nullable;
 import org.apache.beam.model.pipeline.v1.MetricsApi.IntDistributionData;
 import org.apache.beam.model.pipeline.v1.MetricsApi.MonitoringInfo;
 import org.apache.beam.runners.core.metrics.SpecMonitoringInfoValidator;
@@ -31,7 +32,7 @@ import org.apache.beam.runners.dataflow.worker.counters.NameContext;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-/** MonitoringInfo to CounterUpdate transformer capable to transform ElementCount counters. */
+/** MonitoringInfo to CounterUpdate transformer capable to transform MeanByteCount counter. */
 public class MeanByteCountMonitoringInfoToCounterUpdateTransformer
     implements MonitoringInfoToCounterUpdateTransformer {
 
@@ -40,7 +41,7 @@ public class MeanByteCountMonitoringInfoToCounterUpdateTransformer
   private final SpecMonitoringInfoValidator specValidator;
   private final Map<String, NameContext> pcollectionIdToNameContext;
 
-  // todomigryz utilize value from metrics.proto once it gets in.
+  // todo(migryz): utilize value from metrics.proto once it gets in.
   private static final String SUPPORTED_URN = "beam:metric:sampled_byte_size:v1";
 
   /**
@@ -89,6 +90,7 @@ public class MeanByteCountMonitoringInfoToCounterUpdateTransformer
    * @return CounterUpdate generated based on provided monitoringInfo
    */
   @Override
+  @Nullable
   public CounterUpdate transform(MonitoringInfo monitoringInfo) {
     Optional<String> validationResult = validate(monitoringInfo);
     if (validationResult.isPresent()) {
