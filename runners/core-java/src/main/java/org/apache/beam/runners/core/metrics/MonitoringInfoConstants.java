@@ -26,11 +26,10 @@ import static org.apache.beam.model.pipeline.v1.MetricsApi.monitoringInfoSpec;
 import static org.apache.beam.model.pipeline.v1.MetricsApi.labelProps;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 
-public final class MetricsConstants {
+public final class MonitoringInfoConstants {
 
     // todomigryz Replace usage of BeamUrns.getUrn to using this class.
     public final static class Urns {
-
         public static final String ELEMENT_COUNT =
             extractUrn(MonitoringInfoSpecs.Enum.ELEMENT_COUNT);
         public static final String START_BUNDLE_MSECS =
@@ -41,7 +40,10 @@ public final class MetricsConstants {
             extractUrn(MonitoringInfoSpecs.Enum.FINISH_BUNDLE_MSECS);
         public static final String TOTAL_MSECS =
             extractUrn(MonitoringInfoSpecs.Enum.TOTAL_MSECS);
-        public static final String USER_DISTRIBUTION_COUNTER =
+
+        public static final String USER_COUNTER_PREFIX =
+            extractUrn(MonitoringInfoSpecs.Enum.USER_COUNTER);
+        public static final String USER_DISTRIBUTION_COUNTER_PREFIX =
             extractUrn(MonitoringInfoSpecs.Enum.USER_DISTRIBUTION_COUNTER);
     }
 

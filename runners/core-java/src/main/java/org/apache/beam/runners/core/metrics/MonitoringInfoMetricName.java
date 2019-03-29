@@ -26,6 +26,7 @@ import java.util.List;
 import java.util.Map.Entry;
 import java.util.Objects;
 import javax.annotation.Nullable;
+import org.apache.beam.runners.core.metrics.MonitoringInfoConstants.Urns;
 import org.apache.beam.sdk.metrics.MetricName;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Strings;
 
@@ -54,7 +55,7 @@ public class MonitoringInfoMetricName extends MetricName {
 
   /** Parse the urn field into a name and namespace field. */
   private void parseUrn() {
-    if (this.urn.startsWith(SimpleMonitoringInfoBuilder.USER_COUNTER_URN_PREFIX)) {
+    if (this.urn.startsWith(Urns.USER_COUNTER_PREFIX)) {
       List<String> split = new ArrayList<String>(Arrays.asList(this.getUrn().split(":")));
       this.name = split.get(split.size() - 1);
       this.namespace = split.get(split.size() - 2);
