@@ -51,7 +51,8 @@ PAR_DO_URNS = frozenset([
     common_urns.primitives.PAR_DO.urn,
     common_urns.sdf_components.PAIR_WITH_RESTRICTION.urn,
     common_urns.sdf_components.SPLIT_RESTRICTION.urn,
-    common_urns.sdf_components.SIZE_RESTRICTIONS.urn,
+    common_urns.sdf_components.SPLIT_AND_SIZE_RESTRICTIONS.urn,
+    common_urns.sdf_components.PROCESS_SIZED_ELEMENTS_AND_RESTRICTIONS.urn,
     common_urns.sdf_components.PROCESS_ELEMENTS.urn])
 
 IMPULSE_BUFFER = b'impulse'
@@ -778,41 +779,29 @@ def expand_sdf(stages, context):
             context.components.pcollections,
             main_input_id,
             '_split',
-            coder_id=paired_coder_id)
+            coder_id=sized_coder_id)
         split_transform_id = copy_like(
             context.components.transforms,
             transform,
-            unique_name=transform.unique_name + '/SplitRestriction',
-            urn=common_urns.sdf_components.SPLIT_RESTRICTION.urn,
+            unique_name=transform.unique_name + '/SplitAndSizeRestriction',
+            urn=common_urns.sdf_components.SPLIT_AND_SIZE_RESTRICTIONS.urn,
             inputs=dict(transform.inputs, **{main_input_tag: paired_pcoll_id}),
             outputs={'out': split_pcoll_id})
-
-        sized_pcoll_id = copy_like(
-            context.components.pcollections,
-            main_input_id,
-            '_sized',
-            coder_id=sized_coder_id)
-        size_transform_id = copy_like(
-            context.components.transforms,
-            transform,
-            unique_name=transform.unique_name + '/SizeRestrictions',
-            urn=common_urns.sdf_components.SIZE_RESTRICTIONS.urn,
-            inputs=dict(transform.inputs, **{main_input_tag: split_pcoll_id}),
-            outputs={'out': sized_pcoll_id})
 
         process_transform_id = copy_like(
             context.components.transforms,
             transform,
             unique_name=transform.unique_name + '/Process',
-            urn=common_urns.sdf_components.PROCESS_ELEMENTS.urn,
-            inputs=dict(transform.inputs, **{main_input_tag: sized_pcoll_id}))
+            urn=
+            common_urns.sdf_components.PROCESS_SIZED_ELEMENTS_AND_RESTRICTIONS
+            .urn,
+            inputs=dict(transform.inputs, **{main_input_tag: split_pcoll_id}))
 
         yield make_stage(stage, pair_transform_id)
-        yield make_stage(stage, split_transform_id)
-        size_stage = make_stage(stage, size_transform_id)
-        yield size_stage
+        split_stage = make_stage(stage, split_transform_id)
+        yield split_stage
         yield make_stage(
-            stage, process_transform_id, extra_must_follow=[size_stage])
+            stage, process_transform_id, extra_must_follow=[split_stage])
 
       else:
         yield stage
