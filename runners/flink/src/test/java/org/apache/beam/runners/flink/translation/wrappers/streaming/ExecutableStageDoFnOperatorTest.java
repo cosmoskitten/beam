@@ -440,7 +440,7 @@ public class ExecutableStageDoFnOperatorTest {
     }
     ImmutableList<BagState<String>> bagStates = bagStateBuilder.build();
 
-    // Test that state is cleanup up correctly
+    // Test that state is cleaned up correctly
     ExecutableStageDoFnOperator.StateCleaner stateCleaner =
         new ExecutableStageDoFnOperator.StateCleaner(userStateNames, windowCoder, stateInternals);
     for (BagState<String> bagState : bagStates) {
