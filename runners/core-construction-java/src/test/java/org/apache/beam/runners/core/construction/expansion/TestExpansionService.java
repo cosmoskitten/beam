@@ -19,7 +19,6 @@ package org.apache.beam.runners.core.construction.expansion;
 
 import com.google.auto.service.AutoService;
 import java.util.Map;
-
 import org.apache.avro.Schema;
 import org.apache.avro.generic.GenericRecord;
 import org.apache.beam.sdk.coders.AvroGenericCoder;
@@ -47,12 +46,13 @@ public class TestExpansionService {
   /** Registers a single test transformation. */
   @AutoService(ExpansionService.ExpansionServiceRegistrar.class)
   public static class TestTransforms implements ExpansionService.ExpansionServiceRegistrar {
-    String SCHEMA =
-        "{ \"type\": \"record\", \"name\": \"testrecord\", \"fields\": " +
-        "[ {\"name\": \"name\", \"type\": \"string\"} ]}";
+    String rawSchema =
+        "{ \"type\": \"record\", \"name\": \"testrecord\", \"fields\": "
+            + "[ {\"name\": \"name\", \"type\": \"string\"} ]}";
+
     @Override
     public Map<String, ExpansionService.TransformProvider> knownTransforms() {
-      Schema schema = new Schema.Parser().parse(SCHEMA);
+      Schema schema = new Schema.Parser().parse(rawSchema);
       return ImmutableMap.of(
           TEST_COUNT_URN, spec -> Count.perElement(),
           TEST_FILTER_URN,
@@ -61,27 +61,31 @@ public class TestExpansionService {
                       // TODO(BEAM-6587): Use strings directly rather than longs.
                       (long) spec.getPayload().toStringUtf8().charAt(0)),
           TEST_PARQUET_READ_URN,
-              spec -> new PTransform<PCollection<String>, PCollection<GenericRecord>>() {
-                @Override
-                public PCollection<GenericRecord> expand(PCollection<String> input) {
-                  return input
-                    .apply(FileIO.matchAll()).apply(FileIO.readMatches())
-                    .apply(ParquetIO.readFiles(schema))
-                    .setCoder(AvroGenericCoder.of(schema));
-                }
-              },
+              spec ->
+                  new PTransform<PCollection<String>, PCollection<GenericRecord>>() {
+                    @Override
+                    public PCollection<GenericRecord> expand(PCollection<String> input) {
+                      return input
+                          .apply(FileIO.matchAll())
+                          .apply(FileIO.readMatches())
+                          .apply(ParquetIO.readFiles(schema))
+                          .setCoder(AvroGenericCoder.of(schema));
+                    }
+                  },
           TEST_PARQUET_WRITE_URN,
-              spec -> new PTransform<PCollection<GenericRecord>, PCollection<String>>() {
-                @Override
-                public PCollection<String> expand(PCollection<GenericRecord> input) {
-                  return input
-                    .apply(FileIO.<GenericRecord>write().via(
-                      ParquetIO.sink(schema)).to(spec.getPayload().toStringUtf8())).getPerDestinationOutputFilenames()
-                    .apply(Values.create());
-
-                }
-              }
-      );
+              spec ->
+                  new PTransform<PCollection<GenericRecord>, PCollection<String>>() {
+                    @Override
+                    public PCollection<String> expand(PCollection<GenericRecord> input) {
+                      return input
+                          .apply(
+                              FileIO.<GenericRecord>write()
+                                  .via(ParquetIO.sink(schema))
+                                  .to(spec.getPayload().toStringUtf8()))
+                          .getPerDestinationOutputFilenames()
+                          .apply(Values.create());
+                    }
+                  });
     }
   }
 

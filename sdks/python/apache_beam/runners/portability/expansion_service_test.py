@@ -26,6 +26,10 @@ import grpc
 
 import apache_beam as beam
 import apache_beam.transforms.combiners as combine
+# load Avro generic coder for test
+# pylint: disable=unused-import
+from apache_beam.io.external.avro_generic_coder import AvroGenericCoder
+# pylint: enable=unused-import
 from apache_beam.pipeline import PipelineOptions
 from apache_beam.portability.api import beam_expansion_api_pb2_grpc
 from apache_beam.runners.portability import expansion_service
@@ -143,9 +147,6 @@ class FibTransform(ptransform.PTransform):
   @staticmethod
   def from_runner_api_parameter(level, unused_context):
     return FibTransform(int(level.decode('ascii')))
-
-# load Avro generic coder for test
-from apache_beam.io.external.avro_generic_coder import AvroGenericCoder
 
 
 def main(unused_argv):

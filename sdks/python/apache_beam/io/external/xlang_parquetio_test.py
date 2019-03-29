@@ -18,6 +18,7 @@
 """Unit tests for cross-language parquet io read/write."""
 
 from __future__ import absolute_import
+from __future__ import print_function
 
 import logging
 import re
@@ -62,10 +63,11 @@ class XlangParquetIOTest(unittest.TestCase):
         assert_that(res, equal_to(['abc', 'def', 'ghi']))
     except RuntimeError as e:
       if re.search(
-             '{}|{}'.format(PARQUET_WRITE_URN, PARQUET_READ_URN), e.message):
+          '{}|{}'.format(PARQUET_WRITE_URN, PARQUET_READ_URN), str(e)):
         print("looks like URN not implemented in expansion service, skipping.")
       else:
         raise e
+
 
 class AvroGenericTestCoder(AvroGenericCoder):
   SCHEMA = """

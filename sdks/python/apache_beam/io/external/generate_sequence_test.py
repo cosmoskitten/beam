@@ -18,6 +18,7 @@
 """Unit tests for cross-language generate sequence."""
 
 from __future__ import absolute_import
+from __future__ import print_function
 
 import logging
 import re
@@ -48,7 +49,7 @@ class XlangGenerateSequenceTest(unittest.TestCase):
 
         assert_that(res, equal_to([i for i in range(1, 10)]))
     except RuntimeError as e:
-      if re.search(GenerateSequence.URN, e.message):
+      if re.search(GenerateSequence.URN, str(e)):
         print("looks like URN not implemented in expansion service, skipping.")
       else:
         raise e

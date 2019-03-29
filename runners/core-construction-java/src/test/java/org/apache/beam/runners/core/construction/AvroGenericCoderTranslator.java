@@ -17,37 +17,37 @@
  */
 package org.apache.beam.runners.core.construction;
 
+import java.io.UnsupportedEncodingException;
+import java.util.Collections;
+import java.util.List;
 import org.apache.avro.Schema;
 import org.apache.beam.sdk.coders.AvroGenericCoder;
 import org.apache.beam.sdk.coders.Coder;
 
-import java.io.UnsupportedEncodingException;
-import java.util.Collections;
-import java.util.List;
-
+/** AvroGenericCoderTranslator for test. */
 public class AvroGenericCoderTranslator implements CoderTranslator<AvroGenericCoder> {
-    @Override
-    public List<? extends Coder<?>> getComponents(AvroGenericCoder from) {
-        return Collections.emptyList();
-    }
+  @Override
+  public List<? extends Coder<?>> getComponents(AvroGenericCoder from) {
+    return Collections.emptyList();
+  }
 
-    @Override
-    public byte[] getPayload(AvroGenericCoder from) {
-        try {
-            return from.getSchema().toString().getBytes("UTF-8");
-        } catch (UnsupportedEncodingException e) {
-            throw new RuntimeException("failed to encode schema.");
-        }
+  @Override
+  public byte[] getPayload(AvroGenericCoder from) {
+    try {
+      return from.getSchema().toString().getBytes("UTF-8");
+    } catch (UnsupportedEncodingException e) {
+      throw new RuntimeException("failed to encode schema.");
     }
+  }
 
-    @Override
-    public AvroGenericCoder fromComponents(List<Coder<?>> components, byte[] payload) {
-        Schema schema;
-        try {
-            schema = new Schema.Parser().parse(new String(payload, "UTF-8"));
-        } catch (UnsupportedEncodingException e) {
-            throw new RuntimeException("failed to parse schema.");
-        }
-        return AvroGenericCoder.of(schema);
+  @Override
+  public AvroGenericCoder fromComponents(List<Coder<?>> components, byte[] payload) {
+    Schema schema;
+    try {
+      schema = new Schema.Parser().parse(new String(payload, "UTF-8"));
+    } catch (UnsupportedEncodingException e) {
+      throw new RuntimeException("failed to parse schema.");
     }
+    return AvroGenericCoder.of(schema);
+  }
 }

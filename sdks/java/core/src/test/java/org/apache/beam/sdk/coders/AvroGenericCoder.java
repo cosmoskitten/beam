@@ -20,11 +20,13 @@ package org.apache.beam.sdk.coders;
 import org.apache.avro.Schema;
 import org.apache.avro.generic.GenericRecord;
 
+/** GenericRecord Avro Coder for test. */
 public class AvroGenericCoder extends AvroCoder<GenericRecord> {
-    protected AvroGenericCoder(Schema schema) {
-        super(GenericRecord.class, schema);
-    }
-    public static AvroGenericCoder of(Schema schema) {
-        return new AvroGenericCoder(schema);
-    }
+  protected AvroGenericCoder(Schema schema) {
+    super(GenericRecord.class, schema);
+  }
+
+  public static AvroGenericCoder of(Schema schema) {
+    return new AvroGenericCoder(schema);
+  }
 }

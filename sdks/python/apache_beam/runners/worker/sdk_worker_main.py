@@ -206,6 +206,7 @@ def _load_avro_generic_coder(pipeline_options):
   for experiment in experiments:
     # There should only be 1 match so returning from the loop
     if re.match(r'xlang_test', experiment):
+      # pylint: disable=unused-variable
       from apache_beam.io.external.avro_generic_coder import AvroGenericCoder
       return
 
