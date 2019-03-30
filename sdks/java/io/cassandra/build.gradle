@@ -18,7 +18,7 @@
 
 plugins { id 'org.apache.beam.module' }
 // Do not relocate guava to avoid issues with Cassandra's version.
-applyJavaNature(shadowClosure: DEFAULT_SHADOW_CLOSURE << {
+applyJavaNature(shadowClosure: {
   dependencies {
     exclude(dependency(project.library.java.guava))
   }
