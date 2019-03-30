@@ -46,9 +46,7 @@ public class SimpleMonitoringInfoBuilderTest {
     // Pass now that the spec is fully met.
     MonitoringInfo monitoringInfo = builder.build();
     assertTrue(monitoringInfo != null);
-    assertEquals(
-        "myPcollection",
-        monitoringInfo.getLabelsOrDefault(Labels.PCOLLECTION, null));
+    assertEquals("myPcollection", monitoringInfo.getLabelsOrDefault(Labels.PCOLLECTION, null));
     assertEquals(MonitoringInfoConstants.Urns.ELEMENT_COUNT, monitoringInfo.getUrn());
     assertEquals(TypeUrns.SUM_INT64, monitoringInfo.getType());
     assertEquals(1, monitoringInfo.getMetric().getCounterData().getInt64Value());
@@ -64,9 +62,7 @@ public class SimpleMonitoringInfoBuilderTest {
     // Pass now that the spec is fully met.
     MonitoringInfo monitoringInfo = builder.build();
     assertTrue(monitoringInfo != null);
-    assertEquals(
-        Urns.USER_COUNTER_PREFIX + "myNamespace:myName",
-        monitoringInfo.getUrn());
+    assertEquals(Urns.USER_COUNTER_PREFIX + "myNamespace:myName", monitoringInfo.getUrn());
     assertEquals(TypeUrns.SUM_INT64, monitoringInfo.getType());
     assertEquals(1, monitoringInfo.getMetric().getCounterData().getInt64Value());
   }
@@ -80,8 +76,7 @@ public class SimpleMonitoringInfoBuilderTest {
     MonitoringInfo monitoringInfo = builder.build();
     assertTrue(monitoringInfo != null);
     assertEquals(
-        Urns.USER_COUNTER_PREFIX + "myNamespace_withInvalidChar:myName",
-        monitoringInfo.getUrn());
+        Urns.USER_COUNTER_PREFIX + "myNamespace_withInvalidChar:myName", monitoringInfo.getUrn());
     assertEquals(TypeUrns.SUM_INT64, monitoringInfo.getType());
     assertEquals(1, monitoringInfo.getMetric().getCounterData().getInt64Value());
   }

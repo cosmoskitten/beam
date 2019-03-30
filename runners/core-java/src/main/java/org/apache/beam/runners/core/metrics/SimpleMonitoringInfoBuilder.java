@@ -25,9 +25,6 @@ import javax.annotation.Nullable;
 import org.apache.beam.model.pipeline.v1.MetricsApi.MonitoringInfo;
 import org.apache.beam.model.pipeline.v1.MetricsApi.MonitoringInfoSpec;
 import org.apache.beam.model.pipeline.v1.MetricsApi.MonitoringInfoSpecs;
-import org.apache.beam.runners.core.metrics.MonitoringInfoConstants.Labels;
-import org.apache.beam.runners.core.metrics.MonitoringInfoConstants.TypeUrns;
-import org.apache.beam.runners.core.metrics.MonitoringInfoConstants.Urns;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.annotations.VisibleForTesting;
 
 /**
@@ -89,7 +86,7 @@ public class SimpleMonitoringInfoBuilder {
     String fixedMetricNamespace = metricNamespace.replace(':', '_');
     String fixedMetricName = metricName.replace(':', '_');
     StringBuilder sb = new StringBuilder();
-    sb.append(Urns.USER_COUNTER_PREFIX);
+    sb.append(MonitoringInfoConstants.Urns.USER_COUNTER_PREFIX);
     sb.append(fixedMetricNamespace);
     sb.append(':');
     sb.append(fixedMetricName);
@@ -133,20 +130,20 @@ public class SimpleMonitoringInfoBuilder {
 
   /** Sets the the appropriate type URN for sum int64 counters. */
   public SimpleMonitoringInfoBuilder setInt64TypeUrn() {
-    this.builder.setType(TypeUrns.SUM_INT64);
+    this.builder.setType(MonitoringInfoConstants.TypeUrns.SUM_INT64);
     return this;
   }
 
   /** Sets the PTRANSFORM MonitoringInfo label to the given param. */
   public SimpleMonitoringInfoBuilder setPTransformLabel(String pTransform) {
     // TODO(ajamato): Add validation that it is a valid pTransform name in the bundle descriptor.
-    setLabel(Labels.PTRANFORM, pTransform);
+    setLabel(MonitoringInfoConstants.Labels.PTRANSFORM, pTransform);
     return this;
   }
 
   /** Sets the PCOLLECTION MonitoringInfo label to the given param. */
   public SimpleMonitoringInfoBuilder setPCollectionLabel(String pCollection) {
-    setLabel(Labels.PCOLLECTION, pCollection);
+    setLabel(MonitoringInfoConstants.Labels.PCOLLECTION, pCollection);
     return this;
   }
 

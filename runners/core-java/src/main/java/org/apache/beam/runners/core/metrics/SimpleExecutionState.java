@@ -21,7 +21,6 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 import org.apache.beam.runners.core.metrics.ExecutionStateTracker.ExecutionState;
-import org.apache.beam.runners.core.metrics.MonitoringInfoConstants.Labels;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.annotations.VisibleForTesting;
 import org.joda.time.Duration;
 import org.joda.time.format.PeriodFormatter;
@@ -91,7 +90,7 @@ public class SimpleExecutionState extends ExecutionState {
   public String getLullMessage(Thread trackedThread, Duration millis) {
     // TODO(ajamato): Share getLullMessage code with DataflowExecutionState.
     String userStepName =
-        this.labelsMetadata.getOrDefault(Labels.PTRANFORM, null);
+        this.labelsMetadata.getOrDefault(MonitoringInfoConstants.Labels.PTRANSFORM, null);
     StringBuilder message = new StringBuilder();
     message.append("Processing stuck");
     if (userStepName != null) {

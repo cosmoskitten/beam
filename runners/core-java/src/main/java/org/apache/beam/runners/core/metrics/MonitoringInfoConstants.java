@@ -17,64 +17,61 @@
  */
 package org.apache.beam.runners.core.metrics;
 
+import static org.apache.beam.model.pipeline.v1.MetricsApi.labelProps;
+import static org.apache.beam.model.pipeline.v1.MetricsApi.monitoringInfoSpec;
+
 import org.apache.beam.model.pipeline.v1.MetricsApi.MonitoringInfo;
 import org.apache.beam.model.pipeline.v1.MetricsApi.MonitoringInfo.MonitoringInfoLabels;
 import org.apache.beam.model.pipeline.v1.MetricsApi.MonitoringInfoSpecs;
 import org.apache.beam.model.pipeline.v1.MetricsApi.MonitoringInfoTypeUrns;
-
-import static org.apache.beam.model.pipeline.v1.MetricsApi.monitoringInfoSpec;
-import static org.apache.beam.model.pipeline.v1.MetricsApi.labelProps;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 
 public final class MonitoringInfoConstants {
 
-    // todomigryz Replace usage of BeamUrns.getUrn to using this class.
-    public final static class Urns {
-        public static final String ELEMENT_COUNT =
-            extractUrn(MonitoringInfoSpecs.Enum.ELEMENT_COUNT);
-        public static final String START_BUNDLE_MSECS =
-            extractUrn(MonitoringInfoSpecs.Enum.START_BUNDLE_MSECS);
-        public static final String PROCESS_BUNDLE_MSECS =
-            extractUrn(MonitoringInfoSpecs.Enum.PROCESS_BUNDLE_MSECS);
-        public static final String FINISH_BUNDLE_MSECS =
-            extractUrn(MonitoringInfoSpecs.Enum.FINISH_BUNDLE_MSECS);
-        public static final String TOTAL_MSECS =
-            extractUrn(MonitoringInfoSpecs.Enum.TOTAL_MSECS);
+  // todomigryz Replace usage of BeamUrns.getUrn to using this class.
+  public static final class Urns {
+    public static final String ELEMENT_COUNT = extractUrn(MonitoringInfoSpecs.Enum.ELEMENT_COUNT);
+    public static final String START_BUNDLE_MSECS =
+        extractUrn(MonitoringInfoSpecs.Enum.START_BUNDLE_MSECS);
+    public static final String PROCESS_BUNDLE_MSECS =
+        extractUrn(MonitoringInfoSpecs.Enum.PROCESS_BUNDLE_MSECS);
+    public static final String FINISH_BUNDLE_MSECS =
+        extractUrn(MonitoringInfoSpecs.Enum.FINISH_BUNDLE_MSECS);
+    public static final String TOTAL_MSECS = extractUrn(MonitoringInfoSpecs.Enum.TOTAL_MSECS);
 
-        public static final String USER_COUNTER_PREFIX =
-            extractUrn(MonitoringInfoSpecs.Enum.USER_COUNTER);
-        public static final String USER_DISTRIBUTION_COUNTER_PREFIX =
-            extractUrn(MonitoringInfoSpecs.Enum.USER_DISTRIBUTION_COUNTER);
-    }
+    public static final String USER_COUNTER_PREFIX =
+        extractUrn(MonitoringInfoSpecs.Enum.USER_COUNTER);
+    public static final String USER_DISTRIBUTION_COUNTER_PREFIX =
+        extractUrn(MonitoringInfoSpecs.Enum.USER_DISTRIBUTION_COUNTER);
+  }
 
-    // todomigryz utilize this class wherever labels are used. Utilize search to find references.
-    public final static class Labels {
-        public static final String PTRANSFORM = extractLabel(MonitoringInfoLabels.TRANSFORM);
-        public static final String PCOLLECTION = extractLabel(MonitoringInfoLabels.PCOLLECTION);
-        public static final String WINDOWING_STRATEGY = extractLabel(
-            MonitoringInfoLabels.WINDOWING_STRATEGY);
-        public static final String CODER = extractLabel(MonitoringInfoLabels.CODER);
-        public static final String ENVIRONMENT = extractLabel(MonitoringInfoLabels.ENVIRONMENT);
-    }
+  // todomigryz utilize this class wherever labels are used. Utilize search to find references.
+  public static final class Labels {
+    public static final String PTRANSFORM = extractLabel(MonitoringInfoLabels.TRANSFORM);
+    public static final String PCOLLECTION = extractLabel(MonitoringInfoLabels.PCOLLECTION);
+    public static final String WINDOWING_STRATEGY =
+        extractLabel(MonitoringInfoLabels.WINDOWING_STRATEGY);
+    public static final String CODER = extractLabel(MonitoringInfoLabels.CODER);
+    public static final String ENVIRONMENT = extractLabel(MonitoringInfoLabels.ENVIRONMENT);
+  }
 
-    public final static class TypeUrns {
-        public static final String SUM_INT64 = extractLabel(
-            MonitoringInfoTypeUrns.Enum.SUM_INT64_TYPE);
-        public static final String DISTRIBUTION_INT64 = extractLabel(
-            MonitoringInfoTypeUrns.Enum.DISTRIBUTION_INT64_TYPE);
-        public static final String LATEST_INT64 = extractLabel(
-            MonitoringInfoTypeUrns.Enum.LATEST_INT64_TYPE);
-    }
+  public static final class TypeUrns {
+    public static final String SUM_INT64 = extractLabel(MonitoringInfoTypeUrns.Enum.SUM_INT64_TYPE);
+    public static final String DISTRIBUTION_INT64 =
+        extractLabel(MonitoringInfoTypeUrns.Enum.DISTRIBUTION_INT64_TYPE);
+    public static final String LATEST_INT64 =
+        extractLabel(MonitoringInfoTypeUrns.Enum.LATEST_INT64_TYPE);
+  }
 
-    private static String extractUrn(MonitoringInfoSpecs.Enum value) {
-      return value.getValueDescriptor().getOptions().getExtension(monitoringInfoSpec).getUrn();
-    }
+  private static String extractUrn(MonitoringInfoSpecs.Enum value) {
+    return value.getValueDescriptor().getOptions().getExtension(monitoringInfoSpec).getUrn();
+  }
 
-    private static String extractLabel(MonitoringInfo.MonitoringInfoLabels value) {
-        return value.getValueDescriptor().getOptions().getExtension(labelProps).getName();
-    }
+  private static String extractLabel(MonitoringInfo.MonitoringInfoLabels value) {
+    return value.getValueDescriptor().getOptions().getExtension(labelProps).getName();
+  }
 
-    private static String extractLabel(MonitoringInfoTypeUrns.Enum value) {
-        return value.getValueDescriptor().getOptions().getExtension(RunnerApi.beamUrn);
-    }
+  private static String extractLabel(MonitoringInfoTypeUrns.Enum value) {
+    return value.getValueDescriptor().getOptions().getExtension(RunnerApi.beamUrn);
+  }
 }

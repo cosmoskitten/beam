@@ -23,7 +23,6 @@ import static org.hamcrest.Matchers.hasEntry;
 import static org.junit.Assert.assertEquals;
 
 import java.util.HashMap;
-import org.apache.beam.runners.core.metrics.MonitoringInfoConstants.Labels;
 import org.joda.time.Duration;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -60,7 +59,7 @@ public class SimpleExecutionStateTest {
   @Test
   public void testGetLullReturnsARelevantMessageWithStepName() {
     HashMap<String, String> labelsMetadata = new HashMap<String, String>();
-    labelsMetadata.put(Labels.PTRANFORM, "myPTransform");
+    labelsMetadata.put(MonitoringInfoConstants.Labels.PTRANSFORM, "myPTransform");
     SimpleExecutionState testObject = new SimpleExecutionState("myState", null, labelsMetadata);
     String message = testObject.getLullMessage(new Thread(), Duration.millis(100_000));
     assertThat(message, containsString("myState"));
