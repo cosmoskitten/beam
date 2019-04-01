@@ -41,7 +41,7 @@ job(jobName) {
             postgresPort   : '5432',
             numberOfRecords: '5000000',
             bigQueryDataset: 'beam_performance',
-            bigQueryTable  : 'test_jdbc_it',
+            bigQueryTable  : 'jdbcioit_results',
     ]
 
     String namespace = commonJobProperties.getKubernetesNamespace(jobName)
