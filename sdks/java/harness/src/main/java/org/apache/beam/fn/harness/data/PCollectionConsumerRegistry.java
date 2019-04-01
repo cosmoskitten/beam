@@ -26,8 +26,7 @@ import org.apache.beam.model.pipeline.v1.MetricsApi.MonitoringInfo;
 import org.apache.beam.runners.core.metrics.ExecutionStateTracker;
 import org.apache.beam.runners.core.metrics.MetricsContainerImpl;
 import org.apache.beam.runners.core.metrics.MetricsContainerStepMap;
-import org.apache.beam.runners.core.metrics.MonitoringInfoConstants.Labels;
-import org.apache.beam.runners.core.metrics.MonitoringInfoConstants.Urns;
+import org.apache.beam.runners.core.metrics.MonitoringInfoConstants;
 import org.apache.beam.runners.core.metrics.SimpleExecutionState;
 import org.apache.beam.runners.core.metrics.SimpleStateRegistry;
 import org.apache.beam.sdk.fn.data.FnDataReceiver;
@@ -87,10 +86,11 @@ public class PCollectionConsumerRegistry {
     }
 
     HashMap<String, String> labelsMetadata = new HashMap<String, String>();
-    labelsMetadata.put(Labels.PTRANFORM, pTransformId);
+    labelsMetadata.put(MonitoringInfoConstants.Labels.PTRANSFORM, pTransformId);
     SimpleExecutionState state =
         new SimpleExecutionState(
-            ExecutionStateTracker.PROCESS_STATE_NAME, Urns.PROCESS_BUNDLE_MSECS, labelsMetadata);
+            ExecutionStateTracker.PROCESS_STATE_NAME,
+            MonitoringInfoConstants.Urns.PROCESS_BUNDLE_MSECS, labelsMetadata);
     executionStates.register(state);
     // Wrap the consumer with extra logic to set the metric container with the appropriate
     // PTransform context. This ensures that user metrics obtain the pTransform ID when they are

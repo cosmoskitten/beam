@@ -26,8 +26,6 @@ import org.apache.beam.runners.core.metrics.ExecutionStateTracker;
 import org.apache.beam.runners.core.metrics.MetricsContainerImpl;
 import org.apache.beam.runners.core.metrics.MetricsContainerStepMap;
 import org.apache.beam.runners.core.metrics.MonitoringInfoConstants;
-import org.apache.beam.runners.core.metrics.MonitoringInfoConstants.Labels;
-import org.apache.beam.runners.core.metrics.MonitoringInfoConstants.Urns;
 import org.apache.beam.runners.core.metrics.SimpleExecutionState;
 import org.apache.beam.runners.core.metrics.SimpleStateRegistry;
 import org.apache.beam.sdk.function.ThrowingRunnable;
@@ -90,12 +88,12 @@ public class PTransformFunctionRegistry {
    */
   public void register(String pTransformId, ThrowingRunnable runnable) {
     HashMap<String, String> labelsMetadata = new HashMap<String, String>();
-    labelsMetadata.put(Labels.PTRANFORM, pTransformId);
+    labelsMetadata.put(MonitoringInfoConstants.Labels.PTRANSFORM, pTransformId);
     String executionTimeUrn = "";
     if (executionStateName.equals(ExecutionStateTracker.START_STATE_NAME)) {
       executionTimeUrn = MonitoringInfoConstants.Urns.START_BUNDLE_MSECS;
     } else if (executionStateName.equals(ExecutionStateTracker.FINISH_STATE_NAME)) {
-      executionTimeUrn = Urns.FINISH_BUNDLE_MSECS;
+      executionTimeUrn = MonitoringInfoConstants.Urns.FINISH_BUNDLE_MSECS;
     }
 
     SimpleExecutionState state =
