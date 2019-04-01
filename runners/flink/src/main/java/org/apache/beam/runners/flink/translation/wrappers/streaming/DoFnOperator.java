@@ -1059,7 +1059,7 @@ public class DoFnOperator<InputT, OutputT> extends AbstractStreamOperator<Window
 
     /** Unique contextual id of a timer. Used to look up any existing timers in a context. */
     private String getContextTimerId(TimerData timer) {
-      return timer.getTimerId() + timer.getNamespace().stringKey();
+      return timer.getNamespace().stringKey() + timer.getTimerId();
     }
 
     /** @deprecated use {@link #deleteTimer(StateNamespace, String, TimeDomain)}. */
