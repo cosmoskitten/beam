@@ -69,8 +69,8 @@ public class ElementCountMonitoringInfoToCounterUpdateTransformer
       throw new RuntimeException(String.format("Received unexpected counter urn: %s", urn));
     }
 
-    if (!pcollectionIdToNameContext.containsKey(monitoringInfo.getLabelsMap().get(
-        MonitoringInfoConstants.Labels.PCOLLECTION))) {
+    if (!pcollectionIdToNameContext.containsKey(
+        monitoringInfo.getLabelsMap().get(MonitoringInfoConstants.Labels.PCOLLECTION))) {
       return Optional.of(
           "Encountered ElementCount MonitoringInfo with unknown PCollectionId: "
               + monitoringInfo.toString());
@@ -96,7 +96,8 @@ public class ElementCountMonitoringInfoToCounterUpdateTransformer
 
     long value = monitoringInfo.getMetric().getCounterData().getInt64Value();
 
-    final String pcollectionId = monitoringInfo.getLabelsMap().get(MonitoringInfoConstants.Labels.PCOLLECTION);
+    final String pcollectionId =
+        monitoringInfo.getLabelsMap().get(MonitoringInfoConstants.Labels.PCOLLECTION);
     final String pcollectionName = pcollectionIdToNameContext.get(pcollectionId).userName();
 
     String counterName = pcollectionName + "-ElementCount";

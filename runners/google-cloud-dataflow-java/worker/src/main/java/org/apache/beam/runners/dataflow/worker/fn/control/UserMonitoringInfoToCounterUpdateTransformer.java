@@ -73,7 +73,8 @@ class UserMonitoringInfoToCounterUpdateTransformer
               BEAM_METRICS_USER_PREFIX, urn));
     }
 
-    final String ptransform = monitoringInfo.getLabelsMap().get(MonitoringInfoConstants.Labels.PTRANSFORM);
+    final String ptransform =
+        monitoringInfo.getLabelsMap().get(MonitoringInfoConstants.Labels.PTRANSFORM);
     DataflowStepContext stepContext = transformIdMapping.get(ptransform);
     if (stepContext == null) {
       return Optional.of(
@@ -100,7 +101,8 @@ class UserMonitoringInfoToCounterUpdateTransformer
     long value = monitoringInfo.getMetric().getCounterData().getInt64Value();
     String urn = monitoringInfo.getUrn();
 
-    final String ptransform = monitoringInfo.getLabelsMap().get(MonitoringInfoConstants.Labels.PTRANSFORM);
+    final String ptransform =
+        monitoringInfo.getLabelsMap().get(MonitoringInfoConstants.Labels.PTRANSFORM);
 
     CounterStructuredNameAndMetadata name = new CounterStructuredNameAndMetadata();
 

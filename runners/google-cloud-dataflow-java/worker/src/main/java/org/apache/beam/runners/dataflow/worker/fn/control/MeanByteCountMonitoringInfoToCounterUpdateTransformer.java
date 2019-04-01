@@ -75,8 +75,8 @@ public class MeanByteCountMonitoringInfoToCounterUpdateTransformer
     }
 
     // TODO(migryz): extract and utilize pcollection label from beam_fn_api.proto
-    if (!pcollectionIdToNameContext.containsKey(monitoringInfo.getLabelsMap().get(
-        MonitoringInfoConstants.Labels.PCOLLECTION))) {
+    if (!pcollectionIdToNameContext.containsKey(
+        monitoringInfo.getLabelsMap().get(MonitoringInfoConstants.Labels.PCOLLECTION))) {
       return Optional.of(
           "Encountered ElementCount MonitoringInfo with unknown PCollectionId: "
               + monitoringInfo.toString());
@@ -100,9 +100,11 @@ public class MeanByteCountMonitoringInfoToCounterUpdateTransformer
       return null;
     }
 
-    IntDistributionData value = monitoringInfo.getMetric().getDistributionData().getIntDistributionData();
+    IntDistributionData value =
+        monitoringInfo.getMetric().getDistributionData().getIntDistributionData();
 
-    final String pcollectionId = monitoringInfo.getLabelsMap().get(MonitoringInfoConstants.Labels.PCOLLECTION);
+    final String pcollectionId =
+        monitoringInfo.getLabelsMap().get(MonitoringInfoConstants.Labels.PCOLLECTION);
     final String pcollectionName = pcollectionIdToNameContext.get(pcollectionId).userName();
 
     String counterName = pcollectionName + "-MeanByteCount";

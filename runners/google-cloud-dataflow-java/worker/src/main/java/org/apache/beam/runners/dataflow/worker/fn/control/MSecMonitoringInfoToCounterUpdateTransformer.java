@@ -98,7 +98,8 @@ public class MSecMonitoringInfoToCounterUpdateTransformer
       throw new RuntimeException(String.format("Received unexpected counter urn: %s", urn));
     }
 
-    final String ptransform = monitoringInfo.getLabelsMap().get(MonitoringInfoConstants.Labels.PTRANSFORM);
+    final String ptransform =
+        monitoringInfo.getLabelsMap().get(MonitoringInfoConstants.Labels.PTRANSFORM);
     DataflowStepContext stepContext = transformIdMapping.get(ptransform);
     if (stepContext == null) {
       return Optional.of(
@@ -121,7 +122,8 @@ public class MSecMonitoringInfoToCounterUpdateTransformer
     long value = monitoringInfo.getMetric().getCounterData().getInt64Value();
     String urn = monitoringInfo.getUrn();
 
-    final String ptransform = monitoringInfo.getLabelsMap().get(MonitoringInfoConstants.Labels.PTRANSFORM);
+    final String ptransform =
+        monitoringInfo.getLabelsMap().get(MonitoringInfoConstants.Labels.PTRANSFORM);
     DataflowStepContext stepContext = transformIdMapping.get(ptransform);
 
     String counterName = urnToCounterNameMapping.get(urn);

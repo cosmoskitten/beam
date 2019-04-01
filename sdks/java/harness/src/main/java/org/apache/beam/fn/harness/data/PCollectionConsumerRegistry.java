@@ -90,9 +90,7 @@ public class PCollectionConsumerRegistry {
     labelsMetadata.put(Labels.PTRANFORM, pTransformId);
     SimpleExecutionState state =
         new SimpleExecutionState(
-            ExecutionStateTracker.PROCESS_STATE_NAME,
-            Urns.PROCESS_BUNDLE_MSECS,
-            labelsMetadata);
+            ExecutionStateTracker.PROCESS_STATE_NAME, Urns.PROCESS_BUNDLE_MSECS, labelsMetadata);
     executionStates.register(state);
     // Wrap the consumer with extra logic to set the metric container with the appropriate
     // PTransform context. This ensures that user metrics obtain the pTransform ID when they are

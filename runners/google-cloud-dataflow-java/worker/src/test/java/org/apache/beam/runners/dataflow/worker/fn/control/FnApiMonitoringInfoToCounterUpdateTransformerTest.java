@@ -92,7 +92,10 @@ public class FnApiMonitoringInfoToCounterUpdateTransformerTest {
     when(mockGenericTransformer1.transform(any())).thenReturn(expectedResult);
 
     MonitoringInfo monitoringInfo =
-        MonitoringInfo.newBuilder().setUrn(validUrn).putLabels(MonitoringInfoConstants.Labels.PTRANSFORM, "anyValue").build();
+        MonitoringInfo.newBuilder()
+            .setUrn(validUrn)
+            .putLabels(MonitoringInfoConstants.Labels.PTRANSFORM, "anyValue")
+            .build();
 
     CounterUpdate result = testObject.transform(monitoringInfo);
 

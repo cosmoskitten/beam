@@ -17,7 +17,6 @@
  */
 package org.apache.beam.runners.core.construction;
 
-import org.apache.beam.model.pipeline.v1.MetricsApi.IntDistributionData;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.vendor.grpc.v1p13p1.com.google.protobuf.ProtocolMessageEnum;
 
