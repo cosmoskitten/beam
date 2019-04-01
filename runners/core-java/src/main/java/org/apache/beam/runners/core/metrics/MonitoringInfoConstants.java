@@ -26,9 +26,10 @@ import org.apache.beam.model.pipeline.v1.MetricsApi.MonitoringInfoSpecs;
 import org.apache.beam.model.pipeline.v1.MetricsApi.MonitoringInfoTypeUrns;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 
+/** This static class fetches MonitoringInfo related values from metrics.proto. */
 public final class MonitoringInfoConstants {
 
-  // todomigryz Replace usage of BeamUrns.getUrn to using this class.
+  /** Supported MonitoringInfo Urns. */
   public static final class Urns {
     public static final String ELEMENT_COUNT = extractUrn(MonitoringInfoSpecs.Enum.ELEMENT_COUNT);
     public static final String START_BUNDLE_MSECS =
@@ -45,7 +46,7 @@ public final class MonitoringInfoConstants {
         extractUrn(MonitoringInfoSpecs.Enum.USER_DISTRIBUTION_COUNTER);
   }
 
-  // todomigryz utilize this class wherever labels are used. Utilize search to find references.
+  /** Standardised MonitoringInfo labels that can be utilized by runners. */
   public static final class Labels {
     public static final String PTRANSFORM = extractLabel(MonitoringInfoLabels.TRANSFORM);
     public static final String PCOLLECTION = extractLabel(MonitoringInfoLabels.PCOLLECTION);
@@ -55,6 +56,7 @@ public final class MonitoringInfoConstants {
     public static final String ENVIRONMENT = extractLabel(MonitoringInfoLabels.ENVIRONMENT);
   }
 
+  /** MonitoringInfo type Urns. */
   public static final class TypeUrns {
     public static final String SUM_INT64 = extractLabel(MonitoringInfoTypeUrns.Enum.SUM_INT64_TYPE);
     public static final String DISTRIBUTION_INT64 =
