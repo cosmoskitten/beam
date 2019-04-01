@@ -142,7 +142,7 @@ public class MongoDBIOIT {
     writePipeline
         .apply("Generate sequence", GenerateSequence.from(0).to(options.getNumberOfRecords()))
         .apply("Produce documents", MapElements.via(new LongToDocumentFn()))
-        .apply("Gather write time metric", ParDo.of(new TimeMonitor<>(NAMESPACE, "write_time")))
+        .apply("Collect write time metric", ParDo.of(new TimeMonitor<>(NAMESPACE, "write_time")))
         .apply(
             "Write documents to MongoDB",
             MongoDbIO.write()
@@ -160,7 +160,7 @@ public class MongoDBIOIT {
                     .withUri(mongoUrl)
                     .withDatabase(options.getMongoDBDatabaseName())
                     .withCollection(collection))
-            .apply("Gather read time metrics", ParDo.of(new TimeMonitor<>(NAMESPACE, "read_time")))
+            .apply("Collect read time metrics", ParDo.of(new TimeMonitor<>(NAMESPACE, "read_time")))
             .apply("Map documents to Strings", MapElements.via(new DocumentToStringFn()))
             .apply("Calculate hashcode", Combine.globally(new HashingFn()));
 

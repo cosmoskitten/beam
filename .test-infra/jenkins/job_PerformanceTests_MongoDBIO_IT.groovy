@@ -40,7 +40,7 @@ job(jobName) {
             project        : 'apache-beam-testing',
             numberOfRecords: '10000000',
             bigQueryDataset: 'beam_performance',
-            bigQueryTable  : 'test_mongodb_it'
+            bigQueryTable  : 'mongodbioit_results'
     ]
 
     String namespace = commonJobProperties.getKubernetesNamespace(jobName)
