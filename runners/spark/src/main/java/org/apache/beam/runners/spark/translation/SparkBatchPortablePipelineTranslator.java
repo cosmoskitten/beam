@@ -81,6 +81,9 @@ public class SparkBatchPortablePipelineTranslator {
         SparkBatchPortablePipelineTranslator::translateGroupByKey);
     translatorMap.put(
         ExecutableStage.URN, SparkBatchPortablePipelineTranslator::translateExecutableStage);
+    translatorMap.put(
+        PTransformTranslation.FLATTEN_TRANSFORM_URN,
+        SparkBatchPortablePipelineTranslator::translateFlatten);
     this.urnToTransformTranslator = translatorMap.build();
   }
 
@@ -189,6 +192,26 @@ public class SparkBatchPortablePipelineTranslator {
           staged.flatMap(new SparkExecutableStageExtractionFunction<>(outputMap.get(outputId)));
       context.pushDataset(outputId, new BoundedDataset<>(outputRdd));
     }
+  }
+
+  private static <T> void translateFlatten(
+      PTransformNode transformNode, RunnerApi.Pipeline pipeline, SparkTranslationContext context) {
+
+    Map<String, String> inputsMap = transformNode.getTransform().getInputsMap();
+
+    JavaRDD<WindowedValue<T>> unionRDD;
+    if (inputsMap.isEmpty()) {
+      unionRDD = context.getSparkContext().emptyRDD();
+    } else {
+      JavaRDD<WindowedValue<T>>[] rdds = new JavaRDD[inputsMap.size()];
+      int index = 0;
+      for (String inputId : inputsMap.values()) {
+        rdds[index] = ((BoundedDataset<T>) context.popDataset(inputId)).getRDD();
+        index++;
+      }
+      unionRDD = context.getSparkContext().union(rdds);
+    }
+    context.pushDataset(getOutputId(transformNode), new BoundedDataset<>(unionRDD));
   }
 
   @Nullable
