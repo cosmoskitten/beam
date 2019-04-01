@@ -685,13 +685,21 @@ class FnApiRunnerTest(unittest.TestCase):
     self.assert_has_counter(
         counters, monitoring_infos.ELEMENT_COUNT_URN, labels, 1)
     self.assert_has_distribution(
-        counters, monitoring_infos.SAMPLED_BYTE_SIZE_URN, labels)
+        counters, monitoring_infos.SAMPLED_BYTE_SIZE_URN, labels,
+        min=hamcrest.greater_than(0),
+        max=hamcrest.greater_than(0),
+        sum=hamcrest.greater_than(0),
+        count=hamcrest.greater_than(0))
 
     labels = {'PCOLLECTION' : 'ref_PCollection_PCollection_1'}
     self.assert_has_counter(
         counters, monitoring_infos.ELEMENT_COUNT_URN, labels, 2)
     self.assert_has_distribution(
-        counters, monitoring_infos.SAMPLED_BYTE_SIZE_URN, labels)
+        counters, monitoring_infos.SAMPLED_BYTE_SIZE_URN, labels,
+        min=hamcrest.greater_than(0),
+        max=hamcrest.greater_than(0),
+        sum=hamcrest.greater_than(0),
+        count=hamcrest.greater_than(0))
 
     # Skipping other pcollections due to non-deterministic naming for multiple
     # outputs.
@@ -699,19 +707,31 @@ class FnApiRunnerTest(unittest.TestCase):
     self.assert_has_counter(
         counters, monitoring_infos.ELEMENT_COUNT_URN, labels, 8)
     self.assert_has_distribution(
-        counters, monitoring_infos.SAMPLED_BYTE_SIZE_URN, labels)
+        counters, monitoring_infos.SAMPLED_BYTE_SIZE_URN, labels,
+        min=hamcrest.greater_than(0),
+        max=hamcrest.greater_than(0),
+        sum=hamcrest.greater_than(0),
+        count=hamcrest.greater_than(0))
 
     labels = {'PCOLLECTION' : 'ref_PCollection_PCollection_6'}
     self.assert_has_counter(
         counters, monitoring_infos.ELEMENT_COUNT_URN, labels, 8)
     self.assert_has_distribution(
-        counters, monitoring_infos.SAMPLED_BYTE_SIZE_URN, labels)
+        counters, monitoring_infos.SAMPLED_BYTE_SIZE_URN, labels,
+        min=hamcrest.greater_than(0),
+        max=hamcrest.greater_than(0),
+        sum=hamcrest.greater_than(0),
+        count=hamcrest.greater_than(0))
 
     labels = {'PCOLLECTION' : 'ref_PCollection_PCollection_7'}
     self.assert_has_counter(
         counters, monitoring_infos.ELEMENT_COUNT_URN, labels, 2)
     self.assert_has_distribution(
-        counters, monitoring_infos.SAMPLED_BYTE_SIZE_URN, labels)
+        counters, monitoring_infos.SAMPLED_BYTE_SIZE_URN, labels,
+        min=hamcrest.greater_than(0),
+        max=hamcrest.greater_than(0),
+        sum=hamcrest.greater_than(0),
+        count=hamcrest.greater_than(0))
 
   def test_non_user_metrics(self):
     p = self.create_pipeline()
@@ -837,13 +857,21 @@ class FnApiRunnerTest(unittest.TestCase):
       self.assert_has_counter(
           pregbk_mis, monitoring_infos.ELEMENT_COUNT_URN, labels, value=4)
       self.assert_has_distribution(
-          pregbk_mis, monitoring_infos.SAMPLED_BYTE_SIZE_URN, labels)
+          pregbk_mis, monitoring_infos.SAMPLED_BYTE_SIZE_URN, labels,
+          min=hamcrest.greater_than(0),
+          max=hamcrest.greater_than(0),
+          sum=hamcrest.greater_than(0),
+          count=hamcrest.greater_than(0))
 
       labels = {'PCOLLECTION' : 'ref_PCollection_PCollection_2'}
       self.assert_has_counter(
           pregbk_mis, monitoring_infos.ELEMENT_COUNT_URN, labels, value=4)
       self.assert_has_distribution(
-          pregbk_mis, monitoring_infos.SAMPLED_BYTE_SIZE_URN, labels)
+          pregbk_mis, monitoring_infos.SAMPLED_BYTE_SIZE_URN, labels,
+          min=hamcrest.greater_than(0),
+          max=hamcrest.greater_than(0),
+          sum=hamcrest.greater_than(0),
+          count=hamcrest.greater_than(0))
 
       labels = {'PTRANSFORM' : 'Map(sleep)'}
       self.assert_has_counter(
@@ -855,13 +883,21 @@ class FnApiRunnerTest(unittest.TestCase):
       self.assert_has_counter(
           postgbk_mis, monitoring_infos.ELEMENT_COUNT_URN, labels, value=1)
       self.assert_has_distribution(
-          postgbk_mis, monitoring_infos.SAMPLED_BYTE_SIZE_URN, labels)
+          postgbk_mis, monitoring_infos.SAMPLED_BYTE_SIZE_URN, labels,
+          min=hamcrest.greater_than(0),
+          max=hamcrest.greater_than(0),
+          sum=hamcrest.greater_than(0),
+          count=hamcrest.greater_than(0))
 
       labels = {'PCOLLECTION' : 'ref_PCollection_PCollection_7'}
       self.assert_has_counter(
           postgbk_mis, monitoring_infos.ELEMENT_COUNT_URN, labels, value=5)
       self.assert_has_distribution(
-          postgbk_mis, monitoring_infos.SAMPLED_BYTE_SIZE_URN, labels)
+          postgbk_mis, monitoring_infos.SAMPLED_BYTE_SIZE_URN, labels,
+          min=hamcrest.greater_than(0),
+          max=hamcrest.greater_than(0),
+          sum=hamcrest.greater_than(0),
+          count=hamcrest.greater_than(0))
     except:
       print(res._monitoring_infos_by_stage)
       raise
