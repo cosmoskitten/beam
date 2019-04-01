@@ -19,7 +19,6 @@ package org.apache.beam.runners.core.metrics;
 
 import java.util.HashMap;
 import org.apache.beam.model.pipeline.v1.MetricsApi.MonitoringInfo;
-import org.apache.beam.runners.core.metrics.MonitoringInfoConstants.Labels;
 
 /**
  * Provides convenient one line factories for unit tests that need to generate test MonitoringInfos.
@@ -28,7 +27,7 @@ public class MonitoringInfoTestUtil {
   /** @return A basic MonitoringInfoMetricName to test. */
   public static MonitoringInfoMetricName testElementCountName() {
     HashMap labels = new HashMap<String, String>();
-    labels.put(Labels.PCOLLECTION, "testPCollection");
+    labels.put(MonitoringInfoConstants.Labels.PCOLLECTION, "testPCollection");
     MonitoringInfoMetricName name =
         MonitoringInfoMetricName.named(MonitoringInfoConstants.Urns.ELEMENT_COUNT, labels);
     return name;

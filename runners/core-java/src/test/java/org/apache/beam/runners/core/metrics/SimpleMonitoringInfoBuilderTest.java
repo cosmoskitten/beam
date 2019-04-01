@@ -22,9 +22,6 @@ import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 
 import org.apache.beam.model.pipeline.v1.MetricsApi.MonitoringInfo;
-import org.apache.beam.runners.core.metrics.MonitoringInfoConstants.Labels;
-import org.apache.beam.runners.core.metrics.MonitoringInfoConstants.TypeUrns;
-import org.apache.beam.runners.core.metrics.MonitoringInfoConstants.Urns;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -46,9 +43,11 @@ public class SimpleMonitoringInfoBuilderTest {
     // Pass now that the spec is fully met.
     MonitoringInfo monitoringInfo = builder.build();
     assertTrue(monitoringInfo != null);
-    assertEquals("myPcollection", monitoringInfo.getLabelsOrDefault(Labels.PCOLLECTION, null));
+    assertEquals(
+        "myPcollection",
+        monitoringInfo.getLabelsOrDefault(MonitoringInfoConstants.Labels.PCOLLECTION, null));
     assertEquals(MonitoringInfoConstants.Urns.ELEMENT_COUNT, monitoringInfo.getUrn());
-    assertEquals(TypeUrns.SUM_INT64, monitoringInfo.getType());
+    assertEquals(MonitoringInfoConstants.TypeUrns.SUM_INT64, monitoringInfo.getType());
     assertEquals(1, monitoringInfo.getMetric().getCounterData().getInt64Value());
   }
 
@@ -62,8 +61,10 @@ public class SimpleMonitoringInfoBuilderTest {
     // Pass now that the spec is fully met.
     MonitoringInfo monitoringInfo = builder.build();
     assertTrue(monitoringInfo != null);
-    assertEquals(Urns.USER_COUNTER_PREFIX + "myNamespace:myName", monitoringInfo.getUrn());
-    assertEquals(TypeUrns.SUM_INT64, monitoringInfo.getType());
+    assertEquals(
+        MonitoringInfoConstants.Urns.USER_COUNTER_PREFIX + "myNamespace:myName",
+        monitoringInfo.getUrn());
+    assertEquals(MonitoringInfoConstants.TypeUrns.SUM_INT64, monitoringInfo.getType());
     assertEquals(1, monitoringInfo.getMetric().getCounterData().getInt64Value());
   }
 
@@ -76,8 +77,9 @@ public class SimpleMonitoringInfoBuilderTest {
     MonitoringInfo monitoringInfo = builder.build();
     assertTrue(monitoringInfo != null);
     assertEquals(
-        Urns.USER_COUNTER_PREFIX + "myNamespace_withInvalidChar:myName", monitoringInfo.getUrn());
-    assertEquals(TypeUrns.SUM_INT64, monitoringInfo.getType());
+        MonitoringInfoConstants.Urns.USER_COUNTER_PREFIX + "myNamespace_withInvalidChar:myName",
+        monitoringInfo.getUrn());
+    assertEquals(MonitoringInfoConstants.TypeUrns.SUM_INT64, monitoringInfo.getType());
     assertEquals(1, monitoringInfo.getMetric().getCounterData().getInt64Value());
   }
 }
