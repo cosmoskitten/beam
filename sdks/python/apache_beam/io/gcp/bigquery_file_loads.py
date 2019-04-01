@@ -90,9 +90,12 @@ def file_prefix_generator(with_validation=True):
 
 
 def _make_new_file_writer(file_prefix, destination):
-  if isinstance(destination, bigquery_api.TableReference):
-    destination = '%s:%s.%s' % (
-        destination.projectId, destination.datasetId, destination.tableId)
+  destination = bigquery_tools.get_hashable_destination(destination)
+
+  # Windows does not allow : on filenames. Replacing with underscore.
+  # Other disallowed characters are:
+  # https://docs.microsoft.com/en-us/windows/desktop/fileio/naming-a-file
+  destination = destination.replace(':', '_')
 
   directory = fs.FileSystems.join(file_prefix, destination)
 
