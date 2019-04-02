@@ -39,7 +39,7 @@ NoPhraseTriggeringPostCommitBuilder.postCommitJob('beam_PostCommit_Java_Nexmark_
       rootBuildScriptDir(commonJobProperties.checkoutDir)
       tasks(':beam-sdks-java-nexmark:run')
       commonJobProperties.setGradleSwitches(delegate)
-      switches('-Pnexmark.runner=":beam-runners-direct-java"' +
+      switches('-Pnexmark.runner=":runners:direct-java"' +
               ' -Pnexmark.args="' +
               [NexmarkBigqueryProperties.nexmarkBigQueryArgs,
               '--runner=DirectRunner',
@@ -55,7 +55,7 @@ NoPhraseTriggeringPostCommitBuilder.postCommitJob('beam_PostCommit_Java_Nexmark_
       rootBuildScriptDir(commonJobProperties.checkoutDir)
       tasks(':beam-sdks-java-nexmark:run')
       commonJobProperties.setGradleSwitches(delegate)
-      switches('-Pnexmark.runner=":beam-runners-direct-java"' +
+      switches('-Pnexmark.runner=":runners:direct-java"' +
               ' -Pnexmark.args="' +
               [NexmarkBigqueryProperties.nexmarkBigQueryArgs,
               '--runner=DirectRunner',
@@ -71,7 +71,7 @@ NoPhraseTriggeringPostCommitBuilder.postCommitJob('beam_PostCommit_Java_Nexmark_
       rootBuildScriptDir(commonJobProperties.checkoutDir)
       tasks(':beam-sdks-java-nexmark:run')
       commonJobProperties.setGradleSwitches(delegate)
-      switches('-Pnexmark.runner=":beam-runners-direct-java"' +
+      switches('-Pnexmark.runner=":runners:direct-java"' +
               ' -Pnexmark.args="' +
               [NexmarkBigqueryProperties.nexmarkBigQueryArgs,
               '--runner=DirectRunner',
@@ -88,7 +88,7 @@ NoPhraseTriggeringPostCommitBuilder.postCommitJob('beam_PostCommit_Java_Nexmark_
       rootBuildScriptDir(commonJobProperties.checkoutDir)
       tasks(':beam-sdks-java-nexmark:run')
       commonJobProperties.setGradleSwitches(delegate)
-      switches('-Pnexmark.runner=":beam-runners-direct-java"' +
+      switches('-Pnexmark.runner=":runners:direct-java"' +
               ' -Pnexmark.args="' +
               [NexmarkBigqueryProperties.nexmarkBigQueryArgs,
               '--runner=DirectRunner',

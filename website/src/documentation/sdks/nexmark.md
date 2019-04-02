@@ -148,8 +148,8 @@ When running via Gradle, the following two parameters control the execution:
         The command line to pass to the Nexmark main program.
 
     -P nexmark.runner
-	The Gradle project name of the runner, such as ":beam-runners-direct-java" or
-	":beam-runners-flink. The project names can be found in the root
+	The Gradle project name of the runner, such as ":runners:direct-java" or
+	":runners:flink. The project names can be found in the root
         `settings.gradle`.
 
 Test data is deterministically synthesized on demand. The test
@@ -499,7 +499,7 @@ SMOKE suite can make sure there is nothing broken in the Nexmark suite.
 Batch Mode:
 
     ./gradlew :beam-sdks-java-nexmark:run \
-        -Pnexmark.runner=":beam-runners-direct-java" \
+        -Pnexmark.runner=":runners:direct-java" \
         -Pnexmark.args="
             --runner=DirectRunner
             --streaming=false
@@ -512,7 +512,7 @@ Batch Mode:
 Streaming Mode:
 
     ./gradlew :beam-sdks-java-nexmark:run \
-        -Pnexmark.runner=":beam-runners-direct-java" \
+        -Pnexmark.runner=":runners:direct-java" \
         -Pnexmark.args="
             --runner=DirectRunner
             --streaming=true
@@ -531,7 +531,7 @@ configure logging.
 Batch Mode:
 
     ./gradlew :beam-sdks-java-nexmark:run \
-        -Pnexmark.runner=":beam-runners-spark" \
+        -Pnexmark.runner=":runners:spark" \
         -Pnexmark.args="
             --runner=SparkRunner
             --suite=SMOKE
@@ -543,7 +543,7 @@ Batch Mode:
 Streaming Mode:
 
     ./gradlew :beam-sdks-java-nexmark:run \
-        -Pnexmark.runner=":beam-runners-spark" \
+        -Pnexmark.runner=":runners:spark" \
         -Pnexmark.args="
             --runner=SparkRunner
             --suite=SMOKE
@@ -557,7 +557,7 @@ Streaming Mode:
 Batch Mode:
 
     ./gradlew :beam-sdks-java-nexmark:run \
-        -Pnexmark.runner=":beam-runners-flink_2.11" \
+        -Pnexmark.runner=":runners:flink" \
         -Pnexmark.args="
             --runner=FlinkRunner
             --suite=SMOKE
@@ -570,7 +570,7 @@ Batch Mode:
 Streaming Mode:
 
     ./gradlew :beam-sdks-java-nexmark:run \
-        -Pnexmark.runner=":beam-runners-flink_2.11" \
+        -Pnexmark.runner=":runners:flink" \
         -Pnexmark.args="
             --runner=FlinkRunner
             --suite=SMOKE

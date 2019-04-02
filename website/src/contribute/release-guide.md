@@ -764,7 +764,7 @@ _Note_: -Prepourl and -Pver can be found in the RC vote email sent by Release Ma
 
   Direct Runner:
   ```
-  ./gradlew :beam-runners-direct-java:runQuickstartJavaDirect \ 
+  ./gradlew :runners:direct-java:runQuickstartJavaDirect \ 
   -Prepourl=https://repository.apache.org/content/repositories/orgapachebeam-${KEY} \
   -Pver=${RELEASE_VERSION}
   ```
@@ -776,19 +776,19 @@ _Note_: -Prepourl and -Pver can be found in the RC vote email sent by Release Ma
   ```
   Flink Local Runner
   ```
-  ./gradlew :beam-runners-flink_2.11:runQuickstartJavaFlinkLocal \
+  ./gradlew :runners:flink:runQuickstartJavaFlinkLocal \
   -Prepourl=https://repository.apache.org/content/repositories/orgapachebeam-${KEY} \
   -Pver=${RELEASE_VERSION}
   ```
   Spark Local Runner
   ```
-  ./gradlew :beam-runners-spark:runQuickstartJavaSpark \
+  ./gradlew :runners:spark:runQuickstartJavaSpark \
   -Prepourl=https://repository.apache.org/content/repositories/orgapachebeam-${KEY} \
   -Pver=${RELEASE_VERSION}
   ```
   Dataflow Runner
   ```
-  ./gradlew :beam-runners-google-cloud-dataflow-java:runQuickstartJavaDataflow \
+  ./gradlew :runners:google-cloud-dataflow-java:runQuickstartJavaDataflow \
   -Prepourl=https://repository.apache.org/content/repositories/orgapachebeam-${KEY} \
   -Pver= ${RELEASE_VERSION}\
   -PgcpProject=${YOUR_GCP_PROJECT} \
@@ -816,7 +816,7 @@ _Note_: -Prepourl and -Pver can be found in the RC vote email sent by Release Ma
     ```
   Run 
   ```
-  ./gradlew :beam-runners-google-cloud-dataflow-java:runMobileGamingJavaDataflow \
+  ./gradlew :runners:google-cloud-dataflow-java:runMobileGamingJavaDataflow \
    -Prepourl=https://repository.apache.org/content/repositories/orgapachebeam-${KEY} \ 
    -Pver= ${RELEASE_VERSION}\
    -PgcpProject=${YOUR_GCP_PROJECT} \

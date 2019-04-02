@@ -27,19 +27,19 @@ plugins { id 'java' }
 description = "Apache Beam :: SDKs :: Java :: Aggregated Javadoc"
 
 for (p in rootProject.subprojects) {
-  if (!p.name.equals(project.name) && !p.name.equals('beam-sdks-java-bom')) {
-    evaluationDependsOn(':' + p.name)
+  if (!p.path.equals(project.path) && !p.path.equals(':sdks:java:bom')) {
+    evaluationDependsOn(p.path)
   }
 }
 
 ext.getExportedJavadocProjects = {
   def exportedJavadocProjects = new ArrayList<>();
   for (p in rootProject.subprojects) {
-    if (!p.name.equals(project.name) && !p.name.equals('beam-sdks-java-bom')) {
-      def subproject = project(':' + p.name)
+    if (!p.path.equals(project.path) && !p.path.equals(':sdks:java:bom')) {
+      def subproject = p // project(':' + p.name)
       if (subproject.ext.properties.containsKey('exportJavadoc') &&
           subproject.ext.properties.exportJavadoc) {
-        exportedJavadocProjects.add(':' + p.name)
+        exportedJavadocProjects.add(p.path)
       }
     }
   }
