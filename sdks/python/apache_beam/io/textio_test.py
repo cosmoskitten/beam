@@ -148,7 +148,7 @@ class TextSourceTest(unittest.TestCase):
     # smaller than the total size of the file. This is done to
     # increase test coverage for cases that hit the buffer boundary.
     source = TextSource(file_or_pattern, 0, compression,
-                        True, buffer_size)
+                        True, buffer_size=buffer_size)
     range_tracker = source.get_range_tracker(None, None)
     read_data = list(source.read(range_tracker))
     self.assertCountEqual(expected_data, read_data)
