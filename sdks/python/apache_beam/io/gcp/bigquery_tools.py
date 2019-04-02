@@ -27,6 +27,7 @@ NOTHING IN THIS FILE HAS BACKWARDS COMPATIBILITY GUARANTEES.
 
 from __future__ import absolute_import
 
+import base64
 import datetime
 import decimal
 import json
@@ -694,7 +695,7 @@ class BigQueryWrapper(object):
       page_token = response.pageToken
 
   def insert_rows(self, project_id, dataset_id, table_id, rows,
-                  skip_invalid_rows=False):
+                  skip_invalid_rows=False, schema=None):
     """Inserts rows into the specified table.
 
     Args:
@@ -705,6 +706,7 @@ class BigQueryWrapper(object):
         each key in it is the name of a field.
       skip_invalid_rows: If there are rows with insertion errors, whether they
         should be skipped, and all others should be inserted successfully.
+      schema: Schema of the table
 
     Returns:
       A tuple (bool, errors). If first element is False then the second element
@@ -720,12 +722,22 @@ class BigQueryWrapper(object):
     final_rows = []
     for row in rows:
       json_object = bigquery.JsonObject()
+      if schema:
+        byte_fields = [field['name'] for field in schema['fields']
+                       if field['type'] == 'BYTES']
+      else:
+        byte_fields = []
       for k, v in iteritems(row):
         if isinstance(v, decimal.Decimal):
           # decimal values are converted into string because JSON does not
           # support the precision that decimal supports. BQ is able to handle
           # inserts into NUMERIC columns by receiving JSON with string attrs.
           v = str(v)
+        elif (k in byte_fields or
+              (isinstance(v, bytes) and sys.version[0] == '3')):
+          # bytes are base64 encoded because this is the format that the bq api
+          # expects given that json does not support bytes
+          v = base64.b64encode(v)
         json_object.additionalProperties.append(
             bigquery.JsonObject.AdditionalProperty(
                 key=k, value=to_json_value(v)))
@@ -758,8 +770,9 @@ class BigQueryWrapper(object):
       dt = datetime.datetime.utcfromtimestamp(float(value))
       return dt.strftime('%Y-%m-%d %H:%M:%S.%f UTC')
     elif field.type == 'BYTES':
-      # Input: "YmJi" --> Output: "YmJi"
-      return value
+      # bytes are base64 dencoded because this is the format that the bq api
+      # returns the values in (given that json does not support bytes)
+      return base64.b64decode(value)
     elif field.type == 'DATE':
       # Input: "2016-11-03" --> Output: "2016-11-03"
       return value
@@ -836,9 +849,9 @@ class BigQueryReader(dataflow_io.NativeSourceReader):
           'command line option to specify it.')
     self.row_as_dict = isinstance(self.source.coder, RowAsDictJsonCoder)
     # Schema for the rows being read by the reader. It is initialized the
-    # first time something gets read from the table. It is not required
-    # for reading the field values in each row but could be useful for
-    # getting additional details.
+    # first time something gets read from the table. It is required when
+    # reading data with schema BYTES to handle the base64 decoding of the
+    # byte values
     self.schema = None
     self.use_legacy_sql = use_legacy_sql
     self.flatten_results = flatten_results

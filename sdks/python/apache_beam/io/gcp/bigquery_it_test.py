@@ -21,6 +21,7 @@ from __future__ import absolute_import
 import base64
 import logging
 import random
+import sys
 import time
 import unittest
 
@@ -294,6 +295,9 @@ class BigQueryWriteIntegrationTests(unittest.TestCase):
            write_disposition=beam.io.BigQueryDisposition.WRITE_EMPTY))
 
   @attr('IT')
+  @unittest.skipIf(sys.version_info[0] == 2,
+                   'Writing bytes without schema is currently not supported'
+                   'TODO: BEAM-6769')
   def test_big_query_write_without_schema(self):
     output_table = 'python_no_schema_table'
     self.create_table(output_table)
