@@ -219,7 +219,7 @@ public class HadoopInputFormatIOIT {
         reader -> {
           long readStart = reader.getStartTimeMetric("read_time");
           long readEnd = reader.getEndTimeMetric("read_time");
-          return NamedTestResult.create(uuid, timestamp, "write_time", (readEnd - readStart) / 1e3);
+          return NamedTestResult.create(uuid, timestamp, "read_time", (readEnd - readStart) / 1e3);
         });
     return suppliers;
   }
