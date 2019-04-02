@@ -17,7 +17,7 @@
  */
 
 import PostcommitJobBuilder
-import commonJobProperties as commonJobProperties
+import CommonJobProperties as commonJobProperties
 
 PostcommitJobBuilder.postCommitJob('beam_PostCommit_Java11_Examples_Dataflow_Portability',
         'Run Java Portability examples on Dataflow with Java 11', 'Google Cloud Dataflow Portability Runner Examples Java 11', this) {
