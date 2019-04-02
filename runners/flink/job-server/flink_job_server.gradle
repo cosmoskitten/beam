@@ -36,9 +36,10 @@ applyJavaNature(
     append "reference.conf"
   },
 )
+archivesBaseName = project.hasProperty('archives_base_name') ? archives_base_name : archivesBaseName
 
 // Resolve the Flink project name (and version) the job-server is based on
-def flinkRunnerProject = ":${project.name.replace("-job-server", "")}"
+def flinkRunnerProject = "${project.path.replace(":job-server", "")}"
 
 description = project(flinkRunnerProject).description + " :: Job Server"
 
@@ -78,10 +79,10 @@ dependencies {
   compile project(path: flinkRunnerProject, configuration: "shadow")
   compile group: "org.slf4j", name: "jcl-over-slf4j", version: dependencies.create(project.library.java.slf4j_api).getVersion()
   validatesPortableRunner project(path: flinkRunnerProject, configuration: "shadowTest")
-  validatesPortableRunner project(path: ":beam-sdks-java-core", configuration: "shadowTest")
-  validatesPortableRunner project(path: ":beam-runners-core-java", configuration: "shadowTest")
-  validatesPortableRunner project(path: ":beam-runners-reference-java", configuration: "shadowTest")
-  compile project(path: ":beam-sdks-java-extensions-google-cloud-platform-core", configuration: "shadow")
+  validatesPortableRunner project(path: ":sdks:java:core", configuration: "shadowTest")
+  validatesPortableRunner project(path: ":runners:core-java", configuration: "shadowTest")
+  validatesPortableRunner project(path: ":runners:reference:java", configuration: "shadowTest")
+  compile project(path: ":sdks:java:extensions:google-cloud-platform-core", configuration: "shadow")
   compile library.java.slf4j_simple
 //  TODO: Enable AWS and HDFS file system.
 }
