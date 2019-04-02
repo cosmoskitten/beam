@@ -21,6 +21,7 @@ applyJavaNature()
 
 description = "Apache Beam :: SDKs :: Java :: IO :: Elasticsearch-Tests :: Common"
 ext.summary = "Common test classes for ElasticsearchIO"
+archivesBaseName = 'beam-sdks-java-io-elasticsearch-tests-common'
 
 def jna_version = "4.1.0"
 def log4j_version = "2.6.2"
@@ -32,10 +33,10 @@ dependencies {
   testCompile "org.apache.httpcomponents:httpcore:4.4.10"
   testCompile "org.apache.httpcomponents:httpclient:4.5.6"
 
-  testCompile project(path: ":beam-sdks-java-core", configuration: "shadow")
-  testCompile project(path: ":beam-sdks-java-io-elasticsearch", configuration: "shadow")
-  testCompile project(path: ":beam-sdks-java-io-common", configuration: "shadowTest")
-  testCompile project(path: ":beam-runners-direct-java", configuration: "shadow")
+  testCompile project(path: ":sdks:java:core", configuration: "shadow")
+  testCompile project(path: ":sdks:java:io:elasticsearch", configuration: "shadow")
+  testCompile project(path: ":sdks:java:io:common", configuration: "shadowTest")
+  testCompile project(path: ":runners:direct-java", configuration: "shadow")
   testCompile library.java.slf4j_api
   testCompile "net.java.dev.jna:jna:$jna_version"
   testCompile "org.apache.logging.log4j:log4j-api:$log4j_version"
