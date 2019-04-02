@@ -105,7 +105,7 @@ public class EmbeddedEnvironmentFactory implements EnvironmentFactory {
                 LOG.error(
                     "{} while executing an in-process FnHarness. "
                         + "To use the {}, "
-                        + "the 'org.apache.beam:beam-sdks-java-harness' artifact "
+                        + "the 'org.apache.beam:sdks:java:harness' artifact "
                         + "and its dependencies must be on the classpath",
                     NoClassDefFoundError.class.getSimpleName(),
                     EmbeddedEnvironmentFactory.class.getSimpleName(),

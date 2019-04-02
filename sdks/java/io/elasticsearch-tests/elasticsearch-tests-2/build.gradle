@@ -29,11 +29,11 @@ def log4j_version = "2.6.2"
 def elastic_search_version = "2.4.1"
 
 dependencies {
-  testCompile project(path: ":beam-sdks-java-io-elasticsearch-tests-common", configuration: "shadowTest")
-  testCompile project(path: ":beam-sdks-java-core", configuration: "shadow")
-  testCompile project(path: ":beam-sdks-java-io-elasticsearch", configuration: "shadow")
-  testCompile project(path: ":beam-sdks-java-io-common", configuration: "shadowTest")
-  testCompile project(path: ":beam-runners-direct-java", configuration: "shadow")
+  testCompile project(path: ":sdks:java:io:elasticsearch-tests:elasticsearch-tests-common", configuration: "shadowTest")
+  testCompile project(path: ":sdks:java:core", configuration: "shadow")
+  testCompile project(path: ":sdks:java:io:elasticsearch", configuration: "shadow")
+  testCompile project(path: ":sdks:java:io::common", configuration: "shadowTest")
+  testCompile project(path: ":runners:direct-java", configuration: "shadow")
   testCompile library.java.slf4j_api
   testCompile "net.java.dev.jna:jna:$jna_version"
   testCompile "org.apache.logging.log4j:log4j-api:$log4j_version"
