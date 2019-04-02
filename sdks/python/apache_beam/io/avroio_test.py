@@ -554,7 +554,6 @@ class TestFastAvro(AvroBase, unittest.TestCase):
     # return (num_blocks - 1, 1)
     self.assertEqual(split_points_report[-10:], [(num_blocks - 1, 1)] * 10)
 
-  @unittest.skip('FREDSKIP')
   def test_dynamic_work_rebalancing_exhaustive(self):
     # Adjusting block size so that we can perform a exhaustive dynamic
     # work rebalancing test that completes within an acceptable amount of time.

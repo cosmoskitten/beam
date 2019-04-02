@@ -50,6 +50,7 @@ import unittest
 import uuid
 import json
 import warnings
+import sys
 from nose.plugins.attrib import attr
 
 from apache_beam.io.avroio import ReadAllFromAvro
@@ -85,7 +86,7 @@ def record(i):
       'color': COLORS[i % len(COLORS)]
   }
 
-@@unittest.skipIf(sys.version_info[0] == 3 and
+@unittest.skipIf(sys.version_info[0] == 3 and
                  os.environ.get('RUN_SKIPPED_PY3_TESTS') != '1',
                  'Deprecating Avro in favor of FastAvro on Python 3 '
                  'See BEAM-6522')
@@ -102,7 +103,7 @@ class FastavroITBase(unittest.TestCase):
          {"name": "color", "type": ["string", "null"]}
      ]
     }
-    ''')
+    '''
 
   def setUp(self):
     self.test_pipeline = TestPipeline(is_integration_test=True)
@@ -150,7 +151,7 @@ class FastavroITBase(unittest.TestCase):
     records_pcoll \
     | 'write_fastavro' >> WriteToAvro(
         fastavro_output,
-        parse_schema(json.loads(self.SCHEMA)),
+        parse_schema(json.loads(self.SCHEMA_STRING)),
         use_fastavro=True
     )
 
@@ -158,7 +159,7 @@ class FastavroITBase(unittest.TestCase):
     records_pcoll \
     | 'write_avro' >> WriteToAvro(
         avro_output,
-        parse(self.SCHEMA),
+        parse(self.SCHEMA_STRING),
         use_fastavro=False
     )
 
