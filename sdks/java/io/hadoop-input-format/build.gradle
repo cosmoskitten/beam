@@ -37,17 +37,17 @@ configurations.testRuntimeClasspath {
 }
 
 dependencies {
-  shadow project(path: ":beam-sdks-java-core", configuration: "shadow")
-  shadow project(path: ":beam-sdks-java-io-hadoop-format", configuration: "shadow")
+  shadow project(path: ":sdks:java:core", configuration: "shadow")
+  shadow project(path: ":sdks:java:io:hadoop-format", configuration: "shadow")
   shadow library.java.vendored_guava_20_0
   shadow library.java.slf4j_api
-  shadow project(path: ":beam-sdks-java-io-hadoop-common", configuration: "shadow")
+  shadow project(path: ":sdks:java:io:hadoop-common", configuration: "shadow")
   provided library.java.hadoop_common
   provided library.java.hadoop_mapreduce_client_core
-  testCompile project(path: ":beam-runners-direct-java", configuration: "shadow")
-  testCompile project(path: ":beam-sdks-java-core", configuration: "shadowTest")
-  testCompile project(path: ":beam-sdks-java-io-common", configuration: "shadow")
-  testCompile project(path: ":beam-sdks-java-io-common", configuration: "shadowTest")
+  testCompile project(path: ":runners:direct-java", configuration: "shadow")
+  testCompile project(path: ":sdks:java:core", configuration: "shadowTest")
+  testCompile project(path: ":sdks:java:io:common", configuration: "shadow")
+  testCompile project(path: ":sdks:java:io:common", configuration: "shadowTest")
   testCompile "org.elasticsearch.plugin:transport-netty4-client:$elastic_search_version"
   testCompile "org.elasticsearch.client:transport:$elastic_search_version"
   testCompile "io.netty:netty-transport-native-epoll:4.1.0.CR3"
@@ -67,7 +67,7 @@ dependencies {
   testCompile library.java.cassandra_driver_core
   testCompile library.java.cassandra_driver_mapping
   testCompile "org.apache.cassandra:cassandra-all:3.11.3"
-  testCompile project(path: ":beam-sdks-java-io-jdbc", configuration: "shadow")
+  testCompile project(path: ":sdks:java:io:jdbc", configuration: "shadow")
   testCompile library.java.postgres
   testCompile "org.apache.logging.log4j:log4j-core:$log4j_version"
   testCompile library.java.junit
