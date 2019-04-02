@@ -148,7 +148,7 @@ class TextSourceTest(unittest.TestCase):
     # smaller than the total size of the file. This is done to
     # increase test coverage for cases that hit the buffer boundary.
     source = TextSource(file_or_pattern, 0, compression,
-                        True, coders.StrUtf8Coder(), buffer_size)
+                        True, buffer_size)
     range_tracker = source.get_range_tracker(None, None)
     read_data = list(source.read(range_tracker))
     self.assertCountEqual(expected_data, read_data)
@@ -269,7 +269,7 @@ class TextSourceTest(unittest.TestCase):
     assert len(written_data) == TextSourceTest.DEFAULT_NUM_RECORDS
     source = TextSource(file_name, 0,
                         CompressionTypes.UNCOMPRESSED,
-                        False, coders.StrUtf8Coder())
+                        False)
 
     range_tracker = source.get_range_tracker(None, None)
     read_data = list(source.read(range_tracker))
@@ -280,7 +280,7 @@ class TextSourceTest(unittest.TestCase):
                                          eol=EOL.CRLF)
     assert len(written_data) == TextSourceTest.DEFAULT_NUM_RECORDS
     source = TextSource(file_name, 0, CompressionTypes.UNCOMPRESSED,
-                        False, coders.StrUtf8Coder())
+                        False)
 
     range_tracker = source.get_range_tracker(None, None)
     read_data = list(source.read(range_tracker))
@@ -302,8 +302,7 @@ class TextSourceTest(unittest.TestCase):
   def test_read_after_splitting(self):
     file_name, expected_data = write_data(10)
     assert len(expected_data) == 10
-    source = TextSource(file_name, 0, CompressionTypes.UNCOMPRESSED, True,
-                        coders.StrUtf8Coder())
+    source = TextSource(file_name, 0, CompressionTypes.UNCOMPRESSED, True)
     splits = list(source.split(desired_bundle_size=33))
 
     reference_source_info = (source, None, None)
@@ -327,7 +326,6 @@ class TextSourceTest(unittest.TestCase):
         header_lines.append(line)
 
     source = TextSource(file_name, 0, CompressionTypes.UNCOMPRESSED, True,
-                        coders.StrUtf8Coder(),
                         header_processor_fns=(header_matcher, store_header))
     splits = list(source.split(desired_bundle_size=100000))
     assert len(splits) == 1
@@ -341,8 +339,7 @@ class TextSourceTest(unittest.TestCase):
   def test_progress(self):
     file_name, expected_data = write_data(10)
     assert len(expected_data) == 10
-    source = TextSource(file_name, 0, CompressionTypes.UNCOMPRESSED, True,
-                        coders.StrUtf8Coder())
+    source = TextSource(file_name, 0, CompressionTypes.UNCOMPRESSED, True)
     splits = list(source.split(desired_bundle_size=100000))
     assert len(splits) == 1
     fraction_consumed_report = []
@@ -369,15 +366,13 @@ class TextSourceTest(unittest.TestCase):
   def test_read_reentrant_without_splitting(self):
     file_name, expected_data = write_data(10)
     assert len(expected_data) == 10
-    source = TextSource(file_name, 0, CompressionTypes.UNCOMPRESSED, True,
-                        coders.StrUtf8Coder())
+    source = TextSource(file_name, 0, CompressionTypes.UNCOMPRESSED, True)
     source_test_utils.assert_reentrant_reads_succeed((source, None, None))
 
   def test_read_reentrant_after_splitting(self):
     file_name, expected_data = write_data(10)
     assert len(expected_data) == 10
-    source = TextSource(file_name, 0, CompressionTypes.UNCOMPRESSED, True,
-                        coders.StrUtf8Coder())
+    source = TextSource(file_name, 0, CompressionTypes.UNCOMPRESSED, True)
     splits = list(source.split(desired_bundle_size=100000))
     assert len(splits) == 1
     source_test_utils.assert_reentrant_reads_succeed(
@@ -386,8 +381,7 @@ class TextSourceTest(unittest.TestCase):
   def test_dynamic_work_rebalancing(self):
     file_name, expected_data = write_data(5)
     assert len(expected_data) == 5
-    source = TextSource(file_name, 0, CompressionTypes.UNCOMPRESSED, True,
-                        coders.StrUtf8Coder())
+    source = TextSource(file_name, 0, CompressionTypes.UNCOMPRESSED, True)
     splits = list(source.split(desired_bundle_size=100000))
     assert len(splits) == 1
     source_test_utils.assert_split_at_fraction_exhaustive(
@@ -396,8 +390,7 @@ class TextSourceTest(unittest.TestCase):
   def test_dynamic_work_rebalancing_windows_eol(self):
     file_name, expected_data = write_data(15, eol=EOL.CRLF)
     assert len(expected_data) == 15
-    source = TextSource(file_name, 0, CompressionTypes.UNCOMPRESSED, True,
-                        coders.StrUtf8Coder())
+    source = TextSource(file_name, 0, CompressionTypes.UNCOMPRESSED, True)
     splits = list(source.split(desired_bundle_size=100000))
     assert len(splits) == 1
     source_test_utils.assert_split_at_fraction_exhaustive(
@@ -407,8 +400,7 @@ class TextSourceTest(unittest.TestCase):
   def test_dynamic_work_rebalancing_mixed_eol(self):
     file_name, expected_data = write_data(5, eol=EOL.MIXED)
     assert len(expected_data) == 5
-    source = TextSource(file_name, 0, CompressionTypes.UNCOMPRESSED, True,
-                        coders.StrUtf8Coder())
+    source = TextSource(file_name, 0, CompressionTypes.UNCOMPRESSED, True)
     splits = list(source.split(desired_bundle_size=100000))
     assert len(splits) == 1
     source_test_utils.assert_split_at_fraction_exhaustive(
@@ -665,7 +657,7 @@ class TextSourceTest(unittest.TestCase):
       pcoll = pipeline | 'Read' >> ReadFromText(
           file_name,
           0, CompressionTypes.DEFLATE,
-          True, coders.StrUtf8Coder())
+          True)
       assert_that(pcoll, equal_to(lines))
       pipeline.run()
 
@@ -683,7 +675,7 @@ class TextSourceTest(unittest.TestCase):
       pcoll = pipeline | 'Read' >> ReadFromText(
           file_name,
           0, CompressionTypes.DEFLATE,
-          True, coders.StrUtf8Coder())
+          True)
       assert_that(pcoll, equal_to(lines))
 
       with self.assertRaises(Exception):
@@ -741,7 +733,7 @@ class TextSourceTest(unittest.TestCase):
       pcoll = pipeline | 'Read' >> ReadFromText(
           file_name,
           0, CompressionTypes.GZIP,
-          True, coders.StrUtf8Coder())
+          True)
       assert_that(pcoll, equal_to(lines))
       pipeline.run()
 
@@ -759,7 +751,7 @@ class TextSourceTest(unittest.TestCase):
       pcoll = pipeline | 'Read' >> ReadFromText(
           file_name,
           0, CompressionTypes.GZIP,
-          True, coders.StrUtf8Coder())
+          True)
       assert_that(pcoll, equal_to(lines))
 
       with self.assertRaises(Exception):
@@ -832,7 +824,7 @@ class TextSourceTest(unittest.TestCase):
       pcoll = pipeline | 'Read' >> ReadFromText(
           file_name,
           0, CompressionTypes.GZIP,
-          True, coders.StrUtf8Coder())
+          True)
       assert_that(pcoll, equal_to(lines))
       pipeline.run()
 
@@ -843,8 +835,7 @@ class TextSourceTest(unittest.TestCase):
       with gzip.GzipFile(file_name, 'wb') as f:
         f.write('\n'.join(lines).encode('utf-8'))
 
-      source = TextSource(file_name, 0, CompressionTypes.GZIP, True,
-                          coders.StrUtf8Coder())
+      source = TextSource(file_name, 0, CompressionTypes.GZIP, True)
       splits = list(source.split(desired_bundle_size=1000))
 
       if len(splits) > 1:
@@ -865,7 +856,7 @@ class TextSourceTest(unittest.TestCase):
       pcoll = pipeline | 'Read' >> ReadFromText(
           file_name,
           0, CompressionTypes.GZIP,
-          True, coders.StrUtf8Coder())
+          True)
       assert_that(pcoll, equal_to([]))
       pipeline.run()
 
@@ -896,7 +887,6 @@ class TextSourceTest(unittest.TestCase):
         0,
         CompressionTypes.UNCOMPRESSED,
         True,
-        coders.StrUtf8Coder(),
         skip_header_lines=skip_header_lines)
 
     range_tracker = source.get_range_tracker(None, None)
@@ -953,7 +943,7 @@ class TextSourceTest(unittest.TestCase):
       pipeline = TestPipeline()
       pcoll = pipeline | 'Read' >> ReadFromText(
           file_name, 0, CompressionTypes.GZIP,
-          True, coders.StrUtf8Coder(), skip_header_lines=2)
+          True, skip_header_lines=2)
       assert_that(pcoll, equal_to(lines[2:]))
       pipeline.run()
 
@@ -961,7 +951,7 @@ class TextSourceTest(unittest.TestCase):
     file_name, expected_data = write_data(100)
     assert len(expected_data) == 100
     source = TextSource(file_name, 0, CompressionTypes.UNCOMPRESSED, True,
-                        coders.StrUtf8Coder(), skip_header_lines=2)
+                        skip_header_lines=2)
     splits = list(source.split(desired_bundle_size=33))
 
     reference_source_info = (source, None, None)
