@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-import PostCommitJobBuilder
+import PostcommitJobBuilder
 
 PostcommitJobBuilder.postCommitJob('beam_PostCommit_Java11_Examples_Dataflow',
         'Run Java examples on Dataflow with Java 11', 'Google Cloud Dataflow Runner Examples Java 11', this) {
