@@ -24,6 +24,7 @@ import static org.junit.Assert.assertThat;
 import java.util.Collections;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.model.pipeline.v1.RunnerApi.Environment;
+import org.apache.beam.runners.core.construction.Environments;
 import org.apache.beam.runners.core.construction.SdkComponents;
 import org.apache.beam.runners.core.construction.WindowingStrategyTranslation;
 import org.apache.beam.sdk.function.ThrowingFunction;
@@ -110,7 +111,8 @@ public class WindowMergingFnRunnerTest {
   private static <W extends BoundedWindow> RunnerApi.PTransform createMergeTransformForWindowFn(
       WindowFn<?, W> windowFn) throws Exception {
     SdkComponents components = SdkComponents.create();
-    components.registerEnvironment(Environment.newBuilder().setUrl("java").build());
+    components.registerEnvironment(
+        Environment.newBuilder().setUrn(Environments.createDockerEnvironment("test")).build());
     RunnerApi.FunctionSpec functionSpec =
         RunnerApi.FunctionSpec.newBuilder()
             .setUrn(WindowMergingFnRunner.URN)
