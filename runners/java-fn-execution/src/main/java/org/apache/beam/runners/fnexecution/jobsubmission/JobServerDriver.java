@@ -89,7 +89,7 @@ public abstract class JobServerDriver implements Runnable {
     @Option(
         name = "--clean-artifacts-per-job",
         usage = "When true, remove each job's staged artifacts when it completes")
-    private boolean cleanArtifactsPerJob = false;
+    private boolean cleanArtifactsPerJob = true;
 
     @Option(
         name = "--sdk-worker-parallelism",
