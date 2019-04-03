@@ -22,9 +22,11 @@ import java.io.IOException;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Method;
 import java.util.Collections;
+import java.util.List;
 import java.util.Map;
 import java.util.ServiceLoader;
 import java.util.Set;
+import java.util.UUID;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import org.apache.beam.model.expansion.v1.ExpansionApi;
@@ -147,7 +149,8 @@ public class ExpansionService extends ExpansionServiceGrpc.ExpansionServiceImplB
       throw new RuntimeException("Couldn't find build method on ExternalTransformBuilder.");
     }
 
-    private static void populateConfiguration(
+    @VisibleForTesting
+    static void populateConfiguration(
         Object config, ExternalTransforms.ExternalConfigurationPayload payload) throws Exception {
       Converter<String, String> camelCaseConverter =
           CaseFormat.LOWER_UNDERSCORE.converterTo(CaseFormat.LOWER_CAMEL);
@@ -157,7 +160,7 @@ public class ExpansionService extends ExpansionServiceGrpc.ExpansionServiceImplB
         ExternalTransforms.ConfigValue value = entry.getValue();
 
         String fieldName = camelCaseConverter.convert(key);
-        Coder coder = resolveCoder(value.getCoderUrn());
+        Coder coder = resolveCoder(value.getCoderUrnList());
         Class type = coder.getEncodedTypeDescriptor().getRawType();
 
         String setterName =
@@ -177,18 +180,34 @@ public class ExpansionService extends ExpansionServiceGrpc.ExpansionServiceImplB
       }
     }
 
-    private static Coder resolveCoder(String coderUrn) throws Exception {
-      RunnerApi.Coder coder =
+    private static Coder resolveCoder(List<String> coderUrns) throws Exception {
+      Preconditions.checkArgument(coderUrns.size() > 0, "No Coder URN provided.");
+      String coderUrn = coderUrns.get(0);
+      RunnerApi.Coder.Builder coderBuilder =
           RunnerApi.Coder.newBuilder()
               .setSpec(
                   RunnerApi.SdkFunctionSpec.newBuilder()
-                      .setSpec(RunnerApi.FunctionSpec.newBuilder().setUrn(coderUrn).build()))
-              .build();
+                      .setSpec(RunnerApi.FunctionSpec.newBuilder().setUrn(coderUrn).build())
+                      .build());
+      RunnerApi.Components.Builder componentsBuilder = RunnerApi.Components.newBuilder();
 
-      // TODO This uses simple structured coders, need to support compound coders
-      RunnerApi.Components components = RunnerApi.Components.newBuilder().build();
+      for (int i = 1; i < coderUrns.size(); i++) {
+        String innerCoderUrn = coderUrns.get(i);
+        RunnerApi.Coder innerCoder =
+            RunnerApi.Coder.newBuilder()
+                .setSpec(
+                    RunnerApi.SdkFunctionSpec.newBuilder()
+                        .setSpec(RunnerApi.FunctionSpec.newBuilder().setUrn(innerCoderUrn)))
+                .build();
+        String generatedId = UUID.randomUUID().toString();
+        coderBuilder.addComponentCoderIds(generatedId);
+        componentsBuilder.putCoders(generatedId, innerCoder);
+      }
+
+      RunnerApi.Coder coder = coderBuilder.build();
+      RunnerApi.Components components = componentsBuilder.build();
+
       RehydratedComponents rehydratedComponents = RehydratedComponents.forComponents(components);
-
       return CoderTranslation.fromProto(coder, rehydratedComponents);
     }
 
