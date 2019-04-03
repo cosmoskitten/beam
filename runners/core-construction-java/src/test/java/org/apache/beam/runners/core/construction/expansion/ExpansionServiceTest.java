@@ -18,24 +18,32 @@
 package org.apache.beam.runners.core.construction.expansion;
 
 import static org.hamcrest.MatcherAssert.assertThat;
+import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertTrue;
 
 import com.google.auto.service.AutoService;
+import java.io.ByteArrayOutputStream;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.stream.Collectors;
 import org.apache.beam.model.expansion.v1.ExpansionApi;
 import org.apache.beam.model.pipeline.v1.ExternalTransforms;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.runners.core.construction.BeamUrns;
 import org.apache.beam.runners.core.construction.PipelineTranslation;
 import org.apache.beam.sdk.Pipeline;
+import org.apache.beam.sdk.coders.ByteArrayCoder;
+import org.apache.beam.sdk.coders.IterableCoder;
 import org.apache.beam.sdk.io.GenerateSequence;
 import org.apache.beam.sdk.transforms.Count;
 import org.apache.beam.sdk.transforms.Impulse;
 import org.apache.beam.vendor.grpc.v1p13p1.com.google.protobuf.ByteString;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Charsets;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Iterables;
 import org.hamcrest.Matchers;
@@ -105,13 +113,13 @@ public class ExpansionServiceTest {
             .putConfiguration(
                 "start",
                 ExternalTransforms.ConfigValue.newBuilder()
-                    .setCoderUrn(BeamUrns.getUrn(RunnerApi.StandardCoders.Enum.VARINT))
+                    .addCoderUrn(BeamUrns.getUrn(RunnerApi.StandardCoders.Enum.VARINT))
                     .setPayload(ByteString.copyFrom(new byte[] {0}))
                     .build())
             .putConfiguration(
                 "stop",
                 ExternalTransforms.ConfigValue.newBuilder()
-                    .setCoderUrn(BeamUrns.getUrn(RunnerApi.StandardCoders.Enum.VARINT))
+                    .addCoderUrn(BeamUrns.getUrn(RunnerApi.StandardCoders.Enum.VARINT))
                     .setPayload(ByteString.copyFrom(new byte[] {1}))
                     .build())
             .build();
@@ -135,6 +143,54 @@ public class ExpansionServiceTest {
     assertThat(expandedTransform.getInputsCount(), Matchers.is(0));
     assertThat(expandedTransform.getOutputsCount(), Matchers.is(1));
     assertThat(expandedTransform.getSubtransformsCount(), Matchers.greaterThan(0));
+  }
+
+  @Test
+  public void testCompoundCodersForExternalConfiguration() throws Exception {
+    IterableCoder<byte[]> compoundCoder = IterableCoder.of(ByteArrayCoder.of());
+    List<byte[]> byteList =
+        ImmutableList.of("testing", "compound", "coders").stream()
+            .map(str -> str.getBytes(Charsets.UTF_8))
+            .collect(Collectors.toList());
+    ByteArrayOutputStream baos = new ByteArrayOutputStream();
+    compoundCoder.encode(byteList, baos);
+
+    ExternalTransforms.ExternalConfigurationPayload payload =
+        ExternalTransforms.ExternalConfigurationPayload.newBuilder()
+            .putConfiguration(
+                "config_key1",
+                ExternalTransforms.ConfigValue.newBuilder()
+                    .addCoderUrn(BeamUrns.getUrn(RunnerApi.StandardCoders.Enum.VARINT))
+                    .setPayload(ByteString.copyFrom(new byte[] {1}))
+                    .build())
+            .putConfiguration(
+                "config_key2",
+                ExternalTransforms.ConfigValue.newBuilder()
+                    .addCoderUrn(BeamUrns.getUrn(RunnerApi.StandardCoders.Enum.ITERABLE))
+                    .addCoderUrn(BeamUrns.getUrn(RunnerApi.StandardCoders.Enum.BYTES))
+                    .setPayload(ByteString.copyFrom(baos.toByteArray()))
+                    .build())
+            .build();
+
+    TestConfig config = new TestConfig();
+    ExpansionService.ExternalTransformRegistrarLoader.populateConfiguration(config, payload);
+
+    assertThat(config.configKey1, Matchers.is(1L));
+    assertArrayEquals(Iterables.toArray(config.configKey2, byte[].class), byteList.toArray());
+  }
+
+  private static class TestConfig {
+
+    private Long configKey1;
+    private Iterable<byte[]> configKey2;
+
+    public void setConfigKey1(Long configKey1) {
+      this.configKey1 = configKey1;
+    }
+
+    public void setConfigKey2(Iterable<byte[]> configKey2) {
+      this.configKey2 = configKey2;
+    }
   }
 
   public Set<String> allIds(RunnerApi.Components components) {
