@@ -18,6 +18,7 @@
 package org.apache.beam.runners.spark;
 
 import java.util.List;
+import org.apache.beam.runners.core.construction.PipelineResources;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.options.ApplicationNameOptions;
 import org.apache.beam.sdk.options.Default;
@@ -144,4 +145,17 @@ public interface SparkPipelineOptions
   boolean isCacheDisabled();
 
   void setCacheDisabled(boolean value);
+
+  /**
+   * Local configurations work in the same JVM and have no problems with improperly formatted files
+   * on classpath (eg. directories with .class files or empty directories). Prepare files for
+   * staging only when using remote cluster (passing the master address explicitly).
+   */
+  static void prepareFilesToStageForRemoteClusterExecution(SparkPipelineOptions options) {
+    if (!options.getSparkMaster().matches("local\\[?\\d*\\]?")) {
+      options.setFilesToStage(
+          PipelineResources.prepareFilesForStaging(
+              options.getFilesToStage(), options.getTempLocation()));
+    }
+  }
 }
