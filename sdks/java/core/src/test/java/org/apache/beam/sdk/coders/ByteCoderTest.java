@@ -82,4 +82,19 @@ public class ByteCoderTest {
     Object actual = TEST_CODER.structuralValue(expected);
     assertEquals(expected, actual);
   }
+
+  @Test
+  public void testStructuralValueDecodeEncodeEqual() throws Exception {
+    for (Byte value : TEST_VALUES) {
+      CoderProperties.structuralValueDecodeEncodeEqual(TEST_CODER, value);
+    }
+  }
+
+  @Test
+  public void testStructuralValueConsistentWithEquals() throws Exception {
+    for (Byte value : TEST_VALUES) {
+      CoderProperties.structuralValueConsistentWithEquals(
+          TEST_CODER, Byte.valueOf(value.byteValue()), Byte.valueOf(value.byteValue()));
+    }
+  }
 }

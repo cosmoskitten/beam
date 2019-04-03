@@ -121,4 +121,19 @@ public class BigDecimalCoderTest {
     Object actual = TEST_CODER.structuralValue(expected);
     assertEquals(expected, actual);
   }
+
+  @Test
+  public void testStructuralValueDecodeEncodeEqual() throws Exception {
+    for (BigDecimal value : TEST_VALUES) {
+      CoderProperties.structuralValueDecodeEncodeEqual(TEST_CODER, value);
+    }
+  }
+
+  @Test
+  public void testStructuralValueConsistentWithEquals() throws Exception {
+    for (BigDecimal value : TEST_VALUES) {
+      CoderProperties.structuralValueConsistentWithEquals(
+          TEST_CODER, new BigDecimal(value.intValue()), new BigDecimal(value.intValue()));
+    }
+  }
 }

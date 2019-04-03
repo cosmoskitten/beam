@@ -94,4 +94,19 @@ public class DurationCoderTest {
     Object actual = TEST_CODER.structuralValue(expected);
     assertEquals(expected, actual);
   }
+
+  @Test
+  public void testStructuralValueDecodeEncodeEqual() throws Exception {
+    for (ReadableDuration value : TEST_VALUES) {
+      CoderProperties.structuralValueDecodeEncodeEqual(TEST_CODER, value);
+    }
+  }
+
+  @Test
+  public void testStructuralValueConsistentWithEquals() throws Exception {
+    for (ReadableDuration value : TEST_VALUES) {
+      CoderProperties.structuralValueConsistentWithEquals(
+          TEST_CODER, Duration.millis(value.getMillis()), Duration.millis(value.getMillis()));
+    }
+  }
 }

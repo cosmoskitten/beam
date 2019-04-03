@@ -246,4 +246,21 @@ public class RowCoderTest {
     Object actual = rowCoder.structuralValue(expected);
     assertEquals(expected, actual);
   }
+
+  @Test
+  public void testStructuralValueDecodeEncodeEqual() throws Exception {
+    Schema schema = Schema.builder().addField("field", FieldType.INT32).build();
+    Row row = Row.withSchema(schema).addValue(2123).build();
+    Coder<Row> rowCoder = RowCoder.of(schema);
+    CoderProperties.structuralValueDecodeEncodeEqual(rowCoder, row);
+  }
+
+  @Test
+  public void testStructuralValueConsistentWithEquals() throws Exception {
+    Schema schema = Schema.builder().addField("field", FieldType.INT32).build();
+    Row row1 = Row.withSchema(schema).addValue(2123).build();
+    Row row2 = Row.withSchema(schema).addValue(2123).build();
+    Coder<Row> rowCoder = RowCoder.of(schema);
+    CoderProperties.structuralValueConsistentWithEquals(rowCoder, row1, row2);
+  }
 }
