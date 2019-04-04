@@ -49,7 +49,6 @@ import logging
 import unittest
 import uuid
 import json
-import warnings
 import sys
 from nose.plugins.attrib import attr
 
@@ -90,7 +89,7 @@ def record(i):
                  os.environ.get('RUN_SKIPPED_PY3_TESTS') != '1',
                  'Deprecating Avro in favor of FastAvro on Python 3 '
                  'See BEAM-6522')
-class FastavroITBase(unittest.TestCase):
+class FastavroIT(unittest.TestCase):
 
   SCHEMA_STRING = '''
     {"namespace": "example.avro",
@@ -108,7 +107,6 @@ class FastavroITBase(unittest.TestCase):
   def setUp(self):
     self.test_pipeline = TestPipeline(is_integration_test=True)
     self.uuid = str(uuid.uuid4())
-    warnings.warn(str(type(self.uuid)))
     self.output = '/'.join([
         self.test_pipeline.get_option('output'),
         self.uuid
@@ -197,6 +195,7 @@ class FastavroITBase(unittest.TestCase):
     | CoGroupByKey() \
     | Map(check)
 
+    self.addCleanup(delete_files, [self.output])
     fastavro_read_pipeline.run().wait_until_finish()
     assert result.state == PipelineState.DONE
 
