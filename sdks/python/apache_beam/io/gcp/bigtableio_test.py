@@ -25,7 +25,10 @@ import unittest
 
 import mock
 
-from apache_beam.io.gcp.bigtableio import _BigTableSource as BigTableSource
+from beam_bigtable import BigTableSource
+
+import apache_beam.io.source_test_utils as source_test_utils
+#from apache_beam.io.gcp.bigtableio import _BigTableSource as BigTableSource
 
 # Protect against environments where bigquery library is not available.
 # pylint: disable=wrong-import-order, wrong-import-position
@@ -35,6 +38,7 @@ try:
   from google.cloud.bigtable.row_data import PartialRowData
   from google.cloud.bigtable_v2.types import SampleRowKeysResponse
   from google.cloud.bigtable.row_set import RowRange
+  from google.cloud.bigtable.row_set import RowSet
 except ImportError:
   Client = None
   Table = None
@@ -44,13 +48,9 @@ except ImportError:
 @unittest.skipIf(Client is None, 'GCP Bigtable dependencies are not installed')
 class BigtableSourceTest(unittest.TestCase):
   def setUp(self):
-    #self.project_id = 'project_id'
-    #self.instance_id = 'instance_id'
-    #self.table_id = 'table_id'
-
-    self.project_id = 'grass-clump-479'
-    self.instance_id = 'python-write-2'
-    self.table_id = 'testmillion1c1d2c39'
+    self.project_id = 'project_id'
+    self.instance_id = 'instance_id'
+    self.table_id = 'table_id'
 
     if not hasattr(self, 'client'):
       self.client = Client(project=self.project_id, admin=True)
@@ -186,7 +186,7 @@ class BigtableSourceTest(unittest.TestCase):
     count_size = size/desired_bundle_size
     # The split takes the first bundle
     # and last bundle and didn't split it.
-    count_size = count_size - 2
+    count_size = count_size - 1
     self.assertEqual(count, count_size)
 
   def __read_list(self):
@@ -222,6 +222,138 @@ class BigtableSourceTest(unittest.TestCase):
     for i in read:
       self.assertIsInstance(i, PartialRowData)
       self.assertNotEqual(i.row_key, b'')
+
+  @mock.patch.object(BigTableSource, 'get_sample_row_keys')
+  def test_row_set_overlap_five_to_three(self, mock_sample_row_keys):
+    mock_sample_row_keys.return_value = self.sample_row_keys()
+    row_set = RowSet()
+
+    row_range1 = RowRange(b'beam_key0672496', b'beam_key22')
+    row_range2 = RowRange(b'beam_key1582279', b'beam_key2874203')
+    row_range3 = RowRange(b'beam_key4440786', b'beam_key51')
+    row_range4 = RowRange(b'beam_key65', b'beam_key9007992')
+    row_range5 = RowRange(b'beam_key7389168', b'beam_key8105103')
+
+    row_set.add_row_range(row_range1)
+    row_set.add_row_range(row_range2)
+    row_set.add_row_range(row_range3)
+    row_set.add_row_range(row_range4)
+    row_set.add_row_range(row_range5)
+
+    bigtable = BigTableSource(self.project_id, self.instance_id,
+                              self.table_id,
+                              row_set=row_set)
+    self.assertEqual(len(list(bigtable.row_set_overlap.row_ranges)), 3)
+
+  @mock.patch.object(BigTableSource, 'get_sample_row_keys')
+  def test_row_set_split(self, mock_sample_row_keys):
+    mock_sample_row_keys.return_value = self.sample_row_keys()
+    row_set = RowSet()
+
+    row_range1 = RowRange(b'beam_key0672496', b'beam_key1582279')
+    row_range2 = RowRange(b'beam_key1582279', b'beam_key22')
+    row_range3 = RowRange(b'beam_key22', b'beam_key2874203')
+    row_range4 = RowRange(b'beam_key2874203', b'beam_key3475534')
+    row_range5 = RowRange(b'beam_key3475534', b'beam_key4440786')
+    row_range6 = RowRange(b'beam_key4440786', b'beam_key51')
+    row_range7 = RowRange(b'beam_key51', b'beam_key56')
+    row_range8 = RowRange(b'beam_key56', b'beam_key65')
+
+
+    row_set.add_row_range(row_range1)
+    row_set.add_row_range(row_range2)
+    row_set.add_row_range(row_range3)
+    row_set.add_row_range(row_range4)
+    row_set.add_row_range(row_range5)
+    row_set.add_row_range(row_range5)
+    row_set.add_row_range(row_range6)
+    row_set.add_row_range(row_range7)
+    row_set.add_row_range(row_range8)
+
+    bigtable = BigTableSource(self.project_id, self.instance_id,
+                              self.table_id,
+                              row_set=row_set)
+    self.assertEqual(len(list(bigtable.split(805306368))), 8)
+
+  @mock.patch.object(BigTableSource, 'get_sample_row_keys')
+  def test_row_set_overlap_serial(self, mock_sample_row_keys):
+    mock_sample_row_keys.return_value = self.sample_row_keys()
+    row_set = RowSet()
+
+    row_range1 = RowRange(b'beam_key0672496', b'beam_key1582279')
+    row_range2 = RowRange(b'beam_key1582279', b'beam_key22')
+    row_range3 = RowRange(b'beam_key22', b'beam_key2874203')
+    row_range4 = RowRange(b'beam_key2874203', b'beam_key3475534')
+    row_range5 = RowRange(b'beam_key3475534', b'beam_key4440786')
+    row_range6 = RowRange(b'beam_key4440786', b'beam_key51')
+    row_range7 = RowRange(b'beam_key51', b'beam_key56')
+    row_range8 = RowRange(b'beam_key56', b'beam_key65')
+
+
+    row_set.add_row_range(row_range1)
+    row_set.add_row_range(row_range2)
+    row_set.add_row_range(row_range3)
+    row_set.add_row_range(row_range4)
+    row_set.add_row_range(row_range5)
+    row_set.add_row_range(row_range5)
+    row_set.add_row_range(row_range6)
+    row_set.add_row_range(row_range7)
+    row_set.add_row_range(row_range8)
+
+    bigtable = BigTableSource(self.project_id, self.instance_id,
+                              self.table_id,
+                              row_set=row_set)
+    # The code links the ranges into one because they are continuous.
+    # But, using the split, we split that one bigger range into the eight
+    # bundles.
+    self.assertEqual(len(list(bigtable.row_set_overlap.row_ranges)), 1)
+    self.assertEqual(len(list(bigtable.split(805306368))), 8)
+
+  @mock.patch.object(BigTableSource, 'get_sample_row_keys')
+  @mock.patch.object(Table, 'read_rows')
+  def test_read_small_table(self, mock_read_rows, mock_sample_row_keys):
+    def mocking_sample_row_Keys():
+      sample_row = SampleRowKeysResponse()
+      sample_row.row_key = b''
+      sample_row.offset_bytes = 805306368
+      return [sample_row]
+    def mocking_read_rows(): # 12.2 KB
+      # beam_key0000000
+      # beam_key0000009
+      for i in range(0, 10):
+        prefix = 'beam_key'
+        key = prefix + "%07d" % (i)
+        if sys.version_info < (3, 0):
+          key = bytes(key)
+        else:
+          key = bytes(key, 'utf8')
+        yield PartialRowData(key)
+
+    mock_sample_row_keys.return_value = mocking_sample_row_Keys()
+    mock_read_rows.return_value = mocking_read_rows()
+    bigtable = BigTableSource(self.project_id, self.instance_id,
+                              self.table_id)
+
+    for split_bundle in bigtable.split(805306368):
+      range_tracker = bigtable.get_range_tracker(split_bundle.start_position,
+                                                 split_bundle.stop_position)
+      read = list(bigtable.read(range_tracker))
+      self.assertEqual(len(read), 10)
+
+      for row_item in read:
+        self.assertIsInstance(row_item, PartialRowData)
+
+  @mock.patch.object(BigTableSource, 'get_sample_row_keys')
+  @mock.patch.object(Table, 'read_rows')
+  def test_dynamic_work_rebalancing(self, mock_read_rows, mock_sample_row_keys):
+    mock_sample_row_keys.return_value = self.sample_row_keys()
+    mock_read_rows.return_value = self.__read_list()
+    source = BigTableSource(self.project_id, self.instance_id,
+                            self.table_id)
+    splits = list(source.split(805306368))
+    self.assertEqual(len(splits), 13)
+    source_test_utils.assert_split_at_fraction_exhaustive(
+        splits[0].source, splits[0].start_position, splits[0].stop_position)
 
 
 if __name__ == '__main__':
