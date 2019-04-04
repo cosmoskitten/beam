@@ -314,26 +314,6 @@ def _pickle_from_runner_api_parameter(payload, components, context):
   return deserialize_coder(payload.value)
 
 
-class StrUtf8Coder(Coder):
-  """A coder used for reading and writing strings as UTF-8."""
-
-  def encode(self, value):
-    return value.encode('utf-8')
-
-  def decode(self, value):
-    return value.decode('utf-8')
-
-  def is_deterministic(self):
-    return True
-
-  def to_type_hint(self):
-    return unicode
-
-
-Coder.register_structured_urn(
-    common_urns.coders.STRING_UTF8.urn, StrUtf8Coder)
-
-
 class ToStringCoder(Coder):
   """A default string coder used if no sink coder is specified."""
 
@@ -377,6 +357,29 @@ class FastCoder(Coder):
 
   def _create_impl(self):
     raise NotImplementedError
+
+
+class StrUtf8Coder(FastCoder):
+  """A coder used for reading and writing strings as UTF-8."""
+
+  def _create_impl(self):
+    return coder_impl.StrUtf8CoderImpl()
+
+  def is_deterministic(self):
+    return True
+
+  def to_type_hint(self):
+    return unicode
+
+  def __eq__(self, other):
+    return type(self) == type(other)
+
+  def __hash__(self):
+    return hash(type(self))
+
+
+Coder.register_structured_urn(
+  common_urns.coders.STRING_UTF8.urn, StrUtf8Coder)
 
 
 class BytesCoder(FastCoder):

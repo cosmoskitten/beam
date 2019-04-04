@@ -37,7 +37,6 @@ import mock
 
 import apache_beam as beam
 from apache_beam import WindowInto
-from apache_beam import coders
 from apache_beam import pvalue
 from apache_beam import typehints
 from apache_beam.coders.coders import ToStringCoder
@@ -417,7 +416,6 @@ class SnippetsTest(unittest.TestCase):
       def __init__(self, file_to_read, compression_type):
         self.file_to_read = file_to_read
         self.compression_type = compression_type
-        self.coder = coders.StrUtf8Coder()
 
       def process(self, element):
         pass
@@ -430,12 +428,12 @@ class SnippetsTest(unittest.TestCase):
           if self.compression_type is None:
             with open(file_name, 'rb') as file:
               for record in file:
-                value = self.coder.decode(record.rstrip(b'\n'))
+                value = record.rstrip(b'\n').decode('utf-8')
                 yield WindowedValue(value, -1, [window.GlobalWindow()])
           else:
             with gzip.open(file_name, 'rb') as file:
               for record in file:
-                value = self.coder.decode(record.rstrip(b'\n'))
+                value = record.rstrip(b'\n').decode('utf-8')
                 yield WindowedValue(value, -1, [window.GlobalWindow()])
 
     def expand(self, pcoll):
