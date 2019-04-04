@@ -73,7 +73,7 @@ task verifyFnApiWorker(type: Test) {
   dependsOn ":beam-runners-google-cloud-dataflow-java-fn-api-worker:shadowJar"
   dependsOn ":beam-runners-google-cloud-dataflow-java:buildAndPushDockerContainer"
   def dataflowWorkerJar = project.findProperty('dataflowWorkerJar') ?: project(":beam-runners-google-cloud-dataflow-java-fn-api-worker").shadowJar.archivePath
-  with commonConfig(dataflowWorkerJar, dockerImageName)
+  with commonConfig(dataflowWorkerJar, dockerImageName, ["--experiments=${fnapiExperiments}"])
   useJUnit {
     excludeCategories 'org.apache.beam.sdk.testing.StreamingIT'
   }
