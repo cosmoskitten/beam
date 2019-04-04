@@ -107,9 +107,6 @@ class FastavroITBase(unittest.TestCase):
 
   def setUp(self):
     self.test_pipeline = TestPipeline(is_integration_test=True)
-    warnings.warn(str("####"))
-    warnings.warn(str(self.test_pipeline.get_option('output')))
-    warnings.warn(str("####"))
     self.uuid = str(uuid.uuid4())
     warnings.warn(str(type(self.uuid)))
     self.output = '/'.join([
@@ -144,8 +141,6 @@ class FastavroITBase(unittest.TestCase):
 
     fastavro_output = '/'.join([self.output, 'fastavro'])
     avro_output = '/'.join([self.output, 'avro'])
-
-    self.addCleanup(delete_files, [self.output + '*'])
 
     # pylint: disable=expression-not-assigned
     records_pcoll \
