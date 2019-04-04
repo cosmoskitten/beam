@@ -111,8 +111,7 @@ public class WindowMergingFnRunnerTest {
   private static <W extends BoundedWindow> RunnerApi.PTransform createMergeTransformForWindowFn(
       WindowFn<?, W> windowFn) throws Exception {
     SdkComponents components = SdkComponents.create();
-    components.registerEnvironment(
-        Environment.newBuilder().setUrn(Environments.createDockerEnvironment("test")).build());
+    components.registerEnvironment(Environments.createDockerEnvironment("test"));
     RunnerApi.FunctionSpec functionSpec =
         RunnerApi.FunctionSpec.newBuilder()
             .setUrn(WindowMergingFnRunner.URN)
