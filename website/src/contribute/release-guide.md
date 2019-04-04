@@ -473,6 +473,7 @@ Adjust any of the above properties to the improve clarity and presentation of th
 1. Release Notes in JIRA have been audited and adjusted
 1. Combined javadoc has the appropriate contents.
 1. Release branch has been created
+1. There are no open pull requests to release branch
 1. Originating branch has the version information updated to the new version
 1. Nightly snapshot is in progress (do revisit it continually)
 
