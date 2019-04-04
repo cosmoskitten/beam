@@ -75,6 +75,25 @@ def default_encoder(obj):
       "Object of type '%s' is not JSON serializable" % type(obj).__name__)
 
 
+def get_hashable_destination(destination):
+  """Parses a table reference into a (project, dataset, table) tuple.
+
+  Args:
+    destination: Either a TableReference object from the bigquery API.
+      The object has the following attributes: projectId, datasetId, and
+      tableId. Or a string representing the destination containing
+      'PROJECT:DATASET.TABLE'.
+  Returns:
+    A string representing the destination containing
+    'PROJECT:DATASET.TABLE'.
+  """
+  if isinstance(destination, bigquery.TableReference):
+    return '%s:%s.%s' % (
+        destination.projectId, destination.datasetId, destination.tableId)
+  else:
+    return destination
+
+
 def parse_table_schema_from_json(schema_string):
   """Parse the Table Schema provided as string.
 
@@ -997,8 +1016,8 @@ class AppendDestinationsFn(DoFn):
   Experimental; no backwards compatibility guarantees.
   """
 
-  def __init__(self, destination, schema=None):
-    self.destination = AppendDestinationsFn._get_table_fn(destination, schema)
+  def __init__(self, destination):
+    self.destination = AppendDestinationsFn._get_table_fn(destination)
 
   @staticmethod
   def _value_provider_or_static_val(elm):
@@ -1010,13 +1029,9 @@ class AppendDestinationsFn(DoFn):
       return value_provider.StaticValueProvider(lambda x: x, value=elm)
 
   @staticmethod
-  def _get_table_fn(destination, schema=None):
+  def _get_table_fn(destination):
     if callable(destination):
       return destination
-    elif not callable(destination) and schema is not None:
-      return lambda x: (
-          AppendDestinationsFn._value_provider_or_static_val(destination).get(),
-          AppendDestinationsFn._value_provider_or_static_val(schema).get())
     else:
       return lambda x: AppendDestinationsFn._value_provider_or_static_val(
           destination).get()
