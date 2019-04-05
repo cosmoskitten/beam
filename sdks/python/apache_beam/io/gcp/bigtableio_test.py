@@ -25,7 +25,7 @@ import unittest
 
 import mock
 
-from apache_beam.io.gcp.bigtableio import _BigTableSource as BigTableSource
+#from apache_beam.io.gcp.bigtableio import _BigTableSource as BigTableSource
 
 # Protect against environments where bigquery library is not available.
 # pylint: disable=wrong-import-order, wrong-import-position
@@ -256,7 +256,6 @@ class BigtableSourceTest(unittest.TestCase):
     row_range7 = RowRange(b'beam_key51', b'beam_key56')
     row_range8 = RowRange(b'beam_key56', b'beam_key65')
 
-
     row_set.add_row_range(row_range1)
     row_set.add_row_range(row_range2)
     row_set.add_row_range(row_range3)
@@ -286,7 +285,6 @@ class BigtableSourceTest(unittest.TestCase):
     row_range7 = RowRange(b'beam_key51', b'beam_key56')
     row_range8 = RowRange(b'beam_key56', b'beam_key65')
 
-
     row_set.add_row_range(row_range1)
     row_set.add_row_range(row_range2)
     row_set.add_row_range(row_range3)
@@ -314,6 +312,7 @@ class BigtableSourceTest(unittest.TestCase):
       sample_row.row_key = b''
       sample_row.offset_bytes = 805306368
       return [sample_row]
+
     def mocking_read_rows(): # 12.2 KB
       # beam_key0000000
       # beam_key0000009
@@ -355,6 +354,7 @@ class BigtableSourceTest(unittest.TestCase):
         sample_row.row_key = key
         sample_row.offset_bytes = (i+1)*805306368
         yield sample_row
+
     def mocking_read_rows(*args, **kwargs): # 12.2 KB
       ranges_dict = {
           '': (0, 952711),

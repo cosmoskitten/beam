@@ -58,6 +58,7 @@ except ImportError:
 
 __all__ = ['WriteToBigTable', 'ReadFromBigTable']
 
+
 class _OverlapRowSet(RowSet):
   def __init__(self):
     self.row_keys = []
@@ -65,6 +66,7 @@ class _OverlapRowSet(RowSet):
 
   def add_row_range(self, row_range):
     overlaped = True
+
     def overlap(start1, end1, start2, end2):
       overlaps = start1 <= end2 and end1 >= start2
       if not overlaps:
@@ -81,6 +83,7 @@ class _OverlapRowSet(RowSet):
 
     if overlaped:
       self.row_ranges.append(row_range)
+
 
 class _BigTableSource(iobase.BoundedSource):
   """ Creates the connector to get the rows in Bigtable and using each
@@ -301,12 +304,12 @@ class _BigTableSource(iobase.BoundedSource):
                                              start_position,
                                              end_position)
         end_key = position
-        yield iobase.SourceBundle(long(size_portion), self, start_key, end_key)
+        yield iobase.SourceBundle(size_portion, self, start_key, end_key)
         start_key = position
         sum_portion += size_portion
       last_portion = (sum_portion-size_portion)
       last_size = sample_size_bytes-last_portion
-      yield iobase.SourceBundle(long(last_size), self, end_key, end_position)
+      yield iobase.SourceBundle(last_size, self, end_key, end_position)
 
   def read(self, range_tracker):
     filter_ = self.beam_options['filter_']
