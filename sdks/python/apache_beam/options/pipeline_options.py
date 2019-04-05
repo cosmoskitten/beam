@@ -123,12 +123,12 @@ class PipelineOptions(HasDisplayData):
   (see https://docs.python.org/3/library/argparse.html).  To define one option
   or a group of options, create a subclass from PipelineOptions:
 
-    class XyzOptions(PipelineOptions):
-
-      @classmethod
-      def _add_argparse_args(cls, parser):
-        parser.add_argument('--abc', default='start')
-        parser.add_argument('--xyz', default='end')
+  |  class XyzOptions(PipelineOptions):
+  |
+  |    @classmethod
+  |    def _add_argparse_args(cls, parser):
+  |      parser.add_argument('--abc', default='start')
+  |      parser.add_argument('--xyz', default='end')
 
   The arguments for the add_argument() method are exactly the ones
   described in the argparse public documentation.
@@ -136,9 +136,9 @@ class PipelineOptions(HasDisplayData):
   Pipeline objects require an options object during initialization.
   This is obtained simply by initializing an options class as defined above::
 
-    p = Pipeline(options=XyzOptions())
-    if p.options.xyz == 'end':
-      raise ValueError('Option xyz has an invalid value.')
+  |  p = Pipeline(options=XyzOptions())
+  |  if p.options.xyz == 'end':
+  |    raise ValueError('Option xyz has an invalid value.')
 
   Instances of PipelineOptions or any of its subclass have access to values
   defined by other PipelineOption subclasses (see get_all_options()), and
@@ -275,10 +275,10 @@ class PipelineOptions(HasDisplayData):
     """Returns a view of current object as provided PipelineOption subclass.
 
     Sample usage:
-      options = PipelineOptions(['--runner', 'Direct', '--streaming'])
-      standard_options = options.view_as(StandardOptions)
-      if standard_options.streaming:
-        ...
+    |  options = PipelineOptions(['--runner', 'Direct', '--streaming'])
+    |  standard_options = options.view_as(StandardOptions)
+    |  if standard_options.streaming:
+    |    ...
 
     Note that options objects may have multiple views, and modifications
     of values in any view-object will apply to current object and other
