@@ -433,6 +433,15 @@ class BytesCoderImpl(CoderImpl):
     return encoded
 
 
+class StrUtf8CoderImpl(StreamCoderImpl):
+  """For internal use only; no backwards-compatibility guarantees."""
+  def encode_to_stream(self, value, out, nested):
+    out.write(value.encode('utf-8'), nested)
+
+  def decode_from_stream(self, in_stream, nested):
+    return in_stream.read_all(nested).decode('utf-8')
+
+
 class FloatCoderImpl(StreamCoderImpl):
   """For internal use only; no backwards-compatibility guarantees."""
 
