@@ -63,7 +63,7 @@ public class ExternalTest implements Serializable {
 
   private static String pythonServerCommand;
   private static Integer expansionPort;
-  private static String LOCAL_EXPANSION_ADDR;
+  private static String localExpansionAddr;
   private static Server localExpansionServer;
 
   @BeforeClass
@@ -71,7 +71,7 @@ public class ExternalTest implements Serializable {
     pythonServerCommand = System.getProperty("pythonTestExpansionCommand");
     expansionPort = Integer.valueOf(System.getProperty("expansionPort"));
     int localExpansionPort = expansionPort + 100;
-    LOCAL_EXPANSION_ADDR = String.format("localhost:%s", localExpansionPort);
+    localExpansionAddr = String.format("localhost:%s", localExpansionPort);
 
     localExpansionServer =
         ServerBuilder.forPort(localExpansionPort).addService(new ExpansionService()).build();
@@ -89,7 +89,7 @@ public class ExternalTest implements Serializable {
     PCollection<Integer> col =
         testPipeline
             .apply(Create.of(1, 2, 3))
-            .apply(External.of(TEST_URN_SIMPLE, new byte[] {}, LOCAL_EXPANSION_ADDR));
+            .apply(External.of(TEST_URN_SIMPLE, new byte[] {}, localExpansionAddr));
     PAssert.that(col).containsInAnyOrder(2, 3, 4);
     testPipeline.run();
   }
@@ -100,10 +100,11 @@ public class ExternalTest implements Serializable {
     PCollection<Integer> pcol =
         testPipeline
             .apply(Create.of(1, 2, 3))
-            .apply("add one", External.of(TEST_URN_SIMPLE, new byte[] {}, LOCAL_EXPANSION_ADDR))
+            .apply("add one", External.of(TEST_URN_SIMPLE, new byte[] {}, localExpansionAddr))
             .apply(
                 "filter <=3",
-                External.of(TEST_URN_LE, "3".getBytes(StandardCharsets.UTF_8), LOCAL_EXPANSION_ADDR));
+                External.of(
+                    TEST_URN_LE, "3".getBytes(StandardCharsets.UTF_8), localExpansionAddr));
 
     PAssert.that(pcol).containsInAnyOrder(2, 3);
     testPipeline.run();
@@ -115,7 +116,9 @@ public class ExternalTest implements Serializable {
     PCollectionTuple pTuple =
         testPipeline
             .apply(Create.of(1, 2, 3, 4, 5, 6))
-            .apply(External.of(TEST_URN_MULTI, new byte[] {}, LOCAL_EXPANSION_ADDR).withMultiOutputs());
+            .apply(
+                External.of(TEST_URN_MULTI, new byte[] {}, localExpansionAddr)
+                    .withMultiOutputs());
 
     PAssert.that(pTuple.get(new TupleTag<Integer>("aTag") {})).containsInAnyOrder(2, 4, 6);
     PAssert.that(pTuple.get(new TupleTag<Integer>("bTag") {})).containsInAnyOrder(1, 3, 5);
@@ -173,8 +176,10 @@ public class ExternalTest implements Serializable {
     @Override
     public Map<String, ExpansionService.TransformProvider> knownTransforms() {
       return ImmutableMap.of(
-          TEST_URN_SIMPLE, spec -> MapElements.into(TypeDescriptors.integers()).via((Integer x) -> x + 1),
-          TEST_URN_LE, spec -> Filter.lessThanEq(Integer.parseInt(spec.getPayload().toStringUtf8())),
+          TEST_URN_SIMPLE,
+              spec -> MapElements.into(TypeDescriptors.integers()).via((Integer x) -> x + 1),
+          TEST_URN_LE,
+              spec -> Filter.lessThanEq(Integer.parseInt(spec.getPayload().toStringUtf8())),
           TEST_URN_MULTI,
               spec ->
                   ParDo.of(
