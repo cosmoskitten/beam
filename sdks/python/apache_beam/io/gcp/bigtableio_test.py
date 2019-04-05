@@ -25,10 +25,7 @@ import unittest
 
 import mock
 
-from beam_bigtable import BigTableSource
-
-import apache_beam.io.source_test_utils as source_test_utils
-#from apache_beam.io.gcp.bigtableio import _BigTableSource as BigTableSource
+from apache_beam.io.gcp.bigtableio import _BigTableSource as BigTableSource
 
 # Protect against environments where bigquery library is not available.
 # pylint: disable=wrong-import-order, wrong-import-position
@@ -345,15 +342,55 @@ class BigtableSourceTest(unittest.TestCase):
 
   @mock.patch.object(BigTableSource, 'get_sample_row_keys')
   @mock.patch.object(Table, 'read_rows')
-  def test_dynamic_work_rebalancing(self, mock_read_rows, mock_sample_row_keys):
-    mock_sample_row_keys.return_value = self.sample_row_keys()
-    mock_read_rows.return_value = self.__read_list()
-    source = BigTableSource(self.project_id, self.instance_id,
-                            self.table_id)
-    splits = list(source.split(805306368))
-    self.assertEqual(len(splits), 13)
-    source_test_utils.assert_split_at_fraction_exhaustive(
-        splits[0].source, splits[0].start_position, splits[0].stop_position)
+  def test_read_1_8_gb_table(self, mock_read_rows, mock_sample_row_keys):
+    def mocking_sample_row_Keys():
+      keys = [b'beam_key0952711', b'beam_key2', b'beam_key2797065',
+              b'beam_key3518235', b'beam_key41', b'beam_key4730550',
+              b'beam_key54', b'beam_key6404724', b'beam_key7123742',
+              b'beam_key7683967', b'beam_key83', b'beam_key8892594',
+              b'beam_key943', b'']
+
+      for (i, key) in enumerate(keys):
+        sample_row = SampleRowKeysResponse()
+        sample_row.row_key = key
+        sample_row.offset_bytes = (i+1)*805306368
+        yield sample_row
+    def mocking_read_rows(*args, **kwargs): # 12.2 KB
+      ranges_dict = {
+          '': (0, 952711),
+          'beam_key0952711': (952711, 2000000),
+          'beam_key2': (2000000, 2797065),
+          'beam_key2797065': (2797065, 3518235),
+          'beam_key3518235': (3518235, 4100000),
+          'beam_key41': (4100000, 4730550),
+          'beam_key4730550': (4730550, 5400000),
+          'beam_key54': (5400000, 6404724),
+          'beam_key6404724': (6404724, 7123742),
+          'beam_key7123742': (7123742, 7683967),
+          'beam_key7683967': (7683967, 8300000),
+          'beam_key83': (8300000, 8892594),
+          'beam_key8892594': (8892594, 9430000),
+          'beam_key943': (9430000, 10000000),
+      }
+
+      current_range = ranges_dict[kwargs['start_key']]
+      for i in range(current_range[0], current_range[1]):
+        key = "beam_key%07d" % (i)
+        key = bytes(key) if sys.version_info < (3, 0) else bytes(key, 'utf8')
+        yield PartialRowData(key)
+
+    mock_sample_row_keys.return_value = mocking_sample_row_Keys()
+    mock_read_rows.side_effect = mocking_read_rows
+
+    bigtable = BigTableSource(self.project_id, self.instance_id, self.table_id)
+    add = []
+
+    for split_element in bigtable.split(805306368):
+      range_tracker = bigtable.get_range_tracker(split_element.start_position,
+                                                 split_element.stop_position)
+      add.append(len(list(bigtable.read(range_tracker))))
+
+    self.assertEqual(sum(add), 10000000)
 
 
 if __name__ == '__main__':

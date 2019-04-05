@@ -38,7 +38,6 @@ those generated rows in the table.
 from __future__ import absolute_import
 from __future__ import division
 
-import copy
 import math
 
 import apache_beam as beam
@@ -51,6 +50,7 @@ try:
   from google.cloud.bigtable.batcher import FLUSH_COUNT, MAX_ROW_BYTES
   from google.cloud.bigtable import Client
   from google.cloud.bigtable.row_set import RowSet
+  from google.cloud.bigtable.row_set import RowRange
 except ImportError:
   FLUSH_COUNT = 1000
   MAX_ROW_BYTES = 100000
@@ -68,10 +68,12 @@ class _OverlapRowSet(RowSet):
     def overlap(start1, end1, start2, end2):
       overlaps = start1 <= end2 and end1 >= start2
       if not overlaps:
-          return False, None, None
+        return False, None, None
       return True, min(start1, start2), max(end1, end2)
     for (i, ranges) in enumerate(self.row_ranges):
-      over = overlap(row_range.start_key, row_range.end_key, ranges.start_key, ranges.end_key)
+      over = overlap(row_range.start_key, row_range.end_key,
+                     ranges.start_key,
+                     ranges.end_key)
       if over[0]:
         self.row_ranges[i] = RowRange(over[1], over[2])
         overlaped = False
@@ -111,7 +113,7 @@ class _BigTableSource(iobase.BoundedSource):
                          'filter_': filter_}
     self.sample_row_keys = None
     self.table = None
-    self.read_row   = Metrics.counter(self.__class__.__name__, 'read_row')
+    self.read_row = Metrics.counter(self.__class__.__name__, 'read_row')
     self.row_set_overlap = self.overlap_row_set(row_set)
 
   def __getstate__(self):
@@ -121,8 +123,8 @@ class _BigTableSource(iobase.BoundedSource):
     self.beam_options = options
     self.sample_row_keys = None
     self.table = None
-    self.read_row   = Metrics.counter(self.__class__.__name__, 'read_row')
-    self.row_set_overlap = self._overlap_row_set(row_set)
+    self.read_row = Metrics.counter(self.__class__.__name__, 'read_row')
+    self.row_set_overlap = self._overlap_row_set(options['row_set'])
 
   def _getTable(self):
     if self.table is None:
@@ -153,7 +155,7 @@ class _BigTableSource(iobase.BoundedSource):
                   or by casting to a :class:`list` and can be cancelled by
                   calling ``cancel()``.
     '''
-    if self.sample_row_keys == None:
+    if self.sample_row_keys is None:
       self.sample_row_keys = list(self._getTable().sample_row_keys())
     return self.sample_row_keys
 
@@ -191,7 +193,7 @@ class _BigTableSource(iobase.BoundedSource):
                                                  self.get_sample_row_keys(),
                                                  row_range):
             yield row_split
-      else: 
+      else:
         addition_size = 0
         last_offset = 0
         current_size = 0
@@ -200,18 +202,18 @@ class _BigTableSource(iobase.BoundedSource):
         end_key = b''
 
         for sample_row_key in self.get_sample_row_keys():
-            current_size = sample_row_key.offset_bytes - last_offset
-            addition_size += current_size
-            if addition_size >= desired_bundle_size:
-                end_key = sample_row_key.row_key
-                for fraction in self.range_split_fraction(addition_size,
-                                                          desired_bundle_size,
-                                                          start_key,
-                                                          end_key):
-                    yield fraction
-                start_key = sample_row_key.row_key
-                addition_size = 0
-            last_offset = sample_row_key.offset_bytes
+          current_size = sample_row_key.offset_bytes - last_offset
+          addition_size += current_size
+          if addition_size >= desired_bundle_size:
+            end_key = sample_row_key.row_key
+            for fraction in self.range_split_fraction(addition_size,
+                                                      desired_bundle_size,
+                                                      start_key,
+                                                      end_key):
+              yield fraction
+            start_key = sample_row_key.row_key
+            addition_size = 0
+          last_offset = sample_row_key.offset_bytes
     elif start_position is not None or stop_position is not None:
       row_range = RowRange(start_position, stop_position)
       for row_split in self.split_range_size(desired_bundle_size,
@@ -243,7 +245,9 @@ class _BigTableSource(iobase.BoundedSource):
         if start is not None:
           end = sample_row.row_key
           ranges = LexicographicKeyRangeTracker(start, end)
-          for fraction in self.split_range_subranges(current, desired_size, ranges):
+          for fraction in self.split_range_subranges(current,
+                                                     desired_size,
+                                                     ranges):
             yield fraction
         start = sample_row.row_key
       last_offset = sample_row.offset_bytes
@@ -281,28 +285,28 @@ class _BigTableSource(iobase.BoundedSource):
     end_key = end_position
     split_ = float(desired_bundle_size)/float(sample_size_bytes)
     split_ = math.floor(split_*100)/100
-        
+
     if split_ == 1 or (start_position == b'' or end_position == b''):
       yield iobase.SourceBundle(sample_size_bytes,
                                 self,
                                 start_position,
                                 end_position)
     else:
-        size_portion = int(sample_size_bytes*split_)
+      size_portion = int(sample_size_bytes*split_)
 
-        sum_portion = size_portion
-        while sum_portion < sample_size_bytes:
-          fraction_portion = float(sum_portion)/float(sample_size_bytes)
-          position = self.fraction_to_position(fraction_portion,
-                                               start_position,
-                                               end_position)
-          end_key = position
-          yield iobase.SourceBundle(long(size_portion), self, start_key, end_key)
-          start_key = position
-          sum_portion+= size_portion
-        last_portion = (sum_portion-size_portion)
-        last_size = sample_size_bytes-last_portion
-        yield iobase.SourceBundle(long(last_size), self, end_key, end_position)
+      sum_portion = size_portion
+      while sum_portion < sample_size_bytes:
+        fraction_portion = float(sum_portion)/float(sample_size_bytes)
+        position = self.fraction_to_position(fraction_portion,
+                                             start_position,
+                                             end_position)
+        end_key = position
+        yield iobase.SourceBundle(long(size_portion), self, start_key, end_key)
+        start_key = position
+        sum_portion += size_portion
+      last_portion = (sum_portion-size_portion)
+      last_size = sample_size_bytes-last_portion
+      yield iobase.SourceBundle(long(last_size), self, end_key, end_position)
 
   def read(self, range_tracker):
     filter_ = self.beam_options['filter_']
@@ -319,7 +323,6 @@ class _BigTableSource(iobase.BoundedSource):
       else:
         break
         # Read row need to be cancel
-      
 
   def fraction_to_position(self, position, range_start, range_stop):
     ''' We use the ``fraction_to_position`` method in
