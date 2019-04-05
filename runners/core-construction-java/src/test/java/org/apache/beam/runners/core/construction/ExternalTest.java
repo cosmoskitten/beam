@@ -57,23 +57,30 @@ import org.junit.runners.JUnit4;
 public class ExternalTest implements Serializable {
   @Rule public transient TestPipeline testPipeline = TestPipeline.create();
 
-  private static Server expansionServer;
-  private static final int EXPANSION_PORT = 8096;
-  private static final String EXPANSION_ADDR = String.format("localhost:%s", EXPANSION_PORT);
+  private static final String TEST_URN_SIMPLE = "simple";
+  private static final String TEST_URN_LE = "le";
+  private static final String TEST_URN_MULTI = "multi";
+
   private static String pythonServerCommand;
+  private static Integer expansionPort;
+  private static String LOCAL_EXPANSION_ADDR;
+  private static Server localExpansionServer;
 
   @BeforeClass
   public static void setUp() throws IOException {
     pythonServerCommand = System.getProperty("pythonTestExpansionCommand");
+    expansionPort = Integer.valueOf(System.getProperty("expansionPort"));
+    int localExpansionPort = expansionPort + 100;
+    LOCAL_EXPANSION_ADDR = String.format("localhost:%s", localExpansionPort);
 
-    expansionServer =
-        ServerBuilder.forPort(EXPANSION_PORT).addService(new ExpansionService()).build();
-    expansionServer.start();
+    localExpansionServer =
+        ServerBuilder.forPort(localExpansionPort).addService(new ExpansionService()).build();
+    localExpansionServer.start();
   }
 
   @AfterClass
   public static void tearDown() {
-    expansionServer.shutdownNow();
+    localExpansionServer.shutdownNow();
   }
 
   @Test
@@ -82,7 +89,7 @@ public class ExternalTest implements Serializable {
     PCollection<Integer> col =
         testPipeline
             .apply(Create.of(1, 2, 3))
-            .apply(External.of("simple", new byte[] {}, EXPANSION_ADDR));
+            .apply(External.of(TEST_URN_SIMPLE, new byte[] {}, LOCAL_EXPANSION_ADDR));
     PAssert.that(col).containsInAnyOrder(2, 3, 4);
     testPipeline.run();
   }
@@ -93,10 +100,10 @@ public class ExternalTest implements Serializable {
     PCollection<Integer> pcol =
         testPipeline
             .apply(Create.of(1, 2, 3))
-            .apply("add one", External.of("simple", new byte[] {}, EXPANSION_ADDR))
+            .apply("add one", External.of(TEST_URN_SIMPLE, new byte[] {}, LOCAL_EXPANSION_ADDR))
             .apply(
                 "filter <=3",
-                External.of("le", "3".getBytes(StandardCharsets.UTF_8), EXPANSION_ADDR));
+                External.of(TEST_URN_LE, "3".getBytes(StandardCharsets.UTF_8), LOCAL_EXPANSION_ADDR));
 
     PAssert.that(pcol).containsInAnyOrder(2, 3);
     testPipeline.run();
@@ -108,7 +115,7 @@ public class ExternalTest implements Serializable {
     PCollectionTuple pTuple =
         testPipeline
             .apply(Create.of(1, 2, 3, 4, 5, 6))
-            .apply(External.of("multi", new byte[] {}, EXPANSION_ADDR).withMultiOutputs());
+            .apply(External.of(TEST_URN_MULTI, new byte[] {}, LOCAL_EXPANSION_ADDR).withMultiOutputs());
 
     PAssert.that(pTuple.get(new TupleTag<Integer>("aTag") {})).containsInAnyOrder(2, 4, 6);
     PAssert.that(pTuple.get(new TupleTag<Integer>("bTag") {})).containsInAnyOrder(1, 3, 5);
@@ -127,13 +134,13 @@ public class ExternalTest implements Serializable {
   @Test
   @Category({ValidatesRunner.class, UsesCrossLanguageTransforms.class})
   public void expandPythonTest() {
-    String target = "localhost:8095";
-    Process p = runCommandline(pythonServerCommand);
+    String target = String.format("localhost:%s", expansionPort);
+    Process p = runCommandline(String.format("%s -p %s", pythonServerCommand, expansionPort));
     try {
       ManagedChannel channel = ManagedChannelBuilder.forTarget(target).build();
       ConnectivityState state = channel.getState(true);
       for (int retry = 0; retry < 5 && state != ConnectivityState.READY; retry++) {
-        Thread.sleep(1000);
+        Thread.sleep(500);
         state = channel.getState(true);
       }
       channel.shutdownNow();
@@ -166,9 +173,9 @@ public class ExternalTest implements Serializable {
     @Override
     public Map<String, ExpansionService.TransformProvider> knownTransforms() {
       return ImmutableMap.of(
-          "simple", spec -> MapElements.into(TypeDescriptors.integers()).via((Integer x) -> x + 1),
-          "le", spec -> Filter.lessThanEq(Integer.parseInt(spec.getPayload().toStringUtf8())),
-          "multi",
+          TEST_URN_SIMPLE, spec -> MapElements.into(TypeDescriptors.integers()).via((Integer x) -> x + 1),
+          TEST_URN_LE, spec -> Filter.lessThanEq(Integer.parseInt(spec.getPayload().toStringUtf8())),
+          TEST_URN_MULTI,
               spec ->
                   ParDo.of(
                           new DoFn<Integer, Integer>() {

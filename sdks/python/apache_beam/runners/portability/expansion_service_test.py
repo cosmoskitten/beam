@@ -19,8 +19,8 @@ from __future__ import absolute_import
 import argparse
 import concurrent.futures as futures
 import logging
+import signal
 import sys
-import time
 
 import grpc
 
@@ -130,24 +130,35 @@ class FibTransform(ptransform.PTransform):
     return FibTransform(int(level.decode('ascii')))
 
 
+server = None
+
+
 def main(unused_argv):
   parser = argparse.ArgumentParser()
   parser.add_argument('-p', '--port',
                       type=int,
                       help='port on which to serve the job api')
   options = parser.parse_args()
+  global server
   server = grpc.server(futures.ThreadPoolExecutor(max_workers=2))
   beam_expansion_api_pb2_grpc.add_ExpansionServiceServicer_to_server(
       expansion_service.ExpansionServiceServicer(PipelineOptions()), server
   )
   server.add_insecure_port('localhost:{}'.format(options.port))
   server.start()
-  try:
-    while True:
-      logging.info('Listening for expansion requests at %d', options.port)
-      time.sleep(300)
-  except KeyboardInterrupt:
-    server.stop(None)
+  logging.info('Listening for expansion requests at %d', options.port)
+
+  # blocking main thread forever.
+  signal.pause()
+
+
+def cleanup(unused_signum, unused_frame):
+  logging.info('Shutting down expansion service.')
+  server.stop(None)
+
+
+signal.signal(signal.SIGTERM, cleanup)
+signal.signal(signal.SIGINT, cleanup)
 
 
 if __name__ == '__main__':

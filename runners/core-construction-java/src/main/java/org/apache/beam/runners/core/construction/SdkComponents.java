@@ -58,7 +58,7 @@ public class SdkComponents {
 
   /** Create a new {@link SdkComponents} with no components. */
   public static SdkComponents create() {
-    return new SdkComponents(null, "");
+    return new SdkComponents(RunnerApi.Components.getDefaultInstance(), "");
   }
 
   /**
@@ -87,7 +87,7 @@ public class SdkComponents {
   }
 
   public static SdkComponents create(PipelineOptions options) {
-    SdkComponents sdkComponents = new SdkComponents(null, "");
+    SdkComponents sdkComponents = new SdkComponents(RunnerApi.Components.getDefaultInstance(), "");
     PortablePipelineOptions portablePipelineOptions = options.as(PortablePipelineOptions.class);
     sdkComponents.defaultEnvironmentId =
         sdkComponents.registerEnvironment(
