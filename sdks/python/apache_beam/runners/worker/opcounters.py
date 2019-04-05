@@ -228,7 +228,6 @@ class OperationCounters(object):
     Now that the element has been processed, we ask our accumulator
     for the total and store the result in a counter.
     """
-    import logging
     self.element_counter.update(1)
     if self.current_size is not None:
       self.mean_byte_counter.update(self.current_size)
@@ -236,7 +235,6 @@ class OperationCounters(object):
     elif self.active_accumulator is not None:
       self.mean_byte_counter.update(self.active_accumulator.value())
       self.active_accumulator = None
-
 
   def _compute_next_sample(self, i):
     # https://en.wikipedia.org/wiki/Reservoir_sampling#Fast_Approximation

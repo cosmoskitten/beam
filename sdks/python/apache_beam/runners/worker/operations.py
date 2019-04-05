@@ -302,7 +302,6 @@ class Operation(object):
               )
           )
       )
-      print "ajamato SAMPLED_BYTE_SIZE_URN transform_id %s " % transform_id
       sampled_byte_count = monitoring_infos.int64_distribution(
           monitoring_infos.SAMPLED_BYTE_SIZE_URN,
           metric,
@@ -635,7 +634,6 @@ class DoOperation(Operation):
         infos[monitoring_infos.to_key(mi)] = mi
         (unused_mean, sum, count, min, max) = (
             receiver.opcounter.mean_byte_counter.value())
-
         metric = metrics_pb2.Metric(
             distribution_data=metrics_pb2.DistributionData(
                 int_distribution_data=metrics_pb2.IntDistributionData(
