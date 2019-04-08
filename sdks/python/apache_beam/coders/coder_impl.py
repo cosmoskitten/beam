@@ -436,8 +436,7 @@ class BytesCoderImpl(CoderImpl):
 class StrUtf8CoderImpl(StreamCoderImpl):
   """For internal use only; no backwards-compatibility guarantees."""
   def encode_to_stream(self, value, out, nested):
-    byte_value = value.encode('utf-8')
-    out.write(byte_value, nested)
+    out.write(value.encode('utf-8'), nested)
 
   def decode_from_stream(self, in_stream, nested):
     return in_stream.read_all(nested).decode('utf-8')
