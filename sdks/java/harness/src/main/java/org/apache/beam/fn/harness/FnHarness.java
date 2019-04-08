@@ -41,6 +41,7 @@ import org.apache.beam.sdk.function.ThrowingFunction;
 import org.apache.beam.sdk.io.FileSystems;
 import org.apache.beam.sdk.options.ExperimentalOptions;
 import org.apache.beam.sdk.options.PipelineOptions;
+import org.apache.beam.sdk.util.BeamWorkerInitializer;
 import org.apache.beam.vendor.grpc.v1p13p1.com.google.protobuf.TextFormat;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableList;
 import org.slf4j.Logger;
@@ -79,6 +80,7 @@ public class FnHarness {
   }
 
   public static void main(String[] args) throws Exception {
+    BeamWorkerInitializer.runOnStartup();
     System.out.format("SDK Fn Harness started%n");
     System.out.format("Harness ID %s%n", System.getenv(HARNESS_ID));
     System.out.format("Logging location %s%n", System.getenv(LOGGING_API_SERVICE_DESCRIPTOR));
@@ -165,6 +167,8 @@ public class FnHarness {
       BeamFnControlClient control =
           new BeamFnControlClient(
               id, controlApiServiceDescriptor, channelFactory, outboundObserverFactory, handlers);
+
+      BeamWorkerInitializer.runBeforeProcessing(options);
 
       LOG.info("Entering instruction processing loop");
       control.processInstructionRequests(options.as(GcsOptions.class).getExecutorService());

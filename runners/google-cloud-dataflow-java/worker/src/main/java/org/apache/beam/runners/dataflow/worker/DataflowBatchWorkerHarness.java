@@ -28,6 +28,7 @@ import org.apache.beam.runners.dataflow.options.DataflowWorkerHarnessOptions;
 import org.apache.beam.sdk.io.FileSystems;
 import org.apache.beam.sdk.util.BackOff;
 import org.apache.beam.sdk.util.BackOffUtils;
+import org.apache.beam.sdk.util.BeamWorkerInitializer;
 import org.apache.beam.sdk.util.FluentBackoff;
 import org.apache.beam.sdk.util.Sleeper;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.annotations.VisibleForTesting;
@@ -53,12 +54,14 @@ public class DataflowBatchWorkerHarness {
 
   /** Creates the worker harness and then runs it. */
   public static void main(String[] args) throws Exception {
+    BeamWorkerInitializer.runOnStartup();
     DataflowWorkerHarnessHelper.initializeLogging(DataflowBatchWorkerHarness.class);
     DataflowWorkerHarnessOptions pipelineOptions =
         DataflowWorkerHarnessHelper.initializeGlobalStateAndPipelineOptions(
             DataflowBatchWorkerHarness.class);
     DataflowBatchWorkerHarness batchHarness = new DataflowBatchWorkerHarness(pipelineOptions);
     DataflowWorkerHarnessHelper.configureLogging(pipelineOptions);
+    BeamWorkerInitializer.runBeforeProcessing(pipelineOptions);
     batchHarness.run();
   }
 

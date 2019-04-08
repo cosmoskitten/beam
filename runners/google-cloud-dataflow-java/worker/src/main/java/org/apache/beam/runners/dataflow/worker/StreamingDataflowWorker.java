@@ -121,6 +121,7 @@ import org.apache.beam.sdk.fn.IdGenerators;
 import org.apache.beam.sdk.io.FileSystems;
 import org.apache.beam.sdk.util.BackOff;
 import org.apache.beam.sdk.util.BackOffUtils;
+import org.apache.beam.sdk.util.BeamWorkerInitializer;
 import org.apache.beam.sdk.util.FluentBackoff;
 import org.apache.beam.sdk.util.Sleeper;
 import org.apache.beam.sdk.util.UserCodeException;
@@ -241,6 +242,8 @@ public class StreamingDataflowWorker {
   }
 
   public static void main(String[] args) throws Exception {
+    BeamWorkerInitializer.runOnStartup();
+
     DataflowWorkerHarnessHelper.initializeLogging(StreamingDataflowWorker.class);
     DataflowWorkerHarnessOptions options =
         DataflowWorkerHarnessHelper.initializeGlobalStateAndPipelineOptions(
@@ -261,6 +264,7 @@ public class StreamingDataflowWorker {
     StreamingDataflowWorker worker =
         StreamingDataflowWorker.fromDataflowWorkerHarnessOptions(options, sdkHarnessRegistry);
 
+    BeamWorkerInitializer.runBeforeProcessing(options);
     worker.startStatusPages();
     worker.start();
   }
