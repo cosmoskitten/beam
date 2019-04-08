@@ -29,7 +29,7 @@ class CommonJobProperties {
                                            String defaultBranch = 'master',
                                            int defaultTimeout = 100,
                                            boolean allowRemotePoll = true,
-                                           String jenkinsExecutorLabel =  'beam') {
+                                           String jenkinsExecutorLabel =  'beam') { // unused comment
     // GitHub project.
     context.properties {
       githubProjectUrl('https://github.com/apache/beam/')
