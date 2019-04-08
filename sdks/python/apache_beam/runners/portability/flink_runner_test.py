@@ -29,6 +29,7 @@ from tempfile import mkdtemp
 
 import apache_beam as beam
 from apache_beam.io.external.generate_sequence import GenerateSequence
+from apache_beam.io.external.kafka import ReadFromKafka
 from apache_beam.metrics import Metrics
 from apache_beam.options.pipeline_options import DebugOptions
 from apache_beam.options.pipeline_options import PortableOptions
@@ -157,7 +158,7 @@ if __name__ == '__main__':
     def test_no_subtransform_composite(self):
       raise unittest.SkipTest("BEAM-4781")
 
-    def test_external_transform(self):
+    def test_external_transforms(self):
       options = self.create_options()
       options._all_options['parallelism'] = 1
       options._all_options['streaming'] = True
@@ -171,6 +172,20 @@ if __name__ == '__main__':
                                expansion_service=expansion_address))
 
         assert_that(res, equal_to([i for i in range(1, 10)]))
+
+      # We do not run KafkaIO but check that the transform
+      # is expanded by the ExpansionService without an error.
+      p = self.create_pipeline()
+      res = (
+          p
+          | ReadFromKafka(consumer_config={'bootstrap.servers':
+                                           'localhost:94583, localhost:3531'},
+                          topics=['topic1', 'topic2'],
+                          key_deserializer='org.apache.kafka.common.'
+                                           'serialization.BytesDeserializer',
+                          value_deserializer='org.apache.kafka.common.'
+                                             'serialization.LongDeserializer',
+                          expansion_service=expansion_address))
 
     def test_flattened_side_input(self):
       # Blocked on support for transcoding
