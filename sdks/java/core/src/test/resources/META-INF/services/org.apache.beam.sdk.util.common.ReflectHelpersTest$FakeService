@@ -1,0 +1,2 @@
+org.apache.beam.sdk.util.common.ReflectHelpersTest$ZetaImpl
+org.apache.beam.sdk.util.common.ReflectHelpersTest$AlphaImpl
