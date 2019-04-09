@@ -186,6 +186,7 @@ public class ReflectHelpersTest {
     String getName();
   }
 
+  /** Alpha implemnetation of FakeService. Should be loaded first */
   public static class AlphaImpl implements FakeService {
     @Override
     public String getName() {
@@ -193,6 +194,7 @@ public class ReflectHelpersTest {
     }
   }
 
+  /** Zeta implemnetation of FakeService. Should be loaded second */
   public static class ZetaImpl implements FakeService {
     @Override
     public String getName() {

@@ -219,7 +219,7 @@ public class ReflectHelpers {
   }
 
   /**
-   * A version of {@code loadServicesOrdered} that uses a default class loader
+   * A version of {@code loadServicesOrdered} that uses a default class loader.
    *
    * @param iface The interface to load implementations of
    * @param <T> The type of {@code iface}
