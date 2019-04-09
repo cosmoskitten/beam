@@ -27,6 +27,7 @@ NOTHING IN THIS FILE HAS BACKWARDS COMPATIBILITY GUARANTEES.
 
 from __future__ import absolute_import
 
+import base64
 import datetime
 import decimal
 import json
@@ -103,6 +104,8 @@ def parse_table_schema_from_json(schema_string):
   Returns:
     A TableSchema of the BigQuery export from either the Query or the Table.
   """
+  if not schema_string or schema_string == 'null':
+    return None
   json_schema = json.loads(schema_string)
 
   def _parse_schema_field(field):
@@ -696,7 +699,7 @@ class BigQueryWrapper(object):
       page_token = response.pageToken
 
   def insert_rows(self, project_id, dataset_id, table_id, rows,
-                  skip_invalid_rows=False):
+                  skip_invalid_rows=False, schema=None):
     """Inserts rows into the specified table.
 
     Args:
@@ -707,6 +710,7 @@ class BigQueryWrapper(object):
         each key in it is the name of a field.
       skip_invalid_rows: If there are rows with insertion errors, whether they
         should be skipped, and all others should be inserted successfully.
+      schema: Schema of the table
 
     Returns:
       A tuple (bool, errors). If first element is False then the second element
@@ -720,14 +724,30 @@ class BigQueryWrapper(object):
     # can happen during retries on failures.
     # TODO(silviuc): Must add support to writing TableRow's instead of dicts.
     final_rows = []
+    if schema:
+      byte_fields = [field['name'] for field in schema['fields']
+                     if field['type'] == 'BYTES']
+    else:
+      byte_fields = []
+
     for row in rows:
       json_object = bigquery.JsonObject()
+      if schema:
+        byte_fields = [field['name'] for field in schema['fields']
+                       if field['type'] == 'BYTES']
+      else:
+        byte_fields = []
       for k, v in iteritems(row):
         if isinstance(v, decimal.Decimal):
           # decimal values are converted into string because JSON does not
           # support the precision that decimal supports. BQ is able to handle
           # inserts into NUMERIC columns by receiving JSON with string attrs.
           v = str(v)
+        elif (k in byte_fields or
+              (isinstance(v, bytes) and sys.version[0] == '3')):
+          # bytes are base64 encoded because this is the format that the bq api
+          # expects given that json does not support bytes
+          v = base64.b64encode(v)
         json_object.additionalProperties.append(
             bigquery.JsonObject.AdditionalProperty(
                 key=k, value=to_json_value(v)))
@@ -760,8 +780,9 @@ class BigQueryWrapper(object):
       dt = datetime.datetime.utcfromtimestamp(float(value))
       return dt.strftime('%Y-%m-%d %H:%M:%S.%f UTC')
     elif field.type == 'BYTES':
-      # Input: "YmJi" --> Output: "YmJi"
-      return value
+      # bytes are base64 dencoded because this is the format that the bq api
+      # returns the values in (given that json does not support bytes)
+      return base64.b64decode(value)
     elif field.type == 'DATE':
       # Input: "2016-11-03" --> Output: "2016-11-03"
       return value
@@ -820,7 +841,7 @@ class BigQueryReader(dataflow_io.NativeSourceReader):
   """A reader for a BigQuery source."""
 
   def __init__(self, source, test_bigquery_client=None, use_legacy_sql=True,
-               flatten_results=True, kms_key=None):
+               flatten_results=True, kms_key=None, coder=None):
     self.source = source
     self.test_bigquery_client = test_bigquery_client
     if auth.is_running_in_gce:
@@ -838,13 +859,14 @@ class BigQueryReader(dataflow_io.NativeSourceReader):
           'command line option to specify it.')
     self.row_as_dict = isinstance(self.source.coder, RowAsDictJsonCoder)
     # Schema for the rows being read by the reader. It is initialized the
-    # first time something gets read from the table. It is not required
-    # for reading the field values in each row but could be useful for
-    # getting additional details.
+    # first time something gets read from the table. It is required when
+    # reading data with schema BYTES to handle the base64 decoding of the
+    # byte values
     self.schema = None
     self.use_legacy_sql = use_legacy_sql
     self.flatten_results = flatten_results
     self.kms_key = kms_key
+    self.coder = coder
 
     if self.source.table_reference is not None:
       # If table schema did not define a project we default to executing
@@ -906,10 +928,14 @@ class BigQueryReader(dataflow_io.NativeSourceReader):
         flatten_results=self.flatten_results):
       if self.schema is None:
         self.schema = schema
+        if isinstance(self.coder, RowAsDictJsonCoder):
+          self.coder.set_schema(self.schema)
       for row in rows:
         if self.row_as_dict:
+          logging.info(self.client.convert_row_to_dict(row, schema))
           yield self.client.convert_row_to_dict(row, schema)
         else:
+          logging.info(row)
           yield row
 
 
@@ -973,20 +999,44 @@ class RowAsDictJsonCoder(coders.Coder):
   This is the default coder for sources and sinks if the coder argument is not
   specified.
   """
+  def __init__(self, schema=None):
+    from apache_beam.io.gcp.bigquery import WriteToBigQuery
+    logging.info(schema)
+    logging.info(WriteToBigQuery.get_dict_table_schema(schema))
+    self.schema = WriteToBigQuery.get_dict_table_schema(schema)
+
+  def set_schema(self, schema):
+    from apache_beam.io.gcp.bigquery import WriteToBigQuery
+    self.schema = WriteToBigQuery.get_dict_table_schema(schema)
 
   def encode(self, table_row):
     # The normal error when dumping NAN/INF values is:
     # ValueError: Out of range float values are not JSON compliant
     # This code will catch this error to emit an error that explains
     # to the programmer that they have used NAN/INF values.
+    # bytes are base64 encoded because this is the format that the bq api
+    # expects the values in (given that json does not support bytes)
     try:
+      if isinstance(table_row, str):
+        table_row = json.loads(table_row)
+      for key, value in iteritems(table_row):
+        if ((self.schema and self.schema['fields'][key]['type'] == 'BYTES') or
+            isinstance(value, bytes)):
+          table_row[key] = base64.b64encode(value).decode('utf-8')
       return json.dumps(
           table_row, allow_nan=False, default=default_encoder).encode('utf-8')
     except ValueError as e:
       raise ValueError('%s. %s' % (e, JSON_COMPLIANCE_ERROR))
 
   def decode(self, encoded_table_row):
-    return json.loads(encoded_table_row.decode('utf-8'))
+    logging.info('schema')
+    logging.info(self.schema)
+    table_row = json.loads(encoded_table_row.decode('utf-8'))
+    if self.schema:
+      for field in self.schema['fields']:
+        if field['type'] == 'BYTES':
+          table_row[field['name']] = base64.b64decode(table_row[field['name']])
+    return table_row
 
 
 class RetryStrategy(object):
