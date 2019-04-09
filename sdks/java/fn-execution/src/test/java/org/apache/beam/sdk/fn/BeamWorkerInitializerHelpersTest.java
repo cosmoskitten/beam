@@ -15,7 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.util;
+package org.apache.beam.sdk.fn;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
@@ -23,18 +23,21 @@ import static org.junit.Assert.assertTrue;
 import com.google.auto.service.AutoService;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.testing.TestPipeline;
+import org.apache.beam.sdk.worker.BeamWorkerInitializer;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
+/** Tests for {@link BeamWorkerInitializerHelpers}. */
 @RunWith(JUnit4.class)
-public final class BeamWorkerInitializerTest {
+public final class BeamWorkerInitializerHelpersTest {
 
   private static Boolean onStartupRan;
   private static Boolean beforeProcessingRan;
   private static PipelineOptions receivedOptions;
 
+  /** Test initializer implementation. Methods simply produce observable side effects. */
   @AutoService(BeamWorkerInitializer.class)
   public static class TestInitializer extends BeamWorkerInitializer {
     @Override
@@ -58,7 +61,7 @@ public final class BeamWorkerInitializerTest {
 
   @Test
   public void runOnStartup_runsInitializers() {
-    BeamWorkerInitializer.runOnStartup();
+    BeamWorkerInitializerHelpers.runOnStartup();
 
     assertTrue(onStartupRan);
   }
@@ -67,7 +70,7 @@ public final class BeamWorkerInitializerTest {
   public void runBeforeProcessing_runsInitializersWithOptions() {
     PipelineOptions options = TestPipeline.testingPipelineOptions();
 
-    BeamWorkerInitializer.runBeforeProcessing(options);
+    BeamWorkerInitializerHelpers.runBeforeProcessing(options);
 
     assertTrue(beforeProcessingRan);
     assertEquals(options, receivedOptions);

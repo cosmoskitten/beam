@@ -15,51 +15,26 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.util;
+package org.apache.beam.sdk.worker;
 
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.options.PipelineOptions;
-import org.apache.beam.sdk.util.common.ReflectHelpers;
 
 /**
  * A service interface for defining one-time initialization for Beam workers.
  *
- * <p>Beam workers will use {@code runOnStartup} and {@code runBeforeProcessing} to run every
- * registered implementation's {@code onStartup} and {@code beforeProcessing} functions at the
- * appropriate stage of execution.
+ * <p>Beam workers will run every registered implementation's {@code onStartup} and {@code
+ * beforeProcessing} functions at the appropriate stage of execution.
  *
  * <p>{@link java.util.ServiceLoader} is used to discover implementations of {@link
  * BeamWorkerInitializer}, note that you will need to register your implementation with the
  * appropriate resources to ensure your code is executed. You can use a tool like {@link
  * com.google.auto.service.AutoService} to automate this.
+ *
+ * <p>Currently only supported in the portable worker and legacy Dataflow worker.
  */
 @Experimental
 public abstract class BeamWorkerInitializer {
-  /**
-   * Finds all registered implementations of BeamWorkerInitializer and executes their {@code
-   * onStartup} methods. Called in worker harness implementations at the very beginning of their
-   * main method.
-   */
-  public static void runOnStartup() {
-    for (BeamWorkerInitializer initializer :
-        ReflectHelpers.loadServicesOrdered(BeamWorkerInitializer.class)) {
-      initializer.onStartup();
-    }
-  }
-
-  /**
-   * Finds all registered implementations of BeamWorkerInitializer and executes their {@code
-   * beforeProcessing} methods. Called in worker harness implementations after initialization but
-   * before beginning to process any data.
-   *
-   * @param options The pipeline options passed to the worker.
-   */
-  public static void runBeforeProcessing(PipelineOptions options) {
-    for (BeamWorkerInitializer initializer :
-        ReflectHelpers.loadServicesOrdered(BeamWorkerInitializer.class)) {
-      initializer.beforeProcessing(options);
-    }
-  }
 
   /**
    * Implement onStartup to run some custom initialization immediately after the worker begins
