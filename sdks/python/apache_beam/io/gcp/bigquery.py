@@ -320,7 +320,6 @@ class BigQuerySource(dataflow_io.NativeSource):
         2) neither a table nor a query is specified
         3) both a table and a query is specified.
     """
-
     # Import here to avoid adding the dependency for local running scenarios.
     try:
       # pylint: disable=wrong-import-order, wrong-import-position
@@ -379,7 +378,7 @@ class BigQuerySource(dataflow_io.NativeSource):
         test_bigquery_client=test_bigquery_client,
         use_legacy_sql=self.use_legacy_sql,
         flatten_results=self.flatten_results,
-        kms_key=self.kms_key)
+        kms_key=self.kms_key, coder=self.coder)
 
 
 @deprecated(since='2.11.0', current="WriteToBigQuery")
@@ -495,7 +494,7 @@ bigquery_v2_messages.TableSchema` object.
     self.write_disposition = BigQueryDisposition.validate_write(
         write_disposition)
     self.validate = validate
-    self.coder = coder or bigquery_tools.RowAsDictJsonCoder()
+    self.coder = coder or bigquery_tools.RowAsDictJsonCoder(self.table_schema)
     self.kms_key = kms_key
 
   def display_data(self):
@@ -719,6 +718,13 @@ class BigQueryWriteFn(DoFn):
     rows = self._rows_buffer[destination]
     table_reference = bigquery_tools.parse_table_reference(destination)
 
+    if callable(self.schema):
+      schema = self.schema(destination)
+    elif isinstance(self.schema, vp.ValueProvider):
+      schema = self.schema.get()
+    else:
+      schema = self.schema
+
     if table_reference.projectId is None:
       table_reference.projectId = vp.RuntimeValueProvider.get_value(
           'project', str, '')
@@ -733,7 +739,8 @@ class BigQueryWriteFn(DoFn):
           dataset_id=table_reference.datasetId,
           table_id=table_reference.tableId,
           rows=rows,
-          skip_invalid_rows=True)
+          skip_invalid_rows=True,
+          schema=schema)
 
       logging.debug("Passed: %s. Errors are %s", passed, errors)
       failed_rows = [rows[entry.index] for entry in errors]
@@ -983,6 +990,7 @@ bigquery_v2_messages.TableSchema):
     method_to_use = self._compute_method(p, p.options)
 
     if method_to_use == WriteToBigQuery.Method.STREAMING_INSERTS:
+      logging.info('streaming inserts')
       # TODO: Support load jobs for streaming pipelines.
       bigquery_write_fn = BigQueryWriteFn(
           schema=self.schema,
@@ -1001,6 +1009,7 @@ bigquery_v2_messages.TableSchema):
 
       return {BigQueryWriteFn.FAILED_ROWS: outputs[BigQueryWriteFn.FAILED_ROWS]}
     else:
+      logging.info('batch inserts')
       if p.options.view_as(StandardOptions).streaming:
         raise NotImplementedError(
             'File Loads to BigQuery are only supported on Batch pipelines.')
