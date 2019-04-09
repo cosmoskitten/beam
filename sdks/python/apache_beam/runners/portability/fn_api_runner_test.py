@@ -33,6 +33,7 @@ from builtins import range
 
 import hamcrest
 from hamcrest.core.matcher import Matcher
+from hamcrest.core.string_description import StringDescription
 from tenacity import retry
 from tenacity import stop_after_attempt
 
@@ -106,22 +107,35 @@ class FnApiRunnerTest(unittest.TestCase):
     min = _matcher_or_equal_to(min)
     max = _matcher_or_equal_to(max)
     found = 0
+    description = StringDescription()
     for mi in monitoring_infos:
       if self.has_urn_and_labels(mi, urn, labels):
         int_dist = mi.metric.distribution_data.int_distribution_data
         increment = 1
-        if sum is not None and not sum.matches(int_dist.sum):
-          increment = 0
-        if count is not None and not count.matches(int_dist.count):
-          increment = 0
-        if min is not None and not min.matches(int_dist.min):
-          increment = 0
-        if max is not None and not max.matches(int_dist.max):
-          increment = 0
+        if sum is not None:
+          description.append_text(' sum: ')
+          sum.describe_to(description)
+          if not sum.matches(int_dist.sum):
+            increment = 0
+        if count is not None:
+          description.append_text(' count: ')
+          count.describe_to(description)
+          if not count.matches(int_dist.count):
+            increment = 0
+        if min is not None:
+          description.append_text(' min: ')
+          min.describe_to(description)
+          if not min.matches(int_dist.min):
+            increment = 0
+        if max is not None:
+          description.append_text(' max: ')
+          max.describe_to(description)
+          if not max.matches(int_dist.max):
+            increment = 0
         found += increment
     self.assertEqual(
         1, found, "Found (%s) Expected only 1 monitoring_info for %s." %
-        (found, (urn, labels, sum, count, min, max),))
+        (found, (urn, labels, str(description)),))
 
   def create_pipeline(self):
     return beam.Pipeline(runner=fn_api_runner.FnApiRunner())
