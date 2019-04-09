@@ -24,14 +24,13 @@ import org.apache.beam.sdk.options.PipelineOptions;
  * A service interface for defining one-time initialization for Beam workers.
  *
  * <p>Beam workers will run every registered implementation's {@code onStartup} and {@code
- * beforeProcessing} functions at the appropriate stage of execution.
+ * beforeProcessing} functions at the appropriate stage of execution. Currently this is only
+ * supported in the portable worker and legacy Dataflow worker.
  *
  * <p>{@link java.util.ServiceLoader} is used to discover implementations of {@link
  * BeamWorkerInitializer}, note that you will need to register your implementation with the
  * appropriate resources to ensure your code is executed. You can use a tool like {@link
  * com.google.auto.service.AutoService} to automate this.
- *
- * <p>Currently only supported in the portable worker and legacy Dataflow worker.
  */
 @Experimental
 public abstract class BeamWorkerInitializer {
