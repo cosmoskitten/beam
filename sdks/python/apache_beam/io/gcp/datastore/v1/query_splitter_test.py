@@ -26,23 +26,17 @@ import unittest
 from mock import MagicMock
 from mock import call
 
-# pylint: disable=ungrouped-imports
-try: # TODO(BEAM-4543): googledatastore dependency does not work on Python 3.
-  from apache_beam.io.gcp.datastore.v1 import fake_datastore
-  from apache_beam.io.gcp.datastore.v1 import query_splitter
-except ImportError:
-  pass
-
 # Protect against environments where datastore library is not available.
 # pylint: disable=wrong-import-order, wrong-import-position
 try:
   from google.cloud.proto.datastore.v1 import datastore_pb2
+  from apache_beam.io.gcp.datastore.v1 import fake_datastore
   from google.cloud.proto.datastore.v1 import query_pb2
+  from apache_beam.io.gcp.datastore.v1 import query_splitter
   from google.cloud.proto.datastore.v1.query_pb2 import PropertyFilter
-except ImportError:
+except (ImportError, TypeError):
   datastore_pb2 = None
 # pylint: enable=wrong-import-order, wrong-import-position
-# pylint: enable=ungrouped-imports
 
 
 @unittest.skipIf(sys.version_info[0] == 3 and

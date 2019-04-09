@@ -1,0 +1,566 @@
+#
+# Licensed to the Apache Software Foundation (ASF) under one or more
+# contributor license agreements.  See the NOTICE file distributed with
+# this work for additional information regarding copyright ownership.
+# The ASF licenses this file to You under the Apache License, Version 2.0
+# (the "License"); you may not use this file except in compliance with
+# the License.  You may obtain a copy of the License at
+#
+#    http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+
+"""
+A connector for reading from and writing to Google Cloud Datastore.
+
+Uses the newer google-cloud-datastore pip dependency.
+
+For Datastore entities, does not support the property value "meaning" field.
+
+This module is experimental, no backwards compatibility guarantees.
+"""
+from __future__ import absolute_import
+from __future__ import division
+
+import logging
+import time
+from builtins import object
+from builtins import round
+
+from apache_beam import typehints
+from apache_beam.io.gcp.datastore.v1new import helper
+from apache_beam.io.gcp.datastore.v1new import query_splitter
+from apache_beam.io.gcp.datastore.v1new import types
+from apache_beam.io.gcp.datastore.v1 import util
+from apache_beam.io.gcp.datastore.v1.adaptive_throttler import AdaptiveThrottler
+from apache_beam.metrics.metric import Metrics
+from apache_beam.transforms import Create
+from apache_beam.transforms import DoFn
+from apache_beam.transforms import FlatMap
+from apache_beam.transforms import GroupByKey
+from apache_beam.transforms import ParDo
+from apache_beam.transforms import PTransform
+from apache_beam.transforms.util import Values
+
+try:
+  # TODO: remove unused
+  from google.cloud.datastore import batch
+  from google.cloud.datastore import client
+  #from google.cloud.datastore import entity
+  #from google.cloud.datastore_v1.proto import datastore_pb2
+except ImportError:
+  client = None
+
+# TODO: add integration test that uses ReadFromDatastore, WriteToDatastore, DeleteFromDatastore
+__all__ = ['ReadFromDatastore', 'WriteToDatastore', 'DeleteFromDatastore']
+
+# TODO: remove mentions of BEAM-4543
+# TODO: don't pass around namespace
+
+
+# TODO: Update examples and integration tests to use old and (mostly) new client.
+@typehints.with_output_types(types.Entity)
+class ReadFromDatastore(PTransform):
+  """A ``PTransform`` for reading from Google Cloud Datastore.
+
+  To read a ``PCollection[Entity]`` from a Cloud Datastore ``Query``, use
+  ``ReadFromDatastore`` transform by providing a `query` to
+  read from. The project and optional namespace are set in the query.
+  The query will be split into multiple queries to allow for parallelism. The
+  degree of parallelism is automatically determined, but can be overridden by
+  setting `num_splits` to a value of 1 or greater.
+
+  Note: Normally, a runner will read from Cloud Datastore in parallel across
+  many workers. However, when the `query` is configured with a `limit` or if the
+  query contains inequality filters like `GREATER_THAN, LESS_THAN` etc., then
+  all the returned results will be read by a single worker in order to ensure
+  correct data. Since data is read from a single worker, this could have
+  significant impact on the performance of the job.
+
+  The semantics for the query splitting is defined below:
+    1. If `num_splits` is equal to 0, then the number of splits will be chosen
+    dynamically at runtime based on the query data size.
+
+    2. Any value of `num_splits` greater than
+    `ReadFromDatastore._NUM_QUERY_SPLITS_MAX` will be capped at that value.
+
+    3. If the `query` has a user limit set, or contains TODO check inequality filters, then
+    `num_splits` will be ignored and no split will be performed.
+
+    4. Under certain cases Cloud Datastore is unable to split query to the
+    requested number of splits. In such cases we just use whatever the Cloud
+    Datastore returns.
+
+  See https://developers.google.com/datastore/ for more details on Google Cloud
+  Datastore.
+  """
+
+  # An upper bound on the number of splits for a query.
+  _NUM_QUERY_SPLITS_MAX = 50000
+  # A lower bound on the number of splits for a query. This is to ensure that
+  # we parellelize the query even when Datastore statistics are not available.
+  _NUM_QUERY_SPLITS_MIN = 12
+  # Default bundle size of 64MB.
+  _DEFAULT_BUNDLE_SIZE_BYTES = 64 * 1024 * 1024
+
+  def __init__(self, query, num_splits=0):
+    """Initialize the `ReadFromDatastore` transform.
+
+    This transform outputs elements of type `Entity`.
+
+    Args:
+      query: (`Query`) Cloud Datastore query to read from.
+      num_splits: (int) Number of splits for the query.
+    """
+    super(ReadFromDatastore, self).__init__()
+
+    if not query.project:
+      raise ValueError("query.project cannot be empty")
+    if not query:
+      raise ValueError("query cannot be empty")
+    if num_splits < 0:
+      raise ValueError("num_splits must be greater than or equal 0")
+
+    self._project = query.project
+    # using _namespace conflicts with DisplayData._namespace
+    self._datastore_namespace = query.namespace
+    self._query = query
+    self._num_splits = num_splits
+
+  # TODO: test coverage needed. unit? integration?
+  def expand(self, pcoll):
+    # TODO: update docs to reflect reshuffle
+    # This is a composite transform involves the following:
+    #   1. Create a singleton of the user provided `query` and apply a ``ParDo``
+    #   that splits the query into `num_splits` and assign each split query a
+    #   unique `int` as the key. The resulting output is of the type
+    #   ``PCollection[(int, Query)]``.
+    #
+    #   If the value of `num_splits` is less than or equal to 0, then the
+    #   number of splits will be computed dynamically based on the size of the
+    #   data for the `query`.
+    #
+    #   2. The resulting ``PCollection`` is sharded using a ``GroupByKey``
+    #   operation. The queries are extracted from the (int, Iterable[Query]) and
+    #   flattened to output a ``PCollection[Query]``.
+    #
+    #   3. In the third step, a ``ParDo`` reads entities for each query and
+    #   outputs a ``PCollection[Entity]``.
+
+    queries = (pcoll.pipeline
+               | 'UserQuery' >> Create([self._query])
+               | 'SplitQuery' >> ParDo(ReadFromDatastore.SplitQueryFn(
+                   self._num_splits)))
+
+    # TODO: use reshuffle? test with integration test
+    sharded_queries = (queries
+                       | GroupByKey()
+                       | Values()
+                       | 'Flatten' >> FlatMap(lambda x: x))
+
+    entities = sharded_queries | 'Read' >> ParDo(ReadFromDatastore.ReadFn())
+    return entities
+
+  def display_data(self):
+    disp_data = {'project': self._query.project,
+                 'query': str(self._query),
+                 'num_splits': self._num_splits}
+
+    if self._datastore_namespace is not None:
+      disp_data['namespace'] = self._datastore_namespace
+
+    return disp_data
+
+  # TODO: are these typehints enforced?
+  @typehints.with_input_types(types.Query)
+  @typehints.with_output_types(types.Query)
+  class SplitQueryFn(DoFn):
+    """A `DoFn` that splits a given query into multiple sub-queries."""
+    def __init__(self, num_splits):
+      super(ReadFromDatastore.SplitQueryFn, self).__init__()
+      self._client = None
+      self._num_splits = num_splits
+
+    # TODO: remove if empty
+    def start_bundle(self):
+      #self._client = helper.get_client(self._project,
+      #                                    self._datastore_namespace)
+      pass
+
+    def _init_client(self, query):
+      if self._client is None:
+        self._client = helper.get_client(query.project, query.namespace)
+
+    def process(self, query, *args, **kwargs):
+      self._init_client(query)
+      # distinct key to be used to group query splits.
+      key = 1
+
+      # TODO: move this check to _validate_split
+      # TODO: move validation check here?
+      # If query has a user set limit, then the query cannot be split.
+      if query.limit is not None:
+        return [(key, query)]
+
+      # Compute the estimated numSplits if not specified by the user.
+      if self._num_splits == 0:
+        estimated_num_splits = self.get_estimated_num_splits(query)
+      else:
+        estimated_num_splits = self._num_splits
+
+      logging.info("Splitting the query into %d splits", estimated_num_splits)
+      try:
+        query_splits = query_splitter.get_splits(
+            self._client, query, estimated_num_splits)
+        # TODO: remove
+        #print(query_splits)
+      except query_splitter.QuerySplitterError:
+        logging.warning("Unable to parallelize the given query: %s", query,
+                        exc_info=True)
+        query_splits = [query]
+
+      sharded_query_splits = []
+      for split_query in query_splits:
+        sharded_query_splits.append((key, split_query))
+        key += 1
+
+      return sharded_query_splits
+
+    def display_data(self):
+      disp_data = {'num_splits': self._num_splits}
+      if self._client is not None:
+        disp_data['project'] = self._client.project
+        disp_data['namespace'] = self._client.namespace
+      return disp_data
+
+    def query_latest_statistics_timestamp(self):
+      """Fetches the latest timestamp of statistics from Cloud Datastore.
+
+      Cloud Datastore system tables with statistics are periodically updated.
+      This method fetches the latest timestamp (in microseconds) of statistics
+      update using the `__Stat_Total__` table.
+      """
+      # TODO: manually test and verify this by inspecting integration test logs
+      if self._client.namespace is None:
+        kind = '__Stat_Total__'
+      else:
+        kind = '__Stat_Ns_Total__'
+      query = self._client.query(kind=kind, order=["-timestamp", ])
+      entities = list(query.fetch(limit=1))
+      if not entities:
+        raise RuntimeError("Datastore total statistics unavailable.")
+      return entities[0]['timestamp']
+
+    def get_estimated_size_bytes(self, query):
+      """Get the estimated size of the data returned by this instance's query.
+
+      Cloud Datastore provides no way to get a good estimate of how large the
+      result of a query is going to be. Hence we use the __Stat_Kind__ system
+      table to get size of the entire kind as an approximate estimate, assuming
+      exactly 1 kind is specified in the query.
+      See https://cloud.google.com/datastore/docs/concepts/stats.
+      """
+      # TODO: manually test and verify this by inspecting integration test logs
+      kind_name = query.kind
+      latest_timestamp = self.query_latest_statistics_timestamp()
+      logging.info('Latest stats timestamp for kind %s is %s',
+                   kind_name, latest_timestamp)
+
+      if self._client.namespace is None:
+        kind = '__Stat_Kind__'
+      else:
+        kind = '__Stat_Ns_Kind__'
+      query = self._client.query(kind=kind)
+      query.add_filter('kind_name', '=', kind_name)  # TODO: unicode()?
+      query.add_filter('timestamp', '=', latest_timestamp)
+
+      entities = list(query.fetch(limit=1))
+      if not entities:
+        raise RuntimeError(
+            'Datastore statistics for kind %s unavailable' % kind_name)
+      return entities[0]['entity_bytes']
+
+    def get_estimated_num_splits(self, query):
+      """Computes the number of splits to be performed on the query."""
+      # TODO: manually test and verify this by inspecting integration test logs
+      try:
+        estimated_size_bytes = self.get_estimated_size_bytes(query)
+        logging.info('Estimated size bytes for query: %s', estimated_size_bytes)
+        num_splits = int(min(ReadFromDatastore._NUM_QUERY_SPLITS_MAX, round(
+            (float(estimated_size_bytes) /
+             ReadFromDatastore._DEFAULT_BUNDLE_SIZE_BYTES))))
+
+      except Exception as e:
+        logging.warning('Failed to fetch estimated size bytes: %s', e)
+        # Fallback in case estimated size is unavailable.
+        num_splits = ReadFromDatastore._NUM_QUERY_SPLITS_MIN
+
+      return max(num_splits, ReadFromDatastore._NUM_QUERY_SPLITS_MIN)
+
+  # TODO: typehints instead of documentation?
+  @typehints.with_input_types(types.Query)
+  @typehints.with_output_types(types.Entity)
+  class ReadFn(DoFn):
+    """A DoFn that reads entities from Cloud Datastore, for a given query."""
+    def __init__(self):
+      super(ReadFromDatastore.ReadFn, self).__init__()
+      self._project = ''
+      self._datastore_namespace = None
+
+    # TODO: remove
+    # def start_bundle(self):
+    #   self._client = helper.get_client(self._project, self._datastore_namespace)
+
+    def process(self, query, *unused_args, **unused_kwargs):
+      _client = helper.get_client(query.project, query.namespace)
+      self._project = _client.project
+      self._datastore_namespace = _client.namespace
+      client_query = query._to_client_query(_client)
+      for client_entity in client_query.fetch(query.limit):
+        yield types.Entity.from_client_entity(client_entity)
+
+    def display_data(self):
+      disp_data = {'project': self._project}
+      if self._datastore_namespace is not None:
+        disp_data['namespace'] = self._datastore_namespace
+      return disp_data
+
+
+class _Mutate(PTransform):
+  """A ``PTransform`` that writes mutations to Cloud Datastore.
+
+  Only idempotent Datastore mutation operations (upsert and delete) are
+  supported, as the commits are retried when failures occur.
+  """
+
+  _WRITE_BATCH_INITIAL_SIZE = 200
+  # Max allowed Datastore writes per batch, and max bytes per batch.
+  # Note that the max bytes per batch set here is lower than the 10MiB limit
+  # actually enforced by the API, to leave space for the CommitRequest wrapper
+  # around the mutations.
+  # https://cloud.google.com/datastore/docs/concepts/limits
+  _WRITE_BATCH_MAX_SIZE = 500
+  _WRITE_BATCH_MAX_BYTES_SIZE = 9000000
+  _MAX_ENTITY_BYTES_SIZE = 1048572
+  _WRITE_BATCH_MIN_SIZE = 10
+  _WRITE_BATCH_TARGET_LATENCY_MS = 5000
+
+  def __init__(self, project, namespace=None, mutate_fn=None):
+    """Initializes a Mutate transform.
+
+     Args:
+       project: The Project ID
+       namespace: An optional namespace.
+       mutate_fn: Instance of DatastoreMutateFn to use.
+     """
+    self._project = project
+    self._datastore_namespace = namespace
+    self._mutate_fn = mutate_fn
+
+  def expand(self, pcoll):
+    return pcoll | 'Write Batch to Datastore' >> ParDo(self._mutate_fn)
+
+  def display_data(self):
+    disp_data = {'project': self._project}
+    if self._datastore_namespace is not None:
+      disp_data['namespace'] = self._datastore_namespace
+    return disp_data
+
+  class _DynamicBatchSizer(object):
+    """Determines request sizes for future Datastore RPCs."""
+    def __init__(self):
+      self._commit_time_per_entity_ms = util.MovingSum(window_ms=120000,
+                                                       bucket_ms=10000)
+
+    def get_batch_size(self, now):
+      """Returns the recommended size for datastore RPCs at this time."""
+      if not self._commit_time_per_entity_ms.has_data(now):
+        return _Mutate._WRITE_BATCH_INITIAL_SIZE
+
+      recent_mean_latency_ms = (self._commit_time_per_entity_ms.sum(now)
+                                // self._commit_time_per_entity_ms.count(now))
+      return max(_Mutate._WRITE_BATCH_MIN_SIZE,
+                 min(_Mutate._WRITE_BATCH_MAX_SIZE,
+                     _Mutate._WRITE_BATCH_TARGET_LATENCY_MS
+                     // max(recent_mean_latency_ms, 1)
+                    ))
+
+    def report_latency(self, now, latency_ms, num_mutations):
+      """Reports the latency of an RPC to Datastore.
+
+      Args:
+        now: double, completion time of the RPC as seconds since the epoch.
+        latency_ms: double, the observed latency in milliseconds for this RPC.
+        num_mutations: int, number of mutations contained in the RPC.
+      """
+      self._commit_time_per_entity_ms.add(now, latency_ms / num_mutations)
+
+
+  class DatastoreMutateFn(DoFn):
+    """A ``DoFn`` that write mutations to Datastore.
+
+    Mutations are written in batches, where the maximum batch size is
+    `_Mutate._WRITE_BATCH_SIZE`.
+
+    Commits are non-transactional. If a commit fails because of a conflict over
+    an entity group, the commit will be retried. This means that the mutation
+    should be idempotent (`upsert` and `delete` mutations) to prevent duplicate
+    data or errors.
+    """
+    def __init__(self, project, namespace=None, fixed_batch_size=None):
+      """
+      Args:
+        project: (str) cloud project id
+        namespace: (str) an optional namespace.
+        fixed_batch_size: (int) for testing only, this forces all batches of
+           mutations to be a fixed size, for easier unittesting.
+      """
+      self._project = project
+      self._datastore_namespace = namespace
+      self._client = None
+      self._fixed_batch_size = fixed_batch_size
+      # TODO: metrics for read?
+      self._rpc_successes = Metrics.counter(
+          _Mutate.DatastoreMutateFn, "datastoreRpcSuccesses")
+      self._rpc_errors = Metrics.counter(
+          _Mutate.DatastoreMutateFn, "datastoreRpcErrors")
+      self._throttled_secs = Metrics.counter(
+          _Mutate.DatastoreMutateFn, "cumulativeThrottlingSeconds")
+      self._throttler = AdaptiveThrottler(window_ms=120000, bucket_ms=1000,
+                                          overload_ratio=1.25)
+
+    def _update_rpc_stats(self, successes=0, errors=0, throttled_secs=0):
+      self._rpc_successes.inc(successes)
+      self._rpc_errors.inc(errors)
+      self._throttled_secs.inc(throttled_secs)
+
+    def start_bundle(self):
+      self._client = helper.get_client(self._project,
+                                       self._datastore_namespace)
+      self._init_batch()
+
+      if self._fixed_batch_size:
+        self._target_batch_size = self._fixed_batch_size
+      else:
+        self._batch_sizer = _Mutate._DynamicBatchSizer()
+        self._target_batch_size = self._batch_sizer.get_batch_size(
+            time.time() * 1000)
+
+    def add_element_to_batch(self, element):
+      raise NotImplementedError
+
+    def process(self, element):
+      self.add_element_to_batch(element)
+      self._batch_bytes_size += self._batch.mutations[-1].ByteSize()
+
+      if (len(self._batch.mutations) >= self._target_batch_size or
+          self._batch_bytes_size > _Mutate._WRITE_BATCH_MAX_BYTES_SIZE):
+        self._flush_batch()
+
+    def finish_bundle(self):
+      if self._batch.mutations:
+        self._flush_batch()
+
+    def _init_batch(self):
+      self._batch_bytes_size = 0
+      self._batch = self._client.batch()
+      self._batch.begin()
+
+    def _flush_batch(self):
+      # Flush the current batch of mutations to Cloud Datastore.
+      latency_ms = helper.write_mutations(
+          self._batch, self._throttler, self._update_rpc_stats,
+          throttle_delay=_Mutate._WRITE_BATCH_TARGET_LATENCY_MS // 1000)
+      logging.debug("Successfully wrote %d mutations in %dms.",
+                    len(self._batch.mutations), latency_ms)
+
+      if not self._fixed_batch_size:
+        now = time.time() * 1000
+        self._batch_sizer.report_latency(
+            now, latency_ms, len(self._batch.mutations))
+        self._target_batch_size = self._batch_sizer.get_batch_size(now)
+
+      self._init_batch()
+
+
+@typehints.with_input_types(types.Entity)
+class WriteToDatastore(_Mutate):
+  """
+  Writes elements of type :class:`Entity` to Cloud Datastore.
+
+  Entity keys must be complete.
+  """
+
+  def __init__(self, project, namespace=None):
+    """Initialize the `WriteToDatastore` transform.
+
+    Args:
+      project: The ID of the project to write to.
+      namespace: An optional namespace.
+    """
+    mutate_fn = WriteToDatastore.DatastoreWriteFn(project, namespace=namespace)
+    super(WriteToDatastore, self).__init__(
+        project, namespace=namespace, mutate_fn=mutate_fn)
+
+  class DatastoreWriteFn(_Mutate.DatastoreMutateFn):
+    def add_element_to_batch(self, element):
+      if not isinstance(element, types.Entity):
+        raise ValueError('apache_beam.io.gcp.datastore.v1new.datastoreio.Entity'
+                         ' expected, got: %s' % type(element))
+      client_entity = element.to_client_entity()
+      # TODO: remove
+      #print(type(client_entity.key))
+      if client_entity.key.is_partial:
+        raise ValueError('Entities to be written to Cloud Datastore must '
+                         'have complete keys:\n%s' % client_entity)
+      self._batch.put(client_entity)
+
+  # TODO: verify in console
+  def display_data(self):
+    res = super(WriteToDatastore, self).display_data()
+    res['mutation'] = 'Write (upsert)'
+    return res
+
+
+@typehints.with_input_types(types.Entity)
+class DeleteFromDatastore(_Mutate):
+  """
+  Deletes elements matching the key in element of type
+  ``google.cloud.datastore.entity.Entity`` from Cloud Datastore.
+
+  # TODO: pass in Keys? or both Entitys and Keys?
+  Entity keys must be complete.
+  """
+  def __init__(self, project, namespace=None):
+    """Initialize the `DeleteFromDatastore` transform.
+
+    Args:
+      project: The ID of the project from which the entities will be deleted.
+      namespace: An optional namespace.
+    """
+    mutate_fn = DeleteFromDatastore.DatastoreDeleteFn(
+        project, namespace=namespace)
+    super(DeleteFromDatastore, self).__init__(
+        project, namespace=namespace, mutate_fn=mutate_fn)
+
+  class DatastoreDeleteFn(_Mutate.DatastoreMutateFn):
+    def add_element_to_batch(self, element):
+      if not isinstance(element, types.Entity):
+        raise ValueError('apache_beam.io.gcp.datastore.v1new.datastoreio.Entity'
+                         ' expected, got: %s' % type(element))
+      client_entity = element.to_client_entity()
+      if client_entity.key.is_partial:
+        raise ValueError('Keys to be deleted from Cloud Datastore must be '
+                         'complete:\n%s' % client_entity.key)
+      self._batch.delete(client_entity.key)
+
+  # TODO: verify in console
+  def display_data(self):
+    res = super(DeleteFromDatastore, self).display_data()
+    res['mutation'] = 'Delete'
+    return res
