@@ -43,7 +43,6 @@ import org.apache.beam.sdk.io.FileSystems;
 import org.apache.beam.sdk.options.ExperimentalOptions;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.util.common.ReflectHelpers;
-import org.apache.beam.sdk.worker.BeamWorkerInitializer;
 import org.apache.beam.vendor.grpc.v1p13p1.com.google.protobuf.TextFormat;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableList;
 import org.slf4j.Logger;
@@ -82,10 +81,6 @@ public class FnHarness {
   }
 
   public static void main(String[] args) throws Exception {
-    for (BeamWorkerInitializer initializer :
-        ReflectHelpers.loadServicesOrdered(BeamWorkerInitializer.class)) {
-      initializer.onStartup();
-    }
     BeamWorkerInitializerHelpers.runOnStartup();
     System.out.format("SDK Fn Harness started%n");
     System.out.format("Harness ID %s%n", System.getenv(HARNESS_ID));
