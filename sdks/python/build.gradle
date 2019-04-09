@@ -53,6 +53,10 @@ lint.dependsOn lintPy27_3
 toxTask "testPy2Gcp", "py27-gcp"
 test.dependsOn testPy2Gcp
 
+// TODO(BEAM-4543): Remove this task once googledatastore-based code is removed.
+toxTask "testPy2GcpDatastore", "py27-gcp-datastore"
+test.dependsOn testPy2GcpDatastore
+
 toxTask "testPython2", "py27"
 test.dependsOn testPython2
 

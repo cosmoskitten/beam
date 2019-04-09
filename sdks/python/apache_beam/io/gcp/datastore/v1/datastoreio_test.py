@@ -30,22 +30,21 @@ from mock import MagicMock
 from mock import call
 from mock import patch
 
-from apache_beam.io.gcp.datastore.v1 import fake_datastore
-from apache_beam.io.gcp.datastore.v1 import helper
-from apache_beam.io.gcp.datastore.v1 import query_splitter
-from apache_beam.io.gcp.datastore.v1.datastoreio import ReadFromDatastore
-from apache_beam.io.gcp.datastore.v1.datastoreio import WriteToDatastore
-from apache_beam.io.gcp.datastore.v1.datastoreio import _Mutate
-
 
 # Protect against environments where datastore library is not available.
 # pylint: disable=wrong-import-order, wrong-import-position, ungrouped-imports
 try:
   from google.cloud.proto.datastore.v1 import datastore_pb2
+  from apache_beam.io.gcp.datastore.v1 import fake_datastore
+  from apache_beam.io.gcp.datastore.v1 import helper
   from google.cloud.proto.datastore.v1 import query_pb2
+  from apache_beam.io.gcp.datastore.v1 import query_splitter
+  from apache_beam.io.gcp.datastore.v1.datastoreio import ReadFromDatastore
+  from apache_beam.io.gcp.datastore.v1.datastoreio import WriteToDatastore
+  from apache_beam.io.gcp.datastore.v1.datastoreio import _Mutate
   from google.protobuf import timestamp_pb2
   from googledatastore import helper as datastore_helper
-except ImportError:
+except (ImportError, TypeError):
   datastore_pb2 = None
 # pylint: enable=wrong-import-order, wrong-import-position, ungrouped-imports
 
@@ -183,7 +182,7 @@ class DatastoreioTest(unittest.TestCase):
     self.check_DatastoreWriteFn(num_entities_to_write)
 
   def check_DatastoreWriteFn(self, num_entities):
-    """A helper function to test DatastoreWriteFn."""
+    """A helper function to test DatastoreMutateFn."""
 
     with patch.object(helper, 'get_datastore',
                       return_value=self._mock_datastore):

@@ -45,6 +45,9 @@ from apache_beam.transforms.util import Values
 try:
   from google.cloud.proto.datastore.v1 import datastore_pb2
   from googledatastore import helper as datastore_helper
+  logging.warning(
+      'Using deprecated Datastore client.\nThis client will be removed soon.\n'
+      'Please migrate to apache_beam.io.gcp.datastore.v1new.datastoreio.')
 except ImportError:
   if sys.version_info[0] == 3:
     warnings.warn('Datastore IO will support Python 3 after replacing '
@@ -514,7 +517,7 @@ class DeleteFromDatastore(_Mutate):
   def to_delete_mutation(key):
     if not helper.is_key_valid(key):
       raise ValueError('Keys to be deleted from the Cloud Datastore must be '
-                       'complete:\n%s", key')
+                       'complete:\n%s', key)
     mutation = datastore_pb2.Mutation()
     mutation.delete.CopyFrom(key)
     return mutation
