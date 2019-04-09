@@ -240,6 +240,9 @@ public class JdbcIO {
     abstract ValueProvider<String> getConnectionProperties();
 
     @Nullable
+    abstract ValueProvider<Boolean> getWrapAsPoolDataSource();
+
+    @Nullable
     abstract DataSource getDataSource();
 
     abstract Builder builder();
@@ -256,16 +259,23 @@ public class JdbcIO {
 
       abstract Builder setConnectionProperties(ValueProvider<String> connectionProperties);
 
+      abstract Builder setWrapAsPoolDataSource(ValueProvider<Boolean> wrap);
+
       abstract Builder setDataSource(DataSource dataSource);
 
       abstract DataSourceConfiguration build();
     }
 
     public static DataSourceConfiguration create(DataSource dataSource) {
+      return create(dataSource, true);
+    }
+
+    public static DataSourceConfiguration create(DataSource dataSource, boolean wrap) {
       checkArgument(dataSource != null, "dataSource can not be null");
       checkArgument(dataSource instanceof Serializable, "dataSource must be Serializable");
       return new AutoValue_JdbcIO_DataSourceConfiguration.Builder()
           .setDataSource(dataSource)
+          .setWrapAsPoolDataSource(ValueProvider.StaticValueProvider.of(wrap))
           .build();
     }
 
@@ -284,6 +294,7 @@ public class JdbcIO {
       return new AutoValue_JdbcIO_DataSourceConfiguration.Builder()
           .setDriverClassName(driverClassName)
           .setUrl(url)
+          .setWrapAsPoolDataSource(ValueProvider.StaticValueProvider.of(true))
           .build();
     }
 
@@ -301,6 +312,18 @@ public class JdbcIO {
 
     public DataSourceConfiguration withPassword(ValueProvider<String> password) {
       return builder().setPassword(password).build();
+    }
+
+    /**
+     * Sets if the provided datasource should be wrapped as a poolable datasource and used directly.
+     * If the provided datasource is already a poolable datasource, the user should not wrap it a
+     * second time.
+     *
+     * <p>Note - The "wrap" property can be added via {@link
+     * #withWrapAsPoolableDataSource(ValueProvider)}
+     */
+    public DataSourceConfiguration withWrapAsPoolableDataSource(ValueProvider<Boolean> wrap) {
+      return builder().setWrapAsPoolDataSource(wrap).build();
     }
 
     /**
@@ -356,21 +379,25 @@ public class JdbcIO {
         current = basicDataSource;
       }
 
-      // wrapping the datasource as a pooling datasource
-      DataSourceConnectionFactory connectionFactory = new DataSourceConnectionFactory(current);
-      PoolableConnectionFactory poolableConnectionFactory =
-          new PoolableConnectionFactory(connectionFactory, null);
-      GenericObjectPoolConfig poolConfig = new GenericObjectPoolConfig();
-      poolConfig.setMaxTotal(1);
-      poolConfig.setMinIdle(0);
-      poolConfig.setMinEvictableIdleTimeMillis(10000);
-      poolConfig.setSoftMinEvictableIdleTimeMillis(30000);
-      GenericObjectPool connectionPool =
-          new GenericObjectPool(poolableConnectionFactory, poolConfig);
-      poolableConnectionFactory.setPool(connectionPool);
-      poolableConnectionFactory.setDefaultAutoCommit(false);
-      poolableConnectionFactory.setDefaultReadOnly(false);
-      return new PoolingDataSource(connectionPool);
+      if (getWrapAsPoolDataSource().get()) {
+        // wrapping the datasource as a pooling datasource
+        DataSourceConnectionFactory connectionFactory = new DataSourceConnectionFactory(current);
+        PoolableConnectionFactory poolableConnectionFactory =
+            new PoolableConnectionFactory(connectionFactory, null);
+        GenericObjectPoolConfig poolConfig = new GenericObjectPoolConfig();
+        poolConfig.setMaxTotal(1);
+        poolConfig.setMinIdle(0);
+        poolConfig.setMinEvictableIdleTimeMillis(10000);
+        poolConfig.setSoftMinEvictableIdleTimeMillis(30000);
+        GenericObjectPool connectionPool =
+            new GenericObjectPool(poolableConnectionFactory, poolConfig);
+        poolableConnectionFactory.setPool(connectionPool);
+        poolableConnectionFactory.setDefaultAutoCommit(false);
+        poolableConnectionFactory.setDefaultReadOnly(false);
+        return new PoolingDataSource(connectionPool);
+      } else {
+        return current;
+      }
     }
   }
 
