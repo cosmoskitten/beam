@@ -720,6 +720,12 @@ class BigQueryWrapper(object):
     # can happen during retries on failures.
     # TODO(silviuc): Must add support to writing TableRow's instead of dicts.
     final_rows = []
+    if schema:
+      byte_fields = [field['name'] for field in schema['fields']
+                     if field['type'] == 'BYTES']
+    else:
+      byte_fields = []
+
     for row in rows:
       json_object = bigquery.JsonObject()
       if schema:
@@ -831,7 +837,7 @@ class BigQueryReader(dataflow_io.NativeSourceReader):
   """A reader for a BigQuery source."""
 
   def __init__(self, source, test_bigquery_client=None, use_legacy_sql=True,
-               flatten_results=True, kms_key=None):
+               flatten_results=True, kms_key=None, coder=None):
     self.source = source
     self.test_bigquery_client = test_bigquery_client
     if auth.is_running_in_gce:
@@ -856,6 +862,7 @@ class BigQueryReader(dataflow_io.NativeSourceReader):
     self.use_legacy_sql = use_legacy_sql
     self.flatten_results = flatten_results
     self.kms_key = kms_key
+    self.coder = coder
 
     if self.source.table_reference is not None:
       # If table schema did not define a project we default to executing
@@ -917,10 +924,14 @@ class BigQueryReader(dataflow_io.NativeSourceReader):
         flatten_results=self.flatten_results):
       if self.schema is None:
         self.schema = schema
+        if isinstance(self.coder, RowAsDictJsonCoder):
+          self.coder.set_schema(self.schema)
       for row in rows:
         if self.row_as_dict:
+          logging.info(self.client.convert_row_to_dict(row, schema))
           yield self.client.convert_row_to_dict(row, schema)
         else:
+          logging.info(row)
           yield row
 
 
@@ -984,6 +995,13 @@ class RowAsDictJsonCoder(coders.Coder):
   This is the default coder for sources and sinks if the coder argument is not
   specified.
   """
+  def __init__(self, schema=None):
+    from apache_beam.io.gcp.bigquery import WriteToBigQuery
+    self.schema = WriteToBigQuery.get_dict_table_schema(schema)
+
+  def set_schema(self, schema):
+    from apache_beam.io.gcp.bigquery import WriteToBigQuery
+    self.schema = WriteToBigQuery.get_dict_table_schema(schema)
 
   def encode(self, table_row):
     # The normal error when dumping NAN/INF values is:
@@ -991,13 +1009,29 @@ class RowAsDictJsonCoder(coders.Coder):
     # This code will catch this error to emit an error that explains
     # to the programmer that they have used NAN/INF values.
     try:
+      logging.info('schema')
+      logging.info(self.schema)
+      if self.schema:
+        for field in self.schema['fields']:
+          if field['type'] == 'BYTES' or \
+                  (isinstance(table_row[field['name']], bytes) and
+                   sys.version[0] == '3'):
+            table_row[field['name']] = base64.b64encode(
+              table_row[field['name']]).decode('utf-8')
       return json.dumps(
           table_row, allow_nan=False, default=default_encoder).encode('utf-8')
     except ValueError as e:
       raise ValueError('%s. %s' % (e, JSON_COMPLIANCE_ERROR))
 
   def decode(self, encoded_table_row):
-    return json.loads(encoded_table_row.decode('utf-8'))
+    logging.info('schema')
+    logging.info(self.schema)
+    table_row = json.loads(encoded_table_row.decode('utf-8'))
+    if self.schema:
+      for field in self.schema['fields']:
+        if field['type'] == 'BYTES':
+          table_row[field['name']] = base64.b64decode(table_row[field['name']])
+    return table_row
 
 
 class RetryStrategy(object):
