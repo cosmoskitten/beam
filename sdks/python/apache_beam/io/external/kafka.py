@@ -14,6 +14,14 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
+"""
+  PTransforms for supporting Kafka in Python pipelines. These transforms do not
+  run a Kafka client in Python. Instead, they expand to ExternalTransform and
+  utilize the Java SDK's Kafka IO. The expansion service will insert Kafka Java
+  transforms before the pipeline is executed. Users currently have to provide
+  the address of the Java expansion service. Flink Users can use the built-in
+  expansion service of the Flink Runner's job server.
+"""
 
 from __future__ import absolute_import
 
@@ -30,7 +38,9 @@ from apache_beam.transforms import ptransform
 
 class ReadFromKafka(ptransform.PTransform):
   """
-    A PTransform which from Kafka topics.
+    An external PTransform which reads from Kafka topics. Runners need to
+    support translating Read operations in order to use this source. At the
+    moment only the Flink Runner supports this.
   """
 
   def __init__(self, consumer_config,
@@ -38,6 +48,21 @@ class ReadFromKafka(ptransform.PTransform):
                key_deserializer,
                value_deserializer,
                expansion_service=None):
+    """
+    Initializes a read operation from Kafka.
+
+    :param consumer_config: A dictionary containing the consumer configuration.
+    :param topics: A list of topic strings.
+    :param key_deserializer: A fully-qualified Java class name of a Kafka
+                             Deserializer for the topic's key, e.g.
+                             'org.apache.kafka.common.
+                             serialization.LongDeserializer'.
+    :param value_deserializer: A fully-qualified Java class name of a Kafka
+                               Deserializer for the topic's value, e.g.
+                               'org.apache.kafka.common.
+                               serialization.LongDeserializer'.
+    :param expansion_service: The address (host:port) of the ExpansionService.
+    """
     super(ReadFromKafka, self).__init__()
     self._urn = 'beam:external:java:kafka:read:v1'
     self.consumer_config = consumer_config
