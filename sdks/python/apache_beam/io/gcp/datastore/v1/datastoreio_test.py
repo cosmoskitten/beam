@@ -19,8 +19,6 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
-import os
-import sys
 import unittest
 from builtins import map
 from builtins import range
@@ -30,30 +28,25 @@ from mock import MagicMock
 from mock import call
 from mock import patch
 
-from apache_beam.io.gcp.datastore.v1 import fake_datastore
-from apache_beam.io.gcp.datastore.v1 import helper
-from apache_beam.io.gcp.datastore.v1 import query_splitter
-from apache_beam.io.gcp.datastore.v1.datastoreio import ReadFromDatastore
-from apache_beam.io.gcp.datastore.v1.datastoreio import WriteToDatastore
-from apache_beam.io.gcp.datastore.v1.datastoreio import _Mutate
-
 
 # Protect against environments where datastore library is not available.
 # pylint: disable=wrong-import-order, wrong-import-position, ungrouped-imports
 try:
   from google.cloud.proto.datastore.v1 import datastore_pb2
+  from apache_beam.io.gcp.datastore.v1 import fake_datastore
+  from apache_beam.io.gcp.datastore.v1 import helper
   from google.cloud.proto.datastore.v1 import query_pb2
+  from apache_beam.io.gcp.datastore.v1 import query_splitter
+  from apache_beam.io.gcp.datastore.v1.datastoreio import ReadFromDatastore
+  from apache_beam.io.gcp.datastore.v1.datastoreio import WriteToDatastore
+  from apache_beam.io.gcp.datastore.v1.datastoreio import _Mutate
   from google.protobuf import timestamp_pb2
   from googledatastore import helper as datastore_helper
-except ImportError:
+except (ImportError, TypeError):
   datastore_pb2 = None
 # pylint: enable=wrong-import-order, wrong-import-position, ungrouped-imports
 
 
-@unittest.skipIf(sys.version_info[0] == 3 and
-                 os.environ.get('RUN_SKIPPED_PY3_TESTS') != '1',
-                 'This test still needs to be fixed on Python 3'
-                 'TODO: BEAM-4543')
 @unittest.skipIf(datastore_pb2 is None, 'GCP dependencies are not installed')
 class DatastoreioTest(unittest.TestCase):
   _PROJECT = 'project'
@@ -278,10 +271,6 @@ class DatastoreioTest(unittest.TestCase):
     return split_queries
 
 
-@unittest.skipIf(sys.version_info[0] == 3 and
-                 os.environ.get('RUN_SKIPPED_PY3_TESTS') != '1',
-                 'This test still needs to be fixed on Python 3'
-                 'TODO: BEAM-4543')
 @unittest.skipIf(datastore_pb2 is None, 'GCP dependencies are not installed')
 class DynamicWriteBatcherTest(unittest.TestCase):
 
