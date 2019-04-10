@@ -172,8 +172,7 @@ class MeanInt64Accumulator(object):
       self.sum %= 2**64
       if self.sum >= INT64_MAX:
         self.sum -= 2**64
-    mean = self.sum // self.count if self.count else _NAN
-    return mean, self.sum, self.count
+    return self.sum // self.count if self.count else _NAN
 
 
 class DistributionInt64Accumulator(object):
