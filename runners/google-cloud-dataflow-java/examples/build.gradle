@@ -42,10 +42,9 @@ def dockerImageName = project(':beam-runners-google-cloud-dataflow-java').ext.do
 // If -PuseExecutableStage is set, the use_executable_stage_bundle_execution wil be enabled.
 def fnapiExperiments = project.hasProperty('useExecutableStage') ? 'beam_fn_api,use_executable_stage_bundle_execution' : "beam_fn_api"
 
-// we require dataflowWorker, optional workerHarnessContainerImage and optional additionalOptions
 def commonConfig = { dataflowWorkerJar, workerHarnessContainerImage = '', additionalOptions = [] ->
    // return the preevaluated configuration closure
-           return {
+   return {
        testClassesDirs = files(project(":beam-examples-java").sourceSets.test.output.classesDirs)
        include "**/WordCountIT.class"
        include "**/WindowedWordCountIT.class"
