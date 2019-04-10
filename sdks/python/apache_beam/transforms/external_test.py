@@ -20,6 +20,7 @@
 from __future__ import absolute_import
 
 import argparse
+from mock import patch
 import subprocess
 import sys
 import unittest
@@ -30,6 +31,7 @@ from past.builtins import unicode
 import apache_beam as beam
 from apache_beam import Pipeline
 from apache_beam.io.external.generate_sequence import GenerateSequence
+from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.portability import python_urns
 from apache_beam.runners.portability import expansion_service
 from apache_beam.runners.portability.expansion_service_test import FibTransform
@@ -102,7 +104,7 @@ class ExternalTransformTest(unittest.TestCase):
     with beam.Pipeline() as p:
       assert_that(p | FibTransform(6), equal_to([8]))
 
-  def test_java_expansion(self):
+  def test_java_expansion_portable_runner(self):
     if not self.expansion_service_jar:
       raise unittest.SkipTest('No expansion service jar provided.')
 
@@ -156,6 +158,57 @@ class ExternalTransformTest(unittest.TestCase):
 
     finally:
       server.kill()
+
+  def test_java_expansion_dataflow(self):
+    if not self.expansion_service_jar:
+      raise unittest.SkipTest('No expansion service jar provided.')
+
+    from apache_beam.runners.dataflow.internal.apiclient import DataflowApplicationClient
+
+    with patch.object(DataflowApplicationClient, 'create_job') as mock_create_job:
+
+      # The actual definitions of these transforms is in
+      # org.apache.beam.runners.core.construction.TestExpansionService.
+      TEST_FILTER_URN = "pytest:beam:transforms:filter_less_than"
+
+      # Run as cheaply as possible on the portable runner.
+      options = beam.options.pipeline_options.PipelineOptions(
+          runner='DataflowRunner',
+          project='dummyproject',
+          temp_location='gs://dummybucket/',
+          experiments=['beam_fn_api', 'use_unified_worker',
+                       'cross_language_pipeline'])
+
+      try:
+        # Start the java server and wait for it to be ready.
+        port = '8091'
+        address = 'localhost:%s' % port
+        server = subprocess.Popen(
+            ['java', '-jar', self.expansion_service_jar, port])
+        with grpc.insecure_channel(address) as channel:
+          grpc.channel_ready_future(channel).result()
+
+        # Run a simple count-filtered-letters pipeline.
+        p = beam.Pipeline(options=options)
+        (
+            p
+            | beam.Create(list('aaabccxyyzzz'))
+            | beam.Map(unicode)
+            # TODO(BEAM-6587): Use strings directly rather than ints.
+            | beam.Map(lambda x: int(ord(x)))
+            | beam.ExternalTransform(TEST_FILTER_URN, b'middle', address)
+            # TODO(BEAM-6587): Remove when above is removed.
+            | beam.Map(lambda v: chr(v)))
+        p.run()
+
+        mock_args = mock_create_job.call_args_list
+        assert mock_args
+        args, kwargs = mock_args[0]
+        job = args[0]
+        job_str = '%s' % job
+        self.assertIn('pytest:beam:transforms:filter_less_than', job_str)
+      finally:
+        server.kill()
 
 
 if __name__ == '__main__':

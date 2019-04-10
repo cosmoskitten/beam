@@ -297,6 +297,45 @@ def get_function_arguments(obj, func):
   return getfullargspec(f)
 
 
+class RunnerAPIProtoHolder(object):
+  """An object for holding runner API payload for constructing a transform.
+
+  This is used for transforms for which transform objects cannot be initialized
+  in Python SDK. For example, for `ParDo` transforms for remote SDKs that may be
+  available in Python SDK transform graph when expanding a cross-language
+  transform since a Python `ParDo` object cannot be generated without a
+  serialized Python `DoFn` object.
+  """
+
+  def __init__(self, proto, urn):
+    self._proto = proto
+    self._urn = urn
+
+  def proto(self):
+    """Runner API payload for constructing the transform.
+
+    Exact definition of the Payload depends on the transform. For example, for a
+    ParDo transform, this will be a `ParDoPayload` object.
+    """
+    return self._proto
+
+  def urn(self):
+    """URN of the transform."""
+    return self._urn
+
+
+class RunnerAPIPTransformHolder(RunnerAPIProtoHolder, PTransform):
+  """A `RunnerAPIProtoHolder` for `PTransform`s"""
+
+  def to_runner_api(self, context, has_parts=False):
+    if self.urn() == common_urns.primitives.PAR_DO.urn:
+      return beam_runner_api_pb2.FunctionSpec(
+          urn=common_urns.primitives.PAR_DO.urn,
+          payload=self.proto().SerializeToString())
+    else:
+      raise NotImplementedError
+
+
 class _DoFnParam(object):
   """DoFn parameter."""
 
@@ -1112,22 +1151,32 @@ class ParDo(PTransformWithSideInputs):
   @PTransform.register_urn(
       common_urns.primitives.PAR_DO.urn, beam_runner_api_pb2.ParDoPayload)
   def from_runner_api_parameter(pardo_payload, context):
-    assert pardo_payload.do_fn.spec.urn == python_urns.PICKLED_DOFN_INFO
-    fn, args, kwargs, si_tags_and_types, windowing = pickler.loads(
-        pardo_payload.do_fn.spec.payload)
-    if si_tags_and_types:
-      raise NotImplementedError('explicit side input data')
-    elif windowing:
-      raise NotImplementedError('explicit windowing')
-    result = ParDo(fn, *args, **kwargs)
-    # This is an ordered list stored as a dict (see the comments in
-    # to_runner_api_parameter above).
-    indexed_side_inputs = [
-        (int(re.match('side([0-9]+)(-.*)?$', tag).group(1)),
-         pvalue.AsSideInput.from_runner_api(si, context))
-        for tag, si in pardo_payload.side_inputs.items()]
-    result.side_inputs = [si for _, si in sorted(indexed_side_inputs)]
-    return result
+    # For external Java transforms we cannot build a Python ParDo object so
+    # we build a holder transform instead.
+    external_java_transform = False
+    if 'urn:beam:dofn:javasdk:' in pardo_payload.do_fn.spec.urn:
+      external_java_transform = True
+
+    # assert pardo_payload.do_fn.spec.urn == python_urns.PICKLED_DOFN_INFO
+    if external_java_transform:
+      return RunnerAPIPTransformHolder(
+        pardo_payload, common_urns.primitives.PAR_DO.urn)
+    else:
+      fn, args, kwargs, si_tags_and_types, windowing = pickler.loads(
+          pardo_payload.do_fn.spec.payload)
+      if si_tags_and_types:
+        raise NotImplementedError('explicit side input data')
+      elif windowing:
+        raise NotImplementedError('explicit windowing')
+      result = ParDo(fn, *args, **kwargs)
+      # This is an ordered list stored as a dict (see the comments in
+      # to_runner_api_parameter above).
+      indexed_side_inputs = [
+          (int(re.match('side([0-9]+)(-.*)?$', tag).group(1)),
+           pvalue.AsSideInput.from_runner_api(si, context))
+          for tag, si in pardo_payload.side_inputs.items()]
+      result.side_inputs = [si for _, si in sorted(indexed_side_inputs)]
+      return result
 
   def runner_api_requires_keyed_input(self):
     return userstate.is_stateful_dofn(self.fn)
