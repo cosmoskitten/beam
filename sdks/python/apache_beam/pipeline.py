@@ -860,7 +860,7 @@ class AppliedPTransform(object):
         return None
       else:
         return transform.to_runner_api(context, has_parts=bool(self.parts))
-    # Iterater over inputs and outputs in sorted order, so that ids are
+    # Iterate over inputs and outputs by sorted key order, so that ids are
     # consistently generated for multiple runs of the same pipeline.
     return beam_runner_api_pb2.PTransform(
         unique_name=self.full_label,
