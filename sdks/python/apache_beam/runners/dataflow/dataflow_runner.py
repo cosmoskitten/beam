@@ -346,6 +346,15 @@ class DataflowRunner(PipelineRunner):
     self.proto_pipeline, self.proto_context = pipeline.to_runner_api(
         return_context=True)
 
+    experiments = options.view_as(DebugOptions).experiments or []
+    if 'cross_language_pipeline' in experiments:
+      # Cross language transform require using a pipeline object constructed
+      # from the full pipeline proto to make sure that expanded version of
+      # external transforms are reflected in the Pipeline job graph.
+      from apache_beam import Pipeline
+      pipeline = Pipeline.from_runner_api(
+          self.proto_pipeline, pipeline.runner, options)
+
     # Add setup_options for all the BeamPlugin imports
     setup_options = options.view_as(SetupOptions)
     plugins = BeamPlugin.get_all_plugin_paths()
@@ -476,10 +485,15 @@ class DataflowRunner(PipelineRunner):
 
   def _get_encoded_output_coder(self, transform_node, window_value=True):
     """Returns the cloud encoding of the coder for the output of a transform."""
+    # Main output key for external transforms for Java SDK received through
+    # cross-language transforms is u'output'
+    main_output_key = (
+        'output' if ('output' in transform_node.outputs.keys()
+                     and None not in transform_node.outputs.keys()) else None)
     if (len(transform_node.outputs) == 1
-        and transform_node.outputs[None].element_type is not None):
+        and transform_node.outputs[main_output_key].element_type is not None):
       # TODO(robertwb): Handle type hints for multi-output transforms.
-      element_type = transform_node.outputs[None].element_type
+      element_type = transform_node.outputs[main_output_key].element_type
     else:
       # TODO(silviuc): Remove this branch (and assert) when typehints are
       # propagated everywhere. Returning an 'Any' as type hint will trigger
@@ -487,7 +501,7 @@ class DataflowRunner(PipelineRunner):
       element_type = typehints.Any
     if window_value:
       window_coder = (
-          transform_node.outputs[None].windowing.windowfn.get_window_coder())
+          transform_node.outputs[main_output_key].windowing.windowfn.get_window_coder())
     else:
       window_coder = None
     from apache_beam.runners.dataflow.internal import apiclient
@@ -501,11 +515,16 @@ class DataflowRunner(PipelineRunner):
     # Import here to avoid adding the dependency for local running scenarios.
     # pylint: disable=wrong-import-order, wrong-import-position
     from apache_beam.runners.dataflow.internal import apiclient
+    # Main output key for external transforms for Java SDK received through
+    # cross-language transforms is u'output'
+    main_output_key = ('output' if (
+        'output' in transform_node.outputs.keys()
+        and None not in transform_node.outputs.keys()) else None)
     step = apiclient.Step(step_kind, self._get_unique_step_name())
     self.job.proto.steps.append(step.proto)
     step.add_property(PropertyNames.USER_NAME, step_label)
     # Cache the node/step association for the main output of the transform node.
-    self._cache.cache_output(transform_node, None, step)
+    self._cache.cache_output(transform_node, main_output_key, step)
     # If side_tags is not () then this is a multi-output transform node and we
     # need to cache the (node, tag, step) for each of the tags used to access
     # the outputs. This is essential because the keys used to search in the
@@ -661,6 +680,22 @@ class DataflowRunner(PipelineRunner):
     step.add_property(
         PropertyNames.SERIALIZED_FN,
         self.serialize_windowing_strategy(windowing))
+
+  def run_RunnerAPIPTransformHolder(self, transform_node, options):
+    """Adding Dataflow runner job description for transform holder objects.
+
+    These holder transform objects are generated for some of the transforms that
+    become available after a cross-language transform expansion, usually if the
+    corresponding transform object cannot be generated in Python SDK (for
+    example, a python `ParDo` transform cannot be generated without a serialized
+    Python `DoFn` object).
+    """
+    assert transform_node.transform.urn()
+    if common_urns.primitives.PAR_DO.urn == transform_node.transform.urn():
+      self.run_ParDo(transform_node, options)
+      return
+
+    raise NotImplementedError('run_RunnerAPIPayloadHolder')
 
   def run_ParDo(self, transform_node, options):
     transform = transform_node.transform
