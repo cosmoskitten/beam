@@ -46,10 +46,6 @@ except (ImportError, TypeError):
 # pylint: enable=wrong-import-order, wrong-import-position
 
 
-@unittest.skipIf(sys.version_info[0] == 3 and
-                 os.environ.get('RUN_SKIPPED_PY3_TESTS') != '1',
-                 'This test still needs to be fixed on Python 3'
-                 'TODO: BEAM-4543')
 @unittest.skipIf(datastore_helper is None, 'GCP dependencies are not installed')
 class HelperTest(unittest.TestCase):
 

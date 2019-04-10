@@ -18,7 +18,6 @@
 """
 Implements a Cloud Datastore query splitter.
 
-TODO: add similar comments to other modules
 For internal use only. No backwards compatibility guarantees.
 """
 from __future__ import absolute_import
@@ -27,27 +26,7 @@ from __future__ import division
 from builtins import range
 from builtins import round
 
-import copy
-
 from apache_beam.io.gcp.datastore.v1new import types
-from apache_beam.io.gcp.datastore.v1new import helper
-
-# Protect against environments where datastore library is not available.
-# pylint: disable=wrong-import-order, wrong-import-position
-try:
-  from google.cloud.datastore_v1.proto import datastore_pb2
-  from google.cloud.datastore_v1.proto import query_pb2
-  from google.cloud.datastore_v1.proto.query_pb2 import PropertyFilter
-  from google.cloud.datastore_v1.proto.query_pb2 import CompositeFilter
-  #from googledatastore import helper as datastore_helper
-  UNSUPPORTED_OPERATORS = [PropertyFilter.LESS_THAN,
-                           PropertyFilter.LESS_THAN_OR_EQUAL,
-                           PropertyFilter.GREATER_THAN,
-                           PropertyFilter.GREATER_THAN_OR_EQUAL]
-except ImportError:
-  UNSUPPORTED_OPERATORS = None
-# pylint: enable=wrong-import-order, wrong-import-position
-
 
 __all__ = ['QuerySplitterError', 'SplitNotPossibleError', 'get_splits']
 
@@ -65,9 +44,7 @@ class SplitNotPossibleError(QuerySplitterError):
   """Raised when some parameter of the query does not allow splitting."""
 
 
-# TODO: remove partition from all of v1new
-# TODO: integration test
-def get_splits(datastore, query, num_splits):
+def get_splits(client, query, num_splits):
   """Returns a list of sharded queries for the given Cloud Datastore query.
 
   This will create up to the desired number of splits, however it may return
@@ -83,25 +60,23 @@ def get_splits(datastore, query, num_splits):
   https://github.com/GoogleCloudPlatform/google-cloud-datastore/blob/master/java/datastore/src/main/java/com/google/datastore/v1/client/QuerySplitterImpl.java
 
   Args:
-    datastore: the datastore client.
+    client: the datastore client.
     query: the query to split.
     num_splits: the desired number of splits.
 
   Returns:
     A list of split queries, of a max length of `num_splits`
+
+  Raises:
+    QuerySplitterError if split could not be performed owing to query or split
+      parameters.
   """
-
-  # Validate that the number of splits is not out of bounds.
-  if num_splits < 1:
-    raise ValueError('The number of splits must be greater than 0.')
-
-  #if num_splits == 1:
-  #  return [query]
-
-  _validate_split(query, num_splits)
+  if num_splits <= 1:
+    raise SplitNotPossibleError('num_splits must be > 1, got: %d' % num_splits)
+  validate_split(query)
 
   splits = []
-  client_scatter_keys = _get_scatter_keys(datastore, query, num_splits)
+  client_scatter_keys = _get_scatter_keys(client, query, num_splits)
   last_client_key = None
   for next_client_key in _get_split_key(client_scatter_keys, num_splits):
     splits.append(_create_split(last_client_key, next_client_key, query))
@@ -111,26 +86,25 @@ def get_splits(datastore, query, num_splits):
   return splits
 
 
-# TODO: test coverage
-def _validate_split(query, num_splits):
+def validate_split(query):
   """
   Verifies that the given query can be properly scattered.
 
   Note that equality and ancestor filters are allowed, however they may result
   in inefficient sharding.
-  """
-  if num_splits == 1:
-    raise SplitNotPossibleError('Given num_splits == 1.')
 
+  Raises:
+    QuerySplitterError if split could not be performed owing to query
+      parameters.
+  """
   if query.order:
     raise SplitNotPossibleError('Query cannot have any sort orders.')
 
   if query.limit is not None:
     raise SplitNotPossibleError('Query cannot have a limit set.')
 
-  #_validate_filter(query.filter)
   for filter in query.filters:
-    if filter[1] in UNSUPPORTED_OPERATORS:
+    if filter[1] in ['<', '<=', '>', '>=']:
       raise SplitNotPossibleError('Query cannot have any inequality filters.')
 
 
@@ -155,7 +129,7 @@ def client_key_sort_key(client_key):
     str(element) for element in client_key.flat_path]
 
 
-def _get_scatter_keys(datastore, query, num_splits):
+def _get_scatter_keys(client, query, num_splits):
   """Gets a list of split keys given a desired number of splits.
 
   This list will contain multiple split keys for each split. Only a single split
@@ -163,7 +137,7 @@ def _get_scatter_keys(datastore, query, num_splits):
   for more uniform sharding.
 
   Args:
-    datastore: the client to datastore containing the data.
+    client: the client to datastore containing the data.
     query: the user query.
     num_splits: the number of desired splits.
 
@@ -171,10 +145,10 @@ def _get_scatter_keys(datastore, query, num_splits):
     A list of scatter keys returned by Datastore.
   """
   scatter_point_query = _create_scatter_query(query, num_splits)
-  client_query = scatter_point_query._to_client_query(datastore)
+  client_query = scatter_point_query._to_client_query(client)
   client_key_splits = [
     client_entity.key
-    for client_entity in client_query.fetch(client=datastore,
+    for client_entity in client_query.fetch(client=client,
                                             limit=scatter_point_query.limit)]
   client_key_splits.sort(key=client_key_sort_key)
   return client_key_splits
@@ -246,36 +220,16 @@ def _create_split(last_client_key, next_client_key, query):
   if not (last_client_key or next_client_key):
     return query
 
-  #split_query = query_pb2.Query()
-  #split_query.CopyFrom(query)
-  #composite_filter = split_query.filter.composite_filter
-  #composite_filter.op = CompositeFilter.AND
   split_query = query.clone()
   # Copy filters and possible convert empty tuple to empty list.
   filters = list(split_query.filters)
 
-  #if query.HasField('filter'):
-  #  composite_filter.filters.add().CopyFrom(query.filter)
-
   if last_client_key:
     filters.append((
-      KEY_PROPERTY_NAME, PropertyFilter.GREATER_THAN_OR_EQUAL, last_client_key))
-    #lower_bound = composite_filter.filters.add()
-    #lower_bound.property_filter.property.name = KEY_PROPERTY_NAME
-    #lower_bound.property_filter.op = PropertyFilter.GREATER_THAN_OR_EQUAL
-    #lower_bound.property_filter.value.key_value.CopyFrom(last_client_key)
-
+      KEY_PROPERTY_NAME, '>=', last_client_key))
   if next_client_key:
     filters.append((
-      KEY_PROPERTY_NAME, PropertyFilter.LESS_THAN, next_client_key))
-    #upper_bound = composite_filter.filters.add()
-    #upper_bound.property_filter.property.name = KEY_PROPERTY_NAME
-    #upper_bound.property_filter.op = PropertyFilter.LESS_THAN
-    #upper_bound.property_filter.value.key_value.CopyFrom(next_client_key)
+      KEY_PROPERTY_NAME, '<', next_client_key))
 
-  #return types.Query(
-  #    kind=query.kind, ancestor=query.ancestor, filters=filters,
-  #    projection=query.projection, order=query.order,
-  #    distinct_on=query.distinct_on, limit=query.limit)
   split_query.filters = filters
   return split_query

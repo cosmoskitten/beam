@@ -19,73 +19,48 @@
 
 from __future__ import absolute_import
 
-import os
-import sys
 import unittest
 
 import mock
-# TODO: remove
-#from mock import MagicMock
-# TODO: remove
-from mock import call
-
-# TODO: convert all v1 references to v1new
-# TODO: run tests on py3
 
 # Protect against environments where datastore library is not available.
 # pylint: disable=wrong-import-order, wrong-import-position
 try:
-  from apache_beam.io.gcp.datastore.v1new import fake_datastore
+  from apache_beam.io.gcp.datastore.v1new import testing
   from apache_beam.io.gcp.datastore.v1new import query_splitter
   from apache_beam.io.gcp.datastore.v1new import types
+  from apache_beam.io.gcp.datastore.v1new.query_splitter import SplitNotPossibleError
   from google.cloud.datastore import key
-  # TODO: remove
-  #from google.cloud.datastore_v1.proto import datastore_pb2
-  from google.cloud.datastore_v1.proto import query_pb2
-# TODO(BEAM-4543): Remove TypeError this once googledatastore dependency is
-#  removed.
+# TODO(BEAM-4543): Remove TypeError once googledatastore dependency is removed.
 except (ImportError, TypeError):
-  query_pb2 = None
+  query_splitter = None
 # pylint: enable=wrong-import-order, wrong-import-position
 
 
-@unittest.skipIf(query_pb2 is None, 'GCP dependencies are not installed')
+@unittest.skipIf(query_splitter is None, 'GCP dependencies are not installed')
 class QuerySplitterTest(unittest.TestCase):
   _PROJECT = 'project'
   _NAMESPACE = 'namespace'
 
-  def setUp(self):
-    self._mock_client = mock.MagicMock()
-
   def test_get_splits_query_with_order(self):
-    #query = query_pb2.Query()
-    #query.kind.add()
-    #query.order.add()
     query = types.Query(kind='kind', order=['prop1'])
-    with self.assertRaisesRegexp(query_splitter.SplitNotPossibleError,
-                                 r'sort orders'):
+    with self.assertRaisesRegexp(SplitNotPossibleError, r'sort orders'):
       query_splitter.get_splits(None, query, 3)
 
-    #self.assertRaises(ValueError, query_splitter.get_splits, None, query, 3)
-
   def test_get_splits_query_with_unsupported_filter(self):
-    #query = query_pb2.Query()
-    #query.kind.add()
-    #test_filter = query.filter.composite_filter.filters.add()
-    #test_filter.property_filter.op = query_pb2.PropertyFilter.GREATER_THAN
-    query = types.Query(
-        kind='kind',
-        filters=[('prop1', query_pb2.PropertyFilter.GREATER_THAN, 'value1')])
-    with self.assertRaisesRegexp(query_splitter.SplitNotPossibleError,
-                                 r'inequality filters'):
+    query = types.Query(kind='kind', filters=[('prop1', '>', 'value1')])
+    with self.assertRaisesRegexp(SplitNotPossibleError, r'inequality filters'):
       query_splitter.get_splits(None, query, 2)
-    #self.assertRaises(ValueError, query_splitter.get_splits, None, query, 2)
 
   def test_get_splits_query_with_limit(self):
     query = types.Query(limit=10)
-    with self.assertRaisesRegexp(query_splitter.SplitNotPossibleError,
-                                 r'limit set'):
+    with self.assertRaisesRegexp(SplitNotPossibleError, r'limit set'):
       query_splitter.get_splits(None, query, 2)
+
+  def test_get_splits_query_with_num_splits_of_one(self):
+    query = types.Query()
+    with self.assertRaisesRegexp(SplitNotPossibleError, r'num_splits'):
+      query_splitter.get_splits(None, query, 1)
 
   def test_create_scatter_query(self):
     query = types.Query(kind='shakespeare-demo')
@@ -103,90 +78,51 @@ class QuerySplitterTest(unittest.TestCase):
     query = types.Query(kind='shakespeare-demo')
     num_splits = 2
     num_entities = 0
-    batch_size = 0
-
-    self.check_get_splits(query, num_splits, num_entities, batch_size)
+    self.check_get_splits(query, num_splits, num_entities)
 
   def test_get_splits_with_two_splits(self):
     query = types.Query(kind='shakespeare-demo')
     num_splits = 2
     num_entities = 97
-    batch_size = 9
-
-    self.check_get_splits(query, num_splits, num_entities, batch_size)
+    self.check_get_splits(query, num_splits, num_entities)
 
   def test_get_splits_with_multiple_splits(self):
     query = types.Query(kind='shakespeare-demo')
     num_splits = 4
     num_entities = 369
-    batch_size = 12
-
-    self.check_get_splits(query, num_splits, num_entities, batch_size)
+    self.check_get_splits(query, num_splits, num_entities)
 
   def test_get_splits_with_large_num_splits(self):
     query = types.Query(kind='shakespeare-demo')
     num_splits = 10
     num_entities = 4
-    batch_size = 10
-
-    self.check_get_splits(query, num_splits, num_entities, batch_size)
+    self.check_get_splits(query, num_splits, num_entities)
 
   def test_get_splits_with_small_num_entities(self):
     query = types.Query(kind='shakespeare-demo')
     num_splits = 4
     num_entities = 50
-    batch_size = 10
+    self.check_get_splits(query, num_splits, num_entities)
 
-    self.check_get_splits(query, num_splits, num_entities, batch_size)
-
-  def test_get_splits_with_batch_size_exact_multiple(self):
-    """Test get_splits when num scatter keys is a multiple of batch size."""
-    query = types.Query(kind='shakespeare-demo')
-    num_splits = 4
-    num_entities = 400
-    batch_size = 32
-
-    self.check_get_splits(query, num_splits, num_entities, batch_size)
-
-  def test_get_splits_with_large_batch_size(self):
-    """Test get_splits when all scatter keys are returned in a single req."""
-    query = types.Query(kind='shakespeare-demo')
-    num_splits = 4
-    num_entities = 400
-    batch_size = 500
-
-    self.check_get_splits(query, num_splits, num_entities, batch_size)
-
-  # TODO: remove batch_size?
-  def check_get_splits(self, query, num_splits, num_entities, batch_size):
+  def check_get_splits(self, query, num_splits, num_entities):
     """A helper method to test the query_splitter get_splits method.
 
     Args:
       query: the query to be split
       num_splits: number of splits
       num_entities: number of scatter entities contained in the fake datastore.
-      batch_size: the number of entities returned by fake datastore in one req.
     """
     # Test for both random long ids and string ids.
     for id_or_name in [True, False]:
-      entities = fake_datastore.create_client_entities(num_entities, id_or_name)
+      entities = testing.create_client_entities(num_entities, id_or_name)
 
-      #mock_client_query = MagicMock()
-      ##mock_client_query.fetch.return_value = entities
-      #mock_client_query.fetch.side_effect = Exception
-      #query._to_client_query = lambda _: Exception()
-
-      mock_datastore = mock.MagicMock()
-      # Assign a fake run_query method as a side_effect to the mock.
-      #mock_datastore.run_query.side_effect = \
-      #    fake_datastore.create_run_query(entities, batch_size)
+      mock_client = mock.MagicMock()
       mock_client_query = mock.MagicMock()
       mock_client_query.fetch.return_value = entities
       with mock.patch.object(
           types.Query, '_to_client_query', return_value=mock_client_query):
-        #mock_to_client_query.return_value = mock_client_query
         split_queries = query_splitter.get_splits(
-            mock_datastore, query, num_splits)
+            mock_client, query, num_splits)
 
       mock_client_query.fetch.assert_called_once()
       # if request num_splits is greater than num_entities, the best it can
@@ -194,40 +130,6 @@ class QuerySplitterTest(unittest.TestCase):
       expected_num_splits = min(num_splits, num_entities + 1)
       self.assertEqual(len(split_queries), expected_num_splits)
 
-      #expected_requests = QuerySplitterTest.create_scatter_requests(
-      #    query, num_splits, batch_size, num_entities)
-
-      #expected_calls = []
-      #for req in expected_requests:
-      #  expected_calls.append(call(req))
-
-      #self.assertEqual(expected_calls, mock_datastore.run_query.call_args_list)
-
-  # TODO: remove if unused
-  # @staticmethod
-  # def create_scatter_requests(query, num_splits, batch_size, num_entities):
-  #   """Creates a list of expected scatter requests from the query splitter.
-  #
-  #   This list of requests returned is used to verify that the query splitter
-  #   made the same number of requests in the same order to datastore.
-  #   """
-  #
-  #   requests = []
-  #   count = (num_splits - 1) * query_splitter.KEYS_PER_SPLIT
-  #   start_cursor = ''
-  #   i = 0
-  #   scatter_query = query_splitter._create_scatter_query(query, count)
-  #   while i < count and i < num_entities:
-  #     request = datastore_pb2.RunQueryRequest()
-  #     request.query.CopyFrom(scatter_query)
-  #     request.query.start_cursor = start_cursor
-  #     request.query.limit.value = count - i
-  #     requests.append(request)
-  #     i += batch_size
-  #     start_cursor = str(i)
-  #
-  #   return requests
-  
   def test_client_key_sort_key(self):
     k = key.Key('kind1', 1, project=self._PROJECT, namespace=self._NAMESPACE)
     k2 = key.Key('kind2', 'a', parent=k)

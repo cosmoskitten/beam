@@ -22,13 +22,13 @@ from __future__ import absolute_import
 import mock
 import unittest
 
+# Protect against environments where datastore library is not available.
 try:
   from google.cloud.datastore import client
   from apache_beam.io.gcp.datastore.v1new.types import Entity
   from apache_beam.io.gcp.datastore.v1new.types import Key
   from apache_beam.io.gcp.datastore.v1new.types import Query
-# TODO(BEAM-4543): Remove TypeError this once googledatastore dependency is
-#  removed.
+# TODO(BEAM-4543): Remove TypeError once googledatastore dependency is removed.
 except (ImportError, TypeError):
   client = None
 
@@ -111,29 +111,20 @@ class TypesTest(unittest.TestCase):
     with self.assertRaisesRegexp(ValueError, r'project'):
       _ = Key.from_client_key(k.to_client_key())
 
-  # def testKeySort(self):
-  #   k = Key(['kind1', 1234], project=self._PROJECT, namespace=self._NAMESPACE)
-  #   k2 = Key(['kind2', 'abc'], parent=k)
-  #   k3 = Key(['kind2', 'abd'], parent=k)
-  #   k4 = Key(['kind1', 'abc'], project=self._PROJECT, namespace=self._NAMESPACE)
-  #   keys = [k, k4, k3, k2, k2, k]
-  #   expected_sort = [k, k, k2, k2, k3, k4]
-  #   keys.sort(key=Key.sort_key)
-  #   self.assertEqual(expected_sort, keys)
-
   def testQuery(self):
     filters = [('property_name', '=', 'value')]
     projection = ['f1', 'f2']
     order = projection
     distinct_on = projection
+    ancestor_key = Key(['kind', 'id'], project=self._PROJECT)
     q = Query(kind='kind', project=self._PROJECT, namespace=self._NAMESPACE,
-              ancestor='ancestor', filters=filters, projection=projection,
+              ancestor=ancestor_key, filters=filters, projection=projection,
               order=order, distinct_on=distinct_on)
     cq = q._to_client_query(self._test_client)
     self.assertEqual(self._PROJECT, cq.project)
     self.assertEqual(self._NAMESPACE, cq.namespace)
     self.assertEqual('kind', cq.kind)
-    self.assertEqual('ancestor', cq.ancestor)
+    self.assertEqual(ancestor_key.to_client_key(), cq.ancestor)
     self.assertEqual(filters, cq.filters)
     self.assertEqual(projection, cq.projection)
     self.assertEqual(order, cq.order)

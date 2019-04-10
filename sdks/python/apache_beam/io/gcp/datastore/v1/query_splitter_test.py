@@ -19,8 +19,6 @@
 
 from __future__ import absolute_import
 
-import os
-import sys
 import unittest
 
 from mock import MagicMock
@@ -29,20 +27,16 @@ from mock import call
 # Protect against environments where datastore library is not available.
 # pylint: disable=wrong-import-order, wrong-import-position
 try:
-  from google.cloud.proto.datastore.v1 import datastore_pb2
   from apache_beam.io.gcp.datastore.v1 import fake_datastore
-  from google.cloud.proto.datastore.v1 import query_pb2
   from apache_beam.io.gcp.datastore.v1 import query_splitter
+  from google.cloud.proto.datastore.v1 import datastore_pb2
+  from google.cloud.proto.datastore.v1 import query_pb2
   from google.cloud.proto.datastore.v1.query_pb2 import PropertyFilter
 except (ImportError, TypeError):
   datastore_pb2 = None
 # pylint: enable=wrong-import-order, wrong-import-position
 
 
-@unittest.skipIf(sys.version_info[0] == 3 and
-                 os.environ.get('RUN_SKIPPED_PY3_TESTS') != '1',
-                 'This test still needs to be fixed on Python 3'
-                 'TODO: BEAM-4543')
 @unittest.skipIf(datastore_pb2 is None, 'GCP dependencies are not installed')
 class QuerySplitterTest(unittest.TestCase):
 

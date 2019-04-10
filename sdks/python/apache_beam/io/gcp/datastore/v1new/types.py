@@ -25,15 +25,13 @@ from __future__ import absolute_import
 
 import copy
 
+# Protect against environments where datastore library is not available.
 try:
-  #from google.cloud.datastore import batch
-  #from google.cloud.datastore import client
   from google.cloud.datastore import entity
   from google.cloud.datastore import key
   from google.cloud.datastore import query
-  #from google.cloud.datastore_v1.proto import datastore_pb2
 except ImportError:
-  entity = None
+  pass
 
 
 __all__ = ['Query', 'Key', 'Entity']
@@ -47,11 +45,8 @@ class Query(object):
     Args:
       kind: (str) The kind to query.
       project: (str) Required. Project associated with query.
-      namespace: (str) Required. Namespace to restrict results to. May be an
-        empty string.
-      # TODO: should be a Beam types.Key
-      # TODO: test query with ancestor - conversion of Key to client_key
-      ancestor: (``google.cloud.datastore.key.Key``) (Optional) key of
+      namespace: (str) (Optional) Namespace to restrict results to.
+      ancestor: (`Key`) (Optional) key of
         the ancestor to which this query's results are restricted.
       filters: (sequence of tuple[str, str, str]) Property filters applied by
         this query. The sequence is ``(property_name, operator, value)``.
@@ -81,14 +76,18 @@ class Query(object):
       client: (``google.cloud.datastore.client.Client``) Datastore client
         instance to use.
     """
+    ancestor_client_key = None
+    if self.ancestor is not None:
+      ancestor_client_key = self.ancestor.to_client_key()
     return query.Query(
         client, kind=self.kind, project=self.project, namespace=self.namespace,
-        ancestor=self.ancestor, filters=self.filters,
+        ancestor=ancestor_client_key, filters=self.filters,
         projection=self.projection, order=self.order,
         distinct_on=self.distinct_on)
 
   def clone(self):
     return copy.copy(self)
+
 
 class Key(object):
   def __init__(self, path_elements, parent=None, project=None, namespace=None):
@@ -132,17 +131,6 @@ class Key(object):
     return key.Key(*self.path_elements, parent=parent, namespace=self.namespace,
                    project=self.project)
 
-  # # TODO: remove, probably wasteful to use
-  # def sort_key(self):
-  #   """Key function for list sorting."""
-  #   if self.parent:
-  #     res = self.parent.sort_key()
-  #   else:
-  #     res = [self.project, self.namespace]
-  #   res.extend(self.path_elements)
-  #   return res
-
-  # TODO: hash? (needs immutability)
   def __eq__(self, other):
     if not isinstance(other, Key):
       return False
@@ -203,7 +191,6 @@ class Entity(object):
     res.update(self.properties)
     return res
 
-  # TODO: hash? (needs immutability)
   def __eq__(self, other):
     if not isinstance(other, Entity):
       return False

@@ -38,10 +38,6 @@ test.dependsOn testPython35
 toxTask "testPy35Gcp", "py35-gcp"
 test.dependsOn testPy35Gcp
 
-// TODO(BEAM-4543): Remove this task once googledatastore-based code is removed.
-toxTask "testPy35GcpDatastore", "py35-gcp-datastore"
-test.dependsOn testPy35GcpDatastore
-
 toxTask "testPy35Cython", "py35-cython"
 test.dependsOn testPy35Cython
 // Ensure that testPy35Cython runs exclusively to other tests. This line is not

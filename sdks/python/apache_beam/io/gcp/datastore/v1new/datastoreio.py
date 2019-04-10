@@ -47,29 +47,15 @@ from apache_beam.transforms import ParDo
 from apache_beam.transforms import PTransform
 from apache_beam.transforms.util import Values
 
-try:
-  # TODO: remove unused
-  from google.cloud.datastore import batch
-  from google.cloud.datastore import client
-  #from google.cloud.datastore import entity
-  #from google.cloud.datastore_v1.proto import datastore_pb2
-except ImportError:
-  client = None
-
-# TODO: add integration test that uses ReadFromDatastore, WriteToDatastore, DeleteFromDatastore
-__all__ = ['ReadFromDatastore', 'WriteToDatastore', 'DeleteFromDatastore']
-
-# TODO: remove mentions of BEAM-4543
-# TODO: don't pass around namespace
+__all__ = ['QueryDatastore', 'WriteToDatastore', 'DeleteFromDatastore']
 
 
-# TODO: Update examples and integration tests to use old and (mostly) new client.
 @typehints.with_output_types(types.Entity)
-class ReadFromDatastore(PTransform):
-  """A ``PTransform`` for reading from Google Cloud Datastore.
+class QueryDatastore(PTransform):
+  """A ``PTransform`` for querying Google Cloud Datastore.
 
   To read a ``PCollection[Entity]`` from a Cloud Datastore ``Query``, use
-  ``ReadFromDatastore`` transform by providing a `query` to
+  ``QueryDatastore`` transform by providing a `query` to
   read from. The project and optional namespace are set in the query.
   The query will be split into multiple queries to allow for parallelism. The
   degree of parallelism is automatically determined, but can be overridden by
@@ -87,13 +73,13 @@ class ReadFromDatastore(PTransform):
     dynamically at runtime based on the query data size.
 
     2. Any value of `num_splits` greater than
-    `ReadFromDatastore._NUM_QUERY_SPLITS_MAX` will be capped at that value.
+    `QueryDatastore._NUM_QUERY_SPLITS_MAX` will be capped at that value.
 
-    3. If the `query` has a user limit set, or contains TODO check inequality filters, then
+    3. If the `query` has a user limit set, or contains inequality filters, then
     `num_splits` will be ignored and no split will be performed.
 
     4. Under certain cases Cloud Datastore is unable to split query to the
-    requested number of splits. In such cases we just use whatever the Cloud
+    requested number of splits. In such cases we just use whatever Cloud
     Datastore returns.
 
   See https://developers.google.com/datastore/ for more details on Google Cloud
@@ -109,7 +95,7 @@ class ReadFromDatastore(PTransform):
   _DEFAULT_BUNDLE_SIZE_BYTES = 64 * 1024 * 1024
 
   def __init__(self, query, num_splits=0):
-    """Initialize the `ReadFromDatastore` transform.
+    """Initialize the `QueryDatastore` transform.
 
     This transform outputs elements of type `Entity`.
 
@@ -117,7 +103,7 @@ class ReadFromDatastore(PTransform):
       query: (`Query`) Cloud Datastore query to read from.
       num_splits: (int) Number of splits for the query.
     """
-    super(ReadFromDatastore, self).__init__()
+    super(QueryDatastore, self).__init__()
 
     if not query.project:
       raise ValueError("query.project cannot be empty")
@@ -154,7 +140,7 @@ class ReadFromDatastore(PTransform):
 
     queries = (pcoll.pipeline
                | 'UserQuery' >> Create([self._query])
-               | 'SplitQuery' >> ParDo(ReadFromDatastore.SplitQueryFn(
+               | 'SplitQuery' >> ParDo(QueryDatastore.SplitQueryFn(
                    self._num_splits)))
 
     # TODO: use reshuffle? test with integration test
@@ -163,7 +149,7 @@ class ReadFromDatastore(PTransform):
                        | Values()
                        | 'Flatten' >> FlatMap(lambda x: x))
 
-    entities = sharded_queries | 'Read' >> ParDo(ReadFromDatastore.ReadFn())
+    entities = sharded_queries | 'Read' >> ParDo(QueryDatastore.QueryFn())
     return entities
 
   def display_data(self):
@@ -176,52 +162,34 @@ class ReadFromDatastore(PTransform):
 
     return disp_data
 
-  # TODO: are these typehints enforced?
   @typehints.with_input_types(types.Query)
-  @typehints.with_output_types(types.Query)
+  @typehints.with_output_types(typehints.KV[int, types.Query])
   class SplitQueryFn(DoFn):
     """A `DoFn` that splits a given query into multiple sub-queries."""
     def __init__(self, num_splits):
-      super(ReadFromDatastore.SplitQueryFn, self).__init__()
-      self._client = None
+      super(QueryDatastore.SplitQueryFn, self).__init__()
       self._num_splits = num_splits
 
-    # TODO: remove if empty
-    def start_bundle(self):
-      #self._client = helper.get_client(self._project,
-      #                                    self._datastore_namespace)
-      pass
-
-    def _init_client(self, query):
-      if self._client is None:
-        self._client = helper.get_client(query.project, query.namespace)
-
     def process(self, query, *args, **kwargs):
-      self._init_client(query)
+      client = helper.get_client(query.project, query.namespace)
       # distinct key to be used to group query splits.
       key = 1
 
-      # TODO: move this check to _validate_split
-      # TODO: move validation check here?
-      # If query has a user set limit, then the query cannot be split.
-      if query.limit is not None:
-        return [(key, query)]
-
-      # Compute the estimated numSplits if not specified by the user.
-      if self._num_splits == 0:
-        estimated_num_splits = self.get_estimated_num_splits(query)
-      else:
-        estimated_num_splits = self._num_splits
-
-      logging.info("Splitting the query into %d splits", estimated_num_splits)
       try:
+        # Short circuit estimating num_splits if split is not possible.
+        query_splitter.validate_split(query)
+
+        if self._num_splits == 0:
+          estimated_num_splits = self.get_estimated_num_splits(client, query)
+        else:
+          estimated_num_splits = self._num_splits
+
+        logging.info("Splitting the query into %d splits", estimated_num_splits)
         query_splits = query_splitter.get_splits(
-            self._client, query, estimated_num_splits)
-        # TODO: remove
-        #print(query_splits)
+            client, query, estimated_num_splits)
       except query_splitter.QuerySplitterError:
-        logging.warning("Unable to parallelize the given query: %s", query,
-                        exc_info=True)
+        logging.info("Unable to parallelize the given query: %s", query,
+                     exc_info=True)
         query_splits = [query]
 
       sharded_query_splits = []
@@ -233,12 +201,10 @@ class ReadFromDatastore(PTransform):
 
     def display_data(self):
       disp_data = {'num_splits': self._num_splits}
-      if self._client is not None:
-        disp_data['project'] = self._client.project
-        disp_data['namespace'] = self._client.namespace
       return disp_data
 
-    def query_latest_statistics_timestamp(self):
+    @staticmethod
+    def query_latest_statistics_timestamp(client):
       """Fetches the latest timestamp of statistics from Cloud Datastore.
 
       Cloud Datastore system tables with statistics are periodically updated.
@@ -246,17 +212,18 @@ class ReadFromDatastore(PTransform):
       update using the `__Stat_Total__` table.
       """
       # TODO: manually test and verify this by inspecting integration test logs
-      if self._client.namespace is None:
+      if client.namespace is None:
         kind = '__Stat_Total__'
       else:
         kind = '__Stat_Ns_Total__'
-      query = self._client.query(kind=kind, order=["-timestamp", ])
+      query = client.query(kind=kind, order=["-timestamp", ])
       entities = list(query.fetch(limit=1))
       if not entities:
         raise RuntimeError("Datastore total statistics unavailable.")
       return entities[0]['timestamp']
 
-    def get_estimated_size_bytes(self, query):
+    @staticmethod
+    def get_estimated_size_bytes(client, query):
       """Get the estimated size of the data returned by this instance's query.
 
       Cloud Datastore provides no way to get a good estimate of how large the
@@ -267,16 +234,17 @@ class ReadFromDatastore(PTransform):
       """
       # TODO: manually test and verify this by inspecting integration test logs
       kind_name = query.kind
-      latest_timestamp = self.query_latest_statistics_timestamp()
+      latest_timestamp = (
+          QueryDatastore.SplitQueryFn.query_latest_statistics_timestamp(client))
       logging.info('Latest stats timestamp for kind %s is %s',
                    kind_name, latest_timestamp)
 
-      if self._client.namespace is None:
+      if client.namespace is None:
         kind = '__Stat_Kind__'
       else:
         kind = '__Stat_Ns_Kind__'
-      query = self._client.query(kind=kind)
-      query.add_filter('kind_name', '=', kind_name)  # TODO: unicode()?
+      query = client.query(kind=kind)
+      query.add_filter('kind_name', '=', kind_name)
       query.add_filter('timestamp', '=', latest_timestamp)
 
       entities = list(query.fetch(limit=1))
@@ -285,50 +253,34 @@ class ReadFromDatastore(PTransform):
             'Datastore statistics for kind %s unavailable' % kind_name)
       return entities[0]['entity_bytes']
 
-    def get_estimated_num_splits(self, query):
+    @staticmethod
+    def get_estimated_num_splits(client, query):
       """Computes the number of splits to be performed on the query."""
       # TODO: manually test and verify this by inspecting integration test logs
       try:
-        estimated_size_bytes = self.get_estimated_size_bytes(query)
+        estimated_size_bytes = (
+            QueryDatastore.SplitQueryFn.get_estimated_size_bytes(client, query))
         logging.info('Estimated size bytes for query: %s', estimated_size_bytes)
-        num_splits = int(min(ReadFromDatastore._NUM_QUERY_SPLITS_MAX, round(
+        num_splits = int(min(QueryDatastore._NUM_QUERY_SPLITS_MAX, round(
             (float(estimated_size_bytes) /
-             ReadFromDatastore._DEFAULT_BUNDLE_SIZE_BYTES))))
+             QueryDatastore._DEFAULT_BUNDLE_SIZE_BYTES))))
 
       except Exception as e:
         logging.warning('Failed to fetch estimated size bytes: %s', e)
         # Fallback in case estimated size is unavailable.
-        num_splits = ReadFromDatastore._NUM_QUERY_SPLITS_MIN
+        num_splits = QueryDatastore._NUM_QUERY_SPLITS_MIN
 
-      return max(num_splits, ReadFromDatastore._NUM_QUERY_SPLITS_MIN)
+      return max(num_splits, QueryDatastore._NUM_QUERY_SPLITS_MIN)
 
-  # TODO: typehints instead of documentation?
   @typehints.with_input_types(types.Query)
   @typehints.with_output_types(types.Entity)
-  class ReadFn(DoFn):
-    """A DoFn that reads entities from Cloud Datastore, for a given query."""
-    def __init__(self):
-      super(ReadFromDatastore.ReadFn, self).__init__()
-      self._project = ''
-      self._datastore_namespace = None
-
-    # TODO: remove
-    # def start_bundle(self):
-    #   self._client = helper.get_client(self._project, self._datastore_namespace)
-
+  class QueryFn(DoFn):
+    """A DoFn that fetches entities from Cloud Datastore, for a given query."""
     def process(self, query, *unused_args, **unused_kwargs):
       _client = helper.get_client(query.project, query.namespace)
-      self._project = _client.project
-      self._datastore_namespace = _client.namespace
       client_query = query._to_client_query(_client)
       for client_entity in client_query.fetch(query.limit):
         yield types.Entity.from_client_entity(client_entity)
-
-    def display_data(self):
-      disp_data = {'project': self._project}
-      if self._datastore_namespace is not None:
-        disp_data['namespace'] = self._datastore_namespace
-      return disp_data
 
 
 class _Mutate(PTransform):
@@ -513,8 +465,6 @@ class WriteToDatastore(_Mutate):
         raise ValueError('apache_beam.io.gcp.datastore.v1new.datastoreio.Entity'
                          ' expected, got: %s' % type(element))
       client_entity = element.to_client_entity()
-      # TODO: remove
-      #print(type(client_entity.key))
       if client_entity.key.is_partial:
         raise ValueError('Entities to be written to Cloud Datastore must '
                          'have complete keys:\n%s' % client_entity)
@@ -527,14 +477,12 @@ class WriteToDatastore(_Mutate):
     return res
 
 
-@typehints.with_input_types(types.Entity)
+@typehints.with_input_types(types.Key)
 class DeleteFromDatastore(_Mutate):
   """
-  Deletes elements matching the key in element of type
-  ``google.cloud.datastore.entity.Entity`` from Cloud Datastore.
+  Deletes elements matching input :class:`Key` elements from Cloud Datastore.
 
-  # TODO: pass in Keys? or both Entitys and Keys?
-  Entity keys must be complete.
+  Keys must be complete.
   """
   def __init__(self, project, namespace=None):
     """Initialize the `DeleteFromDatastore` transform.
@@ -550,14 +498,14 @@ class DeleteFromDatastore(_Mutate):
 
   class DatastoreDeleteFn(_Mutate.DatastoreMutateFn):
     def add_element_to_batch(self, element):
-      if not isinstance(element, types.Entity):
-        raise ValueError('apache_beam.io.gcp.datastore.v1new.datastoreio.Entity'
+      if not isinstance(element, types.Key):
+        raise ValueError('apache_beam.io.gcp.datastore.v1new.datastoreio.Key'
                          ' expected, got: %s' % type(element))
-      client_entity = element.to_client_entity()
-      if client_entity.key.is_partial:
+      client_key = element.to_client_key()
+      if client_key.is_partial:
         raise ValueError('Keys to be deleted from Cloud Datastore must be '
-                         'complete:\n%s' % client_entity.key)
-      self._batch.delete(client_entity.key)
+                         'complete:\n%s' % client_key)
+      self._batch.delete(client_key)
 
   # TODO: verify in console
   def display_data(self):
