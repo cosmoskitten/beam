@@ -348,7 +348,6 @@ class CounterMetadata(_messages.Message):
     SET = 7
     DISTRIBUTION = 8
     LATEST_VALUE = 9
-    BEAM_DISTRIBUTION = 10
 
   class StandardUnitsValueValuesEnum(_messages.Enum):
     r"""System defined Units, see above enum.

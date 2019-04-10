@@ -825,28 +825,12 @@ def to_split_int(n):
   return res
 
 
-def translate_beam_distribution(distribution_update, metric_update_proto):
-  """Translate metrics DistributionUpdate to dataflow distribution update.
-
-  Args:
-    distribution_update: Instance of DistributionData or
-    DataflowDistributionCounter.
-    metric_update_proto: Used for report metrics.
-  """
-  dist_update_proto = dataflow.DistributionUpdate()
-  dist_update_proto.min = to_split_int(distribution_update.min)
-  dist_update_proto.max = to_split_int(distribution_update.max)
-  dist_update_proto.count = to_split_int(distribution_update.count)
-  dist_update_proto.sum = to_split_int(distribution_update.sum)
-  metric_update_proto.distribution = dist_update_proto
-
-
 def translate_distribution(distribution_update, metric_update_proto):
   """Translate metrics DistributionUpdate to dataflow distribution update.
 
   Args:
-    distribution_update: Instance of DistributionData or
-    DataflowDistributionCounter.
+    distribution_update: Instance of DistributionData,
+    DistributionInt64Accumulator or DataflowDistributionCounter.
     metric_update_proto: Used for report metrics.
   """
   dist_update_proto = dataflow.DistributionUpdate()
@@ -854,7 +838,7 @@ def translate_distribution(distribution_update, metric_update_proto):
   dist_update_proto.max = to_split_int(distribution_update.max)
   dist_update_proto.count = to_split_int(distribution_update.count)
   dist_update_proto.sum = to_split_int(distribution_update.sum)
-  # DatadflowDistributionCounter needs to translate histogram
+  # DataflowDistributionCounter needs to translate histogram
   if isinstance(distribution_update, DataflowDistributionCounter):
     dist_update_proto.histogram = dataflow.Histogram()
     distribution_update.translate_to_histogram(dist_update_proto.histogram)
@@ -988,6 +972,8 @@ def _verify_interpreter_version_is_supported(pipeline_options):
 # This is required for the legacy python dataflow runner, as portability
 # does not communicate to the service via python code, but instead via a
 # a runner harness (in C++ or Java).
+# TODO(BEAM-7050) : Remove this antipattern, legacy dataflow python
+# pipelines will break
 structured_counter_translations = {
     cy_combiners.CountCombineFn: (
         dataflow.CounterMetadata.KindValueValuesEnum.SUM,
@@ -1004,9 +990,6 @@ structured_counter_translations = {
     cy_combiners.MeanInt64Fn: (
         dataflow.CounterMetadata.KindValueValuesEnum.MEAN,
         MetricUpdateTranslators.translate_scalar_mean_int),
-    cy_combiners.DistributionInt64Fn: (
-        dataflow.CounterMetadata.KindValueValuesEnum.DISTRIBUTION,
-        translate_distribution),
     cy_combiners.SumFloatFn: (
         dataflow.CounterMetadata.KindValueValuesEnum.SUM,
         MetricUpdateTranslators.translate_scalar_counter_float),
@@ -1027,7 +1010,10 @@ structured_counter_translations = {
         MetricUpdateTranslators.translate_boolean),
     cy_combiners.DataflowDistributionCounterFn: (
         dataflow.CounterMetadata.KindValueValuesEnum.DISTRIBUTION,
-        translate_distribution)
+        translate_distribution),
+    cy_combiners.DistributionInt64Fn: (
+        dataflow.CounterMetadata.KindValueValuesEnum.DISTRIBUTION,
+        translate_distribution),
 }
 
 
@@ -1047,9 +1033,6 @@ counter_translations = {
     cy_combiners.MeanInt64Fn: (
         dataflow.NameAndKind.KindValueValuesEnum.MEAN,
         MetricUpdateTranslators.translate_scalar_mean_int),
-    cy_combiners.DistributionInt64Fn: (
-        dataflow.CounterMetadata.KindValueValuesEnum.DISTRIBUTION,
-        translate_distribution),
     cy_combiners.SumFloatFn: (
         dataflow.NameAndKind.KindValueValuesEnum.SUM,
         MetricUpdateTranslators.translate_scalar_counter_float),
@@ -1070,5 +1053,8 @@ counter_translations = {
         MetricUpdateTranslators.translate_boolean),
     cy_combiners.DataflowDistributionCounterFn: (
         dataflow.NameAndKind.KindValueValuesEnum.DISTRIBUTION,
-        translate_distribution)
+        translate_distribution),
+    cy_combiners.DistributionInt64Fn: (
+        dataflow.CounterMetadata.KindValueValuesEnum.DISTRIBUTION,
+        translate_distribution),
 }
