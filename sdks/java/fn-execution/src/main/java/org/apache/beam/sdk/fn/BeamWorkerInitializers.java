@@ -22,7 +22,7 @@ import org.apache.beam.sdk.util.common.ReflectHelpers;
 import org.apache.beam.sdk.worker.BeamWorkerInitializer;
 
 /** Helpers for executing {@link BeamWorkerInitializer} implementations. */
-public class BeamWorkerInitializerHelpers {
+public class BeamWorkerInitializers {
   /**
    * Finds all registered implementations of BeamWorkerInitializer and executes their {@code
    * onStartup} methods. Should be called in worker harness implementations at the very beginning of

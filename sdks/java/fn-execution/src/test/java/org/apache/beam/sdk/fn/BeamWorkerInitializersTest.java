@@ -29,9 +29,9 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
-/** Tests for {@link BeamWorkerInitializerHelpers}. */
+/** Tests for {@link BeamWorkerInitializers}. */
 @RunWith(JUnit4.class)
-public final class BeamWorkerInitializerHelpersTest {
+public final class BeamWorkerInitializersTest {
 
   private static Boolean onStartupRan;
   private static Boolean beforeProcessingRan;
@@ -61,7 +61,7 @@ public final class BeamWorkerInitializerHelpersTest {
 
   @Test
   public void runOnStartup_runsInitializers() {
-    BeamWorkerInitializerHelpers.runOnStartup();
+    BeamWorkerInitializers.runOnStartup();
 
     assertTrue(onStartupRan);
   }
@@ -70,7 +70,7 @@ public final class BeamWorkerInitializerHelpersTest {
   public void runBeforeProcessing_runsInitializersWithOptions() {
     PipelineOptions options = TestPipeline.testingPipelineOptions();
 
-    BeamWorkerInitializerHelpers.runBeforeProcessing(options);
+    BeamWorkerInitializers.runBeforeProcessing(options);
 
     assertTrue(beforeProcessingRan);
     assertEquals(options, receivedOptions);
