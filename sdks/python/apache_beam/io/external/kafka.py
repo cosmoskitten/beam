@@ -38,9 +38,17 @@ from apache_beam.transforms import ptransform
 
 class ReadFromKafka(ptransform.PTransform):
   """
-    An external PTransform which reads from Kafka topics. Runners need to
-    support translating Read operations in order to use this source. At the
-    moment only the Flink Runner supports this.
+    An external PTransform which reads from Kafka and returns a KV pair for
+    each item in the specified Kafka topics.
+
+    Note: To use this transform, you need to start the Java expansion service.
+    Please refer to the portability documentation on how to do that. The
+    expansion service address has to be provided when instantiating this
+    transform. During pipeline translation this transform will be replaced by
+    the Java SDK's KafkaIO.
+
+    Note: Runners need to support translating Read operations in order to use
+    this source. At the moment only the Flink Runner supports this.
   """
 
   def __init__(self, consumer_config,

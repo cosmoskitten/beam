@@ -469,7 +469,10 @@ public class KafkaIO {
       }
     }
 
-    /** Exposes GenerateSequence as an external transform for cross-language usage. */
+    /**
+     * Exposes {@link KafkaIO.TypedWithoutMetadata} as an external transform for cross-language
+     * usage.
+     */
     @AutoService(ExternalTransformRegistrar.class)
     public static class External implements ExternalTransformRegistrar {
 
