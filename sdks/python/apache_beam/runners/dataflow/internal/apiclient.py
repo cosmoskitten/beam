@@ -825,6 +825,22 @@ def to_split_int(n):
   return res
 
 
+def translate_beam_distribution(distribution_update, metric_update_proto):
+  """Translate metrics DistributionUpdate to dataflow distribution update.
+
+  Args:
+    distribution_update: Instance of DistributionData or
+    DataflowDistributionCounter.
+    metric_update_proto: Used for report metrics.
+  """
+  dist_update_proto = dataflow.DistributionUpdate()
+  dist_update_proto.min = to_split_int(distribution_update.min)
+  dist_update_proto.max = to_split_int(distribution_update.max)
+  dist_update_proto.count = to_split_int(distribution_update.count)
+  dist_update_proto.sum = to_split_int(distribution_update.sum)
+  metric_update_proto.distribution = dist_update_proto
+
+
 def translate_distribution(distribution_update, metric_update_proto):
   """Translate metrics DistributionUpdate to dataflow distribution update.
 
@@ -969,6 +985,9 @@ def _verify_interpreter_version_is_supported(pipeline_options):
 
 
 # To enable a counter on the service, add it to this dictionary.
+# This is required for the legacy python dataflow runner, as portability
+# does not communicate to the service via python code, but instead via a
+# a runner harness (in C++ or Java).
 structured_counter_translations = {
     cy_combiners.CountCombineFn: (
         dataflow.CounterMetadata.KindValueValuesEnum.SUM,
@@ -986,8 +1005,8 @@ structured_counter_translations = {
         dataflow.CounterMetadata.KindValueValuesEnum.MEAN,
         MetricUpdateTranslators.translate_scalar_mean_int),
     cy_combiners.DistributionInt64Fn: (
-        dataflow.CounterMetadata.KindValueValuesEnum.MEAN,
-        MetricUpdateTranslators.translate_scalar_mean_int),
+        dataflow.CounterMetadata.KindValueValuesEnum.DISTRIBUTION,
+        translate_distribution),
     cy_combiners.SumFloatFn: (
         dataflow.CounterMetadata.KindValueValuesEnum.SUM,
         MetricUpdateTranslators.translate_scalar_counter_float),
@@ -1028,6 +1047,9 @@ counter_translations = {
     cy_combiners.MeanInt64Fn: (
         dataflow.NameAndKind.KindValueValuesEnum.MEAN,
         MetricUpdateTranslators.translate_scalar_mean_int),
+    cy_combiners.DistributionInt64Fn: (
+        dataflow.CounterMetadata.KindValueValuesEnum.DISTRIBUTION,
+        translate_distribution),
     cy_combiners.SumFloatFn: (
         dataflow.NameAndKind.KindValueValuesEnum.SUM,
         MetricUpdateTranslators.translate_scalar_counter_float),

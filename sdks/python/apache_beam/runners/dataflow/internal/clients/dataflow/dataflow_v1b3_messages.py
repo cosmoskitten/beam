@@ -336,6 +336,7 @@ class CounterMetadata(_messages.Message):
       SET: Aggregated value is a set of unique contributed values.
       DISTRIBUTION: Aggregated value captures statistics about a distribution.
       LATEST_VALUE: Aggregated value tracks the latest value of a variable.
+      BEAM_DISTRIBUTION: A tuple containing min, max, count and sum.
     """
     INVALID = 0
     SUM = 1
@@ -347,6 +348,7 @@ class CounterMetadata(_messages.Message):
     SET = 7
     DISTRIBUTION = 8
     LATEST_VALUE = 9
+    BEAM_DISTRIBUTION = 10
 
   class StandardUnitsValueValuesEnum(_messages.Enum):
     r"""System defined Units, see above enum.
