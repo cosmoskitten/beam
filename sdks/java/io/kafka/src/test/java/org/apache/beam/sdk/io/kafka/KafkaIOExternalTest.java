@@ -48,13 +48,15 @@ public class KafkaIOExternalTest {
   @Test
   public void testConstructKafkaIO() throws Exception {
     List<String> topics = ImmutableList.of("topic1", "topic2");
+    String keyDeserializer = "org.apache.kafka.common.serialization.BytesDeserializer";
+    String valueDeserializer = "org.apache.kafka.common.serialization.LongDeserializer";
     ImmutableMap<String, String> consumerConfig =
         ImmutableMap.<String, String>builder()
             .put(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, "server1:port,server2:port")
             .put("key2", "value2")
+            .put(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, keyDeserializer)
+            .put(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, valueDeserializer)
             .build();
-    String keyDeserializer = "org.apache.kafka.common.serialization.BytesDeserializer";
-    String valueDeserializer = "org.apache.kafka.common.serialization.LongDeserializer";
 
     ExternalTransforms.ExternalConfigurationPayload payload =
         ExternalTransforms.ExternalConfigurationPayload.newBuilder()

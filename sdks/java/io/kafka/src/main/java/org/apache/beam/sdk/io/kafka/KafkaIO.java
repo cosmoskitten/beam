@@ -401,14 +401,6 @@ public class KafkaIO {
       @Override
       public PTransform<PBegin, PCollection<KV<K, V>>> buildExternal(
           External.Configuration config) {
-        ImmutableMap.Builder<String, Object> mapBuilder = ImmutableMap.builder();
-        for (KV<byte[], byte[]> kv : config.consumerConfig) {
-          String key = utf8String(kv.getKey());
-          String value = utf8String(kv.getValue());
-          mapBuilder.put(key, value);
-        }
-        setConsumerConfig(mapBuilder.build());
-
         ImmutableList.Builder<String> listBuilder = ImmutableList.builder();
         for (byte[] topic : config.topics) {
           listBuilder.add(utf8String(topic));
@@ -424,6 +416,18 @@ public class KafkaIO {
         Class valueDeserializer = resolveClass(valueDeserializerClassName);
         setValueDeserializer(valueDeserializer);
         setValueCoder(resolveCoder(valueDeserializer));
+
+        Map<String, Object> consumerConfig = new HashMap<>();
+        for (KV<byte[], byte[]> kv : config.consumerConfig) {
+          String key = utf8String(kv.getKey());
+          String value = utf8String(kv.getValue());
+          consumerConfig.put(key, value);
+        }
+        // Key and Value Deserializers always have to be in the config.
+        consumerConfig.put(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, keyDeserializer.getName());
+        consumerConfig.put(
+            ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, valueDeserializer.getName());
+        setConsumerConfig(consumerConfig);
 
         // Set required defaults
         setTopicPartitions(Collections.emptyList());
