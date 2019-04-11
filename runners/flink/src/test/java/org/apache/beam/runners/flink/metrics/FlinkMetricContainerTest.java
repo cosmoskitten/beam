@@ -198,7 +198,6 @@ public class FlinkMetricContainerTest {
                                     .setMax(5))))
             .build();
 
-    // TODO consider updating this file with USER_DISTRIBUTION cases?
     MonitoringInfo doubleDistribution =
         MonitoringInfo.newBuilder()
             .setUrn(Urns.USER_COUNTER_PREFIX + "ns4:double_distribution")
