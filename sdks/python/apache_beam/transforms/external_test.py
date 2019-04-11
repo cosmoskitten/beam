@@ -20,12 +20,12 @@
 from __future__ import absolute_import
 
 import argparse
-from mock import patch
 import subprocess
 import sys
 import unittest
 
 import grpc
+from mock import patch
 from past.builtins import unicode
 
 import apache_beam as beam
@@ -204,7 +204,7 @@ class ExternalTransformTest(unittest.TestCase):
 
     # Run as cheaply as possible on the portable runner.
     # TODO(robertwb): Support this directly in the direct runner.
-    options = beam.options.pipeline_options.PipelineOptions(
+    options = PipelineOptions(
         runner='PortableRunner',
         experiments=['beam_fn_api'],
         environment_type=python_urns.EMBEDDED_PYTHON,
@@ -254,14 +254,15 @@ class ExternalTransformTest(unittest.TestCase):
 
     from apache_beam.runners.dataflow.internal.apiclient import DataflowApplicationClient
 
-    with patch.object(DataflowApplicationClient, 'create_job') as mock_create_job:
+    with patch.object(
+        DataflowApplicationClient, 'create_job') as mock_create_job:
 
       # The actual definitions of these transforms is in
       # org.apache.beam.runners.core.construction.TestExpansionService.
       TEST_FILTER_URN = "pytest:beam:transforms:filter_less_than"
 
       # Run as cheaply as possible on the portable runner.
-      options = beam.options.pipeline_options.PipelineOptions(
+      options = PipelineOptions(
           runner='DataflowRunner',
           project='dummyproject',
           temp_location='gs://dummybucket/',
@@ -279,6 +280,7 @@ class ExternalTransformTest(unittest.TestCase):
 
         # Run a simple count-filtered-letters pipeline.
         p = beam.Pipeline(options=options)
+        # pylint: disable=expression-not-assigned
         (
             p
             | beam.Create(list('aaabccxyyzzz'))

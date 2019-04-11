@@ -501,7 +501,8 @@ class DataflowRunner(PipelineRunner):
       element_type = typehints.Any
     if window_value:
       window_coder = (
-          transform_node.outputs[main_output_key].windowing.windowfn.get_window_coder())
+          transform_node.outputs[
+              main_output_key].windowing.windowfn.get_window_coder())
     else:
       window_coder = None
     from apache_beam.runners.dataflow.internal import apiclient
