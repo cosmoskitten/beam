@@ -28,9 +28,12 @@ public class MetricUrns {
    * <p>Should be consistent with {@code parse_namespace_and_name} in monitoring_infos.py.
    */
   public static MetricName parseUrn(String urn) {
-    if (urn.startsWith(MonitoringInfoConstants.Urns.USER_COUNTER_PREFIX)) {
+    if (urn.startsWith(MonitoringInfoConstants.Urns.USER_DISTRIBUTION_PREFIX)) {
+      urn = urn.substring(MonitoringInfoConstants.Urns.USER_DISTRIBUTION_PREFIX.length());
+    } else if (urn.startsWith(MonitoringInfoConstants.Urns.USER_COUNTER_PREFIX)) {
       urn = urn.substring(MonitoringInfoConstants.Urns.USER_COUNTER_PREFIX.length());
     }
+
     // If it is not a user counter, just use the first part of the URN, i.e. 'beam'
     String[] pieces = urn.split(":", 2);
     if (pieces.length != 2) {
