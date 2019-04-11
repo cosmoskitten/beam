@@ -76,32 +76,7 @@ class EntityWrapper(object):
               parent=self._parent_key)
     entity = Entity(key)
     entity.set_properties({'content': str(content)})
-    #entity = entity_pb2.Entity()
-    # if self._namespace is not None:
-    #   entity.key.partition_id.namespace_id = self._namespace
-
-    # All entities created will have the same ancestor
-    # datastore_helper.add_key_path(entity.key, self._kind, self._parent_key,
-    #                               self._kind, hashlib.sha1(content).hexdigest())
-    #
-    # datastore_helper.add_properties(entity, {'content': str(content)})
     return entity
-
-
-# def make_ancestor_query(kind, namespace, ancestor):
-#   """Creates a Cloud Datastore ancestor query."""
-#   ancestor_key = entity_pb2.Key()
-#   datastore_helper.add_key_path(ancestor_key, kind, ancestor)
-#   if namespace is not None:
-#     ancestor_key.partition_id.namespace_id = namespace
-#
-#   query = query_pb2.Query()
-#   query.kind.add().name = kind
-#
-#   datastore_helper.set_property_filter(
-#       query.filter, '__key__', PropertyFilter.HAS_ANCESTOR, ancestor_key)
-#
-#   return query
 
 
 def run(argv=None):
@@ -132,12 +107,9 @@ def run(argv=None):
   num_entities = known_args.num_entities
   project = gcloud_options.project
 
-  ancestor_key = Key([kind, str(uuid.uuid4())], project=project)
-  #ancestor = str(uuid.uuid4())
-  #query = make_ancestor_query(kind, None, ancestor)
-
   # Pipeline 1: Create and write the specified number of Entities to the
   # Cloud Datastore.
+  ancestor_key = Key([kind, str(uuid.uuid4())], project=project)
   logging.info('Writing %s entities to %s', num_entities, project)
   p = new_pipeline_with_job_name(pipeline_options, job_name, '-write')
   _ = (p
@@ -154,9 +126,6 @@ def run(argv=None):
     logging.info('Querying a limited set of %s entities and verifying count.',
                  known_args.limit)
     p = new_pipeline_with_job_name(pipeline_options, job_name, '-verify-limit')
-    # query_with_limit = query_pb2.Query()
-    # query_with_limit.CopyFrom(query)
-    # query_with_limit.limit.value = known_args.limit
     query.limit = known_args.limit
     entities = p | 'read from datastore' >> QueryDatastore(query)
     assert_that(

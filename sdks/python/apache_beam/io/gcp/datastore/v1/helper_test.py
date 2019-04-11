@@ -19,7 +19,6 @@
 from __future__ import absolute_import
 
 import errno
-import os
 import random
 import sys
 import unittest
@@ -32,10 +31,10 @@ from mock import MagicMock
 # pylint: disable=wrong-import-order, wrong-import-position
 try:
   from apache_beam.testing.test_utils import patch_retry
-  from google.cloud.proto.datastore.v1 import datastore_pb2
-  from google.cloud.proto.datastore.v1 import entity_pb2
   from apache_beam.io.gcp.datastore.v1 import fake_datastore
   from apache_beam.io.gcp.datastore.v1 import helper
+  from google.cloud.proto.datastore.v1 import datastore_pb2
+  from google.cloud.proto.datastore.v1 import entity_pb2
   from google.cloud.proto.datastore.v1 import query_pb2
   from google.cloud.proto.datastore.v1.entity_pb2 import Key
   from google.rpc import code_pb2

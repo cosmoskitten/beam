@@ -92,7 +92,7 @@ class QuerySplitterTest(unittest.TestCase):
     num_entities = 369
     self.check_get_splits(query, num_splits, num_entities)
 
-  def test_get_splits_with_large_num_splits(self):
+  def test_get_splits_with_num_splits_gt_entities(self):
     query = types.Query(kind='shakespeare-demo')
     num_splits = 10
     num_entities = 4
@@ -110,15 +110,15 @@ class QuerySplitterTest(unittest.TestCase):
     Args:
       query: the query to be split
       num_splits: number of splits
-      num_entities: number of scatter entities contained in the fake datastore.
+      num_entities: number of scatter entities returned to the splitter.
     """
     # Test for both random long ids and string ids.
     for id_or_name in [True, False]:
-      entities = testing.create_client_entities(num_entities, id_or_name)
+      client_entities = testing.create_client_entities(num_entities, id_or_name)
 
       mock_client = mock.MagicMock()
       mock_client_query = mock.MagicMock()
-      mock_client_query.fetch.return_value = entities
+      mock_client_query.fetch.return_value = client_entities
       with mock.patch.object(
           types.Query, '_to_client_query', return_value=mock_client_query):
         split_queries = query_splitter.get_splits(
@@ -129,6 +129,39 @@ class QuerySplitterTest(unittest.TestCase):
       # do is one entity per split.
       expected_num_splits = min(num_splits, num_entities + 1)
       self.assertEqual(len(split_queries), expected_num_splits)
+
+      # Verify no gaps in key ranges. Filters should look like:
+      # query1: (__key__ < key1)
+      # query2: (__key__ >= key1), (__key__ < key2)
+      # ...
+      # queryN: (__key__ >=keyN-1)
+      prev_client_key = None
+      last_query_seen = False
+      for split_query in split_queries:
+        self.assertFalse(last_query_seen)
+        lt_key = None
+        gte_key = None
+        for _filter in split_query.filters:
+          self.assertEqual(query_splitter.KEY_PROPERTY_NAME, _filter[0])
+          if _filter[1] == '<':
+            lt_key = _filter[2]
+          elif _filter[1] == '>=':
+            gte_key = _filter[2]
+
+        # Case where the scatter query has no results.
+        if lt_key is None and gte_key is None:
+          self.assertEqual(1, len(split_queries))
+          break
+
+        if prev_client_key is None:
+          self.assertIsNone(gte_key)
+          self.assertIsNotNone(lt_key)
+          prev_client_key = lt_key
+        else:
+          self.assertEqual(prev_client_key, gte_key)
+          prev_client_key = lt_key
+          if lt_key is None:
+            last_query_seen = True
 
   def test_client_key_sort_key(self):
     k = key.Key('kind1', 1, project=self._PROJECT, namespace=self._NAMESPACE)

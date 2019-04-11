@@ -24,7 +24,6 @@ from __future__ import print_function
 import datetime
 import math
 import unittest
-from builtins import zip
 
 from mock import MagicMock
 from mock import call
@@ -40,7 +39,9 @@ try:
   from apache_beam.io.gcp.datastore.v1new.datastoreio import WriteToDatastore
   from apache_beam.io.gcp.datastore.v1new.datastoreio import _Mutate
   from google.cloud.datastore import client
+  from google.cloud.datastore import entity
   from google.cloud.datastore import helpers
+  from google.cloud.datastore import key
 # TODO(BEAM-4543): Remove TypeError once googledatastore dependency is removed.
 except (ImportError, TypeError):
   client = None
@@ -82,15 +83,17 @@ class FakeBatch(object):
     self._commit_count = commit_count
     self.mutations = []
 
-  def put(self, entity):
-    self.mutations.append(FakeMutation(entity=entity))
+  def put(self, _entity):
+    assert isinstance(_entity, entity.Entity)
+    self.mutations.append(FakeMutation(entity=_entity))
     if self._all_batch_items is not None:
-      self._all_batch_items.append(entity)
+      self._all_batch_items.append(_entity)
 
-  def delete(self, key):
-    self.mutations.append(FakeMutation(key=key))
+  def delete(self, _key):
+    assert isinstance(_key, key.Key)
+    self.mutations.append(FakeMutation(key=_key))
     if self._all_batch_items is not None:
-      self._all_batch_items.append(key)
+      self._all_batch_items.append(_key)
 
   def begin(self):
     pass
@@ -140,22 +143,20 @@ class DatastoreioTest(unittest.TestCase):
 
       with patch.object(query_splitter, 'get_splits',
                         side_effect=fake_get_splits):
-        split_query_fn = QueryDatastore.SplitQueryFn(num_splits)
+        split_query_fn = QueryDatastore._SplitQueryFn(num_splits)
         split_queries = split_query_fn.process(self._mock_query)
 
         self.assertEqual(expected_num_splits, len(split_queries))
-        self.assertEqual(0, len(self._mock_client.run_query.call_args_list))
-        self.verify_unique_keys(split_queries)
 
   def test_SplitQueryFn_without_num_splits(self):
     with patch.object(helper, 'get_client', return_value=self._mock_client):
-      # Force SplitQueryFn to compute the number of query splits
+      # Force _SplitQueryFn to compute the number of query splits
       num_splits = 0
       expected_num_splits = 23
       entity_bytes = (expected_num_splits *
                       QueryDatastore._DEFAULT_BUNDLE_SIZE_BYTES)
       with patch.object(
-          QueryDatastore.SplitQueryFn, 'get_estimated_size_bytes',
+          QueryDatastore._SplitQueryFn, 'get_estimated_size_bytes',
           return_value=entity_bytes):
 
         def fake_get_splits(unused_client, query, num_splits):
@@ -163,12 +164,10 @@ class DatastoreioTest(unittest.TestCase):
 
         with patch.object(query_splitter, 'get_splits',
                           side_effect=fake_get_splits):
-          split_query_fn = QueryDatastore.SplitQueryFn(num_splits)
+          split_query_fn = QueryDatastore._SplitQueryFn(num_splits)
           split_queries = split_query_fn.process(self._mock_query)
 
           self.assertEqual(expected_num_splits, len(split_queries))
-          self.assertEqual(0, len(self._mock_client.run_query.call_args_list))
-          self.verify_unique_keys(split_queries)
 
   def test_SplitQueryFn_with_query_limit(self):
     """A test that verifies no split is performed when the query has a limit."""
@@ -176,36 +175,31 @@ class DatastoreioTest(unittest.TestCase):
       num_splits = 4
       expected_num_splits = 1
       self._mock_query.limit = 3
-      split_query_fn = QueryDatastore.SplitQueryFn(num_splits)
+      split_query_fn = QueryDatastore._SplitQueryFn(num_splits)
       split_queries = split_query_fn.process(self._mock_query)
 
       self.assertEqual(expected_num_splits, len(split_queries))
-      self._mock_client.assert_not_called()
 
   def test_SplitQueryFn_with_exception(self):
     """A test that verifies that no split is performed when failures occur."""
     with patch.object(helper, 'get_client', return_value=self._mock_client):
-      # Force SplitQueryFn to compute the number of query splits
+      # Force _SplitQueryFn to compute the number of query splits
       num_splits = 0
       expected_num_splits = 1
       entity_bytes = (expected_num_splits *
                       QueryDatastore._DEFAULT_BUNDLE_SIZE_BYTES)
       with patch.object(
-          QueryDatastore.SplitQueryFn, 'get_estimated_size_bytes',
+          QueryDatastore._SplitQueryFn, 'get_estimated_size_bytes',
           return_value=entity_bytes):
 
         with patch.object(query_splitter, 'get_splits',
                           side_effect=query_splitter.QuerySplitterError(
                               "Testing query split error")):
-          split_query_fn = QueryDatastore.SplitQueryFn(num_splits)
+          split_query_fn = QueryDatastore._SplitQueryFn(num_splits)
           split_queries = split_query_fn.process(self._mock_query)
 
           self.assertEqual(expected_num_splits, len(split_queries))
-          self.assertEqual(self._mock_query, split_queries[0][1])
-          self._mock_client.run_query.assert_not_called()
-          self.assertEqual(0,
-                           len(self._mock_client.run_query.call_args_list))
-          self.verify_unique_keys(split_queries)
+          self.assertEqual(self._mock_query, split_queries[0])
 
   def test_DatastoreWriteFn_with_emtpy_batch(self):
     self.check_DatastoreWriteFn(0)
@@ -223,7 +217,7 @@ class DatastoreioTest(unittest.TestCase):
     self.check_DatastoreWriteFn(num_entities_to_write)
 
   def check_DatastoreWriteFn(self, num_entities):
-    """A helper function to test DatastoreWriteFn."""
+    """A helper function to test _DatastoreWriteFn."""
 
     with patch.object(helper, 'get_client', return_value=self._mock_client):
       entities = testing.create_entities(num_entities)
@@ -236,7 +230,7 @@ class DatastoreioTest(unittest.TestCase):
                             commit_count=commit_count))
 
       fixed_batch_size = WriteToDatastore._WRITE_BATCH_INITIAL_SIZE
-      datastore_write_fn = WriteToDatastore.DatastoreWriteFn(
+      datastore_write_fn = WriteToDatastore._DatastoreWriteFn(
           self._PROJECT, fixed_batch_size=fixed_batch_size)
 
       datastore_write_fn.start_bundle()
@@ -257,7 +251,7 @@ class DatastoreioTest(unittest.TestCase):
       self._mock_client.batch.side_effect = (
           lambda: FakeBatch(commit_count=commit_count))
 
-      datastore_write_fn = WriteToDatastore.DatastoreWriteFn(
+      datastore_write_fn = WriteToDatastore._DatastoreWriteFn(
           self._PROJECT, fixed_batch_size=_Mutate._WRITE_BATCH_INITIAL_SIZE)
       datastore_write_fn.start_bundle()
       for entity in entities:
@@ -266,12 +260,6 @@ class DatastoreioTest(unittest.TestCase):
       datastore_write_fn.finish_bundle()
 
       self.assertEqual(2, commit_count[0])
-
-  def verify_unique_keys(self, queries):
-    """A helper function that verifies if all the queries have unique keys."""
-    keys, _ = zip(*queries)
-    keys = set(keys)
-    self.assertEqual(len(keys), len(queries))
 
   def check_estimated_size_bytes(self, entity_bytes, timestamp, namespace=None):
     """A helper method to test get_estimated_size_bytes"""
@@ -284,7 +272,7 @@ class DatastoreioTest(unittest.TestCase):
     ]
     self._mock_query.kind = self._KIND
 
-    split_query_fn = QueryDatastore.SplitQueryFn(num_splits=0)
+    split_query_fn = QueryDatastore._SplitQueryFn(num_splits=0)
     self.assertEqual(entity_bytes,
                      split_query_fn.get_estimated_size_bytes(self._mock_client,
                                                              self._mock_query))
@@ -312,7 +300,7 @@ class DatastoreioTest(unittest.TestCase):
           lambda: FakeBatch(all_batch_items=all_batch_keys))
 
       fixed_batch_size = _Mutate._WRITE_BATCH_INITIAL_SIZE
-      datastore_delete_fn = DeleteFromDatastore.DatastoreDeleteFn(
+      datastore_delete_fn = DeleteFromDatastore._DatastoreDeleteFn(
           self._PROJECT, fixed_batch_size=fixed_batch_size)
 
       datastore_delete_fn.start_bundle()

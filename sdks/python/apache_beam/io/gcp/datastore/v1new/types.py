@@ -46,8 +46,9 @@ class Query(object):
       kind: (str) The kind to query.
       project: (str) Required. Project associated with query.
       namespace: (str) (Optional) Namespace to restrict results to.
-      ancestor: (`Key`) (Optional) key of
-        the ancestor to which this query's results are restricted.
+      ancestor: (:class:`~apache_beam.io.gcp.datastore.v1new.types.Key`)
+        (Optional) key of the ancestor to which this query's results are
+        restricted.
       filters: (sequence of tuple[str, str, str]) Property filters applied by
         this query. The sequence is ``(property_name, operator, value)``.
       projection: (sequence of string) fields returned as part of query results.
@@ -88,6 +89,13 @@ class Query(object):
   def clone(self):
     return copy.copy(self)
 
+  def __repr__(self):
+    return ('<Query(kind=%s, project=%s, namespace=%s, ancestor=%s, filters=%s,'
+            'projection=%s, order=%s, distinct_on=%s, limit=%s)>' % (
+                self.kind, self.project, self.namespace, self.ancestor,
+                self.filters, self.projection, self.order, self.distinct_on,
+                self.limit))
+
 
 class Key(object):
   def __init__(self, path_elements, parent=None, project=None, namespace=None):
@@ -104,8 +112,9 @@ class Key(object):
         be a ``str`` or an ``int``.
         If the last identifier is omitted this is an incomplete key, which is
         unsupported in ``WriteToDatastore`` and ``DeleteFromDatastore``.
-        See ``google.cloud.datastore.key.Key`` for more details.
-      parent: (`Key`) (optional) Parent for this key.
+        See :class:`google.cloud.datastore.key.Key` for more details.
+      parent: (:class:`~apache_beam.io.gcp.datastore.v1new.types.Key`)
+        (optional) Parent for this key.
       project: (str) Project ID. Required unless set by parent.
       namespace: (str) (optional) Namespace ID
     """
@@ -122,7 +131,7 @@ class Key(object):
 
   def to_client_key(self):
     """
-    Returns a ``google.cloud.datastore.key.Key`` instance that represents
+    Returns a :class:`google.cloud.datastore.key.Key` instance that represents
     this key.
     """
     parent = self.parent
@@ -140,6 +149,8 @@ class Key(object):
       return self.parent == other.parent
 
     return self.parent is None and other.parent is None
+
+  __hash__ = None
 
   def __repr__(self):
     return '<%s(%s, parent=%s, project=%s, namespace=%s)>' % (
@@ -168,7 +179,8 @@ class Entity(object):
 
     Args:
       property_dict: A map from property name to value. See
-      ``google.cloud.datastore.entity.Entity`` documentation for allowed values.
+        :class:`google.cloud.datastore.entity.Entity` documentation for allowed
+        values.
     """
     self.properties.update(property_dict)
 
@@ -182,8 +194,8 @@ class Entity(object):
 
   def to_client_entity(self):
     """
-    Returns a ``google.cloud.datastore.entity.Entity`` instance that represents
-    this entity.
+    Returns a :class:`google.cloud.datastore.entity.Entity` instance that
+    represents this entity.
     """
     key = self.key.to_client_key()
     res = entity.Entity(key=key,
@@ -197,6 +209,8 @@ class Entity(object):
     return (self.key == other.key and
             self.exclude_from_indexes == other.exclude_from_indexes and
             self.properties == other.properties)
+
+  __hash__ = None
 
   def __repr__(self):
     return "<%s(key=%s, exclude_from_indexes=%s) properties=%s>" % (

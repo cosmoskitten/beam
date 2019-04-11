@@ -33,19 +33,17 @@ from builtins import object
 from builtins import round
 
 from apache_beam import typehints
+from apache_beam.io.gcp.datastore.v1 import util
+from apache_beam.io.gcp.datastore.v1.adaptive_throttler import AdaptiveThrottler
 from apache_beam.io.gcp.datastore.v1new import helper
 from apache_beam.io.gcp.datastore.v1new import query_splitter
 from apache_beam.io.gcp.datastore.v1new import types
-from apache_beam.io.gcp.datastore.v1 import util
-from apache_beam.io.gcp.datastore.v1.adaptive_throttler import AdaptiveThrottler
 from apache_beam.metrics.metric import Metrics
 from apache_beam.transforms import Create
 from apache_beam.transforms import DoFn
-from apache_beam.transforms import FlatMap
-from apache_beam.transforms import GroupByKey
 from apache_beam.transforms import ParDo
 from apache_beam.transforms import PTransform
-from apache_beam.transforms.util import Values
+from apache_beam.transforms import Reshuffle
 
 __all__ = ['QueryDatastore', 'WriteToDatastore', 'DeleteFromDatastore']
 
@@ -68,7 +66,7 @@ class QueryDatastore(PTransform):
   correct data. Since data is read from a single worker, this could have
   significant impact on the performance of the job.
 
-  The semantics for the query splitting is defined below:
+  The semantics for query splitting is defined below:
     1. If `num_splits` is equal to 0, then the number of splits will be chosen
     dynamically at runtime based on the query data size.
 
@@ -89,7 +87,7 @@ class QueryDatastore(PTransform):
   # An upper bound on the number of splits for a query.
   _NUM_QUERY_SPLITS_MAX = 50000
   # A lower bound on the number of splits for a query. This is to ensure that
-  # we parellelize the query even when Datastore statistics are not available.
+  # we parallelize the query even when Datastore statistics are not available.
   _NUM_QUERY_SPLITS_MIN = 12
   # Default bundle size of 64MB.
   _DEFAULT_BUNDLE_SIZE_BYTES = 64 * 1024 * 1024
@@ -97,11 +95,13 @@ class QueryDatastore(PTransform):
   def __init__(self, query, num_splits=0):
     """Initialize the `QueryDatastore` transform.
 
-    This transform outputs elements of type `Entity`.
+    This transform outputs elements of type
+    :class:`~apache_beam.io.gcp.datastore.v1new.types.Entity`.
 
     Args:
-      query: (`Query`) Cloud Datastore query to read from.
-      num_splits: (int) Number of splits for the query.
+      query: (:class:`~apache_beam.io.gcp.datastore.v1new.types.Query`) query
+        used to fetch entities.
+      num_splits: (:class:`int`) (optional) Number of splits for the query.
     """
     super(QueryDatastore, self).__init__()
 
@@ -118,39 +118,26 @@ class QueryDatastore(PTransform):
     self._query = query
     self._num_splits = num_splits
 
-  # TODO: test coverage needed. unit? integration?
   def expand(self, pcoll):
-    # TODO: update docs to reflect reshuffle
     # This is a composite transform involves the following:
     #   1. Create a singleton of the user provided `query` and apply a ``ParDo``
-    #   that splits the query into `num_splits` and assign each split query a
-    #   unique `int` as the key. The resulting output is of the type
-    #   ``PCollection[(int, Query)]``.
+    #   that splits the query into `num_splits` queries if possible.
     #
-    #   If the value of `num_splits` is less than or equal to 0, then the
-    #   number of splits will be computed dynamically based on the size of the
-    #   data for the `query`.
+    #   If the value of `num_splits` is 0, the number of splits will be
+    #   computed dynamically based on the size of the data for the `query`.
     #
-    #   2. The resulting ``PCollection`` is sharded using a ``GroupByKey``
-    #   operation. The queries are extracted from the (int, Iterable[Query]) and
-    #   flattened to output a ``PCollection[Query]``.
+    #   2. The resulting ``PCollection`` is sharded across workers using a
+    #   ``Reshuffle`` operation.
     #
     #   3. In the third step, a ``ParDo`` reads entities for each query and
     #   outputs a ``PCollection[Entity]``.
 
-    queries = (pcoll.pipeline
-               | 'UserQuery' >> Create([self._query])
-               | 'SplitQuery' >> ParDo(QueryDatastore.SplitQueryFn(
-                   self._num_splits)))
-
-    # TODO: use reshuffle? test with integration test
-    sharded_queries = (queries
-                       | GroupByKey()
-                       | Values()
-                       | 'Flatten' >> FlatMap(lambda x: x))
-
-    entities = sharded_queries | 'Read' >> ParDo(QueryDatastore.QueryFn())
-    return entities
+    return (pcoll.pipeline
+            | 'UserQuery' >> Create([self._query])
+            | 'SplitQuery' >> ParDo(QueryDatastore._SplitQueryFn(
+                self._num_splits))
+            | Reshuffle()
+            | 'Read' >> ParDo(QueryDatastore._QueryFn()))
 
   def display_data(self):
     disp_data = {'project': self._query.project,
@@ -163,18 +150,15 @@ class QueryDatastore(PTransform):
     return disp_data
 
   @typehints.with_input_types(types.Query)
-  @typehints.with_output_types(typehints.KV[int, types.Query])
-  class SplitQueryFn(DoFn):
+  @typehints.with_output_types(types.Query)
+  class _SplitQueryFn(DoFn):
     """A `DoFn` that splits a given query into multiple sub-queries."""
     def __init__(self, num_splits):
-      super(QueryDatastore.SplitQueryFn, self).__init__()
+      super(QueryDatastore._SplitQueryFn, self).__init__()
       self._num_splits = num_splits
 
     def process(self, query, *args, **kwargs):
       client = helper.get_client(query.project, query.namespace)
-      # distinct key to be used to group query splits.
-      key = 1
-
       try:
         # Short circuit estimating num_splits if split is not possible.
         query_splitter.validate_split(query)
@@ -192,12 +176,7 @@ class QueryDatastore(PTransform):
                      exc_info=True)
         query_splits = [query]
 
-      sharded_query_splits = []
-      for split_query in query_splits:
-        sharded_query_splits.append((key, split_query))
-        key += 1
-
-      return sharded_query_splits
+      return query_splits
 
     def display_data(self):
       disp_data = {'num_splits': self._num_splits}
@@ -211,7 +190,6 @@ class QueryDatastore(PTransform):
       This method fetches the latest timestamp (in microseconds) of statistics
       update using the `__Stat_Total__` table.
       """
-      # TODO: manually test and verify this by inspecting integration test logs
       if client.namespace is None:
         kind = '__Stat_Total__'
       else:
@@ -232,10 +210,9 @@ class QueryDatastore(PTransform):
       exactly 1 kind is specified in the query.
       See https://cloud.google.com/datastore/docs/concepts/stats.
       """
-      # TODO: manually test and verify this by inspecting integration test logs
       kind_name = query.kind
       latest_timestamp = (
-          QueryDatastore.SplitQueryFn.query_latest_statistics_timestamp(client))
+          QueryDatastore._SplitQueryFn.query_latest_statistics_timestamp(client))
       logging.info('Latest stats timestamp for kind %s is %s',
                    kind_name, latest_timestamp)
 
@@ -256,15 +233,13 @@ class QueryDatastore(PTransform):
     @staticmethod
     def get_estimated_num_splits(client, query):
       """Computes the number of splits to be performed on the query."""
-      # TODO: manually test and verify this by inspecting integration test logs
       try:
         estimated_size_bytes = (
-            QueryDatastore.SplitQueryFn.get_estimated_size_bytes(client, query))
+            QueryDatastore._SplitQueryFn.get_estimated_size_bytes(client, query))
         logging.info('Estimated size bytes for query: %s', estimated_size_bytes)
         num_splits = int(min(QueryDatastore._NUM_QUERY_SPLITS_MAX, round(
             (float(estimated_size_bytes) /
              QueryDatastore._DEFAULT_BUNDLE_SIZE_BYTES))))
-
       except Exception as e:
         logging.warning('Failed to fetch estimated size bytes: %s', e)
         # Fallback in case estimated size is unavailable.
@@ -274,7 +249,7 @@ class QueryDatastore(PTransform):
 
   @typehints.with_input_types(types.Query)
   @typehints.with_output_types(types.Entity)
-  class QueryFn(DoFn):
+  class _QueryFn(DoFn):
     """A DoFn that fetches entities from Cloud Datastore, for a given query."""
     def process(self, query, *unused_args, **unused_kwargs):
       _client = helper.get_client(query.project, query.namespace)
@@ -302,26 +277,16 @@ class _Mutate(PTransform):
   _WRITE_BATCH_MIN_SIZE = 10
   _WRITE_BATCH_TARGET_LATENCY_MS = 5000
 
-  def __init__(self, project, namespace=None, mutate_fn=None):
+  def __init__(self, mutate_fn):
     """Initializes a Mutate transform.
 
      Args:
-       project: The Project ID
-       namespace: An optional namespace.
-       mutate_fn: Instance of DatastoreMutateFn to use.
+       mutate_fn: Instance of `DatastoreMutateFn` to use.
      """
-    self._project = project
-    self._datastore_namespace = namespace
     self._mutate_fn = mutate_fn
 
   def expand(self, pcoll):
     return pcoll | 'Write Batch to Datastore' >> ParDo(self._mutate_fn)
-
-  def display_data(self):
-    disp_data = {'project': self._project}
-    if self._datastore_namespace is not None:
-      disp_data['namespace'] = self._datastore_namespace
-    return disp_data
 
   class _DynamicBatchSizer(object):
     """Determines request sizes for future Datastore RPCs."""
@@ -352,7 +317,6 @@ class _Mutate(PTransform):
       """
       self._commit_time_per_entity_ms.add(now, latency_ms / num_mutations)
 
-
   class DatastoreMutateFn(DoFn):
     """A ``DoFn`` that write mutations to Datastore.
 
@@ -376,7 +340,6 @@ class _Mutate(PTransform):
       self._datastore_namespace = namespace
       self._client = None
       self._fixed_batch_size = fixed_batch_size
-      # TODO: metrics for read?
       self._rpc_successes = Metrics.counter(
           _Mutate.DatastoreMutateFn, "datastoreRpcSuccesses")
       self._rpc_errors = Metrics.counter(
@@ -443,23 +406,28 @@ class _Mutate(PTransform):
 @typehints.with_input_types(types.Entity)
 class WriteToDatastore(_Mutate):
   """
-  Writes elements of type :class:`Entity` to Cloud Datastore.
+  Writes elements of type
+  :class:`~apache_beam.io.gcp.datastore.v1new.types.Entity` to Cloud Datastore.
 
   Entity keys must be complete.
+  The ``project`` setting is required to create the Datastore client. This does
+  not affect the ``project`` field in each Key. The ``namespace`` setting will TODO
+
+  The project and namespace settings affect the Datastore client, however the
+  project and/or project setting in each Key
   """
 
   def __init__(self, project, namespace=None):
     """Initialize the `WriteToDatastore` transform.
 
     Args:
-      project: The ID of the project to write to.
-      namespace: An optional namespace.
+      project: (:class:`str`) The ID of the project to write entities to.
+      namespace: (:class:`str`) An optional namespace.
     """
-    mutate_fn = WriteToDatastore.DatastoreWriteFn(project, namespace=namespace)
-    super(WriteToDatastore, self).__init__(
-        project, namespace=namespace, mutate_fn=mutate_fn)
+    mutate_fn = WriteToDatastore._DatastoreWriteFn(project, namespace=namespace)
+    super(WriteToDatastore, self).__init__(mutate_fn)
 
-  class DatastoreWriteFn(_Mutate.DatastoreMutateFn):
+  class _DatastoreWriteFn(_Mutate.DatastoreMutateFn):
     def add_element_to_batch(self, element):
       if not isinstance(element, types.Entity):
         raise ValueError('apache_beam.io.gcp.datastore.v1new.datastoreio.Entity'
@@ -470,17 +438,20 @@ class WriteToDatastore(_Mutate):
                          'have complete keys:\n%s' % client_entity)
       self._batch.put(client_entity)
 
-  # TODO: verify in console
-  def display_data(self):
-    res = super(WriteToDatastore, self).display_data()
-    res['mutation'] = 'Write (upsert)'
-    return res
+    def display_data(self):
+      return {
+          'mutation': 'Write (upsert)',
+          'project': self._project,
+          'namespace': self._datastore_namespace or '',
+      }
 
 
 @typehints.with_input_types(types.Key)
 class DeleteFromDatastore(_Mutate):
   """
-  Deletes elements matching input :class:`Key` elements from Cloud Datastore.
+  Deletes elements matching input
+  :class:`~apache_beam.io.gcp.datastore.v1new.types.Key` elements from Cloud
+  Datastore.
 
   Keys must be complete.
   """
@@ -488,15 +459,15 @@ class DeleteFromDatastore(_Mutate):
     """Initialize the `DeleteFromDatastore` transform.
 
     Args:
-      project: The ID of the project from which the entities will be deleted.
-      namespace: An optional namespace.
+      project: (:class:`str`) The ID of the project from which the entities will
+        be deleted.
+      namespace: (:class:`str`) An optional namespace.
     """
-    mutate_fn = DeleteFromDatastore.DatastoreDeleteFn(
+    mutate_fn = DeleteFromDatastore._DatastoreDeleteFn(
         project, namespace=namespace)
-    super(DeleteFromDatastore, self).__init__(
-        project, namespace=namespace, mutate_fn=mutate_fn)
+    super(DeleteFromDatastore, self).__init__(mutate_fn)
 
-  class DatastoreDeleteFn(_Mutate.DatastoreMutateFn):
+  class _DatastoreDeleteFn(_Mutate.DatastoreMutateFn):
     def add_element_to_batch(self, element):
       if not isinstance(element, types.Key):
         raise ValueError('apache_beam.io.gcp.datastore.v1new.datastoreio.Key'
@@ -507,8 +478,9 @@ class DeleteFromDatastore(_Mutate):
                          'complete:\n%s' % client_key)
       self._batch.delete(client_key)
 
-  # TODO: verify in console
-  def display_data(self):
-    res = super(DeleteFromDatastore, self).display_data()
-    res['mutation'] = 'Delete'
-    return res
+    def display_data(self):
+      return {
+          'mutation': 'Delete',
+          'project': self._project,
+          'namespace': self._datastore_namespace or '',
+      }

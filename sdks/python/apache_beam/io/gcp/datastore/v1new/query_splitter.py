@@ -126,7 +126,7 @@ def _create_scatter_query(query, num_splits):
 def client_key_sort_key(client_key):
   """Key function for sorting lists of ``google.cloud.datastore.key.Key``."""
   return [client_key.project, client_key.namespace or ''] + [
-    str(element) for element in client_key.flat_path]
+      str(element) for element in client_key.flat_path]
 
 
 def _get_scatter_keys(client, query, num_splits):
@@ -147,9 +147,9 @@ def _get_scatter_keys(client, query, num_splits):
   scatter_point_query = _create_scatter_query(query, num_splits)
   client_query = scatter_point_query._to_client_query(client)
   client_key_splits = [
-    client_entity.key
-    for client_entity in client_query.fetch(client=client,
-                                            limit=scatter_point_query.limit)]
+      client_entity.key
+      for client_entity in client_query.fetch(client=client,
+                                              limit=scatter_point_query.limit)]
   client_key_splits.sort(key=client_key_sort_key)
   return client_key_splits
 
@@ -204,7 +204,6 @@ def _get_split_key(client_keys, num_splits):
   return split_client_keys
 
 
-# TODO: unit test that we're not missing keys?
 def _create_split(last_client_key, next_client_key, query):
   """Create a new {@link Query} given the query and range.
 
@@ -216,20 +215,17 @@ def _create_split(last_client_key, next_client_key, query):
   Returns:
     A split query with fetches entities in the range [last_key, next_client_key)
   """
-  # TODO: is this branch covered in a test?
   if not (last_client_key or next_client_key):
     return query
 
   split_query = query.clone()
-  # Copy filters and possible convert empty tuple to empty list.
+  # Copy filters and possible convert the default empty tuple to empty list.
   filters = list(split_query.filters)
 
   if last_client_key:
-    filters.append((
-      KEY_PROPERTY_NAME, '>=', last_client_key))
+    filters.append((KEY_PROPERTY_NAME, '>=', last_client_key))
   if next_client_key:
-    filters.append((
-      KEY_PROPERTY_NAME, '<', next_client_key))
+    filters.append((KEY_PROPERTY_NAME, '<', next_client_key))
 
   split_query.filters = filters
   return split_query

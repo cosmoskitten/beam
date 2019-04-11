@@ -553,7 +553,8 @@ class DataflowApplicationClient(object):
                                       shared_names.STAGED_PIPELINE_FILENAME),
         packages=resources, options=job.options,
         environment_version=self.environment_version).proto
-    logging.debug('JOB: %s', job)
+    # TODO: revert
+    logging.warn('JOB: %s', job)
 
   @retry.with_exponential_backoff(num_retries=3, initial_delay_secs=3)
   def get_job_metrics(self, job_id):

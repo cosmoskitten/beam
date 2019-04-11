@@ -19,8 +19,10 @@
 
 from __future__ import absolute_import
 
-import mock
+import logging
 import unittest
+
+import mock
 
 # Protect against environments where datastore library is not available.
 try:
@@ -39,7 +41,7 @@ class TypesTest(unittest.TestCase):
   _NAMESPACE = 'namespace'
 
   def setUp(self):
-    self._test_client =client.Client(
+    self._test_client = client.Client(
         project=self._PROJECT, namespace=self._NAMESPACE,
         # Don't do any network requests.
         _http=mock.MagicMock())
@@ -130,6 +132,8 @@ class TypesTest(unittest.TestCase):
     self.assertEqual(order, cq.order)
     self.assertEqual(distinct_on, cq.distinct_on)
 
+    logging.info('query: %s', q)  # Test __repr__()
+
   def testQueryEmptyNamespace(self):
     # Test that we can pass a namespace of None.
     self._test_client.namespace = None
@@ -137,3 +141,7 @@ class TypesTest(unittest.TestCase):
     cq = q._to_client_query(self._test_client)
     self.assertEqual(self._test_client.project, cq.project)
     self.assertEqual(None, cq.namespace)
+
+
+if __name__ == '__main__':
+  unittest.main()

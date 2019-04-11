@@ -18,8 +18,9 @@
 """Tests for datastore helper."""
 from __future__ import absolute_import
 
-import mock
 import unittest
+
+import mock
 
 # Protect against environments where apitools library is not available.
 # pylint: disable=wrong-import-order, wrong-import-position
@@ -47,7 +48,7 @@ class HelperTest(unittest.TestCase):
     mock_throttler.throttle_request.return_value = []
     helper.write_mutations(mock_batch, mock_throttler, rpc_stats_callback)
     rpc_stats_callback.assert_has_calls([
-      mock.call(successes=1),
+        mock.call(successes=1),
     ])
 
   def test_write_mutations_throttle_delay_retryable_error(self):
@@ -62,9 +63,9 @@ class HelperTest(unittest.TestCase):
     helper.write_mutations(mock_batch, mock_throttler, rpc_stats_callback,
                            throttle_delay=0)
     rpc_stats_callback.assert_has_calls([
-      mock.call(successes=1),
-      mock.call(throttled_secs=mock.ANY),
-      mock.call(errors=1),
+        mock.call(successes=1),
+        mock.call(throttled_secs=mock.ANY),
+        mock.call(errors=1),
     ], any_order=True)
     self.assertEqual(3, rpc_stats_callback.call_count)
 

@@ -42,10 +42,10 @@ except ImportError:
 if client is not None:
   # https://cloud.google.com/datastore/docs/concepts/errors#error_codes
   _RETRYABLE_DATASTORE_ERRORS = (
-    exceptions.Aborted,
-    exceptions.DeadlineExceeded,
-    exceptions.InternalServerError,
-    exceptions.ServiceUnavailable,
+      exceptions.Aborted,
+      exceptions.DeadlineExceeded,
+      exceptions.InternalServerError,
+      exceptions.ServiceUnavailable,
   )
 
 
