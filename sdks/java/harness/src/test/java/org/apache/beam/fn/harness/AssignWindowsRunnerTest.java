@@ -33,6 +33,7 @@ import org.apache.beam.model.pipeline.v1.RunnerApi.PTransform;
 import org.apache.beam.model.pipeline.v1.RunnerApi.WindowIntoPayload;
 import org.apache.beam.runners.core.construction.Environments;
 import org.apache.beam.runners.core.construction.PTransformTranslation;
+import org.apache.beam.runners.core.construction.RehydratedComponents;
 import org.apache.beam.runners.core.construction.SdkComponents;
 import org.apache.beam.runners.core.construction.WindowingStrategyTranslation;
 import org.apache.beam.runners.core.metrics.ExecutionStateTracker;
@@ -175,7 +176,9 @@ public class AssignWindowsRunnerTest implements Serializable {
     MetricsContainerStepMap metricsContainerRegistry = new MetricsContainerStepMap();
     PCollectionConsumerRegistry pCollectionConsumerRegistry =
         new PCollectionConsumerRegistry(
-            metricsContainerRegistry, mock(ExecutionStateTracker.class));
+            metricsContainerRegistry,
+            mock(ExecutionStateTracker.class),
+            mock(RehydratedComponents.class));
     pCollectionConsumerRegistry.register("output", "ptransform", outputs::add);
     SdkComponents components = SdkComponents.create();
     components.registerEnvironment(Environments.createDockerEnvironment("java"));
@@ -199,6 +202,7 @@ public class AssignWindowsRunnerTest implements Serializable {
                                 .toByteString()))
                 .build(),
             null /* processBundleInstructionId */,
+            null /* pCollections */,
             null /* pCollections */,
             null /* coders */,
             null /* windowingStrategies */,

@@ -214,7 +214,6 @@ public class MetricsContainerImplTest {
     assertThat(actualMonitoringInfos, containsInAnyOrder(builder1.build(), builder2.build()));
   }
 
-  @Test
   public void testMonitoringInfosArePopulatedForSystemDistributions() {
     MetricsContainerImpl testObject = new MetricsContainerImpl("step1");
     HashMap<String, String> labels = new HashMap<>();

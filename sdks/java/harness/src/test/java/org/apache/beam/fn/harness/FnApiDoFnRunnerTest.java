@@ -43,6 +43,7 @@ import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.model.pipeline.v1.RunnerApi.Environment;
 import org.apache.beam.runners.core.construction.PTransformTranslation;
 import org.apache.beam.runners.core.construction.PipelineTranslation;
+import org.apache.beam.runners.core.construction.RehydratedComponents;
 import org.apache.beam.runners.core.construction.SdkComponents;
 import org.apache.beam.runners.core.metrics.ExecutionStateTracker;
 import org.apache.beam.runners.core.metrics.MetricUpdates.MetricUpdate;
@@ -201,9 +202,11 @@ public class FnApiDoFnRunnerTest implements Serializable {
 
     List<WindowedValue<String>> mainOutputValues = new ArrayList<>();
     MetricsContainerStepMap metricsContainerRegistry = new MetricsContainerStepMap();
+    RehydratedComponents rehydratedComponents =
+        RehydratedComponents.forPipelineProto(pProto).withPipeline(Pipeline.create());
     PCollectionConsumerRegistry consumers =
         new PCollectionConsumerRegistry(
-            metricsContainerRegistry, mock(ExecutionStateTracker.class));
+            metricsContainerRegistry, mock(ExecutionStateTracker.class), rehydratedComponents);
     consumers.register(
         outputPCollectionId,
         TEST_PTRANSFORM_ID,
@@ -223,6 +226,7 @@ public class FnApiDoFnRunnerTest implements Serializable {
             TEST_PTRANSFORM_ID,
             pTransform,
             Suppliers.ofInstance("57L")::get,
+            rehydratedComponents,
             pProto.getComponents().getPcollectionsMap(),
             pProto.getComponents().getCodersMap(),
             pProto.getComponents().getWindowingStrategiesMap(),
@@ -368,9 +372,13 @@ public class FnApiDoFnRunnerTest implements Serializable {
     List<WindowedValue<String>> mainOutputValues = new ArrayList<>();
     List<WindowedValue<String>> additionalOutputValues = new ArrayList<>();
     MetricsContainerStepMap metricsContainerRegistry = new MetricsContainerStepMap();
+    RehydratedComponents rehydratedComponents =
+        RehydratedComponents.forPipelineProto(pProto).withPipeline(Pipeline.create());
+    ;
+
     PCollectionConsumerRegistry consumers =
         new PCollectionConsumerRegistry(
-            metricsContainerRegistry, mock(ExecutionStateTracker.class));
+            metricsContainerRegistry, mock(ExecutionStateTracker.class), rehydratedComponents);
     consumers.register(
         outputPCollectionId,
         TEST_PTRANSFORM_ID,
@@ -394,6 +402,7 @@ public class FnApiDoFnRunnerTest implements Serializable {
             TEST_PTRANSFORM_ID,
             pTransform,
             Suppliers.ofInstance("57L")::get,
+            rehydratedComponents,
             pProto.getComponents().getPcollectionsMap(),
             pProto.getComponents().getCodersMap(),
             pProto.getComponents().getWindowingStrategiesMap(),
@@ -509,9 +518,11 @@ public class FnApiDoFnRunnerTest implements Serializable {
 
     List<WindowedValue<Iterable<String>>> mainOutputValues = new ArrayList<>();
     MetricsContainerStepMap metricsContainerRegistry = new MetricsContainerStepMap();
+    RehydratedComponents rehydratedComponents =
+        RehydratedComponents.forPipelineProto(pProto).withPipeline(Pipeline.create());
     PCollectionConsumerRegistry consumers =
         new PCollectionConsumerRegistry(
-            metricsContainerRegistry, mock(ExecutionStateTracker.class));
+            metricsContainerRegistry, mock(ExecutionStateTracker.class), rehydratedComponents);
     consumers.register(
         Iterables.getOnlyElement(pTransform.getOutputsMap().values()),
         TEST_PTRANSFORM_ID,
@@ -531,6 +542,7 @@ public class FnApiDoFnRunnerTest implements Serializable {
             TEST_PTRANSFORM_ID,
             pTransform,
             Suppliers.ofInstance("57L")::get,
+            rehydratedComponents,
             pProto.getComponents().getPcollectionsMap(),
             pProto.getComponents().getCodersMap(),
             pProto.getComponents().getWindowingStrategiesMap(),
@@ -618,9 +630,12 @@ public class FnApiDoFnRunnerTest implements Serializable {
 
     List<WindowedValue<Iterable<String>>> mainOutputValues = new ArrayList<>();
 
+    RehydratedComponents rehydratedComponents =
+        RehydratedComponents.forPipelineProto(pProto).withPipeline(Pipeline.create());
+    ;
     PCollectionConsumerRegistry consumers =
         new PCollectionConsumerRegistry(
-            metricsContainerRegistry, mock(ExecutionStateTracker.class));
+            metricsContainerRegistry, mock(ExecutionStateTracker.class), rehydratedComponents);
     consumers.register(
         Iterables.getOnlyElement(pTransform.getOutputsMap().values()),
         TEST_PTRANSFORM_ID,
@@ -640,6 +655,7 @@ public class FnApiDoFnRunnerTest implements Serializable {
             TEST_PTRANSFORM_ID,
             pTransform,
             Suppliers.ofInstance("57L")::get,
+            rehydratedComponents,
             pProto.getComponents().getPcollectionsMap(),
             pProto.getComponents().getCodersMap(),
             pProto.getComponents().getWindowingStrategiesMap(),
@@ -695,6 +711,7 @@ public class FnApiDoFnRunnerTest implements Serializable {
     for (MonitoringInfo mi : metricsContainerRegistry.getMonitoringInfos()) {
       result.add(SimpleMonitoringInfoBuilder.copyAndClearTimestamp(mi));
     }
+    // TODO fix this test.
     assertThat(result, containsInAnyOrder(expected.toArray()));
   }
 
@@ -795,9 +812,12 @@ public class FnApiDoFnRunnerTest implements Serializable {
     List<WindowedValue<KV<String, Timer>>> eventTimerOutputValues = new ArrayList<>();
     List<WindowedValue<KV<String, Timer>>> processingTimerOutputValues = new ArrayList<>();
     MetricsContainerStepMap metricsContainerRegistry = new MetricsContainerStepMap();
+
+    RehydratedComponents rehydratedComponents =
+        RehydratedComponents.forPipelineProto(pProto).withPipeline(Pipeline.create());
     PCollectionConsumerRegistry consumers =
         new PCollectionConsumerRegistry(
-            metricsContainerRegistry, mock(ExecutionStateTracker.class));
+            metricsContainerRegistry, mock(ExecutionStateTracker.class), rehydratedComponents);
     consumers.register(
         outputPCollectionId,
         TEST_PTRANSFORM_ID,
@@ -828,6 +848,7 @@ public class FnApiDoFnRunnerTest implements Serializable {
             TEST_PTRANSFORM_ID,
             pTransform,
             Suppliers.ofInstance("57L")::get,
+            rehydratedComponents,
             ImmutableMap.<String, RunnerApi.PCollection>builder()
                 .putAll(pProto.getComponents().getPcollectionsMap())
                 // We need to insert the "output" PCollections that a runner would have inserted

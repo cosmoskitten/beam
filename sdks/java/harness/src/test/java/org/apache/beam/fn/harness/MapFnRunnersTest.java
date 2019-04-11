@@ -33,6 +33,7 @@ import org.apache.beam.fn.harness.data.PCollectionConsumerRegistry;
 import org.apache.beam.fn.harness.data.PTransformFunctionRegistry;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.model.pipeline.v1.RunnerApi.PTransform;
+import org.apache.beam.runners.core.construction.RehydratedComponents;
 import org.apache.beam.runners.core.metrics.ExecutionStateTracker;
 import org.apache.beam.runners.core.metrics.MetricsContainerStepMap;
 import org.apache.beam.sdk.function.ThrowingFunction;
@@ -63,9 +64,12 @@ public class MapFnRunnersTest {
   public void testValueOnlyMapping() throws Exception {
     List<WindowedValue<?>> outputConsumer = new ArrayList<>();
     MetricsContainerStepMap metricsContainerRegistry = new MetricsContainerStepMap();
+    RehydratedComponents rehydratedComponents = mock(RehydratedComponents.class);
     PCollectionConsumerRegistry consumers =
         new PCollectionConsumerRegistry(
-            metricsContainerRegistry, mock(ExecutionStateTracker.class));
+            metricsContainerRegistry,
+            mock(ExecutionStateTracker.class),
+            mock(RehydratedComponents.class));
     consumers.register("outputPC", EXPECTED_ID, outputConsumer::add);
 
     PTransformFunctionRegistry startFunctionRegistry =
@@ -84,6 +88,7 @@ public class MapFnRunnersTest {
             EXPECTED_ID,
             EXPECTED_PTRANSFORM,
             Suppliers.ofInstance("57L")::get,
+            rehydratedComponents,
             Collections.emptyMap(),
             Collections.emptyMap(),
             Collections.emptyMap(),
@@ -106,9 +111,10 @@ public class MapFnRunnersTest {
   public void testFullWindowedValueMapping() throws Exception {
     List<WindowedValue<?>> outputConsumer = new ArrayList<>();
     MetricsContainerStepMap metricsContainerRegistry = new MetricsContainerStepMap();
+    RehydratedComponents rehydratedComponents = mock(RehydratedComponents.class);
     PCollectionConsumerRegistry consumers =
         new PCollectionConsumerRegistry(
-            metricsContainerRegistry, mock(ExecutionStateTracker.class));
+            metricsContainerRegistry, mock(ExecutionStateTracker.class), rehydratedComponents);
     consumers.register("outputPC", EXPECTED_ID, outputConsumer::add);
 
     PTransformFunctionRegistry startFunctionRegistry =
@@ -126,6 +132,7 @@ public class MapFnRunnersTest {
             EXPECTED_ID,
             EXPECTED_PTRANSFORM,
             Suppliers.ofInstance("57L")::get,
+            rehydratedComponents,
             Collections.emptyMap(),
             Collections.emptyMap(),
             Collections.emptyMap(),
@@ -147,9 +154,12 @@ public class MapFnRunnersTest {
   @Test
   public void testFullWindowedValueMappingWithCompressedWindow() throws Exception {
     List<WindowedValue<?>> outputConsumer = new ArrayList<>();
+    RehydratedComponents rehydratedComponents = mock(RehydratedComponents.class);
     PCollectionConsumerRegistry consumers =
         new PCollectionConsumerRegistry(
-            mock(MetricsContainerStepMap.class), mock(ExecutionStateTracker.class));
+            mock(MetricsContainerStepMap.class),
+            mock(ExecutionStateTracker.class),
+            rehydratedComponents);
     consumers.register("outputPC", "pTransformId", outputConsumer::add);
 
     PTransformFunctionRegistry startFunctionRegistry =
@@ -167,6 +177,7 @@ public class MapFnRunnersTest {
             EXPECTED_ID,
             EXPECTED_PTRANSFORM,
             Suppliers.ofInstance("57L")::get,
+            rehydratedComponents,
             Collections.emptyMap(),
             Collections.emptyMap(),
             Collections.emptyMap(),

@@ -31,6 +31,7 @@ import org.apache.beam.runners.core.metrics.SimpleMonitoringInfoBuilder;
 import org.apache.beam.sdk.fn.data.FnDataReceiver;
 import org.apache.beam.sdk.metrics.MetricsEnvironment;
 import org.apache.beam.sdk.util.WindowedValue;
+import org.apache.beam.sdk.values.PCollection;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.powermock.api.mockito.PowerMockito;
@@ -54,8 +55,9 @@ public class ElementCountFnDataReceiverTest {
     MetricsContainerStepMap metricsContainerRegistry = new MetricsContainerStepMap();
 
     FnDataReceiver<WindowedValue<String>> consumer = mock(FnDataReceiver.class);
+    PCollection<String> pColl = mock(PCollection.class);
     ElementCountFnDataReceiver<String> wrapperConsumer =
-        new ElementCountFnDataReceiver(consumer, pCollectionA, metricsContainerRegistry);
+        new ElementCountFnDataReceiver(consumer, pCollectionA, metricsContainerRegistry, pColl);
     WindowedValue<String> element = WindowedValue.valueInGlobalWindow("elem");
     int numElements = 20;
     for (int i = 0; i < numElements; i++) {
@@ -84,8 +86,9 @@ public class ElementCountFnDataReceiverTest {
 
     FnDataReceiver<WindowedValue<String>> consumer =
         mock(FnDataReceiver.class, withSettings().verboseLogging());
+    PCollection<String> pColl = mock(PCollection.class);
     ElementCountFnDataReceiver<String> wrapperConsumer =
-        new ElementCountFnDataReceiver(consumer, pCollectionA, metricsContainerRegistry);
+        new ElementCountFnDataReceiver(consumer, pCollectionA, metricsContainerRegistry, pColl);
     WindowedValue<String> element = WindowedValue.valueInGlobalWindow("elem");
     wrapperConsumer.accept(element);
 

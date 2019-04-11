@@ -30,6 +30,7 @@ import java.util.List;
 import org.apache.beam.fn.harness.data.PCollectionConsumerRegistry;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.runners.core.construction.PTransformTranslation;
+import org.apache.beam.runners.core.construction.RehydratedComponents;
 import org.apache.beam.runners.core.metrics.ExecutionStateTracker;
 import org.apache.beam.runners.core.metrics.MetricsContainerStepMap;
 import org.apache.beam.sdk.fn.data.FnDataReceiver;
@@ -69,9 +70,10 @@ public class FlattenRunnerTest {
 
     List<WindowedValue<String>> mainOutputValues = new ArrayList<>();
     MetricsContainerStepMap metricsContainerRegistry = new MetricsContainerStepMap();
+    RehydratedComponents rehydratedComponents = mock(RehydratedComponents.class);
     PCollectionConsumerRegistry consumers =
         new PCollectionConsumerRegistry(
-            metricsContainerRegistry, mock(ExecutionStateTracker.class));
+            metricsContainerRegistry, mock(ExecutionStateTracker.class), rehydratedComponents);
     consumers.register(
         "mainOutputTarget",
         pTransformId,
@@ -85,6 +87,7 @@ public class FlattenRunnerTest {
             pTransformId,
             pTransform,
             Suppliers.ofInstance("57L")::get,
+            rehydratedComponents,
             Collections.emptyMap(),
             Collections.emptyMap(),
             Collections.emptyMap(),
@@ -136,9 +139,10 @@ public class FlattenRunnerTest {
 
     List<WindowedValue<String>> mainOutputValues = new ArrayList<>();
     MetricsContainerStepMap metricsContainerRegistry = new MetricsContainerStepMap();
+    RehydratedComponents rehydratedComponents = mock(RehydratedComponents.class);
     PCollectionConsumerRegistry consumers =
         new PCollectionConsumerRegistry(
-            metricsContainerRegistry, mock(ExecutionStateTracker.class));
+            metricsContainerRegistry, mock(ExecutionStateTracker.class), rehydratedComponents);
     consumers.register(
         "mainOutputTarget",
         pTransformId,
@@ -152,6 +156,7 @@ public class FlattenRunnerTest {
             pTransformId,
             pTransform,
             Suppliers.ofInstance("57L")::get,
+            rehydratedComponents,
             Collections.emptyMap(),
             Collections.emptyMap(),
             Collections.emptyMap(),

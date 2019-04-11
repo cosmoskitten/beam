@@ -33,6 +33,7 @@ import org.apache.beam.fn.harness.data.PCollectionConsumerRegistry;
 import org.apache.beam.fn.harness.data.PTransformFunctionRegistry;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.runners.core.construction.PipelineTranslation;
+import org.apache.beam.runners.core.construction.RehydratedComponents;
 import org.apache.beam.runners.core.construction.SdkComponents;
 import org.apache.beam.runners.core.metrics.ExecutionStateTracker;
 import org.apache.beam.runners.core.metrics.MetricsContainerStepMap;
@@ -124,9 +125,10 @@ public class CombineRunnersTest {
   public void testPrecombine() throws Exception {
     // Create a map of consumers and an output target to check output values.
     MetricsContainerStepMap metricsContainerRegistry = new MetricsContainerStepMap();
+    RehydratedComponents rehydratedComponents = mock(RehydratedComponents.class);
     PCollectionConsumerRegistry consumers =
         new PCollectionConsumerRegistry(
-            metricsContainerRegistry, mock(ExecutionStateTracker.class));
+            metricsContainerRegistry, mock(ExecutionStateTracker.class), rehydratedComponents);
     Deque<WindowedValue<KV<String, Integer>>> mainOutputValues = new ArrayDeque<>();
     consumers.register(
         Iterables.getOnlyElement(pTransform.getOutputsMap().values()),
@@ -150,6 +152,7 @@ public class CombineRunnersTest {
             TEST_COMBINE_ID,
             pTransform,
             null,
+            rehydratedComponents,
             pProto.getComponents().getPcollectionsMap(),
             pProto.getComponents().getCodersMap(),
             pProto.getComponents().getWindowingStrategiesMap(),
@@ -198,9 +201,10 @@ public class CombineRunnersTest {
   public void testMergeAccumulators() throws Exception {
     // Create a map of consumers and an output target to check output values.
     MetricsContainerStepMap metricsContainerRegistry = new MetricsContainerStepMap();
+    RehydratedComponents rehydratedComponents = mock(RehydratedComponents.class);
     PCollectionConsumerRegistry consumers =
         new PCollectionConsumerRegistry(
-            metricsContainerRegistry, mock(ExecutionStateTracker.class));
+            metricsContainerRegistry, mock(ExecutionStateTracker.class), rehydratedComponents);
     Deque<WindowedValue<KV<String, Integer>>> mainOutputValues = new ArrayDeque<>();
     consumers.register(
         Iterables.getOnlyElement(pTransform.getOutputsMap().values()),
@@ -224,6 +228,7 @@ public class CombineRunnersTest {
             TEST_COMBINE_ID,
             pTransform,
             null,
+            rehydratedComponents,
             Collections.emptyMap(),
             Collections.emptyMap(),
             Collections.emptyMap(),
@@ -260,9 +265,10 @@ public class CombineRunnersTest {
   public void testExtractOutputs() throws Exception {
     // Create a map of consumers and an output target to check output values.
     MetricsContainerStepMap metricsContainerRegistry = new MetricsContainerStepMap();
+    RehydratedComponents rehydratedComponents = mock(RehydratedComponents.class);
     PCollectionConsumerRegistry consumers =
         new PCollectionConsumerRegistry(
-            metricsContainerRegistry, mock(ExecutionStateTracker.class));
+            metricsContainerRegistry, mock(ExecutionStateTracker.class), rehydratedComponents);
     Deque<WindowedValue<KV<String, Integer>>> mainOutputValues = new ArrayDeque<>();
     consumers.register(
         Iterables.getOnlyElement(pTransform.getOutputsMap().values()),
@@ -286,6 +292,7 @@ public class CombineRunnersTest {
             TEST_COMBINE_ID,
             pTransform,
             null,
+            rehydratedComponents,
             Collections.emptyMap(),
             Collections.emptyMap(),
             Collections.emptyMap(),
@@ -322,9 +329,10 @@ public class CombineRunnersTest {
   public void testCombineGroupedValues() throws Exception {
     // Create a map of consumers and an output target to check output values.
     MetricsContainerStepMap metricsContainerRegistry = new MetricsContainerStepMap();
+    RehydratedComponents rehydratedComponents = mock(RehydratedComponents.class);
     PCollectionConsumerRegistry consumers =
         new PCollectionConsumerRegistry(
-            metricsContainerRegistry, mock(ExecutionStateTracker.class));
+            metricsContainerRegistry, mock(ExecutionStateTracker.class), rehydratedComponents);
     Deque<WindowedValue<KV<String, Integer>>> mainOutputValues = new ArrayDeque<>();
     consumers.register(
         Iterables.getOnlyElement(pTransform.getOutputsMap().values()),
@@ -348,6 +356,7 @@ public class CombineRunnersTest {
             TEST_COMBINE_ID,
             pTransform,
             null,
+            rehydratedComponents,
             Collections.emptyMap(),
             Collections.emptyMap(),
             Collections.emptyMap(),
