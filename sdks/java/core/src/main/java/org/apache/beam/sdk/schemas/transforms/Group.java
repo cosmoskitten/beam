@@ -61,7 +61,7 @@ import org.apache.beam.sdk.values.Row;
  *
  * <pre>{@code @DefaultSchema(JavaFieldSchema.class)
  * PCollection<KV<Row, Iterable<UserPurchase>> byUser =
- *   purchases.apply(Group.byFieldNames("userId', "country"));
+ *   purchases.apply(Group.using("userId', "country"));
  * }</pre>
  *
  * <p>However often an aggregation of some form is desired. The builder methods inside the Group
@@ -70,7 +70,7 @@ import org.apache.beam.sdk.values.Row;
  *
  * <pre>{@code
  * PCollection<KV<Row, Row>> aggregated = purchases
- *      .apply(Group.byFieldNames("userId', "country")
+ *      .apply(Group.using("userId', "country")
  *          .aggregateField("cost", Sum.ofLongs(), "total_cost")
  *          .aggregateField("cost", Top.<Long>largestLongsFn(10), "top_purchases")
  *          .aggregateField("cost", ApproximateQuantilesCombineFn.create(21),
