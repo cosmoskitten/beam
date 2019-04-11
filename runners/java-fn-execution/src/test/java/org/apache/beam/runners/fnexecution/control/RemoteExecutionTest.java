@@ -52,6 +52,7 @@ import org.apache.beam.runners.core.construction.PipelineTranslation;
 import org.apache.beam.runners.core.construction.graph.ExecutableStage;
 import org.apache.beam.runners.core.construction.graph.FusedPipeline;
 import org.apache.beam.runners.core.construction.graph.GreedyPipelineFuser;
+import org.apache.beam.runners.core.metrics.DistributionData;
 import org.apache.beam.runners.core.metrics.MonitoringInfoConstants;
 import org.apache.beam.runners.core.metrics.MonitoringInfoConstants.Urns;
 import org.apache.beam.runners.core.metrics.MonitoringInfoMatchers;
@@ -508,6 +509,9 @@ public class RemoteExecutionTest implements Serializable {
     final String processUserCounterName = "processUserCounter";
     final String startUserCounterName = "startUserCounter";
     final String finishUserCounterName = "finishUserCounter";
+    final String processUserDistributionName = "processUserDistribution";
+    final String startUserDistributionName = "startUserDistribution";
+    final String finishUserDistributionName = "finishUserDistribution";
     Pipeline p = Pipeline.create();
     // TODO(BEAM-6597): Remove sleeps in this test after collecting MonitoringInfos in
     // ProcessBundleProgressResponses. Use CountDownLatches to wait in start, finish and process
@@ -526,6 +530,8 @@ public class RemoteExecutionTest implements Serializable {
                       public void startBundle() throws InterruptedException {
                         Thread.sleep(1000);
                         startCounter.inc(10);
+                        Metrics.distribution(RemoteExecutionTest.class, startUserDistributionName)
+                            .update(10);
                       }
 
                       @SuppressWarnings("unused")
@@ -539,6 +545,9 @@ public class RemoteExecutionTest implements Serializable {
                           ctxt.output("two");
                           Thread.sleep(1000);
                           Metrics.counter(RemoteExecutionTest.class, processUserCounterName).inc();
+                          Metrics.distribution(
+                                  RemoteExecutionTest.class, processUserDistributionName)
+                              .update(1);
                         }
                         emitted = true;
                       }
@@ -547,6 +556,8 @@ public class RemoteExecutionTest implements Serializable {
                       public void finishBundle() throws InterruptedException {
                         Thread.sleep(1000);
                         Metrics.counter(RemoteExecutionTest.class, finishUserCounterName).inc(100);
+                        Metrics.distribution(RemoteExecutionTest.class, finishUserDistributionName)
+                            .update(100);
                       }
                     }))
             .setCoder(StringUtf8Coder.of());
@@ -636,6 +647,7 @@ public class RemoteExecutionTest implements Serializable {
           public void onCompleted(ProcessBundleResponse response) {
             List<Matcher<MonitoringInfo>> matchers = new ArrayList<Matcher<MonitoringInfo>>();
 
+            // User Counters.
             SimpleMonitoringInfoBuilder builder = new SimpleMonitoringInfoBuilder();
             builder
                 .setUrn(MonitoringInfoConstants.Urns.USER_COUNTER)
@@ -667,6 +679,39 @@ public class RemoteExecutionTest implements Serializable {
             builder.setLabel(
                 MonitoringInfoConstants.Labels.PTRANSFORM, "create/ParMultiDo(Anonymous)");
             builder.setInt64Value(100);
+            matchers.add(MonitoringInfoMatchers.matchSetFields(builder.build()));
+
+            // User Distributions.
+            builder
+                .setUrn(MonitoringInfoConstants.Urns.USER_DISTRIBUTION_COUNTER)
+                .setLabel(
+                    MonitoringInfoConstants.Labels.NAMESPACE, RemoteExecutionTest.class.getName())
+                .setLabel(MonitoringInfoConstants.Labels.NAME, processUserDistributionName);
+            builder.setLabel(
+                MonitoringInfoConstants.Labels.PTRANSFORM, "create/ParMultiDo(Anonymous)");
+            builder.setInt64DistributionValue(DistributionData.create(1, 1, 1, 1));
+            matchers.add(MonitoringInfoMatchers.matchSetFields(builder.build()));
+
+            builder = new SimpleMonitoringInfoBuilder();
+            builder
+                .setUrn(MonitoringInfoConstants.Urns.USER_DISTRIBUTION_COUNTER)
+                .setLabel(
+                    MonitoringInfoConstants.Labels.NAMESPACE, RemoteExecutionTest.class.getName())
+                .setLabel(MonitoringInfoConstants.Labels.NAME, startUserDistributionName);
+            builder.setLabel(
+                MonitoringInfoConstants.Labels.PTRANSFORM, "create/ParMultiDo(Anonymous)");
+            builder.setInt64DistributionValue(DistributionData.create(10, 1, 10, 10));
+            matchers.add(MonitoringInfoMatchers.matchSetFields(builder.build()));
+
+            builder = new SimpleMonitoringInfoBuilder();
+            builder
+                .setUrn(MonitoringInfoConstants.Urns.USER_DISTRIBUTION_COUNTER)
+                .setLabel(
+                    MonitoringInfoConstants.Labels.NAMESPACE, RemoteExecutionTest.class.getName())
+                .setLabel(MonitoringInfoConstants.Labels.NAME, finishUserDistributionName);
+            builder.setLabel(
+                MonitoringInfoConstants.Labels.PTRANSFORM, "create/ParMultiDo(Anonymous)");
+            builder.setInt64DistributionValue(DistributionData.create(100, 1, 100, 100));
             matchers.add(MonitoringInfoMatchers.matchSetFields(builder.build()));
 
             // The element counter should be counted only once for the pcollection.
