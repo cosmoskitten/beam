@@ -1157,11 +1157,11 @@ class ParDo(PTransformWithSideInputs):
     if 'urn:beam:dofn:javasdk:' in pardo_payload.do_fn.spec.urn:
       external_java_transform = True
 
-    # assert pardo_payload.do_fn.spec.urn == python_urns.PICKLED_DOFN_INFO
     if external_java_transform:
       return RunnerAPIPTransformHolder(
-        pardo_payload, common_urns.primitives.PAR_DO.urn)
+          pardo_payload, common_urns.primitives.PAR_DO.urn)
     else:
+      assert pardo_payload.do_fn.spec.urn == python_urns.PICKLED_DOFN_INFO
       fn, args, kwargs, si_tags_and_types, windowing = pickler.loads(
           pardo_payload.do_fn.spec.payload)
       if si_tags_and_types:
