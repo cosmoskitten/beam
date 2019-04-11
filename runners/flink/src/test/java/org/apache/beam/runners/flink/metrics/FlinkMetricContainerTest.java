@@ -139,6 +139,7 @@ public class FlinkMetricContainerTest {
             .setLabel(MonitoringInfoConstants.Labels.PTRANSFORM, "anyPTransform")
             .setInt64Value(111)
             .build();
+
     assertNotNull(userCountMonitoringInfo);
 
     MonitoringInfo elemCountMonitoringInfo =

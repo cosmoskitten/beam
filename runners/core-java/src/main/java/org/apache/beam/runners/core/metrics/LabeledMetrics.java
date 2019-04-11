@@ -29,6 +29,7 @@ public class LabeledMetrics {
   /**
    * Create a metric that can be incremented and decremented, and is aggregated by taking the sum.
    */
+   */
   public static Counter counter(MonitoringInfoMetricName metricName) {
     return new DelegatingCounter(metricName);
   }

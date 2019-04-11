@@ -183,6 +183,32 @@ public class MetricsContainerImplTest {
   }
 
   @Test
+  public void testMonitoringInfosArePopulatedForUserDistributions() {
+    MetricsContainerImpl testObject = new MetricsContainerImpl("step1");
+    DistributionCell c1 = testObject.getDistribution(MetricName.named("ns", "name1"));
+    DistributionCell c2 = testObject.getDistribution(MetricName.named("ns", "name2"));
+    c1.update(5L);
+    c2.update(4L);
+
+    SimpleMonitoringInfoBuilder builder1 = new SimpleMonitoringInfoBuilder();
+    builder1.setUrnForUserDistribution("ns", "name1");
+    builder1.setInt64DistributionValue(DistributionData.create(5, 1, 5, 5));
+    builder1.setPTransformLabel("step1");
+
+    SimpleMonitoringInfoBuilder builder2 = new SimpleMonitoringInfoBuilder();
+    builder2.setUrnForUserDistribution("ns", "name2");
+    builder2.setInt64DistributionValue(DistributionData.create(4, 1, 4, 4));
+    builder2.setPTransformLabel("step1");
+
+    ArrayList<MonitoringInfo> actualMonitoringInfos = new ArrayList<MonitoringInfo>();
+    for (MonitoringInfo mi : testObject.getMonitoringInfos()) {
+      actualMonitoringInfos.add(SimpleMonitoringInfoBuilder.clearTimestamp(mi));
+    }
+
+    assertThat(actualMonitoringInfos, containsInAnyOrder(builder1.build(), builder2.build()));
+  }
+
+  @Test
   public void testMonitoringInfosArePopulatedForABeamCounter() {
     MetricsContainerImpl testObject = new MetricsContainerImpl("step1");
     HashMap<String, String> labels = new HashMap<String, String>();
