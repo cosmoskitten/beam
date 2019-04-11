@@ -19,6 +19,7 @@ package org.apache.beam.runners.core.construction;
 
 import org.apache.beam.model.expansion.v1.ExpansionApi;
 
+/** A high-level client for a cross-language expansion service. */
 interface ExpansionServiceClient extends AutoCloseable {
   ExpansionApi.ExpansionResponse expand(ExpansionApi.ExpansionRequest request);
 }

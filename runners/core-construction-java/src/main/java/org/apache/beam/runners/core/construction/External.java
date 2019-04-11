@@ -43,7 +43,12 @@ import org.apache.beam.vendor.grpc.v1p13p1.io.grpc.ManagedChannelBuilder;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Iterables;
 
-/** Cross-language external transform. */
+/**
+ * Cross-language external transform.
+ *
+ * <p>{@link External} provides a cross-language transform via expansion services in non-Java SDKs.
+ * This is a low-level API and mainly for internal use.
+ */
 public class External {
   private static final String EXPANDED_TRANSFORM_BASE_NAME = "external";
   private static final String IMPULSE_PREFIX = "IMPULSE";
