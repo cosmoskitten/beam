@@ -60,6 +60,17 @@ public class SpecMonitoringInfoValidatorTest {
 
     testInput =
         MonitoringInfo.newBuilder()
+            .setUrn(Urns.USER_DISTRIBUTION_COUNTER)
+            .putLabels(MonitoringInfoConstants.Labels.NAME, "anyDistribution")
+            .putLabels(MonitoringInfoConstants.Labels.NAMESPACE, "namespace")
+            .putLabels(MonitoringInfoConstants.Labels.PTRANSFORM, "anyString")
+            .setType(TypeUrns.DISTRIBUTION_INT64)
+            .putLabels("dummy", "value")
+            .build();
+    assertFalse(testObject.validate(testInput).isPresent());
+
+    testInput =
+        MonitoringInfo.newBuilder()
             .setUrn(MonitoringInfoConstants.Urns.ELEMENT_COUNT)
             .setType(TypeUrns.SUM_INT64)
             .putLabels(MonitoringInfoConstants.Labels.PTRANSFORM, "value")
