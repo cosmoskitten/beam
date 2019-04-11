@@ -738,7 +738,7 @@ class PortableOptions(PipelineOptions):
               '"<ENV_VAL>"} }. All fields in the json are optional except '
               'command.'))
     parser.add_argument(
-        '--sdk-worker-parallelism', default=None,
+        '--sdk-worker-parallelism', default=1,
         help=('Sets the number of sdk worker processes that will run on each '
               'worker node. Default is 1. If 0, it will be automatically set '
               'by the runner by looking at different parameters (e.g. number '

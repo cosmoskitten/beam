@@ -96,8 +96,11 @@ public abstract class JobServerDriver implements Runnable {
 
     @Option(
         name = "--sdk-worker-parallelism",
-        usage = "Default parallelism for SDK worker processes (see portable pipeline options)")
-    private Long sdkWorkerParallelism = 1L;
+        usage =
+            "Default parallelism for SDK worker processes (see portable pipeline options). "
+                + "Default is 0 which means worker parallelism will be dynamically decided by runner."
+                + "Note: The value is only used when the pipeline option sdkWorkerParallelism is 0. ")
+    private int sdkWorkerParallelism = 0;
 
     public String getHost() {
       return host;
@@ -123,7 +126,7 @@ public abstract class JobServerDriver implements Runnable {
       return cleanArtifactsPerJob;
     }
 
-    public Long getSdkWorkerParallelism() {
+    public int getSdkWorkerParallelism() {
       return this.sdkWorkerParallelism;
     }
   }
