@@ -70,7 +70,7 @@ public class FlinkJobInvoker extends JobInvoker {
     }
 
     PortablePipelineOptions portableOptions = flinkOptions.as(PortablePipelineOptions.class);
-    if (portableOptions.getSdkWorkerParallelism() == null) {
+    if (portableOptions.getSdkWorkerParallelism() == 0) {
       portableOptions.setSdkWorkerParallelism(serverConfig.getSdkWorkerParallelism());
     }
 
