@@ -24,6 +24,7 @@ import org.apache.beam.sdk.schemas.Schema.Field;
 import org.apache.beam.sdk.schemas.Schema.TypeName;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableSet;
 import org.joda.time.Instant;
+import org.joda.time.ReadableInstant;
 
 /** Utils to help convert Apache Avro types to Beam types. */
 public class AvroUtils {
@@ -35,7 +36,6 @@ public class AvroUtils {
 
   /** Tries to convert an Avro field to Beam field based on the target type of the Beam field. */
   public static Object convertAvroFormat(Field beamField, Object value) {
-    Object ret;
     TypeName beamFieldTypeName = beamField.getType().getTypeName();
     switch (beamFieldTypeName) {
       case INT16:
@@ -45,22 +45,18 @@ public class AvroUtils {
       case DOUBLE:
       case BYTE:
       case BOOLEAN:
-        ret = convertAvroPrimitiveTypes(beamFieldTypeName, value);
-        break;
+        return convertAvroPrimitiveTypes(beamFieldTypeName, value);
       case DATETIME:
         // Expecting value in microseconds.
-        ret = new Instant().withMillis(((long) value) / 1000);
-        break;
+        return safeToMillis(value);
       case STRING:
-        ret = convertAvroPrimitiveTypes(beamFieldTypeName, value);
-        break;
+        return convertAvroPrimitiveTypes(beamFieldTypeName, value);
       case ARRAY:
-        ret = convertAvroArray(beamField, value);
-        break;
+        return convertAvroArray(beamField, value);
       case LOGICAL_TYPE:
         String identifier = beamField.getType().getLogicalType().getIdentifier();
         if (SQL_DATE_TIME_TYPES.contains(identifier)) {
-          return new Instant().withMillis(((long) value) / 1000);
+          return safeToMillis(value);
         } else if (SQL_STRING_TYPES.contains(identifier)) {
           return convertAvroPrimitiveTypes(TypeName.STRING, value);
         } else {
@@ -73,8 +69,19 @@ public class AvroUtils {
       default:
         throw new RuntimeException("Does not support converting unknown type value");
     }
+  }
 
-    return ret;
+  private static ReadableInstant safeToMillis(Object value) {
+    long subMilliPrecision = ((long) value) % 1000;
+    if (subMilliPrecision != 0) {
+      throw new IllegalArgumentException(
+          String.format(
+              "BigQuery data contained value %s with sub-millisecond precision, which Beam does"
+                  + " not currently support.",
+              value));
+    } else {
+      return new Instant((long) value / 1000);
+    }
   }
 
   private static Object convertAvroArray(Field beamField, Object value) {
