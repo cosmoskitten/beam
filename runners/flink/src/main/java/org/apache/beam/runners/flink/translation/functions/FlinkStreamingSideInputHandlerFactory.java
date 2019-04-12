@@ -104,10 +104,7 @@ public class FlinkStreamingSideInputHandlerFactory implements SideInputHandlerFa
       @SuppressWarnings("unchecked") // T == V
       Coder<V> outputCoder = (Coder<V>) elementCoder;
       return forIterableSideInput(collectionNode, outputCoder);
-    } else if (PTransformTranslation.MULTIMAP_SIDE_INPUT.equals(accessPattern.getUrn())
-        || Materializations.MULTIMAP_MATERIALIZATION_URN.equals(accessPattern.getUrn())) {
-      // TODO: Remove non standard URN.
-      // Using non standard version of multimap urn as dataflow uses the non standard urn.
+    } else if (PTransformTranslation.MULTIMAP_SIDE_INPUT.equals(accessPattern.getUrn())) {
       @SuppressWarnings("unchecked") // T == KV<?, V>
       KvCoder<?, V> kvCoder = (KvCoder<?, V>) elementCoder;
       return forMultimapSideInput(collectionNode, kvCoder.getKeyCoder(), kvCoder.getValueCoder());

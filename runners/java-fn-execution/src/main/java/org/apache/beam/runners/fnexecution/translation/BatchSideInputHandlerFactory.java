@@ -98,10 +98,7 @@ public class BatchSideInputHandlerFactory implements SideInputHandlerFactory {
       Coder<V> outputCoder = (Coder<V>) elementCoder;
       return forIterableSideInput(
           sideInputGetter.getSideInput(collectionNode.getId()), outputCoder, windowCoder);
-    } else if (PTransformTranslation.MULTIMAP_SIDE_INPUT.equals(accessPattern.getUrn())
-        || Materializations.MULTIMAP_MATERIALIZATION_URN.equals(accessPattern.getUrn())) {
-      // TODO: Remove non standard URN.
-      // Using non standard version of multimap urn as dataflow uses the non standard urn.
+    } else if (PTransformTranslation.MULTIMAP_SIDE_INPUT.equals(accessPattern.getUrn())) {
       @SuppressWarnings("unchecked") // T == KV<?, V>
       KvCoder<?, V> kvCoder = (KvCoder<?, V>) elementCoder;
       return forMultimapSideInput(
