@@ -99,6 +99,9 @@ rat {
     // Ignore ownership files
     "ownership/**/*",
     "**/OWNERS",
+          
+    // FIXME add licencse header      
+    "project-mappings",
 
     // Json doesn't support comments.
     "**/*.json",
