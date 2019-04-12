@@ -406,10 +406,8 @@ public class DataflowPipelineTranslator {
       if (options.getServiceAccount() != null) {
         environment.setServiceAccountEmail(options.getServiceAccount());
       }
-      // TODO(BEAM-6664): Remove once Dataflow supports --dataflowKmsKey.
       if (options.getDataflowKmsKey() != null) {
-        ExperimentalOptions.addExperiment(
-            options, String.format("service_default_cmek_config=%s", options.getDataflowKmsKey()));
+        environment.setServiceKmsKeyName(options.getDataflowKmsKey());
       }
 
       pipeline.traverseTopologically(this);
