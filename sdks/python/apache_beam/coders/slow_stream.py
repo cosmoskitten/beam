@@ -62,6 +62,7 @@ class OutputStream(object):
         break
 
   def write_bigendian_int64(self, v):
+    print v
     self.write(struct.pack('>q', v))
 
   def write_bigendian_uint64(self, v):
