@@ -693,12 +693,12 @@ class DataflowRunner(PipelineRunner):
     """
     assert transform_node.transform.urn()
     if common_urns.primitives.PAR_DO.urn == transform_node.transform.urn():
-      self.run_ParDo(transform_node, options)
+      self.run_ParDo(transform_node, options, True)
       return
 
     raise NotImplementedError('run_RunnerAPIPayloadHolder')
 
-  def run_ParDo(self, transform_node, options):
+  def run_ParDo(self, transform_node, options, proto_holder=False):
     transform = transform_node.transform
     input_tag = transform_node.inputs[0].tag
     input_step = self._cache.get_pvalue(transform_node.inputs[0])
@@ -819,15 +819,19 @@ class DataflowRunner(PipelineRunner):
 
     step.add_property(PropertyNames.OUTPUT_INFO, outputs)
 
-    # Add the restriction encoding if we are a splittable DoFn
-    # and are using the Fn API on the unified worker.
-    from apache_beam.runners.common import DoFnSignature
-    signature = DoFnSignature(transform_node.transform.fn)
-    if (use_fnapi and use_unified_worker and signature.is_splittable_dofn()):
-      restriction_coder = (
-          signature.get_restriction_provider().restriction_coder())
-      step.add_property(PropertyNames.RESTRICTION_ENCODING,
-                        self._get_cloud_encoding(restriction_coder, use_fnapi))
+    # Proto holder ParDos contain serialized DoFns from remote SDKs that cannot
+    # be examined by Python DoFnSignature.
+    if not proto_holder:
+      # Add the restriction encoding if we are a splittable DoFn
+      # and are using the Fn API on the unified worker.
+      from apache_beam.runners.common import DoFnSignature
+      signature = DoFnSignature(transform_node.transform.fn)
+      if (use_fnapi and use_unified_worker and signature.is_splittable_dofn()):
+        restriction_coder = (
+            signature.get_restriction_provider().restriction_coder())
+        step.add_property(PropertyNames.RESTRICTION_ENCODING,
+                          self._get_cloud_encoding(
+                              restriction_coder, use_fnapi))
 
   @staticmethod
   def _pardo_fn_data(transform_node, get_label):
