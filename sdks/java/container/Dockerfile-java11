@@ -22,6 +22,8 @@ MAINTAINER "Apache Beam <dev@beam.apache.org>"
 ADD target/slf4j-api.jar /opt/apache/beam/jars/
 ADD target/slf4j-jdk14.jar /opt/apache/beam/jars/
 ADD target/beam-sdks-java-harness.jar /opt/apache/beam/jars/
+ADD target/beam-sdks-java-io-kafka.jar /opt/apache/beam/jars/
+ADD target/kafka-clients.jar /opt/apache/beam/jars/
 
 ADD target/linux_amd64/boot /opt/apache/beam/
 
