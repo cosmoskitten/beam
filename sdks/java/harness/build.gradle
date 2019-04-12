@@ -55,6 +55,8 @@ dependencies {
   compile library.java.joda_time
   compile library.java.slf4j_api
   compile library.java.vendored_grpc_1_13_1
+  // For executing KafkaIO, e.g. as an external transform
+  compile project(path: ":beam-sdks-java-io-kafka", configuration: "shadow")
   provided library.java.error_prone_annotations
   testCompile library.java.hamcrest_core
   testCompile library.java.hamcrest_library
