@@ -500,7 +500,7 @@ class TimestampCoderImpl(StreamCoderImpl):
   """
 
   def encode_to_stream(self, value, out, nested):
-    millis = value.micros / 1000
+    millis = value.micros // 1000
     if millis > 0:
       millis = millis - _TIME_SHIFT
     else:
