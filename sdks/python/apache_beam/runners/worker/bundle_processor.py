@@ -386,7 +386,7 @@ class OutputTimer(object):
     ts = timestamp.Timestamp(micros=dummy_millis * 1000)
     self._receiver.receive(
         windowed_value.WindowedValue(
-          (self._key, dict(timestamp=ts)), ts, (self._window,)))
+            (self._key, dict(timestamp=ts)), ts, (self._window,)))
 
 
 class FnApiUserStateContext(userstate.UserStateContext):
