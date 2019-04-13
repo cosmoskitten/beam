@@ -27,6 +27,9 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.function.Function;
+import java.util.stream.Collectors;
+
 import org.apache.beam.sdk.schemas.FieldAccessDescriptor;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.Field;
@@ -43,23 +46,16 @@ import org.apache.beam.sdk.values.Row;
  * <p>This is the inverse of the {@link Select} transform. A list of fields to drop is specified,
  **/
 public class DropFields {
-  public static <T> Inner<T> fieldNames(String... fields) {
-    return fieldAccess(FieldAccessDescriptor.withFieldNames(fields));
+  public static <T> Inner<T> fields(String... fields) {
+    return fields(FieldAccessDescriptor.withFieldNames(fields));
   }
 
-  public static <T> Inner<T> fieldNames(List<String> fields) {
-    return fieldAccess(FieldAccessDescriptor.withFieldNames(fields));
+
+  public static <T> Inner<T> fields(Integer... fieldIds) {
+    return fields(FieldAccessDescriptor.withFieldIds(fieldIds));
   }
 
-  public static <T> Inner<T> fieldIds(Integer... fieldIds) {
-    return fieldAccess(FieldAccessDescriptor.withFieldIds(fieldIds));
-  }
-
-  public static <T> Inner<T> fieldIds(List<Integer> fields) {
-    return fieldAccess(FieldAccessDescriptor.withFieldIds(fields));
-  }
-
-  public static <T> Inner<T> fieldAccess(FieldAccessDescriptor fieldsToDrop) {
+  public static <T> Inner<T> fields(FieldAccessDescriptor fieldsToDrop) {
     return new Inner<>(fieldsToDrop);
   }
 
@@ -72,23 +68,46 @@ public class DropFields {
 
     FieldAccessDescriptor complement(Schema inputSchema, FieldAccessDescriptor input) {
       Set<String> fieldNamesToSelect = Sets.newHashSet();
-      Map<String, FieldAccessDescriptor> nestedFieldsToSelect = Maps.newHashMap();
+      Map<FieldAccessDescriptor.FieldDescriptor, FieldAccessDescriptor> nestedFieldsToSelect = Maps.newHashMap();
       for (int i = 0; i < inputSchema.getFieldCount(); ++i) {
         if (input.fieldIdsAccessed().contains(i)) {
+          // This field is selected, so exclude it from the complement.
           continue;
         }
         Field field = inputSchema.getField(i);
-        FieldAccessDescriptor nestedDescriptor = input.nestedFieldsById().get(i);
-        if (nestedDescriptor != null) {
+        Map<Integer, FieldAccessDescriptor.FieldDescriptor> nestedFields =
+                input.getNestedFieldsAccessed().entrySet().stream()
+                        .map(Map.Entry::getKey)
+                .collect(Collectors.toMap(k -> k.getFieldId(), k -> k));
+
+        FieldAccessDescriptor.FieldDescriptor fieldDescriptor = nestedFields.get(i);
+        if (fieldDescriptor != null) {
+          // Some subfields are selected, so recursively calculate the complementary subfields to select.
           FieldType fieldType = inputSchema.getField(i).getType();
+          for (FieldAccessDescriptor.FieldDescriptor.Qualifier qualifier : fieldDescriptor.getQualifiers()) {
+            switch (qualifier.getKind()) {
+              case LIST:
+                fieldType = fieldType.getCollectionElementType();
+                break;
+              case MAP:
+                fieldType = fieldType.getMapValueType();
+                break;
+              default:
+                throw new RuntimeException("Unexpected field descriptor type.");
+            }
+          }
           Preconditions.checkArgument(fieldType.getTypeName().isCompositeType());
-          nestedFieldsToSelect.put(field.getName(), complement(fieldType.getRowSchema(), nestedDescriptor));
+          FieldAccessDescriptor nestedDescriptor = input.getNestedFieldsAccessed().get(fieldDescriptor);
+          nestedFieldsToSelect.put(fieldDescriptor, complement(fieldType.getRowSchema(), nestedDescriptor));
         } else {
+          // Neither the field nor the subfield is selected. This means we should select it.
           fieldNamesToSelect.add(field.getName());
         }
       }
+
       FieldAccessDescriptor fieldAccess = FieldAccessDescriptor.withFieldNames(fieldNamesToSelect);
-      for (Map.Entry<String, FieldAccessDescriptor> entry : nestedFieldsToSelect.entrySet()) {
+      for (Map.Entry<FieldAccessDescriptor.FieldDescriptor, FieldAccessDescriptor>
+              entry : nestedFieldsToSelect.entrySet()) {
         fieldAccess = fieldAccess.withNestedField(entry.getKey(), entry.getValue());
       }
       return fieldAccess.resolve(inputSchema);

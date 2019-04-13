@@ -20,8 +20,8 @@ import org.apache.beam.sdk.values.Row;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ArrayListMultimap;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Multimap;
 
-public class Rename {
-  public <T> Inner<T> fieldAs(String field, String newName) {
+public class RenameFields {
+  public <T> Inner<T> rename(String field, String newName) {
     return new Inner<>(field, newName);
   }
 

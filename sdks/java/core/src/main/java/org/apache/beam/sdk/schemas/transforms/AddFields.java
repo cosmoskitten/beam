@@ -33,7 +33,7 @@ import org.apache.beam.sdk.values.Row;
 /** A transform to add new nullable fields to a PCollection's schema. Elements are extended to
  * have the new schema, with null values used for the new fields.
  */
-public class Add {
+public class AddFields {
   public static <T> Inner<T> fields(Field... fields) {
     return fields(Arrays.asList(fields));
   }
