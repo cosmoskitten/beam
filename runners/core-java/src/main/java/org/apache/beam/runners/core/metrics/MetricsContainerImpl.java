@@ -214,7 +214,7 @@ public class MetricsContainerImpl implements Serializable, MetricsContainer {
 
       // Drop if the stepname is not set. All user counters must be
       // defined for a PTransform. They must be defined on a container bound to a step.
-      if (this.stepName == null) { // TODO rethink this/rm this check.
+      if (this.stepName == null) {
         return null;
       }
       builder.setLabel(MonitoringInfoConstants.Labels.PTRANSFORM, metricUpdate.getKey().stepName());
