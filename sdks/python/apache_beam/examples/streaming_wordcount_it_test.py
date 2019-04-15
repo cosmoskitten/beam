@@ -78,7 +78,7 @@ class StreamingWordCountIT(unittest.TestCase):
     test_utils.cleanup_topics(self.pub_client,
                               [self.input_topic, self.output_topic])
 
-  @attr('IT')
+  @attr('IT', 'streaming')
   def test_streaming_wordcount_it(self):
     # Build expected dataset.
     expected_msg = [('%d: 1' % num) for num in range(DEFAULT_INPUT_NUMBERS)]
