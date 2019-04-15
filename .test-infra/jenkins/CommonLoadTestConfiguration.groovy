@@ -19,7 +19,7 @@ import CommonTestProperties
 
 class CommonLoadTestConfiguration {
 
-static loadTestConfigurations (String jobtype, Boolean isStreaming)
+static loadTestConfigurations (String jobType, Boolean isStreaming)
         {
             [
                     [
