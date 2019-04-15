@@ -20,7 +20,7 @@ import CommonJobProperties as commonJobProperties
 import LoadTestsBuilder as loadTestsBuilder
 import PhraseTriggeringPostCommitBuilder
 import CronJobBuilder
-import CommonLoadTestConfiguration aS commonLoadTestConfig
+import CommonLoadTestConfiguration as commonLoadTestConfig
 
 
 def streamingLoadTestJob = {scope, triggeringContext ->
