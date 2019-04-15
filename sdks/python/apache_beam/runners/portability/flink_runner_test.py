@@ -220,6 +220,9 @@ if __name__ == '__main__':
     def test_sdf(self):
       raise unittest.SkipTest("BEAM-2939")
 
+    def test_sdf_expansion_without_defer_remainder(self):
+      raise unittest.SkipTest("BEAM-2939")
+
     def test_callbacks_with_exception(self):
       raise unittest.SkipTest("BEAM-6868")
 

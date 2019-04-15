@@ -366,22 +366,6 @@ class FnApiRunnerTest(unittest.TestCase):
 
     counter = beam.metrics.Metrics.counter('ns', 'my_counter')
 
-    class ExpandStringsProvider(beam.transforms.core.RestrictionProvider):
-      def initial_restriction(self, element):
-        return (0, len(element))
-
-      def create_tracker(self, restriction):
-        return restriction_trackers.OffsetRestrictionTracker(
-            restriction[0], restriction[1])
-
-      def split(self, element, restriction):
-        start, end = restriction
-        middle = (end - start) // 2
-        return [(start, middle), (middle, end)]
-
-      def restriction_size(self, element, restriction):
-        return restriction[1] - restriction[0]
-
     class ExpandStringsDoFn(beam.DoFn):
       def process(self, element, restriction_tracker=ExpandStringsProvider()):
         assert isinstance(
@@ -410,6 +394,25 @@ class FnApiRunnerTest(unittest.TestCase):
       counters = res.metrics().query(beam.metrics.MetricsFilter())['counters']
       self.assertEqual(1, len(counters))
       self.assertEqual(counters[0].committed, len(''.join(data)))
+
+  def test_sdf_expansion_without_defer_remainder(self):
+
+    class ExpandingStringsDoFn(beam.DoFn):
+      def process(self, element, restriction_tracker=ExpandStringsProvider()):
+        assert isinstance(
+            restriction_tracker,
+            restriction_trackers.OffsetRestrictionTracker), restriction_tracker
+        for k in range(*restriction_tracker.current_restriction()):
+          yield element[k]
+
+    with self.create_pipeline() as p:
+      data = ['abc', 'defghijklmno', 'pqrstuv', 'wxyz']
+      actual = (
+          p
+          | beam.Create(data)
+          | beam.ParDo(ExpandingStringsDoFn()))
+      assert_that(actual, equal_to(list(''.join(data))))
+
 
   def test_group_by_key(self):
     with self.create_pipeline() as p:
@@ -1165,6 +1168,24 @@ class EventRecorder(object):
 
   def cleanup(self):
     shutil.rmtree(self.tmp_dir)
+
+
+class ExpandStringsProvider(beam.transforms.core.RestrictionProvider):
+  """A RestrictionProvider that used for sdf related tests."""
+  def initial_restriction(self, element):
+    return (0, len(element))
+
+  def create_tracker(self, restriction):
+    return restriction_trackers.OffsetRestrictionTracker(
+        restriction[0], restriction[1])
+
+  def split(self, element, restriction):
+    start, end = restriction
+    middle = (end - start) // 2
+    return [(start, middle), (middle, end)]
+
+  def restriction_size(self, element, restriction):
+    return restriction[1] - restriction[0]
 
 
 if __name__ == '__main__':
