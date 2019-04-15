@@ -35,8 +35,11 @@ import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.values.Row;
 import org.joda.time.DateTime;
 import org.junit.Test;
+import org.junit.runner.RunWith;
+import org.junit.runners.JUnit4;
 
 /** Tests for {@link BigQueryUtils}. */
+@RunWith(JUnit4.class)
 public class BigQueryUtilsTest {
   private static final Schema FLAT_TYPE =
       Schema.builder()
