@@ -57,12 +57,15 @@ import org.junit.BeforeClass;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
+import org.junit.runner.RunWith;
+import org.junit.runners.JUnit4;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /** A test of {@link SolrIO} on an independent Solr instance. */
 @ThreadLeakScope(value = ThreadLeakScope.Scope.NONE)
 @SolrTestCaseJ4.SuppressSSL
+@RunWith(JUnit4.class)
 public class SolrIOTest extends SolrCloudTestCase {
   private static final Logger LOG = LoggerFactory.getLogger(SolrIOTest.class);
 

@@ -39,6 +39,8 @@ import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
+import org.junit.runner.RunWith;
+import org.junit.runners.JUnit4;
 
 /*
 Cannot use @RunWith(JUnit4.class) with ESIntegTestCase
@@ -49,6 +51,7 @@ Cannot have @BeforeClass @AfterClass with ESIntegTestCase
 @ThreadLeakScope(ThreadLeakScope.Scope.NONE)
 // use cluster of 1 node that has data + master roles
 @ESIntegTestCase.ClusterScope(scope = SUITE, numDataNodes = 1, supportsDedicatedMasters = false)
+@RunWith(JUnit4.class)
 public class ElasticsearchIOTest extends ESIntegTestCase implements Serializable {
 
   private ElasticsearchIOTestCommon elasticsearchIOTestCommon;
