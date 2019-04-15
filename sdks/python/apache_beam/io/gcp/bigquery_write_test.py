@@ -26,6 +26,7 @@ import time
 import unittest
 
 import hamcrest as hc
+from nose.plugins.attrib import attr
 
 import apache_beam as beam
 from apache_beam.io.gcp.bigquery_tools import BigQueryWrapper
@@ -95,6 +96,7 @@ class BigQueryWriteIntegrationTests(unittest.TestCase):
         projectId=self.project, datasetId=self.dataset_id, table=table)
     self.bigquery_client.client.tables.Insert(request)
 
+  @attr('IT')
   def test_big_query_write(self):
     output_table = 'python_write_table'
     output_table = self.output_table.format(output_table)
@@ -125,6 +127,7 @@ class BigQueryWriteIntegrationTests(unittest.TestCase):
            create_disposition=beam.io.BigQueryDisposition.CREATE_IF_NEEDED,
            write_disposition=beam.io.BigQueryDisposition.WRITE_EMPTY))
 
+  @attr('IT')
   def test_big_query_write_new_types(self):
     output_table = 'python_new_types_table'
     output_table = self.output_table.format(output_table)
@@ -166,6 +169,7 @@ class BigQueryWriteIntegrationTests(unittest.TestCase):
            create_disposition=beam.io.BigQueryDisposition.CREATE_IF_NEEDED,
            write_disposition=beam.io.BigQueryDisposition.WRITE_EMPTY))
 
+  @attr('IT')
   @unittest.skipIf(sys.version_info[0] == 2,
                    'Writing bytes without schema is currently not supported'
                    'TODO: BEAM-6769')

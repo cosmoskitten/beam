@@ -132,6 +132,7 @@ class BigQueryReadTests(unittest.TestCase):
     self.bigquery_client.insert_rows(
         self.project, self.dataset_id, tablename, table_data)
 
+  @attr('IT')
   def test_big_query_read(self):
     output_table = 'python_write_table'
     self.create_table(output_table)
@@ -147,6 +148,7 @@ class BigQueryReadTests(unittest.TestCase):
       assert_that(result, equal_to([{'number': 1, 'str': 'abc'},
                                     {'number': 2, 'str': 'def'}]))
 
+  @attr('IT')
   def test_big_query_read_new_types(self):
     output_table = 'python_new_types_table'
     self.create_table_new_types(output_table)
