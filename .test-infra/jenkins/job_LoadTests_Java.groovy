@@ -17,7 +17,6 @@
  */
 
 import CommonJobProperties as commonJobProperties
-import CommonTestProperties
 import LoadTestsBuilder as loadTestsBuilder
 import PhraseTriggeringPostCommitBuilder
 import CronJobBuilder
