@@ -18,8 +18,8 @@
 
 class CommonLoadTestConfiguration {
 
-def loadTestConfigurations =
-        { jobType, isStreaming ->
+def loadTestConfigurations (jobtype, isStreaming)
+        {
             [
                     [
                             title        : 'Load test: 2GB of 10B records',
