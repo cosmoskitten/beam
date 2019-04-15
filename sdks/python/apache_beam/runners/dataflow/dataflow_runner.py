@@ -414,11 +414,11 @@ class DataflowRunner(PipelineRunner):
         logging.fatal(
             'Typical end users should not use this worker jar feature. '
             'It can only be used when fnapi is enabled.')
-
-      experiments = ["use_staged_dataflow_worker_jar"]
-      if debug_options.experiments is not None:
-        experiments = list(set(experiments + debug_options.experiments))
-      debug_options.experiments = experiments
+      else:
+        experiments = ["use_staged_dataflow_worker_jar"]
+        if debug_options.experiments is not None:
+          experiments = list(set(experiments + debug_options.experiments))
+        debug_options.experiments = experiments
 
     # Create the job description and send a request to the service. The result
     # can be None if there is no need to send a request to the service (e.g.
