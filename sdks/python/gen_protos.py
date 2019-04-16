@@ -43,6 +43,10 @@ BEAM_PROTO_PATHS = [
 
 PYTHON_OUTPUT_PATH = os.path.join('apache_beam', 'portability', 'api')
 
+MODEL_RESOURCES = [
+    os.path.normpath('../../model/fn-execution/src/main/resources'\
+            + '/org/apache/beam/model/fnexecution/v1/standard_coders.yaml'),
+]
 
 def generate_proto_files(force=False):
 
@@ -87,6 +91,10 @@ def generate_proto_files(force=False):
             'Cannot generate protos for Windows since grpcio-tools package is '
             'not installed. Please install this package manually '
             'using \'pip install grpcio-tools\'.')
+
+      # copy resource files
+      for path in MODEL_RESOURCES:
+        shutil.copy2(os.path.join(py_sdk_root, path), out_dir)
 
       # Use a subprocess to avoid messing with this process' path and imports.
       # Note that this requires a separate module from setup.py for Windows:
