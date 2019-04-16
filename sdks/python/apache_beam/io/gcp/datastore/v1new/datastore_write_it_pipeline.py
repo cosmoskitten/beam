@@ -72,7 +72,7 @@ class EntityWrapper(object):
 
   def make_entity(self, content):
     """Create entity from given string."""
-    key = Key([self._kind, hashlib.sha1(content).hexdigest()],
+    key = Key([self._kind, hashlib.sha1(content.encode('utf-8')).hexdigest()],
               parent=self._parent_key)
     entity = Entity(key)
     entity.set_properties({'content': str(content)})
