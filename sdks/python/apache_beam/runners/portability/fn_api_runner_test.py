@@ -413,7 +413,6 @@ class FnApiRunnerTest(unittest.TestCase):
           | beam.ParDo(ExpandingStringsDoFn()))
       assert_that(actual, equal_to(list(''.join(data))))
 
-
   def test_group_by_key(self):
     with self.create_pipeline() as p:
       res = (p
