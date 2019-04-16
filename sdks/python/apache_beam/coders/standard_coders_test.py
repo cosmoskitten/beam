@@ -37,9 +37,8 @@ from apache_beam.transforms.window import IntervalWindow
 from apache_beam.utils import windowed_value
 from apache_beam.utils.timestamp import Timestamp
 
-STANDARD_CODERS_YAML = os.path.join(
-    os.path.dirname(__file__), '..', 'testing', 'data', 'standard_coders.yaml')
-
+REL_PATH = '../../../../model/fn-execution/src/main/resources/org/apache/beam/model/fnexecution/v1/standard_coders.yaml'
+STANDARD_CODERS_YAML = os.path.normpath(os.path.join(os.path.dirname(__file__), REL_PATH))
 
 def _load_test_cases(test_yaml):
   """Load test data from yaml file and return an iterable of test cases.
