@@ -855,42 +855,22 @@ class FnApiRunnerTest(unittest.TestCase):
       import numpy as np
     except ImportError:
       np = None
-    restriction_param = {'num_records':4,
-                         'key_size':1,
-                         'value_size':1,
-                         'initial_splitting_num_bundles':2,
-                         'initial_splitting_desired_bundle_size':2,
-                         'initial_splitting' : 'const'}
-    sdf_param = {'num_records':4,
-                 'key_size':1,
-                 'value_size':1,
-                 'initial_splitting_num_bundles':2,
-                 'initial_splitting_desired_bundle_size':2,
-                 'sleep_per_input_record_sec':0}
+
     class SyntheticSDFSourceRestrictionProvider(beam.transforms.core.RestrictionProvider):
-      def __init__(self, restriction_param):
-        self.param = restriction_param
-
-      @property
-      def element_size(self):
-        return self.param['key_size'] + self.param['value_size']
-
-      def estimate_size(self):
-        return self.element_size * self.param['num_records']
-
       def initial_restriction(self, element):
-        return (0, self.param['num_records'])
+        return (0, element['num_records'])
 
       def create_tracker(self, restriction):
         return restriction_trackers.OffsetRestrictionTracker(restriction[0], restriction[1])
 
-      # Why initial splitting needs element?
       def split(self, element, restriction):
         start_position, stop_position = restriction
-        if self.param['initial_splitting'] == 'zipf':
-          desired_num_bundles = self.param['initial_splitting_num_bundles'] or math.ceil(
-              float(self.estimate_size()) / self.param['initial_splitting_desired_bundle_size'])
-          samples = np.random.zipf(self.param['initial_splitting_distribution_parameter'],
+        element_size = element['key_size'] + element['value_size']
+        estimate_size = element_size * element['num_records']
+        if element['initial_splitting'] == 'zipf':
+          desired_num_bundles = element['initial_splitting_num_bundles'] or math.ceil(
+              float(estimate_size) / element['initial_splitting_desired_bundle_size'])
+          samples = np.random.zipf(element['initial_splitting_distribution_parameter'],
                                    desired_num_bundles)
           total = sum(samples)
           relative_bundle_sizes = [(float(sample) / total) for sample in samples]
@@ -901,19 +881,19 @@ class FnApiRunnerTest(unittest.TestCase):
             if index == desired_num_bundles - 1:
               bundle_ranges.append((start, stop_position))
               break
-            stop = start + int(self.param['num_records'] * relative_bundle_sizes[index])
+            stop = start + int(element['num_records'] * relative_bundle_sizes[index])
             bundle_ranges.append((start, stop))
             start = stop
             index += 1
         else:
-          if self.param['initial_splitting_num_bundles']:
+          if element['initial_splitting_num_bundles']:
             bundle_size_in_elements = max(1, int(
-                self.param['num_records'] /
-                self.param['initial_splitting_num_bundles']))
+                element['num_records'] /
+                element['initial_splitting_num_bundles']))
           else:
             bundle_size_in_elements = (max(
-                div_round_up(self.param['initial_splitting_desired_bundle_size'], self.element_size),
-                int(math.floor(math.sqrt(self.param['num_records'])))))
+                div_round_up(element['initial_splitting_desired_bundle_size'], element_size),
+                int(math.floor(math.sqrt(element['num_records'])))))
           bundle_ranges = []
           for start in range(start_position, stop_position,
                              bundle_size_in_elements):
@@ -922,24 +902,30 @@ class FnApiRunnerTest(unittest.TestCase):
         return bundle_ranges
 
       def restriction_size(self, element, restriction):
-        return self.element_size * (restriction[1] - restriction[0])
+        return (element['key_size'] + element['value_size']) * (restriction[1] - restriction[0])
 
     class SyntheticSDFAsSource(beam.DoFn):
-      def __init__(self, sdf_param):
-        self.param = sdf_param
-
-      def process(self, element, restriction_tracker=SyntheticSDFSourceRestrictionProvider(restriction_param)):
+      def process(self, element, restriction_tracker=SyntheticSDFSourceRestrictionProvider()):
         for k in range(*restriction_tracker.current_restriction()):
           if not restriction_tracker.try_claim(k):
             return
           r = np.random.RandomState(k)
-          time.sleep(self.param['sleep_per_input_record_sec'])
-          yield r.bytes(self.param['key_size']), r.bytes(self.param['value_size'])
+          time.sleep(element['sleep_per_input_record_sec'])
+          yield r.bytes(element['key_size']), r.bytes(element['value_size'])
 
     with self.create_pipeline() as p:
+      source_description_1 = {
+          'num_records':4,
+          'key_size':1,
+          'value_size':1,
+          'initial_splitting_num_bundles':2,
+          'initial_splitting_desired_bundle_size':2,
+          'sleep_per_input_record_sec':0,
+          'initial_splitting' : 'const'
+      }
       res = (p
-             | beam.Create(['record_source'])
-             | beam.ParDo(SyntheticSDFAsSource(sdf_param)))
+             | beam.Create([source_description_1])
+             | beam.ParDo(SyntheticSDFAsSource()))
 
 
 
