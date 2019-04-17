@@ -923,8 +923,17 @@ class FnApiRunnerTest(unittest.TestCase):
           'sleep_per_input_record_sec':0,
           'initial_splitting' : 'const'
       }
+      source_description_2 = {
+          'num_records':4,
+          'key_size':1,
+          'value_size':1,
+          'initial_splitting_num_bundles':2,
+          'initial_splitting_desired_bundle_size':2,
+          'sleep_per_input_record_sec':0,
+          'initial_splitting' : 'const'
+      }
       res = (p
-             | beam.Create([source_description_1])
+             | beam.Create([source_description_1, source_description_2])
              | beam.ParDo(SyntheticSDFAsSource()))
 
 
