@@ -67,7 +67,7 @@ job(testConfiguration.jobName) {
         shell('rm -rf .env')
 
         // create new VirtualEnv, inherit already existing packages
-        shell('virtualenv .env --system-site-packages')
+        shell('virtualenv .env --python=python2.7 --system-site-packages')
 
         // update setuptools and pip
         shell('.env/bin/pip install --upgrade setuptools pip')
