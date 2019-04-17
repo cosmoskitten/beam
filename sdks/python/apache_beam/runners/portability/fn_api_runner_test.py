@@ -850,6 +850,98 @@ class FnApiRunnerTest(unittest.TestCase):
     event_recorder.cleanup()
     self.assertEqual(results, sorted(elements_list))
 
+  def test_sdf_synthetic_source(self):
+    try:
+      import numpy as np
+    except ImportError:
+      np = None
+    restriction_param = {'num_records':4,
+                         'key_size':1,
+                         'value_size':1,
+                         'initial_splitting_num_bundles':2,
+                         'initial_splitting_desired_bundle_size':2,
+                         'initial_splitting' : 'const'}
+    sdf_param = {'num_records':4,
+                 'key_size':1,
+                 'value_size':1,
+                 'initial_splitting_num_bundles':2,
+                 'initial_splitting_desired_bundle_size':2,
+                 'sleep_per_input_record_sec':0}
+    class SyntheticSDFSourceRestrictionProvider(beam.transforms.core.RestrictionProvider):
+      def __init__(self, restriction_param):
+        self.param = restriction_param
+
+      @property
+      def element_size(self):
+        return self.param['key_size'] + self.param['value_size']
+
+      def estimate_size(self):
+        return self.element_size * self.param['num_records']
+
+      def initial_restriction(self, element):
+        return (0, self.param['num_records'])
+
+      def create_tracker(self, restriction):
+        return restriction_trackers.OffsetRestrictionTracker(restriction[0], restriction[1])
+
+      # Why initial splitting needs element?
+      def split(self, element, restriction):
+        start_position, stop_position = restriction
+        if self.param['initial_splitting'] == 'zipf':
+          desired_num_bundles = self.param['initial_splitting_num_bundles'] or math.ceil(
+              float(self.estimate_size()) / self.param['initial_splitting_desired_bundle_size'])
+          samples = np.random.zipf(self.param['initial_splitting_distribution_parameter'],
+                                   desired_num_bundles)
+          total = sum(samples)
+          relative_bundle_sizes = [(float(sample) / total) for sample in samples]
+          bundle_ranges = []
+          start = start_position
+          index = 0
+          while start < stop_position:
+            if index == desired_num_bundles - 1:
+              bundle_ranges.append((start, stop_position))
+              break
+            stop = start + int(self.param['num_records'] * relative_bundle_sizes[index])
+            bundle_ranges.append((start, stop))
+            start = stop
+            index += 1
+        else:
+          if self.param['initial_splitting_num_bundles']:
+            bundle_size_in_elements = max(1, int(
+                self.param['num_records'] /
+                self.param['initial_splitting_num_bundles']))
+          else:
+            bundle_size_in_elements = (max(
+                div_round_up(self.param['initial_splitting_desired_bundle_size'], self.element_size),
+                int(math.floor(math.sqrt(self.param['num_records'])))))
+          bundle_ranges = []
+          for start in range(start_position, stop_position,
+                             bundle_size_in_elements):
+            stop = min(start + bundle_size_in_elements, stop_position)
+            bundle_ranges.append((start, stop))
+        return bundle_ranges
+
+      def restriction_size(self, element, restriction):
+        return self.element_size * (restriction[1] - restriction[0])
+
+    class SyntheticSDFAsSource(beam.DoFn):
+      def __init__(self, sdf_param):
+        self.param = sdf_param
+
+      def process(self, element, restriction_tracker=SyntheticSDFSourceRestrictionProvider(restriction_param)):
+        for k in range(*restriction_tracker.current_restriction()):
+          if not restriction_tracker.try_claim(k):
+            return
+          r = np.random.RandomState(k)
+          time.sleep(self.param['sleep_per_input_record_sec'])
+          yield r.bytes(self.param['key_size']), r.bytes(self.param['value_size'])
+
+    with self.create_pipeline() as p:
+      res = (p
+             | beam.Create(['record_source'])
+             | beam.ParDo(SyntheticSDFAsSource(sdf_param)))
+
+
 
 class FnApiRunnerTestWithGrpc(FnApiRunnerTest):
 
