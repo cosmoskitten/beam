@@ -853,12 +853,12 @@ class FnApiRunnerTest(unittest.TestCase):
 
   def test_sdf_synthetic_source(self):
     common_attrs = {
-      'key_size': 1,
-      'value_size': 1,
-      'initial_splitting_num_bundles': 2,
-      'initial_splitting_desired_bundle_size': 2,
-      'sleep_per_input_record_sec': 0,
-      'initial_splitting' : 'const'
+        'key_size': 1,
+        'value_size': 1,
+        'initial_splitting_num_bundles': 2,
+        'initial_splitting_desired_bundle_size': 2,
+        'sleep_per_input_record_sec': 0,
+        'initial_splitting': 'const'
     }
     num_source_description = 5
     min_num_record = 10
@@ -866,7 +866,7 @@ class FnApiRunnerTest(unittest.TestCase):
 
     # pylint: disable=unused-variable
     source_descriptions = ([dict(
-        {'num_records':random.randint(min_num_record,max_num_record)},
+        {'num_records': random.randint(min_num_record,max_num_record)},
         **common_attrs) for i in range(0,num_source_description)])
     total_num_records = 0
     for source in source_descriptions:

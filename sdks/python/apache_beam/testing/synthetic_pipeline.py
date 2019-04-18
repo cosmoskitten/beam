@@ -282,10 +282,13 @@ class SyntheticSDFSourceRestrictionProvider(RestrictionProvider):
     element_size = element['key_size'] + element['value_size']
     estimate_size = element_size * element['num_records']
     if element['initial_splitting'] == 'zipf':
-      desired_num_bundles = element['initial_splitting_num_bundles'] or math.ceil(
-          float(estimate_size) / element['initial_splitting_desired_bundle_size'])
-      samples = np.random.zipf(element['initial_splitting_distribution_parameter'],
-                               desired_num_bundles)
+      desired_num_bundles = (
+          element['initial_splitting_num_bundles'] or
+          math.ceil(float(estimate_size) /
+                    element['initial_splitting_desired_bundle_size']))
+      samples = np.random.zipf(
+          element['initial_splitting_distribution_parameter'],
+          desired_num_bundles)
       total = sum(samples)
       relative_bundle_sizes = [(float(sample) / total) for sample in samples]
       bundle_ranges = []
@@ -295,7 +298,8 @@ class SyntheticSDFSourceRestrictionProvider(RestrictionProvider):
         if index == desired_num_bundles - 1:
           bundle_ranges.append((start, stop_position))
           break
-        stop = start + int(element['num_records'] * relative_bundle_sizes[index])
+        stop = start + int(
+            element['num_records'] * relative_bundle_sizes[index])
         bundle_ranges.append((start, stop))
         start = stop
         index += 1
@@ -306,7 +310,8 @@ class SyntheticSDFSourceRestrictionProvider(RestrictionProvider):
             element['initial_splitting_num_bundles']))
       else:
         bundle_size_in_elements = (max(
-            div_round_up(element['initial_splitting_desired_bundle_size'], element_size),
+            div_round_up(
+                element['initial_splitting_desired_bundle_size'], element_size),
             int(math.floor(math.sqrt(element['num_records'])))))
       bundle_ranges = []
       for start in range(start_position, stop_position,
@@ -316,13 +321,17 @@ class SyntheticSDFSourceRestrictionProvider(RestrictionProvider):
     return bundle_ranges
 
   def restriction_size(self, element, restriction):
-    return (element['key_size'] + element['value_size']) * (restriction[1] - restriction[0])
+    return ((element['key_size'] + element['value_size'])
+            * (restriction[1] - restriction[0]))
 
 
 class SyntheticSDFAsSource(beam.DoFn):
   """A SDF that generates records like a source"""
 
-  def process(self, element, restriction_tracker=SyntheticSDFSourceRestrictionProvider()):
+  def process(
+      self,
+      element,
+      restriction_tracker=SyntheticSDFSourceRestrictionProvider()):
     for k in range(*restriction_tracker.current_restriction()):
       if not restriction_tracker.try_claim(k):
         return
