@@ -49,6 +49,7 @@ from apache_beam.io import restriction_trackers
 from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.options.pipeline_options import SetupOptions
 from apache_beam.testing.test_pipeline import TestPipeline
+from apache_beam.transforms.core import RestrictionProvider
 
 try:
   import numpy as np
@@ -251,19 +252,23 @@ class SyntheticSource(iobase.BoundedSource):
         [beam.coders.BytesCoder(), beam.coders.BytesCoder()])
 
 
-class SyntheticSDFSourceRestrictionProvider(beam.transforms.core.RestrictionProvider):
-  """A RestrictionProvider for SyntheticSDFAsSource
+class SyntheticSDFSourceRestrictionProvider(RestrictionProvider):
+  """A `RestrictionProvider` for SyntheticSDFAsSource.
 
   In initial_restriction(element) and split(element), element means source
-  description. A typical element is like:
-  {
-      'key_size':1,
-      'value_size':1,
-      'initial_splitting_num_bundles':2,
-      'initial_splitting_desired_bundle_size':2,
-      'sleep_per_input_record_sec':0,
+  description.
+  A typical element is like:
+
+    {
+      'key_size': 1,
+      'value_size': 1,
+      'initial_splitting_num_bundles': 2,
+      'initial_splitting_desired_bundle_size': 2,
+      'sleep_per_input_record_sec': 0,
       'initial_splitting' : 'const'
+
     }
+
   """
 
   def initial_restriction(self, element):

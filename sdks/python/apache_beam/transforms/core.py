@@ -85,6 +85,7 @@ __all__ = [
     'Flatten',
     'Create',
     'Impulse',
+    'RestrictionProvider'
     ]
 
 # Type variables
