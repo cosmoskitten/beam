@@ -243,7 +243,10 @@ class DataflowRunner(PipelineRunner):
               pcoll.element_type, transform_node.full_label)
           key_type, value_type = pcoll.element_type.tuple_types
           if transform_node.outputs:
-            transform_node.outputs[None].element_type = typehints.KV[
+            key = (
+                None if None in transform_node.outputs.keys()
+                else next(iter(transform_node.outputs.keys())))
+            transform_node.outputs[key].element_type = typehints.KV[
                 key_type, typehints.Iterable[value_type]]
 
     return GroupByKeyInputVisitor()
@@ -346,14 +349,17 @@ class DataflowRunner(PipelineRunner):
     self.proto_pipeline, self.proto_context = pipeline.to_runner_api(
         return_context=True)
 
-    experiments = options.view_as(DebugOptions).experiments or []
-    if 'cross_language_pipeline' in experiments:
+    if apiclient._use_fnapi(options):
       # Cross language transform require using a pipeline object constructed
       # from the full pipeline proto to make sure that expanded version of
       # external transforms are reflected in the Pipeline job graph.
       from apache_beam import Pipeline
       pipeline = Pipeline.from_runner_api(
           self.proto_pipeline, pipeline.runner, options)
+
+      # We need to generate a new context that maps to the next pipeline object.
+      self.proto_pipeline, self.proto_context = pipeline.to_runner_api(
+          return_context=True)
 
     # Add setup_options for all the BeamPlugin imports
     setup_options = options.view_as(SetupOptions)
@@ -470,15 +476,12 @@ class DataflowRunner(PipelineRunner):
 
   def _get_encoded_output_coder(self, transform_node, window_value=True):
     """Returns the cloud encoding of the coder for the output of a transform."""
-    # Main output key for external transforms for Java SDK received through
-    # cross-language transforms is u'output'
-    main_output_key = (
-        'output' if ('output' in transform_node.outputs.keys()
-                     and None not in transform_node.outputs.keys()) else None)
+    output_tag = None if None in transform_node.outputs.keys() else next(
+        iter(transform_node.outputs.keys()))
     if (len(transform_node.outputs) == 1
-        and transform_node.outputs[main_output_key].element_type is not None):
+        and transform_node.outputs[output_tag].element_type is not None):
       # TODO(robertwb): Handle type hints for multi-output transforms.
-      element_type = transform_node.outputs[main_output_key].element_type
+      element_type = transform_node.outputs[output_tag].element_type
     else:
       # TODO(silviuc): Remove this branch (and assert) when typehints are
       # propagated everywhere. Returning an 'Any' as type hint will trigger
@@ -487,7 +490,7 @@ class DataflowRunner(PipelineRunner):
     if window_value:
       window_coder = (
           transform_node.outputs[
-              main_output_key].windowing.windowfn.get_window_coder())
+              output_tag].windowing.windowfn.get_window_coder())
     else:
       window_coder = None
     from apache_beam.runners.dataflow.internal import apiclient
@@ -501,16 +504,14 @@ class DataflowRunner(PipelineRunner):
     # Import here to avoid adding the dependency for local running scenarios.
     # pylint: disable=wrong-import-order, wrong-import-position
     from apache_beam.runners.dataflow.internal import apiclient
-    # Main output key for external transforms for Java SDK received through
-    # cross-language transforms is u'output'
-    main_output_key = ('output' if (
-        'output' in transform_node.outputs.keys()
-        and None not in transform_node.outputs.keys()) else None)
     step = apiclient.Step(step_kind, self._get_unique_step_name())
     self.job.proto.steps.append(step.proto)
     step.add_property(PropertyNames.USER_NAME, step_label)
     # Cache the node/step association for the main output of the transform node.
-    self._cache.cache_output(transform_node, main_output_key, step)
+    output_tag = (
+        next(iter(transform_node.outputs.keys()))
+        if len(transform_node.outputs.keys()) == 1 else None)
+    self._cache.cache_output(transform_node, output_tag, step)
     # If side_tags is not () then this is a multi-output transform node and we
     # need to cache the (node, tag, step) for each of the tags used to access
     # the outputs. This is essential because the keys used to search in the
@@ -676,14 +677,16 @@ class DataflowRunner(PipelineRunner):
     example, a python `ParDo` transform cannot be generated without a serialized
     Python `DoFn` object).
     """
-    assert transform_node.transform.urn()
-    if common_urns.primitives.PAR_DO.urn == transform_node.transform.urn():
+    urn = transform_node.transform.proto().urn
+    assert urn
+    # TODO(chamikara): support other transforms that requires holder objects in
+    #  Python SDk.
+    if common_urns.primitives.PAR_DO.urn == urn:
       self.run_ParDo(transform_node, options, True)
-      return
+    else:
+      raise NotImplementedError('run_RunnerAPIPayloadHolder')
 
-    raise NotImplementedError('run_RunnerAPIPayloadHolder')
-
-  def run_ParDo(self, transform_node, options, proto_holder=False):
+  def run_ParDo(self, transform_node, options, is_proto_holder=False):
     transform = transform_node.transform
     input_tag = transform_node.inputs[0].tag
     input_step = self._cache.get_pvalue(transform_node.inputs[0])
@@ -806,7 +809,8 @@ class DataflowRunner(PipelineRunner):
 
     # Proto holder ParDos contain serialized DoFns from remote SDKs that cannot
     # be examined by Python DoFnSignature.
-    if not proto_holder:
+    if not is_proto_holder:
+      # TODO(chamikara): support external transforms that are SDFs.
       # Add the restriction encoding if we are a splittable DoFn
       # and are using the Fn API on the unified worker.
       from apache_beam.runners.common import DoFnSignature
