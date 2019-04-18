@@ -905,7 +905,7 @@ class FnApiRunnerTest(unittest.TestCase):
 
     # pylint: disable=unused-variable
     source_descriptions = ([dict(
-        {'num_records': random.randint(min_num_record,max_num_record)},
+        {'num_records': random.randint(min_num_record, max_num_record)},
         **common_attrs) for i in range(0, num_source_description)])
     total_num_records = 0
     for source in source_descriptions:
