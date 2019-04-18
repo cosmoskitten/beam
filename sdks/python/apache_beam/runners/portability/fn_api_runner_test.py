@@ -919,7 +919,6 @@ class FnApiRunnerTest(unittest.TestCase):
       assert_that(res, equal_to([total_num_records]))
 
 
-
 class FnApiRunnerTestWithGrpc(FnApiRunnerTest):
 
   def create_pipeline(self):
