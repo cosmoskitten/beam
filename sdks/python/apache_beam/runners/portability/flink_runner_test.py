@@ -243,6 +243,9 @@ if __name__ == '__main__':
     def test_sdf(self):
       raise unittest.SkipTest("BEAM-2939")
 
+    def test_sdf_synthetic_source(self):
+      raise unittest.SkipTest("BEAM-2939")
+
     def test_callbacks_with_exception(self):
       raise unittest.SkipTest("BEAM-6868")
 
