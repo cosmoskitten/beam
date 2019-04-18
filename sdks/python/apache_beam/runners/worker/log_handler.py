@@ -21,6 +21,8 @@ from __future__ import print_function
 
 import logging
 import math
+import time
+
 import queue
 import sys
 import threading
@@ -46,6 +48,8 @@ class FnApiLogRecordHandler(logging.Handler):
   # Size of the queue used to buffer messages. Once full, messages will be
   # dropped. If the average log size is 1KB this may use up to 10MB of memory.
   _QUEUE_SIZE = 10000
+  # Maximum consecutive failure before abandoning the connection retry.
+  _MAX_CONSECUTIVE_CONNECTION_FAILURE = 3
 
   # Mapping from logging levels to LogEntry levels.
   LOG_LEVEL_MAP = {
@@ -66,9 +70,6 @@ class FnApiLogRecordHandler(logging.Handler):
     # Make sure the channel is ready to avoid [BEAM-4649]
     grpc.channel_ready_future(ch).result(timeout=60)
     self._log_channel = grpc.intercept_channel(ch, WorkerIdInterceptor())
-    self._logging_stub = beam_fn_api_pb2_grpc.BeamFnLoggingStub(
-        self._log_channel)
-
     self._reader = threading.Thread(
         target=lambda: self._read_log_control_messages(),
         name='read_log_control_messages')
@@ -76,6 +77,11 @@ class FnApiLogRecordHandler(logging.Handler):
     self._reader.start()
 
   def connect(self):
+    print('ankur: logging client connect', file=sys.stderr)
+    if hasattr(self, '_logging_stub'):
+      del self._logging_stub
+    self._logging_stub = beam_fn_api_pb2_grpc.BeamFnLoggingStub(
+        self._log_channel)
     return self._logging_stub.Logging(self._write_log_entries())
 
   def emit(self, record):
@@ -122,7 +128,8 @@ class FnApiLogRecordHandler(logging.Handler):
         yield beam_fn_api_pb2.LogEntry.List(log_entries=log_entries)
 
   def _read_log_control_messages(self):
-    while True:
+    failure_count = 0
+    while failure_count < self._MAX_CONSECUTIVE_CONNECTION_FAILURE:
       log_control_iterator = self.connect()
       if self._dropped_logs > 0:
         logging.warn("Dropped %d logs while logging client disconnected",
@@ -131,9 +138,12 @@ class FnApiLogRecordHandler(logging.Handler):
       try:
         for _ in log_control_iterator:
           # TODO(vikasrk): Handle control messages.
-          pass
+          failure_count = 0 # Logging channel connect successfully.
         # iterator is closed
         return
       except Exception as ex:
         print("Logging client failed: {}... resetting".format(ex),
               file=sys.stderr)
+        # Wait a bit before trying a reconnect
+        failure_count += 1
+        time.sleep(0.5) # 0.5 seconds
