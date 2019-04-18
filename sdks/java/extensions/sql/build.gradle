@@ -170,6 +170,7 @@ task runPojoExample(type: JavaExec) {
   description = "Run SQL example for PCollections of POJOs"
   main = "org.apache.beam.sdk.extensions.sql.example.BeamSqlPojoExample"
   classpath = sourceSets.main.runtimeClasspath
+
   args = ["--runner=DirectRunner"]
 }
 
