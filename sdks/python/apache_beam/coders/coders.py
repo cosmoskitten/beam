@@ -280,10 +280,18 @@ class Coder(object):
     Prefer registering a urn with its parameter type and constructor.
     """
     parameter_type, constructor = cls._known_urns[coder_proto.spec.spec.urn]
-    return constructor(
-        proto_utils.parse_Bytes(coder_proto.spec.spec.payload, parameter_type),
-        [context.coders.get_by_id(c) for c in coder_proto.component_coder_ids],
-        context)
+    try:
+      return constructor(
+          proto_utils.parse_Bytes(
+              coder_proto.spec.spec.payload, parameter_type),
+          [context.coders.get_by_id(c)
+           for c in coder_proto.component_coder_ids],
+          context)
+    except:
+      from apache_beam.transforms.core import RunnerAPICoderHolder
+      if RunnerAPICoderHolder.is_external_coder(coder_proto):
+        return RunnerAPICoderHolder(coder_proto)
+      raise
 
   def to_runner_api_parameter(self, context):
     return (

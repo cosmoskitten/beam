@@ -170,15 +170,16 @@ class ExternalTransformTest(unittest.TestCase):
 
       # The actual definitions of these transforms is in
       # org.apache.beam.runners.core.construction.TestExpansionService.
+      TEST_COUNT_URN = "pytest:beam:transforms:count"
       TEST_FILTER_URN = "pytest:beam:transforms:filter_less_than"
 
-      # Run as cheaply as possible on the portable runner.
+      # This test does not actually running the pipeline in Dataflow. It just
+      # tests the translation to a Dataflow job request.
       options = PipelineOptions(
           runner='DataflowRunner',
           project='dummyproject',
           temp_location='gs://dummybucket/',
-          experiments=['beam_fn_api', 'use_unified_worker',
-                       'cross_language_pipeline'])
+          experiments=['beam_fn_api', 'use_unified_worker'])
 
       try:
         # Start the java server and wait for it to be ready.
@@ -192,15 +193,19 @@ class ExternalTransformTest(unittest.TestCase):
         # Run a simple count-filtered-letters pipeline.
         p = beam.Pipeline(options=options)
         # pylint: disable=expression-not-assigned
-        (
+        res = (
             p
             | beam.Create(list('aaabccxyyzzz'))
             | beam.Map(unicode)
             # TODO(BEAM-6587): Use strings directly rather than ints.
             | beam.Map(lambda x: int(ord(x)))
             | beam.ExternalTransform(TEST_FILTER_URN, b'middle', address)
+            | beam.ExternalTransform(TEST_COUNT_URN, None, address)
             # TODO(BEAM-6587): Remove when above is removed.
-            | beam.Map(lambda v: chr(v)))
+            | beam.Map(lambda kv: (chr(kv[0]), kv[1]))
+            | beam.Map(lambda kv: '%s: %s' % kv))
+
+        assert_that(res, equal_to(['a: 3', 'b: 1', 'c: 2']))
         p.run()
 
         mock_args = mock_create_job.call_args_list

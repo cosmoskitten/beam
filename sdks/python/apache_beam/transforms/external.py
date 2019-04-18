@@ -191,6 +191,12 @@ class ExternalTransform(ptransform.PTransform):
       if id not in context.pcollections._id_to_obj.keys():
         context.pcollections.put_proto(id, proto)
 
+    def _fix_output_tag(tag, transform_proto):
+      # If there's only one output, Python SDK expects tag to be 'None'.
+      if len(transform_proto.outputs) == 1:
+        return str(None)
+      return tag
+
     for id, proto in self._expanded_components.transforms.items():
       if id.startswith(self._IMPULSE_PREFIX):
         # Our fake inputs.
@@ -203,7 +209,7 @@ class ExternalTransform(ptransform.PTransform):
           subtransforms=proto.subtransforms,
           inputs={tag: pcoll_renames.get(pcoll, pcoll)
                   for tag, pcoll in proto.inputs.items()},
-          outputs={tag: pcoll_renames.get(pcoll, pcoll)
+          outputs={_fix_output_tag(tag, proto): pcoll_renames.get(pcoll, pcoll)
                    for tag, pcoll in proto.outputs.items()})
       context.transforms.put_proto(id, new_proto)
 
