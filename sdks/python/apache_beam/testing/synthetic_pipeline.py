@@ -275,7 +275,8 @@ class SyntheticSDFSourceRestrictionProvider(RestrictionProvider):
     return (0, element['num_records'])
 
   def create_tracker(self, restriction):
-    return restriction_trackers.OffsetRestrictionTracker(restriction[0], restriction[1])
+    return restriction_trackers.OffsetRestrictionTracker(
+        restriction[0], restriction[1])
 
   def split(self, element, restriction):
     start_position, stop_position = restriction
