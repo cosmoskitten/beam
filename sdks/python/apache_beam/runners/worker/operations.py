@@ -183,6 +183,9 @@ class Operation(object):
     self.setup_done = False
 
   def setup(self):
+    """Set up operation.
+
+    This must be called before any other methods of the operation."""
     with self.scoped_start_state:
       self.debug_logging_enabled = logging.getLogger().isEnabledFor(
           logging.DEBUG)
@@ -217,6 +220,9 @@ class Operation(object):
     pass
 
   def teardown(self):
+    """Tear down operation.
+
+    No other methods of this operation should be called after this."""
     pass
 
   def reset(self):
