@@ -171,7 +171,7 @@ PhraseTriggeringPostCommitBuilder.postCommitJob(
         'Load Tests Java ParDo Dataflow Batch suite',
         this
 ) {
-    loadTestJob(delegate, CommonTestProperties.TriggeringContext.PR)
+    batchLoadTestJob(delegate, CommonTestProperties.TriggeringContext.PR)
 }
 
 PhraseTriggeringPostCommitBuilder.postCommitJob(
