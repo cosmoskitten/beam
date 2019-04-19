@@ -22,156 +22,152 @@ import LoadTestsBuilder as loadTestsBuilder
 import PhraseTriggeringPostCommitBuilder
 import CronJobBuilder
 
-def loadTestConfigurations = [
-        [
-                title        : 'Load test: 2GB of 10B records',
-                itClass      : 'org.apache.beam.sdk.loadtests.GroupByKeyLoadTest',
-                runner       : CommonTestProperties.Runner.DATAFLOW,
-                jobProperties: [
-                        project             : 'apache-beam-testing',
-                        appName             : 'load_tests_Java_Dataflow_Streaming_GBK_1',
-                        tempLocation        : 'gs://temp-storage-for-perf-tests/loadtests',
-                        publishToBigQuery   : true,
-                        bigQueryDataset     : 'load_test',
-                        bigQueryTable       : 'java_dataflow_streaming_GBK_1',
-                        sourceOptions       : """
+def loadTestConfigurations = { mode, isStreaming ->
+    [
+            [
+                    title        : 'Load test: 2GB of 10B records',
+                    itClass      : 'org.apache.beam.sdk.loadtests.GroupByKeyLoadTest',
+                    runner       : CommonTestProperties.Runner.DATAFLOW,
+                    jobProperties: [
+                            project               : 'apache-beam-testing',
+                            appName               : "load_tests_Java_Dataflow_${mode}_GBK_1",
+                            tempLocation          : 'gs://temp-storage-for-perf-tests/loadtests',
+                            publishToBigQuery     : true,
+                            bigQueryDataset       : 'load_test',
+                            bigQueryTable         : "java_dataflow_${mode}_GBK_1",
+                            sourceOptions         : """
                                             {
                                               "numRecords": 200000000,
                                               "keySizeBytes": 1,
                                               "valueSizeBytes": 9
                                             }
                                        """.trim().replaceAll("\\s", ""),
-                        fanout              : 1,
-                        iterations          : 1,
-                        maxNumWorkers       : 5,
-                        numWorkers          : 5,
-                        autoscalingAlgorithm: "NONE",
-                        streaming           : true,
-                        inputWindowDurationSec: 1200
-                ]
-        ],
-        [
-                title        : 'Load test: 2GB of 100B records',
-                itClass      : 'org.apache.beam.sdk.loadtests.GroupByKeyLoadTest',
-                runner       : CommonTestProperties.Runner.DATAFLOW,
-                jobProperties: [
-                        project             : 'apache-beam-testing',
-                        appName             : 'load_tests_Java_Dataflow_Streaming_GBK_2',
-                        tempLocation        : 'gs://temp-storage-for-perf-tests/loadtests',
-                        publishToBigQuery   : true,
-                        bigQueryDataset     : 'load_test',
-                        bigQueryTable       : 'java_dataflow_streaming_GBK_2',
-                        sourceOptions       : """
+                            fanout                : 1,
+                            iterations            : 1,
+                            maxNumWorkers         : 5,
+                            numWorkers            : 5,
+                            autoscalingAlgorithm  : "NONE",
+                            streaming             : isStreaming
+                    ]
+            ],
+            [
+                    title        : 'Load test: 2GB of 100B records',
+                    itClass      : 'org.apache.beam.sdk.loadtests.GroupByKeyLoadTest',
+                    runner       : CommonTestProperties.Runner.DATAFLOW,
+                    jobProperties: [
+                            project               : 'apache-beam-testing',
+                            appName               : "load_tests_Java_Dataflow_${mode}_GBK_2",
+                            tempLocation          : 'gs://temp-storage-for-perf-tests/loadtests',
+                            publishToBigQuery     : true,
+                            bigQueryDataset       : 'load_test',
+                            bigQueryTable         : "java_dataflow_${mode}_GBK_2",
+                            sourceOptions         : """
                                             {
                                               "numRecords": 20000000,
                                               "keySizeBytes": 10,
                                               "valueSizeBytes": 90
                                             }
                                        """.trim().replaceAll("\\s", ""),
-                        fanout              : 1,
-                        iterations          : 1,
-                        maxNumWorkers       : 5,
-                        numWorkers          : 5,
-                        autoscalingAlgorithm: "NONE",
-                        streaming           : true,
-                        inputWindowDurationSec: 1200
-                ]
-        ],
-        [
+                            fanout                : 1,
+                            iterations            : 1,
+                            maxNumWorkers         : 5,
+                            numWorkers            : 5,
+                            autoscalingAlgorithm  : "NONE",
+                            streaming             : isStreaming
+                    ]
+            ],
+            [
 
-                title        : 'Load test: 2GB of 100kB records',
-                itClass      : 'org.apache.beam.sdk.loadtests.GroupByKeyLoadTest',
-                runner       : CommonTestProperties.Runner.DATAFLOW,
-                jobProperties: [
-                        project             : 'apache-beam-testing',
-                        appName             : 'load_tests_Java_Dataflow_Streaming_GBK_3',
-                        tempLocation        : 'gs://temp-storage-for-perf-tests/loadtests',
-                        publishToBigQuery   : true,
-                        bigQueryDataset     : 'load_test',
-                        bigQueryTable       : 'java_dataflow_streaming_GBK_3',
-                        sourceOptions       : """
+                    title        : 'Load test: 2GB of 100kB records',
+                    itClass      : 'org.apache.beam.sdk.loadtests.GroupByKeyLoadTest',
+                    runner       : CommonTestProperties.Runner.DATAFLOW,
+                    jobProperties: [
+                            project               : 'apache-beam-testing',
+                            appName               : "load_tests_Java_Dataflow_${mode}_GBK_3",
+                            tempLocation          : 'gs://temp-storage-for-perf-tests/loadtests',
+                            publishToBigQuery     : true,
+                            bigQueryDataset       : 'load_test',
+                            bigQueryTable         : "java_dataflow_${mode}_GBK_3",
+                            sourceOptions         : """
                                             {
                                               "numRecords": 2000,
                                               "keySizeBytes": 100000,
                                               "valueSizeBytes": 900000
                                             }
                                        """.trim().replaceAll("\\s", ""),
-                        fanout              : 1,
-                        iterations          : 1,
-                        maxNumWorkers       : 5,
-                        numWorkers          : 5,
-                        autoscalingAlgorithm: "NONE",
-                        streaming           : true,
-                        inputWindowDurationSec: 1200
-                ]
+                            fanout                : 1,
+                            iterations            : 1,
+                            maxNumWorkers         : 5,
+                            numWorkers            : 5,
+                            autoscalingAlgorithm  : "NONE",
+                            streaming             : isStreaming
+                    ]
 
-        ],
-        [
-                title        : 'Load test: fanout 4 times with 2GB 10-byte records total',
-                itClass      : 'org.apache.beam.sdk.loadtests.GroupByKeyLoadTest',
-                runner       : CommonTestProperties.Runner.DATAFLOW,
-                jobProperties: [
-                        project             : 'apache-beam-testing',
-                        appName             : 'load_tests_Java_Dataflow_Streaming_GBK_4',
-                        tempLocation        : 'gs://temp-storage-for-perf-tests/loadtests',
-                        publishToBigQuery   : true,
-                        bigQueryDataset     : 'load_test',
-                        bigQueryTable       : 'java_dataflow_streaming_GBK_4',
-                        sourceOptions       : """
+            ],
+            [
+                    title        : 'Load test: fanout 4 times with 2GB 10-byte records total',
+                    itClass      : 'org.apache.beam.sdk.loadtests.GroupByKeyLoadTest',
+                    runner       : CommonTestProperties.Runner.DATAFLOW,
+                    jobProperties: [
+                            project               : 'apache-beam-testing',
+                            appName               : 'load_tests_Java_Dataflow_${mode}_GBK_4',
+                            tempLocation          : 'gs://temp-storage-for-perf-tests/loadtests',
+                            publishToBigQuery     : true,
+                            bigQueryDataset       : 'load_test',
+                            bigQueryTable         : "java_dataflow_${mode}_GBK_4",
+                            sourceOptions         : """
                                             {
                                               "numRecords": 5000000,
                                               "keySizeBytes": 10,
                                               "valueSizeBytes": 90
                                             }
                                        """.trim().replaceAll("\\s", ""),
-                        fanout              : 4,
-                        iterations          : 1,
-                        maxNumWorkers       : 16,
-                        numWorkers          : 16,
-                        autoscalingAlgorithm: "NONE",
-                        streaming           : true,
-                        inputWindowDurationSec: 1200
-                ]
-        ],
-        [
-                title        : 'Load test: fanout 8 times with 2GB 10-byte records total',
-                itClass      : 'org.apache.beam.sdk.loadtests.GroupByKeyLoadTest',
-                runner       : CommonTestProperties.Runner.DATAFLOW,
-                jobProperties: [
-                        project             : 'apache-beam-testing',
-                        appName             : 'load_tests_Java_Dataflow_Streaming_GBK_5',
-                        tempLocation        : 'gs://temp-storage-for-perf-tests/loadtests',
-                        publishToBigQuery   : true,
-                        bigQueryDataset     : 'load_test',
-                        bigQueryTable       : 'java_dataflow_streaming_GBK_5',
-                        sourceOptions       : """
+                            fanout                : 4,
+                            iterations            : 1,
+                            maxNumWorkers         : 16,
+                            numWorkers            : 16,
+                            autoscalingAlgorithm  : "NONE",
+                            streaming             : isStreaming
+                    ]
+            ],
+            [
+                    title        : 'Load test: fanout 8 times with 2GB 10-byte records total',
+                    itClass      : 'org.apache.beam.sdk.loadtests.GroupByKeyLoadTest',
+                    runner       : CommonTestProperties.Runner.DATAFLOW,
+                    jobProperties: [
+                            project               : 'apache-beam-testing',
+                            appName               : "load_tests_Java_Dataflow_${mode}_GBK_5",
+                            tempLocation          : 'gs://temp-storage-for-perf-tests/loadtests',
+                            publishToBigQuery     : true,
+                            bigQueryDataset       : 'load_test',
+                            bigQueryTable         : "java_dataflow_${mode}_GBK_5",
+                            sourceOptions         : """
                                             {
                                               "numRecords": 2500000,
                                               "keySizeBytes": 10,
                                               "valueSizeBytes": 90
                                             }
                                        """.trim().replaceAll("\\s", ""),
-                        fanout              : 8,
-                        iterations          : 1,
-                        maxNumWorkers       : 16,
-                        numWorkers          : 16,
-                        autoscalingAlgorithm: "NONE",
-                        streaming           : true,
-                        inputWindowDurationSec: 1200
-                ]
-        ],
-        [
-                title        : 'Load test: reiterate 4 times 10kB values',
-                itClass      : 'org.apache.beam.sdk.loadtests.GroupByKeyLoadTest',
-                runner       : CommonTestProperties.Runner.DATAFLOW,
-                jobProperties: [
-                        project             : 'apache-beam-testing',
-                        appName             : 'load_tests_Java_Dataflow_Streaming_GBK_6',
-                        tempLocation        : 'gs://temp-storage-for-perf-tests/loadtests',
-                        publishToBigQuery   : true,
-                        bigQueryDataset     : 'load_test',
-                        bigQueryTable       : 'java_dataflow_streaming_GBK_6',
-                        sourceOptions       : """
+                            fanout                : 8,
+                            iterations            : 1,
+                            maxNumWorkers         : 16,
+                            numWorkers            : 16,
+                            autoscalingAlgorithm  : "NONE",
+                            streaming             : isStreaming
+                    ]
+            ],
+            [
+                    title        : 'Load test: reiterate 4 times 10kB values',
+                    itClass      : 'org.apache.beam.sdk.loadtests.GroupByKeyLoadTest',
+                    runner       : CommonTestProperties.Runner.DATAFLOW,
+                    jobProperties: [
+                            project               : 'apache-beam-testing',
+                            appName               : "load_tests_Java_Dataflow_${mode}_GBK_6",
+                            tempLocation          : 'gs://temp-storage-for-perf-tests/loadtests',
+                            publishToBigQuery     : true,
+                            bigQueryDataset       : 'load_test',
+                            bigQueryTable         : "java_dataflow_${mode}_GBK_6",
+                            sourceOptions         : """
                                             {
                                               "numRecords": 20000000,
                                               "keySizeBytes": 10,
@@ -180,27 +176,26 @@ def loadTestConfigurations = [
                                               "hotKeyFraction": 1
                                             }
                                        """.trim().replaceAll("\\s", ""),
-                        fanout              : 1,
-                        iterations          : 4,
-                        maxNumWorkers       : 5,
-                        numWorkers          : 5,
-                        autoscalingAlgorithm: "NONE",
-                        streaming           : true,
-                        inputWindowDurationSec: 1200
-                ]
-        ],
-        [
-                title        : 'Load test: reiterate 4 times 2MB values',
-                itClass      : 'org.apache.beam.sdk.loadtests.GroupByKeyLoadTest',
-                runner       : CommonTestProperties.Runner.DATAFLOW,
-                jobProperties: [
-                        project             : 'apache-beam-testing',
-                        appName             : 'load_tests_Java_Dataflow_Streaming_GBK_7',
-                        tempLocation        : 'gs://temp-storage-for-perf-tests/loadtests',
-                        publishToBigQuery   : true,
-                        bigQueryDataset     : 'load_test',
-                        bigQueryTable       : 'java_dataflow_streaming_GBK_7',
-                        sourceOptions       : """
+                            fanout                : 1,
+                            iterations            : 4,
+                            maxNumWorkers         : 5,
+                            numWorkers            : 5,
+                            autoscalingAlgorithm  : "NONE",
+                            streaming             : isStreaming
+                    ]
+            ],
+            [
+                    title        : 'Load test: reiterate 4 times 2MB values',
+                    itClass      : 'org.apache.beam.sdk.loadtests.GroupByKeyLoadTest',
+                    runner       : CommonTestProperties.Runner.DATAFLOW,
+                    jobProperties: [
+                            project               : 'apache-beam-testing',
+                            appName               : "load_tests_Java_Dataflow_${mode}_GBK_7",
+                            tempLocation          : 'gs://temp-storage-for-perf-tests/loadtests',
+                            publishToBigQuery     : true,
+                            bigQueryDataset       : 'load_test',
+                            bigQueryTable         : "java_dataflow_${mode}_GBK_7",
+                            sourceOptions         : """
                                             {
                                               "numRecords": 20000000,
                                               "keySizeBytes": 10,
@@ -209,22 +204,23 @@ def loadTestConfigurations = [
                                               "hotKeyFraction": 1
                                             }
                                        """.trim().replaceAll("\\s", ""),
-                        fanout              : 1,
-                        iterations          : 4,
-                        maxNumWorkers       : 5,
-                        numWorkers          : 5,
-                        autoscalingAlgorithm: "NONE",
-                        streaming           : true,
-                        inputWindowDurationSec: 1200
-                ]
-        ]
-]
+                            fanout                : 1,
+                            iterations            : 4,
+                            maxNumWorkers         : 5,
+                            numWorkers            : 5,
+                            autoscalingAlgorithm  : "NONE",
+                            streaming             : isStreaming
+                    ]
+            ]
+    ]
+}
 
 def loadTestJob = { scope, triggeringContext ->
   scope.description('Runs Java GBK load tests on Dataflow runner in streaming mode')
   commonJobProperties.setTopLevelMainJobProperties(scope, 'master', 240)
 
-  for (testConfiguration in loadTestConfigurations) {
+  for (testConfiguration in loadTestConfigurations('streaming', true)) {
+      testConfiguration.jobProperties << [inputWindowDurationSec: 1200]
     loadTestsBuilder.loadTest(scope, testConfiguration.title, testConfiguration.runner, CommonTestProperties.SDK.JAVA, testConfiguration.jobProperties, testConfiguration.itClass, triggeringContext)
   }
 }
