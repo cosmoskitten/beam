@@ -226,7 +226,7 @@ def streamingLoadTestJob = { scope, triggeringContext ->
 }
 
 CronJobBuilder.cronJob('beam_LoadTests_Java_GBK_Dataflow_Streaming', 'H 12 * * *', this) {
-  loadTestJob(delegate, CommonTestProperties.TriggeringContext.POST_COMMIT)
+    streamingLoadTestJob(delegate, CommonTestProperties.TriggeringContext.POST_COMMIT)
 }
 
 PhraseTriggeringPostCommitBuilder.postCommitJob(
