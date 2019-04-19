@@ -47,8 +47,7 @@ def loadTestConfigurations = { mode, isStreaming ->
                             maxNumWorkers         : 5,
                             numWorkers            : 5,
                             autoscalingAlgorithm  : "NONE",
-                            streaming             : isStreaming,
-                            inputWindowDurationSec: 1200
+                            streaming             : isStreaming
                     ]
             ],
             [
@@ -74,8 +73,7 @@ def loadTestConfigurations = { mode, isStreaming ->
                             maxNumWorkers         : 5,
                             numWorkers            : 5,
                             autoscalingAlgorithm  : "NONE",
-                            streaming             : isStreaming,
-                            inputWindowDurationSec: 1200
+                            streaming             : isStreaming
                     ]
             ],
             [
@@ -102,8 +100,7 @@ def loadTestConfigurations = { mode, isStreaming ->
                             maxNumWorkers         : 5,
                             numWorkers            : 5,
                             autoscalingAlgorithm  : "NONE",
-                            streaming             : isStreaming,
-                            inputWindowDurationSec: 1200
+                            streaming             : isStreaming
                     ]
 
             ],
@@ -130,8 +127,7 @@ def loadTestConfigurations = { mode, isStreaming ->
                             maxNumWorkers         : 16,
                             numWorkers            : 16,
                             autoscalingAlgorithm  : "NONE",
-                            streaming             : isStreaming,
-                            inputWindowDurationSec: 1200
+                            streaming             : isStreaming
                     ]
             ],
             [
@@ -157,8 +153,7 @@ def loadTestConfigurations = { mode, isStreaming ->
                             maxNumWorkers         : 16,
                             numWorkers            : 16,
                             autoscalingAlgorithm  : "NONE",
-                            streaming             : isStreaming,
-                            inputWindowDurationSec: 1200
+                            streaming             : isStreaming
                     ]
             ],
             [
@@ -186,8 +181,7 @@ def loadTestConfigurations = { mode, isStreaming ->
                             maxNumWorkers         : 5,
                             numWorkers            : 5,
                             autoscalingAlgorithm  : "NONE",
-                            streaming             : isStreaming,
-                            inputWindowDurationSec: 1200
+                            streaming             : isStreaming
                     ]
             ],
             [
@@ -215,8 +209,7 @@ def loadTestConfigurations = { mode, isStreaming ->
                             maxNumWorkers         : 5,
                             numWorkers            : 5,
                             autoscalingAlgorithm  : "NONE",
-                            streaming             : isStreaming,
-                            inputWindowDurationSec: 1200
+                            streaming             : isStreaming
                     ]
             ]
     ]
@@ -227,6 +220,7 @@ def loadTestJob = { scope, triggeringContext ->
   commonJobProperties.setTopLevelMainJobProperties(scope, 'master', 240)
 
   for (testConfiguration in loadTestConfigurations('streaming', true)) {
+      testConfiguration.jobProperties << [inputWindowDurationSec: 1200]
     loadTestsBuilder.loadTest(scope, testConfiguration.title, testConfiguration.runner, CommonTestProperties.SDK.JAVA, testConfiguration.jobProperties, testConfiguration.itClass, triggeringContext)
   }
 }
