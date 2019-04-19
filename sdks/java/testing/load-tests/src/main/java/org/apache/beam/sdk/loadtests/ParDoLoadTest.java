@@ -50,7 +50,7 @@ public class ParDoLoadTest extends LoadTest<ParDoLoadTest.Options> {
   private static final String METRICS_NAMESPACE = "pardo";
 
   /** Pipeline options specific for this test. */
-  interface Options extends LoadTestOptions {
+  public interface Options extends LoadTestOptions {
 
     @Description("Number consequent of ParDo operations (SyntheticSteps) to be performed.")
     @Default.Integer(1)

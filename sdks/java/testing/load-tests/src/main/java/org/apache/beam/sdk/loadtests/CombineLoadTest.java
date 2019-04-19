@@ -75,7 +75,7 @@ public class CombineLoadTest extends LoadTest<CombineLoadTest.Options> {
   }
 
   /** Pipeline options specific for this test. */
-  interface Options extends LoadTestOptions {
+  public interface Options extends LoadTestOptions {
 
     @Description("Number consequent of ParDo operations (SyntheticSteps) to be performed.")
     @Default.Integer(1)
