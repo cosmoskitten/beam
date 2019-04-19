@@ -168,7 +168,7 @@ def loadTestConfigurations = { mode, isStreaming ->
                     jobProperties: [
                             project               : 'apache-beam-testing',
                             appName               : "load_tests_Java_Dataflow_${mode}_GBK_6",
-                            tempLocation          : 'gs://temp-storage-for-perf-tests/loadtests",
+                            tempLocation          : 'gs://temp-storage-for-perf-tests/loadtests',
                             publishToBigQuery     : true,
                             bigQueryDataset       : 'load_test',
                             bigQueryTable         : "java_dataflow_${mode}_GBK_6",
