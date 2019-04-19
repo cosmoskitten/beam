@@ -20,18 +20,14 @@ limitations under the License.
 
 # Try Apache Beam
 
-This small snippets show you how a simple minimal version of WordCount looks like.
-You can run these and interactively play with the code to see how it is affected.
-
-If you're interested in contributing to the Apache Beam codebase, see the [Contribution Guide]({{ site.baseurl }}/contribute).
+You can try Apache Beam using our interactive notebooks, which are hosted in [Colab](https://colab.research.google.com). The notebooks allow you to interactively play with the code and see how your changes affect the pipeline. You don't need to install anything or modify your computer in any way to use these notebooks.
 
 * TOC
 {:toc}
 
 ## Interactive WordCount in Colab
 
-Before you begin, try an interactive notebook hosted in [Colab](https://colab.research.google.com) with a minimal version of WordCount.
-You don't have to install or modify your system in any way to run this.
+This interactive notebook shows you what a simple, minimal version of WordCount looks like.
 
 ```java
 package samples.quickstart;
@@ -82,7 +78,7 @@ public class WordCount {
 </a>
 
 {:.language-java}
-To learn how to install and run the Apache Beam Java SDK in your own machine, you can follow the instructions in the [Java Quickstart]({{ site.baseurl }}/get-started/quickstart-java).
+To learn how to install and run the Apache Beam Java SDK on your own computer, follow the instructions in the [Java Quickstart]({{ site.baseurl }}/get-started/quickstart-java).
 
 ```py
 import apache_beam as beam
@@ -114,7 +110,7 @@ with beam.Pipeline() as pipeline:
 </a>
 
 {:.language-py}
-To learn how to install and run the Apache Beam Python SDK in your own machine, you can follow the instructions in the [Python Quickstart]({{ site.baseurl }}/get-started/quickstart-py).
+To learn how to install and run the Apache Beam Python SDK on your own computer, follow the instructions in the [Python Quickstart]({{ site.baseurl }}/get-started/quickstart-py).
 
 ```go
 package main
@@ -175,15 +171,16 @@ func main() {
 </a>
 
 {:.language-go}
-To learn how to install and run the Apache Beam Go SDK in your own machine, please follow the instructions in the [Go Quickstart]({{ site.baseurl }}/get-started/quickstart-go).
+To learn how to install and run the Apache Beam Go SDK on your own computer, follow the instructions in the [Go Quickstart]({{ site.baseurl }}/get-started/quickstart-go).
 
-For a more detailed explanation on how WordCount works, please go through the [WordCount Example Walkthrough]({{ site.baseurl }}/get-started/wordcount-example).
+For a more detailed explanation about how WordCount works, see the [WordCount Example Walkthrough]({{ site.baseurl }}/get-started/wordcount-example).
 
 ## Next Steps
 
-* Walk through these WordCount examples in the [WordCount Example Walkthrough]({{ site.baseurl }}/get-started/wordcount-example).
+* Walk through additional WordCount examples in the [WordCount Example Walkthrough]({{ site.baseurl }}/get-started/wordcount-example).
 * Take a self-paced tour through our [Learning Resources]({{ site.baseurl }}/documentation/resources/learning-resources).
 * Dive in to some of our favorite [Videos and Podcasts]({{ site.baseurl }}/documentation/resources/videos-and-podcasts).
 * Join the Beam [users@]({{ site.baseurl }}/community/contact-us) mailing list.
+* If you're interested in contributing to the Apache Beam codebase, see the [Contribution Guide]({{ site.baseurl }}/contribute).
 
 Please don't hesitate to [reach out]({{ site.baseurl }}/community/contact-us) if you encounter any issues!
