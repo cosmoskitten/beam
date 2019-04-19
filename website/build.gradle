@@ -188,15 +188,35 @@ def getBaseUrl() {
   return "${System.getProperty('user.name')}-${buildContext}"
 }
 
+/**
+ * Gets the branch repository where the new files are located. This is used to point
+ * all the GitHub and Colab files to the pull request's branch when testing, while
+ * pointing them to the apache/beam master branch on production. This is done so tests
+ * and staged versions work even when the files don't exist in master yet.
+ */
 def getBranchRepo() {
-  def stdout = new ByteArrayOutputStream()
-  exec {
-    commandLine 'git', 'config', '--get', 'remote.origin.url'
-    standardOutput = stdout
+  // Jenkins stores the GitHub author in $ghprbPullAuthorLogin
+  def author = System.env.ghprbPullAuthorLogin
+  if (author == null) {
+    // If the author is not defined, it's most probably running locally.
+    // Try to infer the author from the remote URL
+    for (remote in grgit.remote.list()) {
+      if (remote.getName() == 'origin') {
+        // remote.url = 'git@github.com:author/beam.git'
+        author = remote.url.split(':')[1].split('/')[0]
+        break
+      }
+    }
   }
-  def matches = (stdout =~ /git@github\.com:(\w+\/\w+)\.git/)
-  if (matches && grgit) {
-    return "${matches[0][1]}/blob/${grgit.branch.current().getName()}"
+  // Jenkins stores the branch in botho of the following environment variables.
+  def branch = System.env.ghprbSourceBranch ?: System.env.GIT_BRANCH
+  if (branch == null && grgit) {
+    branch = grgit.branch.current().getName()
+  }
+
+  // Return the author's branch repo, otherwise default to the master repo.
+  if (author && branch) {
+    return "${author}/beam/blob/${branch}"
   }
   return "apache/beam/blob/master"
 }
