@@ -22,8 +22,14 @@ limitations under the License.
 
 You can try Apache Beam using our interactive notebooks, which are hosted in [Colab](https://colab.research.google.com). The notebooks allow you to interactively play with the code and see how your changes affect the pipeline. You don't need to install anything or modify your computer in any way to use these notebooks.
 
-* TOC
-{:toc}
+<nav class="language-switcher">
+  <strong>Adapt for:</strong>
+  <ul>
+    <li data-type="language-java" class="active">Java SDK</li>
+    <li data-type="language-py">Python SDK</li>
+    <li data-type="language-go">Go SDK</li>
+  </ul>
+</nav>
 
 ## Interactive WordCount in Colab
 
