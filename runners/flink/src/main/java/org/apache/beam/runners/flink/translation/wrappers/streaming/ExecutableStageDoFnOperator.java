@@ -66,7 +66,6 @@ import org.apache.beam.runners.fnexecution.provisioning.JobInfo;
 import org.apache.beam.runners.fnexecution.state.StateRequestHandler;
 import org.apache.beam.runners.fnexecution.state.StateRequestHandlers;
 import org.apache.beam.sdk.coders.Coder;
-import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.fn.data.FnDataReceiver;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.state.BagState;
@@ -76,7 +75,6 @@ import org.apache.beam.sdk.transforms.DoFnSchemaInformation;
 import org.apache.beam.sdk.transforms.join.RawUnionValue;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
-import org.apache.beam.sdk.util.CoderUtils;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollectionView;
@@ -333,15 +331,11 @@ public class ExecutableStageDoFnOperator<InputT, OutputT> extends DoFnOperator<I
         }
 
         private void prepareStateBackend(K key, Coder<K> keyCoder) {
-          final ByteBuffer encodedKey;
-          try {
-            // We need to have NESTED context here with the ByteStringCoder.
-            // See StateRequestHandlers.
-            encodedKey =
-                ByteBuffer.wrap(CoderUtils.encodeToByteArray(keyCoder, key, Coder.Context.NESTED));
-          } catch (CoderException e) {
-            throw new RuntimeException("Couldn't set key for state");
-          }
+          // TODO: use ByteString, eliminate double encoding
+          // We need to have NESTED context here with the ByteStringCoder.
+          // See StateRequestHandlers.
+          final ByteBuffer encodedKey =
+              FlinkKeyUtils.encodeKey(key, keyCoder, Coder.Context.NESTED);
           keyedStateBackend.setCurrentKey(encodedKey);
         }
       };
@@ -404,6 +398,7 @@ public class ExecutableStageDoFnOperator<InputT, OutputT> extends DoFnOperator<I
   }
 
   @Override
+  @SuppressWarnings("ByteBufferBackingArray")
   public void fireTimer(InternalTimer<?, TimerInternals.TimerData> timer) {
     final ByteBuffer encodedKey = (ByteBuffer) timer.getKey();
     if (CleanupTimer.GC_TIMER_ID.equals(timer.getNamespace().getTimerId())) {
@@ -413,6 +408,12 @@ public class ExecutableStageDoFnOperator<InputT, OutputT> extends DoFnOperator<I
             try {
               // still need to process as timer, see CleanupTimer
               stateBackendLock.lock();
+              if (LOG.isDebugEnabled()) {
+                LOG.debug(
+                    "State cleanup for {} {}",
+                    Arrays.toString(encodedKey.array()),
+                    timer.getNamespace().getNamespace());
+              }
               getKeyedStateBackend().setCurrentKey(encodedKey);
               super.fireTimer(timer);
             } finally {
@@ -779,7 +780,9 @@ public class ExecutableStageDoFnOperator<InputT, OutputT> extends DoFnOperator<I
       Preconditions.checkNotNull(input, "Null input passed to CleanupTimer");
       // make sure this fires after any window.maxTimestamp() timers
       Instant gcTime = LateDataUtils.garbageCollectionTime(window, windowingStrategy).plus(1);
-      final ByteBuffer key = FlinkKeyUtils.encodeKey(((KV) input).getKey(), keyCoder);
+      // needs to match the encoding in prepareStateBackend for state request handler
+      final ByteBuffer key =
+          FlinkKeyUtils.encodeKey(((KV) input).getKey(), keyCoder, Coder.Context.NESTED);
       // Ensure the state backend is not concurrently accessed by the state requests
       try {
         stateBackendLock.lock();
