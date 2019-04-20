@@ -56,7 +56,7 @@ import org.joda.time.base.AbstractInstant;
  * {see @link Schema#getRowCoder()}.
  */
 @Experimental
-public abstract class Row implements Serializable {
+public abstract classRow implements Serializable {
   private final Schema schema;
 
   Row(Schema schema) {

@@ -72,7 +72,7 @@ public class DropFieldsTest {
     PCollection<Row> result = pipeline.apply(Create.of(
         simpleRow(1, "one"), simpleRow(2, "two"), simpleRow(3, "three"))
         .withRowSchema(SIMPLE_SCHEMA))
-        .apply(DropFields.fieldNames("field1"));
+        .apply(DropFields.fields("field1"));
     assertEquals(expectedSchema, result.getSchema());
 
     List<Row> expectedRows = Lists.newArrayList(
@@ -95,7 +95,7 @@ public class DropFieldsTest {
         nestedRow(simpleRow(2, "two")),
         nestedRow(simpleRow(3, "three")))
         .withRowSchema(NESTED_SCHEMA))
-        .apply(DropFields.fieldNames("nested.field1"));
+        .apply(DropFields.fields("nested.field1"));
     assertEquals(expectedSchema, result.getSchema());
 
     List<Row> expectedRows = Lists.newArrayList(
@@ -119,7 +119,7 @@ public class DropFieldsTest {
         nestedArray(simpleRow(2, "two1"), simpleRow(2, "two2")),
         nestedArray(simpleRow(3, "three1"), simpleRow(3, "three2")))
         .withRowSchema(NESTED_ARRAY_SCHEMA))
-        .apply(DropFields.fieldNames("array[].field1"));
+        .apply(DropFields.fields("array[].field1"));
     assertEquals(expectedSchema, result.getSchema());
 
     List<Row> expectedRows = Lists.newArrayList(
