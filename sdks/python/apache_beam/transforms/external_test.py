@@ -37,6 +37,14 @@ from apache_beam.runners.portability.expansion_service_test import FibTransform
 from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
 
+# Protect against environments where apitools library is not available.
+# pylint: disable=wrong-import-order, wrong-import-position
+try:
+  from apache_beam.runners.dataflow.internal import apiclient
+except ImportError:
+  apiclient = None
+# pylint: enable=wrong-import-order, wrong-import-position
+
 
 class ExternalTransformTest(unittest.TestCase):
 
@@ -165,11 +173,10 @@ class ExternalTransformTest(unittest.TestCase):
 
           assert_that(res, equal_to([i for i in range(1, 10)]))
 
+  @unittest.skipIf(apiclient is None, 'GCP dependencies are not installed')
   def test_java_expansion_dataflow(self):
-    from apache_beam.runners.dataflow.internal.apiclient import DataflowApplicationClient
-
     with patch.object(
-        DataflowApplicationClient, 'create_job') as mock_create_job:
+        apiclient.DataflowApplicationClient, 'create_job') as mock_create_job:
 
       # The actual definitions of these transforms is in
       # org.apache.beam.runners.core.construction.TestExpansionService.
