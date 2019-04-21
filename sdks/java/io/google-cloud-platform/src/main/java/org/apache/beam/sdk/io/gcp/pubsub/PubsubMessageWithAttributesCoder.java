@@ -31,11 +31,13 @@ import org.apache.beam.sdk.values.TypeDescriptor;
 
 /** A coder for PubsubMessage including attributes. */
 public class PubsubMessageWithAttributesCoder extends CustomCoder<PubsubMessage> {
-  // A message's payload can not be null
+  // A message's payload cannot be null
   private static final Coder<byte[]> PAYLOAD_CODER = ByteArrayCoder.of();
   // A message's attributes can be null.
   private static final Coder<Map<String, String>> ATTRIBUTES_CODER =
       NullableCoder.of(MapCoder.of(StringUtf8Coder.of(), StringUtf8Coder.of()));
+  // A message's messageId cannot be null
+  private static final Coder<String> MESSAGE_ID_CODER = StringUtf8Coder.of();
 
   public static Coder<PubsubMessage> of(TypeDescriptor<PubsubMessage> ignored) {
     return of();
@@ -53,7 +55,8 @@ public class PubsubMessageWithAttributesCoder extends CustomCoder<PubsubMessage>
   public void encode(PubsubMessage value, OutputStream outStream, Context context)
       throws IOException {
     PAYLOAD_CODER.encode(value.getPayload(), outStream);
-    ATTRIBUTES_CODER.encode(value.getAttributeMap(), outStream, context);
+    ATTRIBUTES_CODER.encode(value.getAttributeMap(), outStream);
+    MESSAGE_ID_CODER.encode(value.getMessageId(), outStream);
   }
 
   @Override
@@ -64,7 +67,8 @@ public class PubsubMessageWithAttributesCoder extends CustomCoder<PubsubMessage>
   @Override
   public PubsubMessage decode(InputStream inStream, Context context) throws IOException {
     byte[] payload = PAYLOAD_CODER.decode(inStream);
-    Map<String, String> attributes = ATTRIBUTES_CODER.decode(inStream, context);
-    return new PubsubMessage(payload, attributes);
+    Map<String, String> attributes = ATTRIBUTES_CODER.decode(inStream);
+    String messageId = MESSAGE_ID_CODER.decode(inStream);
+    return new PubsubMessage(payload, attributes, messageId);
   }
 }
