@@ -1,9 +1,10 @@
 ---
 layout: section
-title: "Beam SQL: CREATE EXTERNAL TABLE Statement"
+title: "Beam SQL extension: CREATE EXTERNAL TABLE Statement"
 section_menu: section-menu/sdks.html
-permalink: /documentation/dsls/sql/create-external-table/
+permalink: /documentation/dsls/sql/extensions/create-external-table/
 redirect_from:
+  - /documentation/dsls/sql/create-external-table/
   - /documentation/dsls/sql/statements/create-table/
   - /documentation/dsls/sql/create-table/
 ---

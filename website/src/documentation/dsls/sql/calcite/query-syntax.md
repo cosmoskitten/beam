@@ -1,9 +1,10 @@
 ---
 layout: section
-title: "Beam SQL: SELECT Statement"
+title: "Beam SQL query syntax for Calcite"
 section_menu: section-menu/sdks.html
-permalink: /documentation/dsls/sql/select/
+permalink: /documentation/dsls/sql/calcite/query-syntax/
 redirect_from: /documentation/dsls/sql/statements/select/
+               /documentation/dsls/sql/select/
 ---
 <!--
 Licensed under the Apache License, Version 2.0 (the "License");
@@ -19,11 +20,10 @@ See the License for the specific language governing permissions and
 limitations under the License.
 -->
 
-# SELECT
+# Beam SQL query syntax for Calcite
 
-The main functionality of Beam SQL is the `SELECT` statement. This is how you
-query and join data. The operations supported are a subset of
-[Apache Calcite SQL](http://calcite.apache.org/docs/reference.html#grammar).
+Query statements scan one or more tables or expressions and return the computed
+result rows. This page documents Beam SQL's syntax for queries when using Apache Calcite.
 
 Generally, the semantics of queries is standard. Please see the following
 sections to learn about extensions for supporting Beam's unified
@@ -32,8 +32,9 @@ batch/streaming model:
  - [Joins]({{ site.baseurl}}/documentation/dsls/sql/joins)
  - [Windowing & Triggering]({{ site.baseurl}}/documentation/dsls/sql/windowing-and-triggering/)
 
-Query statements scan one or more tables or expressions and return the computed
-result rows. This topic describes the syntax for SQL queries in Beam.
+The main functionality of Beam SQL is the `SELECT` statement. This is how you
+query and join data. The operations supported are a subset of
+[Apache Calcite SQL](http://calcite.apache.org/docs/reference.html#grammar).
 
 ## SQL Syntax
 

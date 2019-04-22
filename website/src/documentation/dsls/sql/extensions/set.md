@@ -1,8 +1,9 @@
 ---
 layout: section
-title: "Beam SQL: SET and RESET Statement"
+title: "Beam SQL extensions: SET and RESET Statement"
 section_menu: section-menu/sdks.html
-permalink: /documentation/dsls/sql/set/
+permalink: /documentation/dsls/sql/extensions/set/
+redirect_from: /documentation/dsls/sql/set/
 ---
 <!--
 Licensed under the Apache License, Version 2.0 (the "License");
