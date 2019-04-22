@@ -1,8 +1,9 @@
 ---
 layout: section
-title: "Beam SQL: SET and RESET Statement"
+title: "Beam SQL extensions: SET and RESET Statement"
 section_menu: section-menu/sdks.html
-permalink: /documentation/dsls/sql/set/
+permalink: /documentation/dsls/sql/extensions/set/
+redirect_from: /documentation/dsls/sql/set/
 ---
 <!--
 Licensed under the Apache License, Version 2.0 (the "License");
@@ -34,9 +35,9 @@ SET option = value
 The SET command sets a Pipeline Option.
 
 *   `option`: The case sensitive name of the Pipeline Option, specified as an
-    [Identifier]({{ site.baseurl }}/documentation/dsls/sql/lexical/#identifiers).
+    [Identifier]({{ site.baseurl }}/documentation/dsls/sql/calcite/lexical/#identifiers).
 *   `value`: The case sensitive value of the Pipeline Option, specified as an
-    [Identifier]({{ site.baseurl }}/documentation/dsls/sql/lexical/#identifiers).
+    [Identifier]({{ site.baseurl }}/documentation/dsls/sql/calcite/lexical/#identifiers).
     For flag options that have no value on the command line, use `true`.
 
 ```
@@ -46,7 +47,7 @@ RESET option
 The RESET command resets a Pipeline Option to its default value.
 
 *   `option`: The case sensitive name of the Pipeline Option, specified as an
-    [Identifier]({{ site.baseurl }}/documentation/dsls/sql/lexical/#identifiers).
+    [Identifier]({{ site.baseurl }}/documentation/dsls/sql/calcite/lexical#identifiers).
 
 ## Common Options
 
