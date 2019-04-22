@@ -28,7 +28,7 @@ job('beam_Release_NightlySnapshot') {
   concurrentBuild()
 
   // Set common parameters. Timeout is longer, to avoid [BEAM-5774].
-  commonJobProperties.setTopLevelMainJobProperties(delegate, 'master', 200)
+  commonJobProperties.setTopLevelMainJobProperties(delegate, 'master', 200, true, 'ubuntu')
 
   // This is a post-commit job that runs once per day, not for every push.
   commonJobProperties.setAutoJob(
@@ -54,6 +54,12 @@ job('beam_Release_NightlySnapshot') {
       commonJobProperties.setGradleSwitches(delegate)
       switches('--no-parallel')
       switches('--continue')
+      /*
+      * Skipping verification on 'ubuntu' labelled nodes since they don't have access to the
+      * some required GCP resouces.
+      * TODO: Remove this after we publishing snapshots on 'beam' nodes.
+      */
+      switches('-x test')
     }
     gradle {
       rootBuildScriptDir(commonJobProperties.checkoutDir)
