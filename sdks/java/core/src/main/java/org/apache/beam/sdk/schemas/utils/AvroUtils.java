@@ -62,6 +62,7 @@ import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.base.CaseFormat;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Lists;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Maps;
+import org.joda.time.DateTime;
 import org.joda.time.Instant;
 import org.joda.time.ReadableInstant;
 
@@ -669,7 +670,11 @@ public class AvroUtils {
                 .fromBytes(byteBuffer.duplicate(), type.type, logicalType);
         return convertDecimal(bigDecimal, fieldType);
       } else if (logicalType instanceof LogicalTypes.TimestampMillis) {
-        return convertDateTimeStrict((Long) value, fieldType);
+        if (value instanceof DateTime) {
+          return convertDateTimeStrict(((DateTime) value).getMillis(), fieldType);
+        } else {
+          return convertDateTimeStrict((Long) value, fieldType);
+        }
       }
     }
 
