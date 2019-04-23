@@ -21,6 +21,7 @@ import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Precondi
 import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkNotNull;
 
 import com.google.auto.value.AutoValue;
+import java.io.Serializable;
 import java.util.List;
 import java.util.Objects;
 import org.apache.beam.sdk.Pipeline;
@@ -203,7 +204,7 @@ public final class TestStream<T> extends PTransform<PBegin, PCollection<T>> {
    * An event in a {@link TestStream}. A marker interface for all events that happen while
    * evaluating a {@link TestStream}.
    */
-  public interface Event<T> {
+  public interface Event<T> extends Serializable {
     EventType getType();
   }
 

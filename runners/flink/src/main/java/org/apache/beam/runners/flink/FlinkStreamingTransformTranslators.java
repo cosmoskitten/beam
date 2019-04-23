@@ -49,6 +49,7 @@ import org.apache.beam.runners.flink.translation.wrappers.streaming.SplittableDo
 import org.apache.beam.runners.flink.translation.wrappers.streaming.WindowDoFnOperator;
 import org.apache.beam.runners.flink.translation.wrappers.streaming.WorkItemKeySelector;
 import org.apache.beam.runners.flink.translation.wrappers.streaming.io.DedupingOperator;
+import org.apache.beam.runners.flink.translation.wrappers.streaming.io.TestStreamSource;
 import org.apache.beam.runners.flink.translation.wrappers.streaming.io.UnboundedSourceWrapper;
 import org.apache.beam.sdk.coders.ByteArrayCoder;
 import org.apache.beam.sdk.coders.Coder;
@@ -57,6 +58,7 @@ import org.apache.beam.sdk.coders.VoidCoder;
 import org.apache.beam.sdk.io.BoundedSource;
 import org.apache.beam.sdk.io.UnboundedSource;
 import org.apache.beam.sdk.runners.AppliedPTransform;
+import org.apache.beam.sdk.testing.TestStream;
 import org.apache.beam.sdk.transforms.Combine;
 import org.apache.beam.sdk.transforms.CombineFnBase.GlobalCombineFn;
 import org.apache.beam.sdk.transforms.DoFn;
@@ -147,6 +149,8 @@ class FlinkStreamingTransformTranslators {
     TRANSLATORS.put(PTransformTranslation.GROUP_BY_KEY_TRANSFORM_URN, new GroupByKeyTranslator());
     TRANSLATORS.put(
         PTransformTranslation.COMBINE_PER_KEY_TRANSFORM_URN, new CombinePerKeyTranslator());
+
+    TRANSLATORS.put(PTransformTranslation.TEST_STREAM_TRANSFORM_URN, new TestStreamTranslator());
   }
 
   public static FlinkStreamingPipelineTranslator.StreamTransformTranslator<?> getTranslator(
@@ -1281,6 +1285,27 @@ class FlinkStreamingTransformTranslators {
     @Override
     public String getUrn(CreateStreamingFlinkView.CreateFlinkPCollectionView<?, ?> transform) {
       return CreateStreamingFlinkView.CREATE_STREAMING_FLINK_VIEW_URN;
+    }
+  }
+
+  /** A translator to support {@link TestStream} with Flink. */
+  private static class TestStreamTranslator<T>
+      extends FlinkStreamingPipelineTranslator.StreamTransformTranslator<TestStream<T>> {
+
+    @Override
+    void translateNode(TestStream<T> transform, FlinkStreamingTranslationContext context) {
+      List<TestStream.Event<T>> events = transform.getEvents();
+      Coder<T> valueCoder = transform.getValueCoder();
+
+      WindowedValue.FullWindowedValueCoder<T> fullCoder =
+          WindowedValue.getFullCoder(valueCoder, GlobalWindow.Coder.INSTANCE);
+
+      DataStreamSource<WindowedValue<T>> source =
+          context
+              .getExecutionEnvironment()
+              .addSource(new TestStreamSource<>(events), new CoderTypeInformation<>(fullCoder));
+
+      context.setOutputDataStream(context.getOutput(transform), source);
     }
   }
 
