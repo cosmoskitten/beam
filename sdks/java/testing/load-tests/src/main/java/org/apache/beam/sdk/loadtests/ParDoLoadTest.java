@@ -62,6 +62,18 @@ public class ParDoLoadTest extends LoadTest<ParDoLoadTest.Options> {
     @Description("Options for synthetic step")
     @Validation.Required
     String getStepOptions();
+
+    @Description("Number of reiterations over values to perform.")
+    @Default.Integer(1)
+    Integer getIterations();
+
+    void setIterations(Integer iterations);
+
+    @Description("The number of ParDo operations to perform in parallel (fanout)")
+    @Default.Integer(1)
+    Integer getFanout();
+
+    void setFanout(Integer fanout);
   }
 
   private ParDoLoadTest(String[] args) throws IOException {

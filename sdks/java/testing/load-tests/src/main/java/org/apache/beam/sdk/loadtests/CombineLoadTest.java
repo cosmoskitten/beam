@@ -99,6 +99,12 @@ public class CombineLoadTest extends LoadTest<CombineLoadTest.Options> {
     Integer getTopCount();
 
     void setTopCount(Integer topCount);
+
+    @Description("Number of reiterations over the values to perform.")
+    @Default.Integer(1)
+    Integer getIterations();
+
+    void setIterations(Integer iterations);
   }
 
   private CombineLoadTest(String[] args) throws IOException {
