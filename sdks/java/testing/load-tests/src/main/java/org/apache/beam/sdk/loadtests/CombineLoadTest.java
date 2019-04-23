@@ -67,7 +67,7 @@ public class CombineLoadTest extends LoadTest<CombineLoadTest.Options> {
 
   private static final String METRICS_NAMESPACE = "combine";
 
-  private enum CombinerType {
+  public enum CombinerType {
     TOP_LARGEST,
     MEAN,
     SUM,
