@@ -36,7 +36,7 @@ import uuid
 
 import apache_beam as beam
 from apache_beam.io.gcp.datastore.v1new.datastoreio import DeleteFromDatastore
-from apache_beam.io.gcp.datastore.v1new.datastoreio import QueryDatastore
+from apache_beam.io.gcp.datastore.v1new.datastoreio import ReadFromDatastore
 from apache_beam.io.gcp.datastore.v1new.datastoreio import WriteToDatastore
 from apache_beam.io.gcp.datastore.v1new.types import Entity
 from apache_beam.io.gcp.datastore.v1new.types import Key
@@ -127,7 +127,7 @@ def run(argv=None):
                  known_args.limit)
     p = new_pipeline_with_job_name(pipeline_options, job_name, '-verify-limit')
     query.limit = known_args.limit
-    entities = p | 'read from datastore' >> QueryDatastore(query)
+    entities = p | 'read from datastore' >> ReadFromDatastore(query)
     assert_that(
         entities | beam.combiners.Count.Globally(),
         equal_to([known_args.limit]))
@@ -138,7 +138,7 @@ def run(argv=None):
   # Pipeline 3: Query the written Entities and verify result.
   logging.info('Querying entities, asserting they match.')
   p = new_pipeline_with_job_name(pipeline_options, job_name, '-verify')
-  entities = p | 'read from datastore' >> QueryDatastore(query)
+  entities = p | 'read from datastore' >> ReadFromDatastore(query)
 
   assert_that(
       entities | beam.combiners.Count.Globally(),
@@ -149,7 +149,7 @@ def run(argv=None):
   # Pipeline 4: Delete Entities.
   logging.info('Deleting entities.')
   p = new_pipeline_with_job_name(pipeline_options, job_name, '-delete')
-  entities = p | 'read from datastore' >> QueryDatastore(query)
+  entities = p | 'read from datastore' >> ReadFromDatastore(query)
   _ = (entities
        | 'To Keys' >> beam.Map(lambda entity: entity.key)
        | 'delete entities' >> DeleteFromDatastore(project))
@@ -159,7 +159,7 @@ def run(argv=None):
   # Pipeline 5: Query the written Entities, verify no results.
   logging.info('Querying for the entities to make sure there are none present.')
   p = new_pipeline_with_job_name(pipeline_options, job_name, '-verify-deleted')
-  entities = p | 'read from datastore' >> QueryDatastore(query)
+  entities = p | 'read from datastore' >> ReadFromDatastore(query)
 
   assert_that(
       entities | beam.combiners.Count.Globally(),
