@@ -46,6 +46,13 @@ def commonLoadTestConfig = { jobName, isStreaming ->
                     iterations          : 10,
                     maxNumWorkers       : 5,
                     numWorkers          : 5,
+                    stepOptions         : """
+                                        {
+                                            "outputRecordsPerInputRecord": 1,
+                                            "preservesInputKeyDistribution": true,
+                                            "reportThrottlingMicros": false
+                                        }
+                                        """.trim().replaceAll("\\s", ""),
                     autoscalingAlgorithm: "NONE",
                     streaming           : isStreaming,
                     numberOfCounterOperations: 0
@@ -73,6 +80,13 @@ def commonLoadTestConfig = { jobName, isStreaming ->
                             iterations          : 200,
                             maxNumWorkers       : 5,
                             numWorkers          : 5,
+                            stepOptions         : """
+                                        {
+                                            "outputRecordsPerInputRecord": 1,
+                                            "preservesInputKeyDistribution": true,
+                                            "reportThrottlingMicros": false
+                                        }
+                                        """.trim().replaceAll("\\s", ""),
                             autoscalingAlgorithm: "NONE",
                             streaming           : isStreaming,
                             numberOfCounterOperations: 0
@@ -101,6 +115,13 @@ def commonLoadTestConfig = { jobName, isStreaming ->
                             iterations          : 10,
                             maxNumWorkers       : 5,
                             numWorkers          : 5,
+                            stepOptions         : """
+                                        {
+                                            "outputRecordsPerInputRecord": 1,
+                                            "preservesInputKeyDistribution": true,
+                                            "reportThrottlingMicros": false
+                                        }
+                                        """.trim().replaceAll("\\s", ""),
                             autoscalingAlgorithm: "NONE",
                             streaming           : isStreaming,
                             numberOfCounterOperations: 10
@@ -129,6 +150,13 @@ def commonLoadTestConfig = { jobName, isStreaming ->
                             iterations          : 10,
                             maxNumWorkers       : 5,
                             numWorkers          : 5,
+                            stepOptions         : """
+                                        {
+                                            "outputRecordsPerInputRecord": 1,
+                                            "preservesInputKeyDistribution": true,
+                                            "reportThrottlingMicros": false
+                                        }
+                                        """.trim().replaceAll("\\s", ""),
                             autoscalingAlgorithm: "NONE",
                             streaming           : isStreaming,
                             numberOfCounterOperations: 100
