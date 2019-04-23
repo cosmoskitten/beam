@@ -700,7 +700,7 @@ class BundleProcessor(object):
 
         pcollection_name = (self.process_bundle_descriptor
                             .transforms[ptransform_label].outputs[tag_label])
-        print("ajamato inject_pcollection (%s, %s) -> %s." % (
+        logging.info("ajamato inject_pcollection (%s, %s) -> %s." % (
             ptransform_label, tag_label, pcollection_name))
         monitoring_info.labels[
             monitoring_infos.PCOLLECTION_LABEL] = pcollection_name
