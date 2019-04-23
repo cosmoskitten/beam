@@ -62,7 +62,7 @@ public class AddFieldsTest {
     @Category(NeedsRunner.class)
     public void addDuplicateField() {
         Schema schema = Schema.builder().addStringField("field1").build();
-        thrown.expect(IllegalStateException.class);
+        thrown.expect(IllegalArgumentException.class);
         PCollection<Row> added =
                 pipeline.apply(Create.of(Row.withSchema(schema).addValue("value").build()).withRowSchema(schema))
                         .apply(AddFields.fields(
@@ -74,7 +74,7 @@ public class AddFieldsTest {
     @Category(NeedsRunner.class)
     public void addNonNullableField() {
         Schema schema = Schema.builder().addStringField("field1").build();
-        thrown.expect(IllegalStateException.class);
+        thrown.expect(IllegalArgumentException.class);
         PCollection<Row> added =
                 pipeline.apply(Create.of(Row.withSchema(schema).addValue("value").build()).withRowSchema(schema))
                         .apply(AddFields.fields(

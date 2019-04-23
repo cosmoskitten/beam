@@ -43,7 +43,29 @@ import org.apache.beam.sdk.values.Row;
 
 /** A transform to drop fields from a schema.
  *
- * <p>This is the inverse of the {@link Select} transform. A list of fields to drop is specified,
+ * <p>This transform acts as the inverse of the {@link Select} transform. A list of fields to drop is specified, and
+ * all fields in the schema that are not specified are selected. For example:
+ *
+ * <pre>{@code @DefaultSchema(JavaFieldSchema.class)
+ * public class UserEvent {
+ *   public String userId;
+ *   public String eventId;
+ *   public int eventType;
+ *   public Location location;
+ * }}</pre>
+ *
+ * <pre>{@code @DefaultSchema(JavaFieldSchema.class)
+ * public class Location {
+ *   public double latitude;
+ *   public double longtitude;
+ * }
+ *
+ * PCollection<UserEvent> events = readUserEvents();
+ * // Drop the location field.
+ * PCollection<Row> noLocation = events.apply(DropFields.fields("location"));
+ * // Drop the latitude field.
+ * PCollection<Row> noLatitude = events.apply(DropFields.fields("location.latitude"));
+ * }</pre>
  **/
 public class DropFields {
   public static <T> Inner<T> fields(String... fields) {

@@ -31,8 +31,16 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.Row;
 
 /** A transform to add new nullable fields to a PCollection's schema. Elements are extended to
- * have the new schema, with null values used for the new fields.
- */
+ * have the new schema, with null values used for the new fields. Any new fields added must be nullable.
+ *
+ * <p>Example use:
+ *
+ * <pre>{@code PCollection<Event> events = readEvents();
+ * PCollection<Row> augmentedEvents =
+ *   events.apply(AddFields.fields(Field.nullable("newField1", FieldType.STRING),
+ *                                 Field.nullable("newField2", FieldType.INT64)));
+ * }</pre>
+ **/
 public class AddFields {
   public static <T> Inner<T> fields(Field... fields) {
     return fields(Arrays.asList(fields));

@@ -4,6 +4,8 @@ import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Maps;
+
+import java.io.Serializable;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
@@ -25,18 +27,18 @@ public class RenameFields {
     return new Inner<>(field, newName);
   }
 
-  private static class RenamePair {
+  private static class RenamePair implements Serializable {
     private final FieldAccessDescriptor fieldAccessDescriptor;
     private final String newName;
 
-    public RenamePair(FieldAccessDescriptor fieldAccessDescriptor, String newName) {
+    RenamePair(FieldAccessDescriptor fieldAccessDescriptor, String newName) {
       this.fieldAccessDescriptor = fieldAccessDescriptor;
       this.newName = newName;
     }
   }
 
   // Apply the user-specified renames to the input schema.
-  private static Schema getRenamedSchema(Schema inputSchema,  Collection<RenamePair> renames) {
+  private static FieldType rename(Schema inputSchema,  Collection<RenamePair> renames) {
     // The mapping of renames to apply at this level of the schema.
     Map<Integer, String> topLevelRenames = Maps.newHashMap();
     // For nested schemas, collect all applicable renames here.
@@ -45,7 +47,7 @@ public class RenameFields {
     for (RenamePair rename : renames) {
       FieldAccessDescriptor access = rename.fieldAccessDescriptor;
       if (!access.referencesSingleField()) {
-        throw new IllegalArgumentException(rename + " references multiple fields.");
+        throw new IllegalArgumentException(access + " references multiple fields.");
       }
       if (!access.fieldIdsAccessed().isEmpty()) {
         Integer fieldId = Iterables.getOnlyElement(access.fieldIdsAccessed());
@@ -84,22 +86,26 @@ public class RenameFields {
   }
 
   public class Inner<T> extends PTransform<PCollection<T>, PCollection<Row>> {
-    private Map<String, String> renames;
+    private Map<FieldAccessDescriptor, String> renames;
 
     private Inner(String field, String newName) {
       renames.put(field, newName);
     }
 
-    private Inner(Map<String, String> renames) {
+    private Inner(Map<FieldAccessDescriptor, String> renames) {
       this.renames = renames;
     }
 
     public Inner<T> fieldAs(String field, String newName) {
-      Map<String, String> newMap =
-          ImmutableMap.<String, String>builder()
-          .putAll(renames)
-          .put(field, newName)
-          .build();
+      return fieldAs(FieldAccessDescriptor.withFieldNames(field), newName);
+    }
+
+    public Inner<T> fieldAs(FieldAccessDescriptor field, String newName) {
+      Map<FieldAccessDescriptor, String> newMap =
+              ImmutableMap.<FieldAccessDescriptor, String>builder()
+                      .putAll(renames)
+                      .put(field, newName)
+                      .build();
       return new Inner<>(newMap);
     }
 
@@ -108,8 +114,7 @@ public class RenameFields {
       Schema inputSchema = input.getSchema();
 
       List<RenamePair> pairs = renames.entrySet().stream()
-          .map(e -> new RenamePair(
-              FieldAccessDescriptor.withFieldNames(e.getKey()).resolve(inputSchema), e.getValue()))
+          .map(e -> new RenamePair(e.getKey().resolve(inputSchema), e.getValue()))
           .collect(Collectors.toList());
       final Schema outputSchema = getRenamedSchema(inputSchema, pairs);
 

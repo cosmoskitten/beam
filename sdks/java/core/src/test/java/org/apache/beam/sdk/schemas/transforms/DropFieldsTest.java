@@ -50,10 +50,11 @@ public class DropFieldsTest {
 
   private static final Schema NESTED_SCHEMA = Schema.builder()
       .addRowField("nested", SIMPLE_SCHEMA)
+          .addStringField("string")
       .build();
 
   private static Row nestedRow(Row nested) {
-    return Row.withSchema(NESTED_SCHEMA).addValue(nested).build();
+    return Row.withSchema(NESTED_SCHEMA).addValues(nested, "foo").build();
   }
 
   private static final Schema NESTED_ARRAY_SCHEMA = Schema.builder()
@@ -86,9 +87,9 @@ public class DropFieldsTest {
   @Test
   @Category(NeedsRunner.class)
   public void testDropNestedField() {
-    Schema expectedInnerSchema = Schema.builder().addStringField("field2").build();
-    Schema expectedSchema = Schema.builder().addRowField("nested",
-        expectedInnerSchema).build();
+    Schema expectedSchema = Schema.builder()
+            .addStringField("string")
+            .addStringField("field2").build();
 
     PCollection<Row> result = pipeline.apply(Create.of(
         nestedRow(simpleRow(1, "one")),
@@ -99,20 +100,41 @@ public class DropFieldsTest {
     assertEquals(expectedSchema, result.getSchema());
 
     List<Row> expectedRows = Lists.newArrayList(
-        nestedRow(Row.withSchema(expectedInnerSchema).addValue("one").build()),
-        nestedRow(Row.withSchema(expectedInnerSchema).addValue("two").build()),
-        nestedRow(Row.withSchema(expectedInnerSchema).addValue("three").build()));
+            Row.withSchema(expectedSchema).addValues("foo", "one").build(),
+            Row.withSchema(expectedSchema).addValues("foo", "two").build(),
+            Row.withSchema(expectedSchema).addValues("foo", "three").build());
+
     PAssert.that(result).containsInAnyOrder(expectedRows);
     pipeline.run();
   }
 
+  @Test
+  @Category(NeedsRunner.class)
+  public void testDropNestedFieldKeepingOnlyNested() {
+    Schema expectedSchema = Schema.builder().addStringField("field2").build();
+
+    PCollection<Row> result = pipeline.apply(Create.of(
+            nestedRow(simpleRow(1, "one")),
+            nestedRow(simpleRow(2, "two")),
+            nestedRow(simpleRow(3, "three")))
+            .withRowSchema(NESTED_SCHEMA))
+            .apply(DropFields.fields("string", "nested.field1"));
+    assertEquals(expectedSchema, result.getSchema());
+
+    List<Row> expectedRows = Lists.newArrayList(
+            Row.withSchema(expectedSchema).addValue("one").build(),
+            Row.withSchema(expectedSchema).addValue("two").build(),
+            Row.withSchema(expectedSchema).addValue("three").build());
+    PAssert.that(result).containsInAnyOrder(expectedRows);
+    pipeline.run();
+  }
+
+  // drop making sure a nested field remainsx
 
   @Test
   @Category(NeedsRunner.class)
   public void testDropNestedArrayField() {
-    Schema expectedInnerSchema = Schema.builder().addStringField("field2").build();
-    Schema expectedSchema = Schema.builder().addArrayField("array",
-        FieldType.row(expectedInnerSchema)).build();
+    Schema expectedSchema = Schema.builder().addArrayField("field2", FieldType.STRING).build();
 
     PCollection<Row> result = pipeline.apply(Create.of(
         nestedArray(simpleRow(1, "one1"), simpleRow(1, "one2")),
@@ -123,15 +145,9 @@ public class DropFieldsTest {
     assertEquals(expectedSchema, result.getSchema());
 
     List<Row> expectedRows = Lists.newArrayList(
-        nestedArray(
-            Row.withSchema(expectedInnerSchema).addValue("one1").build(),
-            Row.withSchema(expectedInnerSchema).addValue("one2").build()),
-        nestedArray(
-            Row.withSchema(expectedInnerSchema).addValue("two1").build(),
-            Row.withSchema(expectedInnerSchema).addValue("two2").build()),
-        nestedArray(
-            Row.withSchema(expectedInnerSchema).addValue("three1").build(),
-            Row.withSchema(expectedInnerSchema).addValue("three2").build()));
+            Row.withSchema(expectedSchema).addArray("one1", "one2").build(),
+            Row.withSchema(expectedSchema).addArray("two1", "two2").build(),
+            Row.withSchema(expectedSchema).addArray("three1", "three2").build());
     PAssert.that(result).containsInAnyOrder(expectedRows);
     pipeline.run();
   }
