@@ -697,9 +697,8 @@ class FnApiRunnerTest(unittest.TestCase):
         yield beam.pvalue.TaggedOutput('SecondOutput', str(element) + '2')
         yield beam.pvalue.TaggedOutput('ThirdOutput', str(element) + '3')
 
-    class PrintElements(beam.DoFn):
+    class PassThrough(beam.DoFn):
       def process(self, element):
-        logging.debug(element)
         yield element
 
     p = self.create_pipeline()
@@ -723,8 +722,8 @@ class FnApiRunnerTest(unittest.TestCase):
 
     # consume some of elements
     merged = ((first_output, second_output, third_output) | beam.Flatten())
-    merged | ('PrintingStep') >> beam.ParDo(PrintElements())
-    second_output | ('PrintingStep2') >> beam.ParDo(PrintElements())
+    merged | ('PassThrough') >> beam.ParDo(PassThrough())
+    second_output | ('PassThrough2') >> beam.ParDo(PassThrough())
 
     res = p.run()
     res.wait_until_finish()
@@ -805,7 +804,7 @@ class FnApiRunnerTest(unittest.TestCase):
           sum=hamcrest.greater_than(0),
           count=hamcrest.greater_than(0))
 
-      # PrintingStep, main output
+      # PassThrough, main output
       labels = {'PCOLLECTION' : 'ref_PCollection_PCollection_6'}
       self.assert_has_counter(
           counters,
@@ -817,7 +816,7 @@ class FnApiRunnerTest(unittest.TestCase):
           sum=hamcrest.greater_than(0),
           count=hamcrest.greater_than(0))
 
-      # PrintingStep2, main output
+      # PassThrough2, main output
       labels = {'PCOLLECTION' : 'ref_PCollection_PCollection_7'}
       self.assert_has_counter(
           counters,
