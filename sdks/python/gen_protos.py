@@ -48,6 +48,7 @@ MODEL_RESOURCES = [
             + '/org/apache/beam/model/fnexecution/v1/standard_coders.yaml'),
 ]
 
+
 def generate_proto_files(force=False):
 
   try:
