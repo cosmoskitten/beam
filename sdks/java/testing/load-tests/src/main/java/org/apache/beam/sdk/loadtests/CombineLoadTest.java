@@ -91,9 +91,9 @@ public class CombineLoadTest extends LoadTest<CombineLoadTest.Options> {
 
     @Description("Per key combiner type.")
     @Default.Enum("MEAN")
-    CombinerType getPerKeyCombinerType();
+    CombinerType getPerKeyCombiner();
 
-    void setPerKeyCombinerType(CombinerType combinerType);
+    void setPerKeyCombiner(CombinerType combinerType);
 
     @Description("Number of top results to combine (if applicable).")
     Integer getTopCount();
@@ -130,7 +130,7 @@ public class CombineLoadTest extends LoadTest<CombineLoadTest.Options> {
     for (int i = 0; i < options.getFanout(); i++) {
       applyStepIfPresent(input, format("Step: %d", i), syntheticStep)
           .apply(format("Convert to Long: %d", i), MapElements.via(new ByteValueToLong()))
-          .apply(format("Combine: %d", i), getPerKeyCombiner(options.getPerKeyCombinerType()))
+          .apply(format("Combine: %d", i), getPerKeyCombiner(options.getPerKeyCombiner()))
           .apply(
               "Collect end time metric", ParDo.of(new TimeMonitor<>(METRICS_NAMESPACE, "runtime")));
     }
