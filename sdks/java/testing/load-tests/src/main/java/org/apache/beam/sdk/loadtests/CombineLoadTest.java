@@ -67,6 +67,9 @@ public class CombineLoadTest extends LoadTest<CombineLoadTest.Options> {
 
   private static final String METRICS_NAMESPACE = "combine";
 
+  /**
+   * Enumerates per-key combiners available in the test.
+   */
   public enum CombinerType {
     TOP_LARGEST,
     MEAN,
