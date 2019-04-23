@@ -136,7 +136,7 @@ public class CombineLoadTest extends LoadTest<CombineLoadTest.Options> {
     }
   }
 
-  private PTransform<PCollection<KV<byte[], Long>>, ? extends PCollection> getPerKeyCombiner(
+  public PTransform<PCollection<KV<byte[], Long>>, ? extends PCollection> getPerKeyCombiner(
       CombinerType combinerType) {
     switch (combinerType) {
       case MEAN:
