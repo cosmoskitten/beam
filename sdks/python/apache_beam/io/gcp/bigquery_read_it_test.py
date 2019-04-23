@@ -59,16 +59,17 @@ class BigQueryReadTests(unittest.TestCase):
                  self.dataset_id, self.project)
 
   def tearDown(self):
-    request = bigquery.BigqueryDatasetsDeleteRequest(
-        projectId=self.project, datasetId=self.dataset_id,
-        deleteContents=True)
-    try:
-      logging.info("Deleting dataset %s in project %s",
-                   self.dataset_id, self.project)
-      self.bigquery_client.client.datasets.Delete(request)
-    except HttpError:
-      logging.debug('Failed to clean up dataset %s in project %s',
-                    self.dataset_id, self.project)
+    pass
+    # request = bigquery.BigqueryDatasetsDeleteRequest(
+    #     projectId=self.project, datasetId=self.dataset_id,
+    #     deleteContents=True)
+    # try:
+    #   logging.info("Deleting dataset %s in project %s",
+    #                self.dataset_id, self.project)
+    #   self.bigquery_client.client.datasets.Delete(request)
+    # except HttpError:
+    #   logging.debug('Failed to clean up dataset %s in project %s',
+    #                 self.dataset_id, self.project)
 
   def create_table(self, tablename):
     table_schema = bigquery.TableSchema()
@@ -127,7 +128,8 @@ class BigQueryReadTests(unittest.TestCase):
         {'bytes': b'\xab\xac\xad', 'date': '2000-01-01', 'time': '00:00:00'}
     ]
     self.bigquery_client.insert_rows(
-        self.project, self.dataset_id, tablename, table_data)
+        self.project, self.dataset_id, tablename, table_data,
+        schema=table_schema)
 
   @attr('IT')
   def test_big_query_read(self):
