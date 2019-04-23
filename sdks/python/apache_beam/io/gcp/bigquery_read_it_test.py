@@ -59,6 +59,7 @@ class BigQueryReadTests(unittest.TestCase):
                  self.dataset_id, self.project)
 
   def tearDown(self):
+    pass
     request = bigquery.BigqueryDatasetsDeleteRequest(
         projectId=self.project, datasetId=self.dataset_id,
         deleteContents=True)
@@ -127,7 +128,8 @@ class BigQueryReadTests(unittest.TestCase):
         {'bytes': b'\xab\xac\xad', 'date': '2000-01-01', 'time': '00:00:00'}
     ]
     self.bigquery_client.insert_rows(
-        self.project, self.dataset_id, tablename, table_data)
+        self.project, self.dataset_id, tablename, table_data,
+        schema=table_schema)
 
   @attr('IT')
   def test_big_query_read(self):
