@@ -108,11 +108,20 @@ public class BeamEnumerableConverter extends ConverterImpl implements Enumerable
   }
 
   public static Enumerable<Object> toEnumerable(BeamRelNode node) {
+    final PipelineOptions options = createPipelineOptions(node);
+    return toEnumerable(options, node);
+  }
+
+  public static List<Row> toRowList(BeamRelNode node) {
+    final PipelineOptions options = createPipelineOptions(node);
+    return toRowList(options, node);
+  }
+
+  private static PipelineOptions createPipelineOptions(BeamRelNode node) {
     final ClassLoader originalClassLoader = Thread.currentThread().getContextClassLoader();
     try {
       Thread.currentThread().setContextClassLoader(BeamEnumerableConverter.class.getClassLoader());
-      final PipelineOptions options = createPipelineOptions(node.getPipelineOptions());
-      return toEnumerable(options, node);
+      return createPipelineOptions(node.getPipelineOptions());
     } finally {
       Thread.currentThread().setContextClassLoader(originalClassLoader);
     }
