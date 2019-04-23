@@ -31,12 +31,12 @@ from mock import patch
 
 # Protect against environments where datastore library is not available.
 try:
+  from apache_beam.io.gcp.datastore.v1 import util
   from apache_beam.io.gcp.datastore.v1new import helper
   from apache_beam.io.gcp.datastore.v1new import query_splitter
   from apache_beam.io.gcp.datastore.v1new.datastoreio import DeleteFromDatastore
-  from apache_beam.io.gcp.datastore.v1new.datastoreio import QueryDatastore
+  from apache_beam.io.gcp.datastore.v1new.datastoreio import ReadFromDatastore
   from apache_beam.io.gcp.datastore.v1new.datastoreio import WriteToDatastore
-  from apache_beam.io.gcp.datastore.v1new.datastoreio import _Mutate
   from google.cloud.datastore import client
   from google.cloud.datastore import entity
   from google.cloud.datastore import helpers
@@ -142,7 +142,7 @@ class DatastoreioTest(unittest.TestCase):
 
       with patch.object(query_splitter, 'get_splits',
                         side_effect=fake_get_splits):
-        split_query_fn = QueryDatastore._SplitQueryFn(num_splits)
+        split_query_fn = ReadFromDatastore._SplitQueryFn(num_splits)
         split_queries = split_query_fn.process(self._mock_query)
 
         self.assertEqual(expected_num_splits, len(split_queries))
@@ -153,9 +153,9 @@ class DatastoreioTest(unittest.TestCase):
       num_splits = 0
       expected_num_splits = 23
       entity_bytes = (expected_num_splits *
-                      QueryDatastore._DEFAULT_BUNDLE_SIZE_BYTES)
+                      ReadFromDatastore._DEFAULT_BUNDLE_SIZE_BYTES)
       with patch.object(
-          QueryDatastore._SplitQueryFn, 'get_estimated_size_bytes',
+          ReadFromDatastore._SplitQueryFn, 'get_estimated_size_bytes',
           return_value=entity_bytes):
 
         def fake_get_splits(unused_client, query, num_splits):
@@ -163,7 +163,7 @@ class DatastoreioTest(unittest.TestCase):
 
         with patch.object(query_splitter, 'get_splits',
                           side_effect=fake_get_splits):
-          split_query_fn = QueryDatastore._SplitQueryFn(num_splits)
+          split_query_fn = ReadFromDatastore._SplitQueryFn(num_splits)
           split_queries = split_query_fn.process(self._mock_query)
 
           self.assertEqual(expected_num_splits, len(split_queries))
@@ -174,7 +174,7 @@ class DatastoreioTest(unittest.TestCase):
       num_splits = 4
       expected_num_splits = 1
       self._mock_query.limit = 3
-      split_query_fn = QueryDatastore._SplitQueryFn(num_splits)
+      split_query_fn = ReadFromDatastore._SplitQueryFn(num_splits)
       split_queries = split_query_fn.process(self._mock_query)
 
       self.assertEqual(expected_num_splits, len(split_queries))
@@ -186,33 +186,33 @@ class DatastoreioTest(unittest.TestCase):
       num_splits = 0
       expected_num_splits = 1
       entity_bytes = (expected_num_splits *
-                      QueryDatastore._DEFAULT_BUNDLE_SIZE_BYTES)
+                      ReadFromDatastore._DEFAULT_BUNDLE_SIZE_BYTES)
       with patch.object(
-          QueryDatastore._SplitQueryFn, 'get_estimated_size_bytes',
+          ReadFromDatastore._SplitQueryFn, 'get_estimated_size_bytes',
           return_value=entity_bytes):
 
         with patch.object(query_splitter, 'get_splits',
                           side_effect=query_splitter.QuerySplitterError(
                               "Testing query split error")):
-          split_query_fn = QueryDatastore._SplitQueryFn(num_splits)
+          split_query_fn = ReadFromDatastore._SplitQueryFn(num_splits)
           split_queries = split_query_fn.process(self._mock_query)
 
           self.assertEqual(expected_num_splits, len(split_queries))
           self.assertEqual(self._mock_query, split_queries[0])
 
-  def test_DatastoreWriteFn_with_emtpy_batch(self):
+  def test_DatastoreWriteFn_with_empty_batch(self):
     self.check_DatastoreWriteFn(0)
 
   def test_DatastoreWriteFn_with_one_batch(self):
-    num_entities_to_write = _Mutate._WRITE_BATCH_INITIAL_SIZE * 1 - 50
+    num_entities_to_write = util.WRITE_BATCH_INITIAL_SIZE * 1 - 50
     self.check_DatastoreWriteFn(num_entities_to_write)
 
   def test_DatastoreWriteFn_with_multiple_batches(self):
-    num_entities_to_write = _Mutate._WRITE_BATCH_INITIAL_SIZE * 3 + 50
+    num_entities_to_write = util.WRITE_BATCH_INITIAL_SIZE * 3 + 50
     self.check_DatastoreWriteFn(num_entities_to_write)
 
   def test_DatastoreWriteFn_with_batch_size_exact_multiple(self):
-    num_entities_to_write = _Mutate._WRITE_BATCH_INITIAL_SIZE * 2
+    num_entities_to_write = util.WRITE_BATCH_INITIAL_SIZE * 2
     self.check_DatastoreWriteFn(num_entities_to_write)
 
   def check_DatastoreWriteFn(self, num_entities):
@@ -228,7 +228,7 @@ class DatastoreioTest(unittest.TestCase):
           lambda: FakeBatch(all_batch_items=all_batch_entities,
                             commit_count=commit_count))
 
-      fixed_batch_size = WriteToDatastore._WRITE_BATCH_INITIAL_SIZE
+      fixed_batch_size = util.WRITE_BATCH_INITIAL_SIZE
       datastore_write_fn = WriteToDatastore._DatastoreWriteFn(
           self._PROJECT, fixed_batch_size=fixed_batch_size)
 
@@ -251,7 +251,7 @@ class DatastoreioTest(unittest.TestCase):
           lambda: FakeBatch(commit_count=commit_count))
 
       datastore_write_fn = WriteToDatastore._DatastoreWriteFn(
-          self._PROJECT, fixed_batch_size=_Mutate._WRITE_BATCH_INITIAL_SIZE)
+          self._PROJECT, fixed_batch_size=util.WRITE_BATCH_INITIAL_SIZE)
       datastore_write_fn.start_bundle()
       for entity in entities:
         entity.set_properties({'large': u'A' * 100000})
@@ -271,7 +271,7 @@ class DatastoreioTest(unittest.TestCase):
     ]
     self._mock_query.kind = self._KIND
 
-    split_query_fn = QueryDatastore._SplitQueryFn(num_splits=0)
+    split_query_fn = ReadFromDatastore._SplitQueryFn(num_splits=0)
     self.assertEqual(entity_bytes,
                      split_query_fn.get_estimated_size_bytes(self._mock_client,
                                                              self._mock_query))
@@ -298,7 +298,7 @@ class DatastoreioTest(unittest.TestCase):
       self._mock_client.batch.side_effect = (
           lambda: FakeBatch(all_batch_items=all_batch_keys))
 
-      fixed_batch_size = _Mutate._WRITE_BATCH_INITIAL_SIZE
+      fixed_batch_size = util.WRITE_BATCH_INITIAL_SIZE
       datastore_delete_fn = DeleteFromDatastore._DatastoreDeleteFn(
           self._PROJECT, fixed_batch_size=fixed_batch_size)
 
@@ -308,42 +308,6 @@ class DatastoreioTest(unittest.TestCase):
         datastore_delete_fn.finish_bundle()
 
       self.assertListEqual(all_batch_keys, expected_keys)
-
-
-@unittest.skipIf(client is None, 'Datastore dependencies are not installed')
-class DynamicWriteBatcherTest(unittest.TestCase):
-
-  def setUp(self):
-    self._batcher = _Mutate._DynamicBatchSizer()
-
-  # If possible, keep these test cases aligned with the Java test cases in
-  # DatastoreV1Test.java
-  def test_no_data(self):
-    self.assertEquals(_Mutate._WRITE_BATCH_INITIAL_SIZE,
-                      self._batcher.get_batch_size(0))
-
-  def test_fast_queries(self):
-    self._batcher.report_latency(0, 1000, 200)
-    self._batcher.report_latency(0, 1000, 200)
-    self.assertEquals(_Mutate._WRITE_BATCH_MAX_SIZE,
-                      self._batcher.get_batch_size(0))
-
-  def test_slow_queries(self):
-    self._batcher.report_latency(0, 10000, 200)
-    self._batcher.report_latency(0, 10000, 200)
-    self.assertEquals(100, self._batcher.get_batch_size(0))
-
-  def test_size_not_below_minimum(self):
-    self._batcher.report_latency(0, 30000, 50)
-    self._batcher.report_latency(0, 30000, 50)
-    self.assertEquals(_Mutate._WRITE_BATCH_MIN_SIZE,
-                      self._batcher.get_batch_size(0))
-
-  def test_sliding_window(self):
-    self._batcher.report_latency(0, 30000, 50)
-    self._batcher.report_latency(50000, 5000, 200)
-    self._batcher.report_latency(100000, 5000, 200)
-    self.assertEquals(200, self._batcher.get_batch_size(150000))
 
 
 if __name__ == '__main__':

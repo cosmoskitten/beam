@@ -18,9 +18,12 @@
 """
 A connector for reading from and writing to Google Cloud Datastore.
 
-Uses the newer google-cloud-datastore pip dependency.
+Please use this module for Datastore I/O since
+``apache_beam.io.gcp.datastore.v1.datastoreio`` will be deprecated in the
+next Beam major release.
 
-For Datastore entities, does not support the property value "meaning" field.
+This module uses the newer google-cloud-datastore package. Its API was different
+enough to require extensive changes to this and associated modules.
 
 This module is experimental, no backwards compatibility guarantees.
 """
@@ -29,7 +32,6 @@ from __future__ import division
 
 import logging
 import time
-from builtins import object
 from builtins import round
 
 from apache_beam import typehints
@@ -45,15 +47,15 @@ from apache_beam.transforms import ParDo
 from apache_beam.transforms import PTransform
 from apache_beam.transforms import Reshuffle
 
-__all__ = ['QueryDatastore', 'WriteToDatastore', 'DeleteFromDatastore']
+__all__ = ['ReadFromDatastore', 'WriteToDatastore', 'DeleteFromDatastore']
 
 
 @typehints.with_output_types(types.Entity)
-class QueryDatastore(PTransform):
+class ReadFromDatastore(PTransform):
   """A ``PTransform`` for querying Google Cloud Datastore.
 
   To read a ``PCollection[Entity]`` from a Cloud Datastore ``Query``, use
-  ``QueryDatastore`` transform by providing a `query` to
+  the ``ReadFromDatastore`` transform by providing a `query` to
   read from. The project and optional namespace are set in the query.
   The query will be split into multiple queries to allow for parallelism. The
   degree of parallelism is automatically determined, but can be overridden by
@@ -64,14 +66,16 @@ class QueryDatastore(PTransform):
   query contains inequality filters like `GREATER_THAN, LESS_THAN` etc., then
   all the returned results will be read by a single worker in order to ensure
   correct data. Since data is read from a single worker, this could have
-  significant impact on the performance of the job.
+  significant impact on the performance of the job. Using a
+  :class:`~apache_beam.transforms.util.Reshuffle` transform after the read in
+  this case might be beneficial for parallelizing work across workers.
 
   The semantics for query splitting is defined below:
     1. If `num_splits` is equal to 0, then the number of splits will be chosen
     dynamically at runtime based on the query data size.
 
     2. Any value of `num_splits` greater than
-    `QueryDatastore._NUM_QUERY_SPLITS_MAX` will be capped at that value.
+    `ReadFromDatastore._NUM_QUERY_SPLITS_MAX` will be capped at that value.
 
     3. If the `query` has a user limit set, or contains inequality filters, then
     `num_splits` will be ignored and no split will be performed.
@@ -93,7 +97,7 @@ class QueryDatastore(PTransform):
   _DEFAULT_BUNDLE_SIZE_BYTES = 64 * 1024 * 1024
 
   def __init__(self, query, num_splits=0):
-    """Initialize the `QueryDatastore` transform.
+    """Initialize the `ReadFromDatastore` transform.
 
     This transform outputs elements of type
     :class:`~apache_beam.io.gcp.datastore.v1new.types.Entity`.
@@ -103,7 +107,7 @@ class QueryDatastore(PTransform):
         used to fetch entities.
       num_splits: (:class:`int`) (optional) Number of splits for the query.
     """
-    super(QueryDatastore, self).__init__()
+    super(ReadFromDatastore, self).__init__()
 
     if not query.project:
       raise ValueError("query.project cannot be empty")
@@ -134,10 +138,10 @@ class QueryDatastore(PTransform):
 
     return (pcoll.pipeline
             | 'UserQuery' >> Create([self._query])
-            | 'SplitQuery' >> ParDo(QueryDatastore._SplitQueryFn(
+            | 'SplitQuery' >> ParDo(ReadFromDatastore._SplitQueryFn(
                 self._num_splits))
             | Reshuffle()
-            | 'Read' >> ParDo(QueryDatastore._QueryFn()))
+            | 'Read' >> ParDo(ReadFromDatastore._QueryFn()))
 
   def display_data(self):
     disp_data = {'project': self._query.project,
@@ -154,7 +158,7 @@ class QueryDatastore(PTransform):
   class _SplitQueryFn(DoFn):
     """A `DoFn` that splits a given query into multiple sub-queries."""
     def __init__(self, num_splits):
-      super(QueryDatastore._SplitQueryFn, self).__init__()
+      super(ReadFromDatastore._SplitQueryFn, self).__init__()
       self._num_splits = num_splits
 
     def process(self, query, *args, **kwargs):
@@ -212,7 +216,7 @@ class QueryDatastore(PTransform):
       """
       kind_name = query.kind
       latest_timestamp = (
-          QueryDatastore._SplitQueryFn
+          ReadFromDatastore._SplitQueryFn
           .query_latest_statistics_timestamp(client))
       logging.info('Latest stats timestamp for kind %s is %s',
                    kind_name, latest_timestamp)
@@ -236,18 +240,18 @@ class QueryDatastore(PTransform):
       """Computes the number of splits to be performed on the query."""
       try:
         estimated_size_bytes = (
-            QueryDatastore._SplitQueryFn
+            ReadFromDatastore._SplitQueryFn
             .get_estimated_size_bytes(client, query))
         logging.info('Estimated size bytes for query: %s', estimated_size_bytes)
-        num_splits = int(min(QueryDatastore._NUM_QUERY_SPLITS_MAX, round(
+        num_splits = int(min(ReadFromDatastore._NUM_QUERY_SPLITS_MAX, round(
             (float(estimated_size_bytes) /
-             QueryDatastore._DEFAULT_BUNDLE_SIZE_BYTES))))
+             ReadFromDatastore._DEFAULT_BUNDLE_SIZE_BYTES))))
       except Exception as e:
         logging.warning('Failed to fetch estimated size bytes: %s', e)
         # Fallback in case estimated size is unavailable.
-        num_splits = QueryDatastore._NUM_QUERY_SPLITS_MIN
+        num_splits = ReadFromDatastore._NUM_QUERY_SPLITS_MIN
 
-      return max(num_splits, QueryDatastore._NUM_QUERY_SPLITS_MIN)
+      return max(num_splits, ReadFromDatastore._NUM_QUERY_SPLITS_MIN)
 
   @typehints.with_input_types(types.Query)
   @typehints.with_output_types(types.Entity)
@@ -267,18 +271,6 @@ class _Mutate(PTransform):
   supported, as the commits are retried when failures occur.
   """
 
-  _WRITE_BATCH_INITIAL_SIZE = 200
-  # Max allowed Datastore writes per batch, and max bytes per batch.
-  # Note that the max bytes per batch set here is lower than the 10MiB limit
-  # actually enforced by the API, to leave space for the CommitRequest wrapper
-  # around the mutations.
-  # https://cloud.google.com/datastore/docs/concepts/limits
-  _WRITE_BATCH_MAX_SIZE = 500
-  _WRITE_BATCH_MAX_BYTES_SIZE = 9000000
-  _MAX_ENTITY_BYTES_SIZE = 1048572
-  _WRITE_BATCH_MIN_SIZE = 10
-  _WRITE_BATCH_TARGET_LATENCY_MS = 5000
-
   def __init__(self, mutate_fn):
     """Initializes a Mutate transform.
 
@@ -290,40 +282,11 @@ class _Mutate(PTransform):
   def expand(self, pcoll):
     return pcoll | 'Write Batch to Datastore' >> ParDo(self._mutate_fn)
 
-  class _DynamicBatchSizer(object):
-    """Determines request sizes for future Datastore RPCs."""
-    def __init__(self):
-      self._commit_time_per_entity_ms = util.MovingSum(window_ms=120000,
-                                                       bucket_ms=10000)
-
-    def get_batch_size(self, now):
-      """Returns the recommended size for datastore RPCs at this time."""
-      if not self._commit_time_per_entity_ms.has_data(now):
-        return _Mutate._WRITE_BATCH_INITIAL_SIZE
-
-      recent_mean_latency_ms = (self._commit_time_per_entity_ms.sum(now)
-                                // self._commit_time_per_entity_ms.count(now))
-      return max(_Mutate._WRITE_BATCH_MIN_SIZE,
-                 min(_Mutate._WRITE_BATCH_MAX_SIZE,
-                     _Mutate._WRITE_BATCH_TARGET_LATENCY_MS
-                     // max(recent_mean_latency_ms, 1)
-                    ))
-
-    def report_latency(self, now, latency_ms, num_mutations):
-      """Reports the latency of an RPC to Datastore.
-
-      Args:
-        now: double, completion time of the RPC as seconds since the epoch.
-        latency_ms: double, the observed latency in milliseconds for this RPC.
-        num_mutations: int, number of mutations contained in the RPC.
-      """
-      self._commit_time_per_entity_ms.add(now, latency_ms / num_mutations)
-
   class DatastoreMutateFn(DoFn):
     """A ``DoFn`` that write mutations to Datastore.
 
     Mutations are written in batches, where the maximum batch size is
-    `_Mutate._WRITE_BATCH_SIZE`.
+    `util.WRITE_BATCH_SIZE`.
 
     Commits are non-transactional. If a commit fails because of a conflict over
     an entity group, the commit will be retried. This means that the mutation
@@ -373,7 +336,7 @@ class _Mutate(PTransform):
       self._batch_bytes_size += self._batch.mutations[-1].ByteSize()
 
       if (len(self._batch.mutations) >= self._target_batch_size or
-          self._batch_bytes_size > _Mutate._WRITE_BATCH_MAX_BYTES_SIZE):
+          self._batch_bytes_size > util.WRITE_BATCH_MAX_BYTES_SIZE):
         self._flush_batch()
 
     def finish_bundle(self):
@@ -389,7 +352,7 @@ class _Mutate(PTransform):
       # Flush the current batch of mutations to Cloud Datastore.
       latency_ms = helper.write_mutations(
           self._batch, self._throttler, self._update_rpc_stats,
-          throttle_delay=_Mutate._WRITE_BATCH_TARGET_LATENCY_MS // 1000)
+          throttle_delay=util.WRITE_BATCH_TARGET_LATENCY_MS // 1000)
       logging.debug("Successfully wrote %d mutations in %dms.",
                     len(self._batch.mutations), latency_ms)
 
