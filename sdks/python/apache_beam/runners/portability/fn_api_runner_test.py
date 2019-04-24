@@ -67,75 +67,15 @@ def _matcher_or_equal_to(value_or_matcher):
     return value_or_matcher
   return hamcrest.equal_to(value_or_matcher)
 
+def has_urn_and_labels(mi, urn, labels):
+  def contains_labels(monitoring_info, labels):
+    # Check all the labels and their values exist in the monitoring_info
+    return len([x for x in labels.items() if
+                x[0] in monitoring_info.labels and monitoring_info.labels[
+                    x[0]] == x[1]]) == len(labels)
+  return contains_labels(mi, labels) and mi.urn == urn
 
 class FnApiRunnerTest(unittest.TestCase):
-
-  def has_urn_and_labels(self, mi, urn, labels):
-    def contains_labels(monitoring_info, labels):
-      # Check all the labels and their values exist in the monitoring_info
-      return len([x for x in labels.items() if
-                  x[0] in monitoring_info.labels and monitoring_info.labels[
-                      x[0]] == x[1]]) == len(labels)
-    return contains_labels(mi, labels) and mi.urn == urn
-
-  def assert_has_counter(
-      self, monitoring_infos, urn, labels, value=None, ge_value=None):
-    # TODO(ajamato): Consider adding a matcher framework
-    found = 0
-    for mi in monitoring_infos:
-      if self.has_urn_and_labels(mi, urn, labels):
-        if ge_value is not None:
-          if mi.metric.counter_data.int64_value >= ge_value:
-            found = found + 1
-        elif value is not None:
-          if mi.metric.counter_data.int64_value == value:
-            found = found + 1
-        else:
-          found = found + 1
-    ge_value_str = {'ge_value' : ge_value} if ge_value else ''
-    value_str = {'value' : value} if value else ''
-    self.assertEqual(
-        1, found, "Found (%s) Expected only 1 monitoring_info for %s." %
-        (found, (urn, labels, value_str, ge_value_str),))
-
-  def assert_has_distribution(
-      self, monitoring_infos, urn, labels,
-      sum=None, count=None, min=None, max=None):
-    # TODO(ajamato): Consider adding a matcher framework
-    sum = _matcher_or_equal_to(sum)
-    count = _matcher_or_equal_to(count)
-    min = _matcher_or_equal_to(min)
-    max = _matcher_or_equal_to(max)
-    found = 0
-    description = StringDescription()
-    for mi in monitoring_infos:
-      if self.has_urn_and_labels(mi, urn, labels):
-        int_dist = mi.metric.distribution_data.int_distribution_data
-        increment = 1
-        if sum is not None:
-          description.append_text(' sum: ')
-          sum.describe_to(description)
-          if not sum.matches(int_dist.sum):
-            increment = 0
-        if count is not None:
-          description.append_text(' count: ')
-          count.describe_to(description)
-          if not count.matches(int_dist.count):
-            increment = 0
-        if min is not None:
-          description.append_text(' min: ')
-          min.describe_to(description)
-          if not min.matches(int_dist.min):
-            increment = 0
-        if max is not None:
-          description.append_text(' max: ')
-          max.describe_to(description)
-          if not max.matches(int_dist.max):
-            increment = 0
-        found += increment
-    self.assertEqual(
-        1, found, "Found (%s) Expected only 1 monitoring_info for %s." %
-        (found, (urn, labels, str(description)),))
 
   def create_pipeline(self):
     return beam.Pipeline(runner=fn_api_runner.FnApiRunner())
@@ -689,6 +629,121 @@ class FnApiRunnerTest(unittest.TestCase):
     self.assertEqual(dist.committed.mean, 2.0)
     self.assertEqual(gaug.committed.value, 3)
 
+  def test_callbacks_with_exception(self):
+    elements_list = ['1', '2']
+
+    def raise_expetion():
+      raise Exception('raise exception when calling callback')
+
+    class FinalizebleDoFnWithException(beam.DoFn):
+
+      def process(
+          self,
+          element,
+          bundle_finalizer=beam.DoFn.BundleFinalizerParam):
+        bundle_finalizer.register(raise_expetion)
+        yield element
+
+    with self.create_pipeline() as p:
+      res = (p
+             | beam.Create(elements_list)
+             | beam.ParDo(FinalizebleDoFnWithException()))
+      assert_that(res, equal_to(['1', '2']))
+
+  def test_register_finalizations(self):
+    event_recorder = EventRecorder(tempfile.gettempdir())
+    elements_list = ['2', '1']
+
+    class FinalizableDoFn(beam.DoFn):
+      def process(
+          self,
+          element,
+          bundle_finalizer=beam.DoFn.BundleFinalizerParam):
+        bundle_finalizer.register(lambda: event_recorder.record(element))
+        yield element
+
+    with self.create_pipeline() as p:
+      res = (p
+             | beam.Create(elements_list)
+             | beam.ParDo(FinalizableDoFn()))
+
+      assert_that(res, equal_to(elements_list))
+
+    results = event_recorder.events()
+    event_recorder.cleanup()
+    self.assertEqual(results, sorted(elements_list))
+
+
+# These tests are kept in a separate group so that they are
+# not ran in he FnApiRunnerTestWithBundleRepeat which repeats
+# bundle processing. This breaks the byte sampling metrics as
+# it makes the probability of sampling far too small
+# upon repeating bundle processing due to unncessarily incrementing
+# the sampling counter.
+class FnApiRunnerMetricsTest(unittest.TestCase):
+
+  def assert_has_counter(
+      self, monitoring_infos, urn, labels, value=None, ge_value=None):
+    # TODO(ajamato): Consider adding a matcher framework
+    found = 0
+    for mi in monitoring_infos:
+      if has_urn_and_labels(mi, urn, labels):
+        if ge_value is not None:
+          if mi.metric.counter_data.int64_value >= ge_value:
+            found = found + 1
+        elif value is not None:
+          if mi.metric.counter_data.int64_value == value:
+            found = found + 1
+        else:
+          found = found + 1
+    ge_value_str = {'ge_value' : ge_value} if ge_value else ''
+    value_str = {'value' : value} if value else ''
+    self.assertEqual(
+        1, found, "Found (%s) Expected only 1 monitoring_info for %s." %
+        (found, (urn, labels, value_str, ge_value_str),))
+
+  def assert_has_distribution(
+      self, monitoring_infos, urn, labels,
+      sum=None, count=None, min=None, max=None):
+    # TODO(ajamato): Consider adding a matcher framework
+    sum = _matcher_or_equal_to(sum)
+    count = _matcher_or_equal_to(count)
+    min = _matcher_or_equal_to(min)
+    max = _matcher_or_equal_to(max)
+    found = 0
+    description = StringDescription()
+    for mi in monitoring_infos:
+      if has_urn_and_labels(mi, urn, labels):
+        int_dist = mi.metric.distribution_data.int_distribution_data
+        increment = 1
+        if sum is not None:
+          description.append_text(' sum: ')
+          sum.describe_to(description)
+          if not sum.matches(int_dist.sum):
+            increment = 0
+        if count is not None:
+          description.append_text(' count: ')
+          count.describe_to(description)
+          if not count.matches(int_dist.count):
+            increment = 0
+        if min is not None:
+          description.append_text(' min: ')
+          min.describe_to(description)
+          if not min.matches(int_dist.min):
+            increment = 0
+        if max is not None:
+          description.append_text(' max: ')
+          max.describe_to(description)
+          if not max.matches(int_dist.max):
+            increment = 0
+        found += increment
+    self.assertEqual(
+        1, found, "Found (%s) Expected only 1 monitoring_info for %s." %
+        (found, (urn, labels, str(description)),))
+  
+  def create_pipeline(self):
+    return beam.Pipeline(runner=fn_api_runner.FnApiRunner())
+
   def test_element_count_metrics(self):
     class GenerateTwoOutputs(beam.DoFn):
       def process(self, element):
@@ -731,6 +786,9 @@ class FnApiRunnerTest(unittest.TestCase):
     result_metrics = res.monitoring_metrics()
 
     counters = result_metrics.monitoring_infos()
+    print("ajamato returned monitoring_info LEN %d" % len(counters))
+    for mi in counters:
+      print("ajamato returned monitoring_info %s" % mi)
     # All element count and byte count metrics must have a PCOLLECTION_LABEL.
     self.assertFalse([x for x in counters if
                       x.urn in [monitoring_infos.ELEMENT_COUNT_URN,
@@ -983,50 +1041,6 @@ class FnApiRunnerTest(unittest.TestCase):
     except:
       print(res._monitoring_infos_by_stage)
       raise
-
-  def test_callbacks_with_exception(self):
-    elements_list = ['1', '2']
-
-    def raise_expetion():
-      raise Exception('raise exception when calling callback')
-
-    class FinalizebleDoFnWithException(beam.DoFn):
-
-      def process(
-          self,
-          element,
-          bundle_finalizer=beam.DoFn.BundleFinalizerParam):
-        bundle_finalizer.register(raise_expetion)
-        yield element
-
-    with self.create_pipeline() as p:
-      res = (p
-             | beam.Create(elements_list)
-             | beam.ParDo(FinalizebleDoFnWithException()))
-      assert_that(res, equal_to(['1', '2']))
-
-  def test_register_finalizations(self):
-    event_recorder = EventRecorder(tempfile.gettempdir())
-    elements_list = ['2', '1']
-
-    class FinalizableDoFn(beam.DoFn):
-      def process(
-          self,
-          element,
-          bundle_finalizer=beam.DoFn.BundleFinalizerParam):
-        bundle_finalizer.register(lambda: event_recorder.record(element))
-        yield element
-
-    with self.create_pipeline() as p:
-      res = (p
-             | beam.Create(elements_list)
-             | beam.ParDo(FinalizableDoFn()))
-
-      assert_that(res, equal_to(elements_list))
-
-    results = event_recorder.events()
-    event_recorder.cleanup()
-    self.assertEqual(results, sorted(elements_list))
 
 
 class FnApiRunnerTestWithGrpc(FnApiRunnerTest):
@@ -1364,5 +1378,7 @@ class ExpandStringsProvider(beam.transforms.core.RestrictionProvider):
 
 
 if __name__ == '__main__':
+  import sys
+  logging.basicConfig(stream=sys.stdout, level=logging.DEBUG)
   logging.getLogger().setLevel(logging.INFO)
   unittest.main()

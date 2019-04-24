@@ -308,6 +308,7 @@ class Operation(object):
           ptransform=transform_id,
           tag='ONLY_OUTPUT' if len(self.receivers) == 1 else str(None),
       )
+      print("ajamato_produce pcollection_count_monitoring_infos() %s_ %s_ %s_" % (transform_id, sampled_byte_count, metric))
       return {
           monitoring_infos.to_key(elem_count_mi) : elem_count_mi,
           monitoring_infos.to_key(sampled_byte_count) : sampled_byte_count
@@ -650,6 +651,7 @@ class DoOperation(Operation):
             ptransform=transform_id,
             tag=str(tag)
         )
+        print("ajamato_produce monitoring_infos() %s_ %s_ %s_." % (transform_id, sampled_byte_count, metric))
         infos[monitoring_infos.to_key(sampled_byte_count)] = sampled_byte_count
     return infos
 

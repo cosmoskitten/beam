@@ -16,7 +16,7 @@
 #
 
 # cython: language_level=3
-# cython: profile=True
+# cython: profile=Trueconsolidate
 
 from __future__ import absolute_import
 
@@ -31,9 +31,7 @@ from apache_beam.metrics.cells import DistributionResult
 from apache_beam.metrics.cells import GaugeData
 from apache_beam.metrics.cells import GaugeResult
 from apache_beam.portability import common_urns
-from apache_beam.portability.api.metrics_pb2 import CounterData
-from apache_beam.portability.api.metrics_pb2 import Metric
-from apache_beam.portability.api.metrics_pb2 import MonitoringInfo
+from apache_beam.portability.api import metrics_pb2
 
 SAMPLED_BYTE_SIZE_URN = (
     common_urns.monitoring_info_specs.SAMPLED_BYTE_SIZE.spec.urn)
@@ -143,8 +141,8 @@ def int64_user_counter(namespace, name, metric, ptransform=None, tag=None):
   labels = create_labels(ptransform=ptransform, tag=tag, namespace=namespace,
                          name=name)
   if isinstance(metric, int):
-    metric = Metric(
-        counter_data=CounterData(
+    metric = metrics_pb2.Metric(
+        counter_data=metrics_pb2.CounterData(
             int64_value=metric
         )
     )
@@ -164,8 +162,8 @@ def int64_counter(urn, metric, ptransform=None, tag=None):
   """
   labels = create_labels(ptransform=ptransform, tag=tag)
   if isinstance(metric, int):
-    metric = Metric(
-        counter_data=CounterData(
+    metric = metrics_pb2.Metric(
+        counter_data=metrics_pb2.CounterData(
             int64_value=metric
         )
     )
@@ -230,7 +228,7 @@ def create_monitoring_info(urn, type_urn, metric_proto, labels=None):
         Or an int value.
     labels: The label dictionary to use in the MonitoringInfo.
   """
-  return MonitoringInfo(
+  return metrics_pb2.MonitoringInfo(
       urn=urn,
       type=type_urn,
       labels=labels or dict(),
@@ -312,12 +310,26 @@ def to_key(monitoring_info_proto):
   return frozenset(key_items)
 
 
+def distribution_combiner(metric_a, metric_b):
+  a_data = metric_a.distribution_data.int_distribution_data
+  b_data = metric_b.distribution_data.int_distribution_data
+  print("ajamato distribution_combiner")
+  return metrics_pb2.Metric(
+    distribution_data=metrics_pb2.DistributionData(
+      int_distribution_data=metrics_pb2.IntDistributionData(
+          count=a_data.count + b_data.count,
+          sum=a_data.sum + b_data.sum,
+          min=min(a_data.min, b_data.min),
+          max=max(a_data.max, b_data.max)
+      )))
+
+
 _KNOWN_COMBINERS = {
-    SUM_INT64_TYPE: lambda a, b: Metric(
-        counter_data=CounterData(
+    SUM_INT64_TYPE: lambda a, b: metrics_pb2.Metric(
+        counter_data=metrics_pb2.CounterData(
             int64_value=
             a.counter_data.int64_value + b.counter_data.int64_value)),
-    # TODO: Distributions, etc.
+    DISTRIBUTION_INT64_TYPE: distribution_combiner,
 }
 
 
@@ -338,9 +350,10 @@ def consolidate(metrics, key=to_key):
     else:
       combiner = _KNOWN_COMBINERS.get(values[0].type)
       if combiner:
+        print("ajamato KNOWN COMBINER")
         def merge(a, b):
           # pylint: disable=cell-var-from-loop
-          return MonitoringInfo(
+          return metrics_pb2.MonitoringInfo(
               urn=a.urn,
               type=a.type,
               labels=dict((label, value) for label, value in a.labels.items()
@@ -349,5 +362,8 @@ def consolidate(metrics, key=to_key):
               timestamp=max_timestamp(a.timestamp, b.timestamp))
         yield reduce(merge, values)
       else:
+        print("ajamato UNKNOWN COMBINER")
+        # TODO should we warn about the bug here? Ask pablo.
+        # The monitoring infos will not be combined.
         for value in values:
           yield value

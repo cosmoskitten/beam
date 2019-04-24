@@ -191,9 +191,12 @@ class OperationCounters(object):
     self._next_sample = 0
 
   def update_from(self, windowed_value):
-    """Add one value to this counter."""
+    """Add one value to this counter."""      
     if self._should_sample():
+      #print("ajamato sample %s" % self.mean_byte_counter)
       self.do_sample(windowed_value)
+    #else:
+      #print("ajamato NO SAMPLE %s" % self.mean_byte_counter)
 
   def _observable_callback(self, inner_coder_impl, accumulator):
     def _observable_callback_inner(value, is_encoded=False):
@@ -230,11 +233,15 @@ class OperationCounters(object):
     """
     self.element_counter.update(1)
     if self.current_size is not None:
+      #print("ajamato update current_size  %s " % self.mean_byte_counter)
       self.mean_byte_counter.update(self.current_size)
       self.current_size = None
     elif self.active_accumulator is not None:
+      #print("ajamato update active_accumulator %s " % self.mean_byte_counter)
       self.mean_byte_counter.update(self.active_accumulator.value())
       self.active_accumulator = None
+    #else:
+      #print("ajamato do not update %s " % self.mean_byte_counter)
 
   def _compute_next_sample(self, i):
     # https://en.wikipedia.org/wiki/Reservoir_sampling#Fast_Approximation
