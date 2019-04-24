@@ -93,10 +93,6 @@ def generate_proto_files(force=False):
             'not installed. Please install this package manually '
             'using \'pip install grpcio-tools\'.')
 
-      # copy resource files
-      for path in MODEL_RESOURCES:
-        shutil.copy2(os.path.join(py_sdk_root, path), out_dir)
-
       # Use a subprocess to avoid messing with this process' path and imports.
       # Note that this requires a separate module from setup.py for Windows:
       # https://docs.python.org/2/library/multiprocessing.html#windows
@@ -122,6 +118,10 @@ def generate_proto_files(force=False):
         raise RuntimeError(
             'Protoc returned non-zero status (see logs for details): '
             '%s' % ret_code)
+
+    # copy resource files
+    for path in MODEL_RESOURCES:
+      shutil.copy2(os.path.join(py_sdk_root, path), out_dir)
 
     ret_code = subprocess.call(["pip", "install", "future==0.16.0"])
     if ret_code:
