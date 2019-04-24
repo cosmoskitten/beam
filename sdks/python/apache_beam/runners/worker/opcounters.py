@@ -191,7 +191,7 @@ class OperationCounters(object):
     self._next_sample = 0
 
   def update_from(self, windowed_value):
-    """Add one value to this counter."""      
+    """Add one value to this counter."""
     if self._should_sample():
       self.do_sample(windowed_value)
 

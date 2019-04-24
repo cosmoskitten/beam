@@ -314,13 +314,12 @@ def distribution_combiner(metric_a, metric_b):
   a_data = metric_a.distribution_data.int_distribution_data
   b_data = metric_b.distribution_data.int_distribution_data
   return metrics_pb2.Metric(
-    distribution_data=metrics_pb2.DistributionData(
-      int_distribution_data=metrics_pb2.IntDistributionData(
-          count=a_data.count + b_data.count,
-          sum=a_data.sum + b_data.sum,
-          min=min(a_data.min, b_data.min),
-          max=max(a_data.max, b_data.max)
-      )))
+      distribution_data=metrics_pb2.DistributionData(
+          int_distribution_data=metrics_pb2.IntDistributionData(
+              count=a_data.count + b_data.count,
+              sum=a_data.sum + b_data.sum,
+              min=min(a_data.min, b_data.min),
+              max=max(a_data.max, b_data.max))))
 
 
 _KNOWN_COMBINERS = {

@@ -384,6 +384,7 @@ class FnApiRunner(runner.PipelineRunner):
     context = pipeline_context.PipelineContext(
         pipeline_components, iterable_state_write=iterable_state_write)
     data_api_service_descriptor = controller.data_api_service_descriptor()
+
     def extract_endpoints(stage):
       # Returns maps of transform names to PCollection identifiers.
       # Also mutates IO stages to point to the data ApiServiceDescriptor.

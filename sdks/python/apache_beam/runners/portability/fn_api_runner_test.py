@@ -67,6 +67,7 @@ def _matcher_or_equal_to(value_or_matcher):
     return value_or_matcher
   return hamcrest.equal_to(value_or_matcher)
 
+
 def has_urn_and_labels(mi, urn, labels):
   def contains_labels(monitoring_info, labels):
     # Check all the labels and their values exist in the monitoring_info
@@ -74,6 +75,7 @@ def has_urn_and_labels(mi, urn, labels):
                 x[0] in monitoring_info.labels and monitoring_info.labels[
                     x[0]] == x[1]]) == len(labels)
   return contains_labels(mi, labels) and mi.urn == urn
+
 
 class FnApiRunnerTest(unittest.TestCase):
 
@@ -740,7 +742,7 @@ class FnApiRunnerMetricsTest(unittest.TestCase):
     self.assertEqual(
         1, found, "Found (%s) Expected only 1 monitoring_info for %s." %
         (found, (urn, labels, str(description)),))
-  
+
   def create_pipeline(self):
     return beam.Pipeline(runner=fn_api_runner.FnApiRunner())
 
@@ -1378,7 +1380,5 @@ class ExpandStringsProvider(beam.transforms.core.RestrictionProvider):
 
 
 if __name__ == '__main__':
-  import sys
-  logging.basicConfig(stream=sys.stdout, level=logging.DEBUG)
   logging.getLogger().setLevel(logging.INFO)
   unittest.main()
