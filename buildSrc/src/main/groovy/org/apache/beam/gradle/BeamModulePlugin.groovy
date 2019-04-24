@@ -21,6 +21,7 @@ package org.apache.beam.gradle
 import com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar
 import groovy.json.JsonOutput
 import groovy.json.JsonSlurper
+import java.util.concurrent.atomic.AtomicInteger
 import org.gradle.api.GradleException
 import org.gradle.api.Plugin
 import org.gradle.api.Project
@@ -71,6 +72,7 @@ class BeamModulePlugin implements Plugin<Project> {
  * limitations under the License.
  */
 """
+  static AtomicInteger startingExpansionPortNumber = new AtomicInteger(18091)
 
   /** A class defining the set of configurable properties accepted by applyJavaNature. */
   class JavaNatureConfiguration {
@@ -233,6 +235,24 @@ class BeamModulePlugin implements Plugin<Project> {
     String itModule = System.getProperty('itModule')
   }
 
+  // Reads and contains all necessary performance test parameters
+  class PythonPerformanceTestConfiguration {
+    // Fully qualified name of the test to run.
+    String tests = System.getProperty('tests')
+
+    // Attribute tag that can filter the test set.
+    String attribute = System.getProperty('attr')
+
+    // Extra test options pass to nose.
+    String[] extraTestOptions = ["--nocapture"]
+
+    // Name of Cloud KMS encryption key to use in some tests.
+    String kmsKeyName = System.getProperty('kmsKeyName')
+
+    // Pipeline options to be used for pipeline invocation.
+    String pipelineOptions = System.getProperty('pipelineOptions', '')
+  }
+
   // A class defining the set of configurable properties accepted by containerImageName.
   class ContainerImageNameConfiguration {
     String root = null // Sets the docker repository root (optional).
@@ -263,6 +283,8 @@ class BeamModulePlugin implements Plugin<Project> {
     }
     // Configuration for the classpath when running the test.
     Configuration testClasspathConfiguration
+    // Additional system properties.
+    Properties systemProperties = []
 
     enum Environment {
       DOCKER,   // Docker-based Harness execution
@@ -346,6 +368,7 @@ class BeamModulePlugin implements Plugin<Project> {
     def cassandra_driver_version = "3.6.0"
     def generated_grpc_beta_version = "0.44.0"
     def generated_grpc_ga_version = "1.43.0"
+    def generated_grpc_dc_beta_version = "0.1.0-alpha"
     def google_auth_version = "0.12.0"
     def google_clients_version = "1.27.0"
     def google_cloud_bigdataoss_version = "1.9.16"
@@ -354,7 +377,7 @@ class BeamModulePlugin implements Plugin<Project> {
     def grpc_version = "1.17.1"
     def guava_version = "20.0"
     def hadoop_version = "2.7.3"
-    def hamcrest_version = "1.3"
+    def hamcrest_version = "2.1"
     def jackson_version = "2.9.8"
     def jaxb_api_version = "2.2.12"
     def kafka_version = "1.0.0"
@@ -439,6 +462,7 @@ class BeamModulePlugin implements Plugin<Project> {
         grpc_all                                    : "io.grpc:grpc-all:$grpc_version",
         grpc_auth                                   : "io.grpc:grpc-auth:$grpc_version",
         grpc_core                                   : "io.grpc:grpc-core:$grpc_version",
+        grpc_google_cloud_datacatalog_v1beta1       : "com.google.api.grpc:grpc-google-cloud-datacatalog-v1beta1:$generated_grpc_dc_beta_version",
         grpc_google_cloud_pubsub_v1                 : "com.google.api.grpc:grpc-google-cloud-pubsub-v1:$generated_grpc_ga_version",
         grpc_protobuf                               : "io.grpc:grpc-protobuf:$grpc_version",
         grpc_protobuf_lite                          : "io.grpc:grpc-protobuf-lite:$grpc_version",
@@ -477,6 +501,7 @@ class BeamModulePlugin implements Plugin<Project> {
         powermock                                   : "org.powermock:powermock-mockito-release-full:1.6.4",
         protobuf_java                               : "com.google.protobuf:protobuf-java:$protobuf_version",
         protobuf_java_util                          : "com.google.protobuf:protobuf-java-util:$protobuf_version",
+        proto_google_cloud_datacatalog_v1beta1      : "com.google.api.grpc:proto-google-cloud-datacatalog-v1beta1:$generated_grpc_dc_beta_version",
         proto_google_cloud_pubsub_v1                : "com.google.api.grpc:proto-google-cloud-pubsub-v1:$generated_grpc_ga_version",
         proto_google_cloud_spanner_admin_database_v1: "com.google.api.grpc:proto-google-cloud-spanner-admin-database-v1:$google_cloud_spanner_version",
         proto_google_common_protos                  : "com.google.api.grpc:proto-google-common-protos:$proto_google_common_protos_version",
@@ -1545,6 +1570,7 @@ class BeamModulePlugin implements Plugin<Project> {
        */
       project.evaluationDependsOn(":beam-sdks-java-core")
       project.evaluationDependsOn(":beam-runners-core-java")
+      project.evaluationDependsOn(":beam-runners-core-construction-java")
       def config = it ? it as PortableValidatesRunnerConfiguration : new PortableValidatesRunnerConfiguration()
       def name = config.name
       def beamTestPipelineOptions = [
@@ -1552,6 +1578,8 @@ class BeamModulePlugin implements Plugin<Project> {
         "--jobServerDriver=${config.jobServerDriver}",
         "--environmentCacheMillis=10000"
       ]
+      def expansionPort = startingExpansionPortNumber.getAndDecrement()
+      config.systemProperties.put("expansionPort", expansionPort)
       beamTestPipelineOptions.addAll(config.pipelineOpts)
       if (config.environment == PortableValidatesRunnerConfiguration.Environment.EMBEDDED) {
         beamTestPipelineOptions += "--defaultEnvironmentType=EMBEDDED"
@@ -1559,12 +1587,13 @@ class BeamModulePlugin implements Plugin<Project> {
       if (config.jobServerConfig) {
         beamTestPipelineOptions.add("--jobServerConfig=${config.jobServerConfig}")
       }
+      config.systemProperties.put("beamTestPipelineOptions", JsonOutput.toJson(beamTestPipelineOptions))
       project.tasks.create(name: name, type: Test) {
         group = "Verification"
         description = "Validates the PortableRunner with JobServer ${config.jobServerDriver}"
-        systemProperty "beamTestPipelineOptions", JsonOutput.toJson(beamTestPipelineOptions)
+        systemProperties config.systemProperties
         classpath = config.testClasspathConfiguration
-        testClassesDirs = project.files(project.project(":beam-sdks-java-core").sourceSets.test.output.classesDirs, project.project(":beam-runners-core-java").sourceSets.test.output.classesDirs)
+        testClassesDirs = project.files(project.project(":beam-sdks-java-core").sourceSets.test.output.classesDirs, project.project(":beam-runners-core-java").sourceSets.test.output.classesDirs, project.project(":beam-runners-core-construction-java").sourceSets.test.output.classesDirs)
         maxParallelForks config.numParallelTests
         useJUnit(config.testCategories)
         // increase maxHeapSize as this is directly correlated to direct memory,
@@ -1720,6 +1749,45 @@ class BeamModulePlugin implements Plugin<Project> {
           }
           inputs.files pythonSdkDeps
           outputs.files project.fileTree(dir: "${pythonRootDir}/target/.tox/${tox_env}/log/")
+        }
+      }
+
+      // Run single or a set of integration tests with provided test options and pipeline options.
+      project.ext.enablePythonPerformanceTest = {
+
+        // Use the implicit it parameter of the closure to handle zero argument or one argument map calls.
+        // See: http://groovy-lang.org/closures.html#implicit-it
+        def config = it ? it as PythonPerformanceTestConfiguration : new PythonPerformanceTestConfiguration()
+
+        project.task('integrationTest') {
+          dependsOn 'installGcpTest'
+          dependsOn 'sdist'
+
+          doLast {
+            def argMap = [:]
+
+            // Build test options that configures test environment and framework
+            def testOptions = []
+            if (config.tests)
+              testOptions += "--tests=$config.tests"
+            if (config.attribute)
+              testOptions += "--attr=$config.attribute"
+            testOptions.addAll(config.extraTestOptions)
+            argMap["test_opts"] = testOptions
+
+            // Build pipeline options that configures pipeline job
+            if (config.pipelineOptions)
+              argMap["pipeline_opts"] = config.pipelineOptions
+            if (config.kmsKeyName)
+              argMap["kms_key_name"] = config.kmsKeyName
+
+            def cmdArgs = project.mapToArgString(argMap)
+            def runScriptsDir = "${pythonRootDir}/scripts"
+            project.exec {
+              executable 'sh'
+              args '-c', ". ${project.ext.envdir}/bin/activate && ${runScriptsDir}/run_integration_test.sh ${cmdArgs}"
+            }
+          }
         }
       }
     }
