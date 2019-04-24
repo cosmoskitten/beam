@@ -16,7 +16,7 @@
 #
 
 # cython: language_level=3
-# cython: profile=Trueconsolidate
+# cython: profile=True
 
 from __future__ import absolute_import
 
@@ -313,7 +313,6 @@ def to_key(monitoring_info_proto):
 def distribution_combiner(metric_a, metric_b):
   a_data = metric_a.distribution_data.int_distribution_data
   b_data = metric_b.distribution_data.int_distribution_data
-  print("ajamato distribution_combiner")
   return metrics_pb2.Metric(
     distribution_data=metrics_pb2.DistributionData(
       int_distribution_data=metrics_pb2.IntDistributionData(
@@ -350,7 +349,6 @@ def consolidate(metrics, key=to_key):
     else:
       combiner = _KNOWN_COMBINERS.get(values[0].type)
       if combiner:
-        print("ajamato KNOWN COMBINER")
         def merge(a, b):
           # pylint: disable=cell-var-from-loop
           return metrics_pb2.MonitoringInfo(
@@ -362,7 +360,6 @@ def consolidate(metrics, key=to_key):
               timestamp=max_timestamp(a.timestamp, b.timestamp))
         yield reduce(merge, values)
       else:
-        print("ajamato UNKNOWN COMBINER")
         # TODO should we warn about the bug here? Ask pablo.
         # The monitoring infos will not be combined.
         for value in values:
