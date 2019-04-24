@@ -369,7 +369,6 @@ class FnApiRunner(runner.PipelineRunner):
       stage,
       pcoll_buffers,
       safe_coders):
-    print("ajamato run_stage 0")
     def iterable_state_write(values, element_coder_impl):
       token = unique_name(None, 'iter').encode('ascii')
       out = create_OutputStream()
@@ -385,7 +384,6 @@ class FnApiRunner(runner.PipelineRunner):
     context = pipeline_context.PipelineContext(
         pipeline_components, iterable_state_write=iterable_state_write)
     data_api_service_descriptor = controller.data_api_service_descriptor()
-    print("ajamato run_stage 1")
     def extract_endpoints(stage):
       # Returns maps of transform names to PCollection identifiers.
       # Also mutates IO stages to point to the data ApiServiceDescriptor.
@@ -423,7 +421,7 @@ class FnApiRunner(runner.PipelineRunner):
             data_side_input[transform.unique_name, tag] = (
                 create_buffer_id(transform.inputs[tag]), si.access_pattern)
       return data_input, data_side_input, data_output
-    print("ajamato run_stage 2")
+
     logging.info('Running %s', stage.name)
     logging.debug('       %s', stage)
     data_input, data_side_input, data_output = extract_endpoints(stage)
@@ -441,7 +439,7 @@ class FnApiRunner(runner.PipelineRunner):
     if controller.state_api_service_descriptor():
       process_bundle_descriptor.state_api_service_descriptor.url = (
           controller.state_api_service_descriptor().url)
-    print("ajamato run_stage 3")
+
     # Store the required side inputs into state.
     for (transform_id, tag), (buffer_id, si) in data_side_input.items():
       _, pcoll_id = split_buffer_id(buffer_id)
@@ -458,7 +456,7 @@ class FnApiRunner(runner.PipelineRunner):
                 window=window,
                 key=key))
         controller.state.blocking_append(state_key, elements_data)
-    print("ajamato run_stage 4")
+
     def get_buffer(buffer_id):
       kind, name = split_buffer_id(buffer_id)
       if kind in ('materialize', 'timers'):
@@ -487,17 +485,16 @@ class FnApiRunner(runner.PipelineRunner):
         # but special side input writes may go here.
         raise NotImplementedError(buffer_id)
       return pcoll_buffers[buffer_id]
-    print("ajamato run_stage 5")
+
     def get_input_coder_impl(transform_id):
       return context.coders[safe_coders[
           beam_fn_api_pb2.RemoteGrpcPort.FromString(
               process_bundle_descriptor.transforms[transform_id].spec.payload
           ).coder_id
       ]].get_impl()
-    print("ajamato run_stage 6")
+
     for k in range(self._bundle_repeat):
       try:
-        print("ajamato fn_api_runner call process_bundle repeat %d" % k)
         controller.state.checkpoint()
         # TODO take these results here
         BundleManager(
@@ -511,7 +508,7 @@ class FnApiRunner(runner.PipelineRunner):
         controller, get_buffer, get_input_coder_impl, process_bundle_descriptor,
         self._progress_frequency).process_bundle(
             data_input, data_output)
-    print("ajamato run_stage 7")
+
     def input_for(ptransform_id, input_id):
       input_pcoll = process_bundle_descriptor.transforms[
           ptransform_id].inputs[input_id]
@@ -524,9 +521,7 @@ class FnApiRunner(runner.PipelineRunner):
 
     last_result = result
     last_sent = data_input
-    print("ajamato run_stage 8")
     while True:
-      print("ajamato fn_api_runner loop 0")
       deferred_inputs = collections.defaultdict(list)
       for transform_id, timer_writes in stage.timer_pcollections:
 
@@ -554,7 +549,6 @@ class FnApiRunner(runner.PipelineRunner):
                 windowed_key_timer, out, True)
           deferred_inputs[transform_id, 'out'] = [out.get()]
           written_timers[:] = []
-      print("ajamato fn_api_runner loop 1")
 
       # Queue any process-initiated delayed bundle applications.
       for delayed_application in last_result.process_bundle.residual_roots:
@@ -565,7 +559,6 @@ class FnApiRunner(runner.PipelineRunner):
         ].append(delayed_application.application.element)
 
       # Queue any runner-initiated delayed bundle applications.
-      print("ajamato fn_api_runner loop 2")
       prev_stops = {}
       for split in splits:
         for delayed_application in split.residual_roots:
@@ -600,7 +593,7 @@ class FnApiRunner(runner.PipelineRunner):
                     coder_impl.encode_all(residual_elements))
           prev_stops[
               channel_split.ptransform_id] = channel_split.last_primary_element
-      print("ajamato fn_api_runner loop 3")
+
       if deferred_inputs:
         # The worker will be waiting on these inputs as well.
         for other_input in data_input:
@@ -615,7 +608,7 @@ class FnApiRunner(runner.PipelineRunner):
             self._progress_frequency,
             True).process_bundle(deferred_inputs, data_output)
         last_sent = deferred_inputs
-        print("ajamato fn_api_runner call monitoring_infos.consolidate")
+
         result = beam_fn_api_pb2.InstructionResponse(
             process_bundle=beam_fn_api_pb2.ProcessBundleResponse(
                 monitoring_infos=monitoring_infos.consolidate(
@@ -624,10 +617,7 @@ class FnApiRunner(runner.PipelineRunner):
                         last_result.process_bundle.monitoring_infos))),
             error=result.error or last_result.error)
       else:
-        print("ajamato fn_api_runner break")
         break
-    print("ajamato run_stage 9 return")
-    print("ajamato fn_api_runner return")
     return result
 
   # These classes are used to interact with the worker.
@@ -1179,7 +1169,6 @@ class BundleManager(object):
 
   def process_bundle(self, inputs, expected_outputs):
     # Unique id for the instruction processing this bundle.
-    print("ajamato process_bundle0")
     BundleManager._uid_counter += 1
     process_bundle_id = 'bundle_%s' % BundleManager._uid_counter
 
@@ -1193,7 +1182,7 @@ class BundleManager(object):
       registration_future = self._controller.control_handler.push(
           process_bundle_registration)
       self._registered = True
-    print("ajamato process_bundle1")
+
     unique_names = set(
         t.unique_name for t in self._bundle_descriptor.transforms.values())
     for stage_name, candidate in reversed(_split_managers):
@@ -1203,7 +1192,7 @@ class BundleManager(object):
         break
     else:
       split_manager = None
-    print("ajamato process_bundle3")
+
     if not split_manager:
       # Write all the input data to the channel immediately.
       for (transform_id, name), elements in inputs.items():
@@ -1215,7 +1204,7 @@ class BundleManager(object):
         data_out.close()
 
     split_results = []
-    print("ajamato process_bundle4")
+
     # Actually start the bundle.
     if registration_future and registration_future.get().error:
       raise RuntimeError(registration_future.get().error)
@@ -1225,7 +1214,6 @@ class BundleManager(object):
             process_bundle_descriptor_reference=self._bundle_descriptor.id))
     result_future = self._controller.control_handler.push(process_bundle)
 
-    print("ajamato process_bundle5")
     with ProgressRequester(
         self._controller, process_bundle_id, self._progress_frequency):
       if split_manager:
@@ -1249,7 +1237,6 @@ class BundleManager(object):
                 primitive_transform_reference=read_transform_id, name=name))
         data_out.write(b''.join(buffer_data))
         data_out.close()
-        print("ajamato process_bundle6")
 
         # Execute the requested splits.
         while not done:
@@ -1287,14 +1274,13 @@ class BundleManager(object):
           except StopIteration:
             break
 
-      print("ajamato process_bundle7")
       # Gather all output data.
       expected_targets = [
           beam_fn_api_pb2.Target(primitive_transform_reference=transform_id,
                                  name=output_name)
           for (transform_id, output_name), _ in expected_outputs.items()]
       logging.debug('Gather all output data from %s.', expected_targets)
-      print("ajamato process_bundle8")
+
       for output in self._controller.data_plane_handler.input_elements(
           process_bundle_id,
           expected_targets,
@@ -1304,14 +1290,13 @@ class BundleManager(object):
             output.target.primitive_transform_reference, output.target.name)
         if target_tuple in expected_outputs:
           self._get_buffer(expected_outputs[target_tuple]).append(output.data)
-      print("ajamato process_bundle9")
+
       logging.debug('Wait for the bundle to finish.')
       result = result_future.get()
 
     if result.error:
       raise RuntimeError(result.error)
 
-    print("ajamato process_bundle10")
     if result.process_bundle.requires_finalization:
       finalize_request = beam_fn_api_pb2.InstructionRequest(
           finalize_bundle=
@@ -1321,7 +1306,6 @@ class BundleManager(object):
       self._controller.control_handler.push(
           finalize_request)
 
-    print("ajamato process_bundle11")
     return result, split_results
 
 
@@ -1412,18 +1396,12 @@ class FnApiMetrics(metrics.metric.MetricResults):
           continue
         key = self._to_metric_key(mi)
         if monitoring_infos.is_counter(mi):
-          if key in self._counters:
-            print("ajamato_key_exists _counters %s " % key)
           self._counters[key] = (
               monitoring_infos.extract_metric_result_map_value(mi))
         elif monitoring_infos.is_distribution(mi):
-          if key in self._distributions:
-            print("ajamato_key_exists _distributions %s " % key)
           self._distributions[key] = (
               monitoring_infos.extract_metric_result_map_value(mi))
         elif monitoring_infos.is_gauge(mi):
-          if key in self._gauges:
-            print("ajamato_key_exists _gauges %s " % key)
           self._gauges[key] = (
               monitoring_infos.extract_metric_result_map_value(mi))
 
