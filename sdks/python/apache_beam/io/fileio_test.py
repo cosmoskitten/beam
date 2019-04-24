@@ -21,19 +21,28 @@ from __future__ import absolute_import
 
 import csv
 import io
+import json
 import logging
 import sys
 import unittest
 
 from nose.plugins.attrib import attr
+from hamcrest.library.text import stringmatches
 
 import apache_beam as beam
+from apache_beam.options.pipeline_options import PipelineOptions
+from apache_beam.options.pipeline_options import StandardOptions
+from apache_beam.transforms import trigger
+from apache_beam.transforms.window import FixedWindows
 from apache_beam.io import fileio
+from apache_beam.io.filesystems import FileSystems
 from apache_beam.io.filebasedsink_test import _TestCaseWithTempDirCleanUp
 from apache_beam.testing.test_pipeline import TestPipeline
+from apache_beam.testing.test_stream import TestStream
 from apache_beam.testing.test_utils import compute_hash
 from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
+from apache_beam.testing.util import matches_all
 
 
 class MatchTest(_TestCaseWithTempDirCleanUp):
@@ -228,6 +237,295 @@ class MatchIntegrationTest(unittest.TestCase):
       assert_that(checksum_pc,
                   equal_to([self.KINGLEAR_CHECKSUM]),
                   label='Assert Checksums')
+
+
+class WriteFilesTest(_TestCaseWithTempDirCleanUp):
+
+  SIMPLE_COLLECTION = [
+      {'project': 'beam', 'foundation': 'apache'},
+      {'project': 'prometheus', 'foundation': 'cncf'},
+      {'project': 'flink', 'foundation': 'apache'},
+      {'project': 'grpc', 'foundation': 'cncf'},
+      {'project': 'spark', 'foundation': 'apache'},
+      {'project': 'kubernetes', 'foundation': 'cncf'},
+      {'project': 'spark', 'foundation': 'apache'},
+      {'project': 'knative', 'foundation': 'cncf'},
+      {'project': 'linux', 'foundation': 'linux'},
+  ]
+
+  LARGER_COLLECTION = ['{:05d}'.format(i) for i in range(200)]
+
+  CSV_HEADERS = ['project', 'foundation']
+
+  SIMPLE_COLLECTION_VALIDATION_SET = set([
+      (elm['project'], elm['foundation']) for elm in SIMPLE_COLLECTION])
+
+  class CsvSink(fileio.DefaultSink):
+    def __init__(self, headers):
+      self.headers = headers
+
+    def write(self, record):
+      self._fh.write(','.join([record[h] for h in self.headers]))
+      self._fh.write('\n')
+
+  class JsonSink(fileio.DefaultSink):
+
+    def write(self, record):
+      self._fh.write(json.dumps(record))
+      self._fh.write('\n')
+
+  def test_write_to_single_file_batch(self):
+
+    dir = self._new_tempdir()
+
+    with TestPipeline() as p:
+      _ = (p
+           | beam.Create(WriteFilesTest.SIMPLE_COLLECTION)
+           | "Serialize" >> beam.Map(lambda x: '%s\n' % json.dumps(x))
+           | beam.io.fileio.WriteToFiles(path=dir))
+
+    with TestPipeline() as p:
+      result = (p
+                | fileio.MatchFiles('%s/*' % dir)
+                | fileio.ReadMatches()
+                | beam.FlatMap(lambda f: f.read().strip().split('\n')))
+
+      assert_that(result,
+                  equal_to([json.dumps(row) for row in self.SIMPLE_COLLECTION]))
+
+  def test_write_to_different_file_types_some_spilling(self):
+
+    dir = self._new_tempdir()
+
+    with TestPipeline() as p:
+      _ = (p
+           | beam.Create(WriteFilesTest.SIMPLE_COLLECTION)
+           | beam.io.fileio.WriteToFiles(
+               path=dir,
+               destination=lambda record: record['foundation'],
+               sink=lambda dest: (
+                   WriteFilesTest.CsvSink(WriteFilesTest.CSV_HEADERS)
+                   if dest == 'apache' else WriteFilesTest.JsonSink()),
+               file_naming=fileio.destination_prefix_naming(),
+               max_writers_per_bundle=1))
+
+    with TestPipeline() as p:
+      cncf_res = (p
+                  | fileio.MatchFiles('%s/cncf*' % dir)
+                  | fileio.ReadMatches()
+                  | beam.FlatMap(lambda f: f.read().strip().split('\n')))
+
+      apache_res = (p
+                    | "MatchApache" >> fileio.MatchFiles('%s/apache*' % dir)
+                    | "ReadApache" >> fileio.ReadMatches()
+                    | "MapApache" >> beam.FlatMap(
+                        lambda f: csv.reader(f.open())))
+
+      assert_that(cncf_res,
+                  equal_to([json.dumps(row)
+                            for row in self.SIMPLE_COLLECTION
+                            if row['foundation'] == 'cncf']),
+                  label='verifyCNCF')
+
+      assert_that(apache_res,
+                  equal_to([[row['project'], row['foundation']]
+                            for row in self.SIMPLE_COLLECTION
+                            if row['foundation'] == 'apache']),
+                  label='verifyApache')
+
+  def test_write_to_different_file_types(self):
+
+    dir = self._new_tempdir()
+
+    with TestPipeline() as p:
+      _ = (p
+           | beam.Create(WriteFilesTest.SIMPLE_COLLECTION)
+           | beam.io.fileio.WriteToFiles(
+               path=dir,
+               destination=lambda record: record['foundation'],
+               sink=lambda dest: (
+                   WriteFilesTest.CsvSink(WriteFilesTest.CSV_HEADERS)
+                   if dest == 'apache' else WriteFilesTest.JsonSink()),
+               file_naming=fileio.destination_prefix_naming()))
+
+    with TestPipeline() as p:
+      cncf_res = (p
+                  | fileio.MatchFiles('%s/cncf*' % dir)
+                  | fileio.ReadMatches()
+                  | beam.FlatMap(lambda f: f.read().strip().split('\n')))
+
+      apache_res = (p
+                    | "MatchApache" >> fileio.MatchFiles('%s/apache*' % dir)
+                    | "ReadApache" >> fileio.ReadMatches()
+                    | "MapApache" >> beam.FlatMap(
+                        lambda f: csv.reader(f.open())))
+
+      assert_that(cncf_res,
+                  equal_to([json.dumps(row)
+                            for row in self.SIMPLE_COLLECTION
+                            if row['foundation'] == 'cncf']),
+                  label='verifyCNCF')
+
+      assert_that(apache_res,
+                  equal_to([[row['project'], row['foundation']]
+                            for row in self.SIMPLE_COLLECTION
+                            if row['foundation'] == 'apache']),
+                  label='verifyApache')
+
+  def record_dofn(self):
+    class RecordDoFn(beam.DoFn):
+      def process(self, element):
+        WriteFilesTest.all_records.append(element)
+
+    return RecordDoFn()
+
+  def test_streaming_complex_timing(self):
+    # Use state on the TestCase class, since other references would be pickled
+    # into a closure and not have the desired side effects.
+    #
+    # TODO(BEAM-5295): Use assert_that after it works for the cases here in
+    # streaming mode.
+    WriteFilesTest.all_records = []
+
+    dir = self._new_tempdir()
+
+    # Setting up the input (TestStream)
+    ts = TestStream().advance_watermark_to(0)
+    for elm in WriteFilesTest.LARGER_COLLECTION:
+      timestamp = int(elm)
+
+      ts.add_elements([('key', '%s\n' % elm)])
+      if timestamp % 5 == 0 and timestamp != 0:
+        # TODO(BEAM-3759): Add many firings per window after getting PaneInfo.
+        ts.advance_processing_time(5)
+        ts.advance_watermark_to(timestamp)
+
+    # The pipeline that we are testing
+    options = PipelineOptions()
+    options.view_as(StandardOptions).streaming = True
+    with TestPipeline(options=options) as p:
+      res = (p
+             | ts
+             | beam.WindowInto(
+                 FixedWindows(10),
+                 trigger=trigger.AfterWatermark(),
+                 accumulation_mode=trigger.AccumulationMode.DISCARDING)
+             | beam.GroupByKey()
+             | beam.FlatMap(lambda x: x[1]))
+      # Triggering after 5 processing-time seconds, and on the watermark. Also
+      # discarding old elements.
+
+      _ = (res
+           | beam.io.fileio.WriteToFiles(path=dir,
+                                         max_writers_per_bundle=0)
+           | beam.Map(lambda fr: FileSystems.join(dir, fr.file_name))
+           | beam.ParDo(self.record_dofn()))
+
+    # Verification pipeline
+    with TestPipeline() as p:
+      files = (p | beam.io.fileio.MatchFiles(FileSystems.join(dir, '*')))
+
+      file_names = (files | beam.Map(lambda fm: fm.path))
+
+      file_contents = (
+          files
+          | beam.io.fileio.ReadMatches()
+          | beam.Map(lambda rf: (rf.metadata.path, rf.open().readlines())))
+
+      content = (file_contents
+                 | beam.FlatMap(lambda fc: [ln.strip() for ln in fc[1]]))
+
+      assert_that(file_names, equal_to(WriteFilesTest.all_records),
+                  label='AssertFilesMatch')
+      assert_that(content, matches_all(WriteFilesTest.LARGER_COLLECTION),
+                  label='AssertContentsMatch')
+
+  def test_streaming_different_file_types(self):
+    dir = self._new_tempdir()
+    input = iter(WriteFilesTest.SIMPLE_COLLECTION)
+    ts = (TestStream()
+          .advance_watermark_to(0)
+          .add_elements([next(input), next(input)])
+          .advance_watermark_to(10)
+          .add_elements([next(input), next(input)])
+          .advance_watermark_to(20)
+          .add_elements([next(input), next(input)])
+          .advance_watermark_to(30)
+          .add_elements([next(input), next(input)])
+          .advance_watermark_to(40))
+
+    with TestPipeline() as p:
+      _ = (p
+           | ts
+           | beam.WindowInto(FixedWindows(10))
+           | beam.io.fileio.WriteToFiles(
+               path=dir,
+               destination=lambda record: record['foundation'],
+               sink=lambda dest: (
+                   WriteFilesTest.CsvSink(WriteFilesTest.CSV_HEADERS)
+                   if dest == 'apache' else WriteFilesTest.JsonSink()),
+               file_naming=fileio.destination_prefix_naming(),
+               max_writers_per_bundle=0,
+           ))
+
+    with TestPipeline() as p:
+      cncf_files = (p
+                    | fileio.MatchFiles('%s/cncf*' % dir)
+                    | "CncfFileNames" >> beam.Map(lambda fm: fm.path))
+
+      apache_files = (p
+                      | "MatchApache" >> fileio.MatchFiles('%s/apache*' % dir)
+                      | "ApacheFileNames" >> beam.Map(lambda fm: fm.path))
+
+      assert_that(cncf_files,
+                  matches_all([
+                      stringmatches.matches_regexp(
+                          FileSystems.join(
+                              dir,
+                              'cncf-1970-01-01T00:00:00-1970-01-01T00:00:10--.*'
+                          )
+                      ),
+                      stringmatches.matches_regexp(
+                          FileSystems.join(
+                              dir,
+                              'cncf-1970-01-01T00:00:10-1970-01-01T00:00:20--.*'
+                          )
+                      ),
+                      stringmatches.matches_regexp(
+                          FileSystems.join(
+                              dir,
+                              'cncf-1970-01-01T00:00:20-1970-01-01T00:00:30--.*'
+                          )
+                      ),
+                      stringmatches.matches_regexp(
+                          FileSystems.join(
+                              dir,
+                              'cncf-1970-01-01T00:00:30-1970-01-01T00:00:40--.*'
+                          )
+                      )
+                  ]),
+                  label='verifyCNCFFiles')
+
+      assert_that(apache_files,
+                  matches_all([
+                      stringmatches.matches_regexp(FileSystems.join(
+                          dir,
+                          'apache-1970-01-01T00:00:00-1970-01-01T00:00:10--.*')
+                                                  ),
+                      stringmatches.matches_regexp(FileSystems.join(
+                          dir,
+                          'apache-1970-01-01T00:00:10-1970-01-01T00:00:20--.*')
+                                                  ),
+                      stringmatches.matches_regexp(FileSystems.join(
+                          dir,
+                          'apache-1970-01-01T00:00:20-1970-01-01T00:00:30--.*')
+                                                  ),
+                      stringmatches.matches_regexp(FileSystems.join(
+                          dir,
+                          'apache-1970-01-01T00:00:30-1970-01-01T00:00:40--.*')
+                                                  )
+                  ]),
+                  label='verifyApacheFiles')
 
 
 if __name__ == '__main__':
