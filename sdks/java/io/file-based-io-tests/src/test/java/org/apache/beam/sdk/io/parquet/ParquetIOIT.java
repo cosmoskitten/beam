@@ -40,6 +40,7 @@ import org.apache.beam.sdk.io.common.HashingFn;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.testutils.NamedTestResult;
+import org.apache.beam.sdk.testutils.metrics.ByteMonitor;
 import org.apache.beam.sdk.testutils.metrics.IOITMetrics;
 import org.apache.beam.sdk.testutils.metrics.MetricsReader;
 import org.apache.beam.sdk.testutils.metrics.TimeMonitor;
@@ -121,6 +122,7 @@ public class ParquetIOIT {
             .apply(
                 "Gather write start times",
                 ParDo.of(new TimeMonitor<>(PARQUET_NAMESPACE, "writeStart")))
+            .apply(ParDo.of(new ByteMonitor<>(PARQUET_NAMESPACE, "writeBytes")))
             .apply(
                 "Write Parquet files",
                 FileIO.<GenericRecord>write().via(ParquetIO.sink(SCHEMA)).to(filenamePrefix))
@@ -137,6 +139,7 @@ public class ParquetIOIT {
             .apply(
                 "Gather read start time",
                 ParDo.of(new TimeMonitor<>(PARQUET_NAMESPACE, "readStart")))
+            .apply(ParDo.of(new ByteMonitor<>(PARQUET_NAMESPACE, "readBytes")))
             .apply("Read parquet files", ParquetIO.readFiles(SCHEMA))
             .apply(
                 "Gather read end time", ParDo.of(new TimeMonitor<>(PARQUET_NAMESPACE, "readEnd")))
@@ -195,6 +198,18 @@ public class ParquetIOIT {
           long readEnd = reader.getEndTimeMetric("readEnd");
           double runTime = (readEnd - writeStart) / 1e3;
           return NamedTestResult.create(uuid, timestamp, "run_time", runTime);
+        });
+
+    metricSuppliers.add(
+        reader -> {
+          double totalBytes = reader.getCounterMetric("readBytes");
+          return NamedTestResult.create(uuid, timestamp, "read_bytes", totalBytes);
+        });
+
+    metricSuppliers.add(
+        reader -> {
+          double totalBytes = reader.getCounterMetric("writeBytes");
+          return NamedTestResult.create(uuid, timestamp, "write_bytes", totalBytes);
         });
 
     return metricSuppliers;
