@@ -1620,6 +1620,7 @@ class BeamModulePlugin implements Plugin<Project> {
             "--python=python${project.ext.pythonVersion}",
           ]
           project.exec { commandLine virtualenvCmd }
+          project.exec {echo  "RUNNING ${project.ext.envdir}/bin/activate && pip install --retries 10 --upgrade tox==3.0.0 grpcio-tools==1.3.5"}
           project.exec {
             executable 'sh'
             args '-c', ". ${project.ext.envdir}/bin/activate && pip install --retries 10 --upgrade tox==3.0.0 grpcio-tools==1.3.5"
