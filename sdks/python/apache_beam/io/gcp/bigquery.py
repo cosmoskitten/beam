@@ -770,6 +770,119 @@ class BigQueryWriteFn(DoFn):
 
 
 class WriteToBigQuery(PTransform):
+  """Write data to BigQuery.
+
+  This transform receives a PCollection of elements to be inserted into BigQuery
+  tables. The elements would come in as Python dictionaries, or as `TableRow`
+  instances.
+
+  Table References
+  --------
+
+  This transform allows you to provide static `project`, `dataset` and `table`
+  parameters which point to a specific BigQuery table to be created. The `table`
+  parameter can also be a dynamic parameter (i.e. a callable), which receives an
+  element to be written to BigQuery, and returns the table that that element
+  should be sent to.
+
+  You may also provide a tuple of PCollectionView elements to be passed as side
+  inputs to your callable. For example, suppose that one wishes to send
+  events of different types to different tables, and the table names are
+  computed at pipeline runtime, one may do something like so::
+
+      with Pipeline() as p:
+        elements = (p | beam.Create([
+          {'type': 'error', 'timestamp': '12:34:56', 'message': 'bad'},
+          {'type': 'user_log', 'timestamp': '12:34:59', 'query': 'flu symptom'},
+        ]))
+
+        table_names = (p | beam.Create([
+          ('error', 'my_project.dataset1.error_table_for_today'),
+          ('user_log', 'my_project.dataset1.query_table_for_today'),
+        ])
+
+        table_names_dict = beam.pvalue.AsDict(table_names)
+
+        elements | beam.io.gcp.WriteToBigQuery(
+          table=lambda row, table_dict: table_dict[row['type']],
+          table_side_inputs=(table_names_dict,))
+
+  Schemas
+  ---------
+
+  This transform also allows you to provide a static or dynamic `schema`
+  parameter (i.e. a callable).
+
+  If providing a callable, this should take in a table reference (as returned by
+  the `table` parameter), and return the corresponding schema for that table.
+  This allows to provide different schemas for different tables::
+
+      def compute_table_name(row):
+        ...
+
+      errors_schema = {'fields': [
+        {'name': 'type', 'type': 'STRING', 'mode': 'NULLABLE'},
+        {'name': 'message', 'type': 'STRING', 'mode': 'NULLABLE'}]}
+      queries_schema = {'fields': [
+        {'name': 'type', 'type': 'STRING', 'mode': 'NULLABLE'},
+        {'name': 'query', 'type': 'STRING', 'mode': 'NULLABLE'}]}
+
+      with Pipeline() as p:
+        elements = (p | beam.Create([
+          {'type': 'error', 'timestamp': '12:34:56', 'message': 'bad'},
+          {'type': 'user_log', 'timestamp': '12:34:59', 'query': 'flu symptom'},
+        ]))
+
+        elements | beam.io.gcp.WriteToBigQuery(
+          table=compute_table_name,
+          schema=lambda table: (errors_schema
+                                if 'errors' in table
+                                else queries_schema))
+
+  It may be the case that schemas are computed at pipeline runtime. In cases
+  like these, one can also provide a `schema_side_inputs` parameter, which is
+  a tuple of PCollectionViews to be passed to the schema callable (much like
+  the `table_side_inputs` parameter).
+
+  Additional Parameters for BigQuery Tables
+  -----------------------------------------
+
+  This sink is able to create tables in BigQuery if they don't already exist. It
+  also relies on creating temporary tables when performing file loads.
+
+  The WriteToBigQuery transform creates tables using the BigQuery API by
+  inserting a load job (see the API reference [1]), or by inserting a new table
+  (see the API reference for that [2][3]).
+
+  When creating a new BigQuery table, there are a number of extra parameters
+  that one may need to specify. For example, clustering, partitioning, data
+  encoding, etc. It is possible to provide these additional parameters by
+  passing a Python dictionary as `additional_bq_parameters` to the transform.
+  As an example, to create a table that has specific partitioning, and
+  clustering properties, one would do the following::
+
+      additional_bq_parameters = {
+        'timePartitioning': {'type': 'DAY'},
+        'clustering': {'fields': ['country']}}
+      with Pipeline() as p:
+        elements = (p | beam.Create([
+          {'country': 'mexico', 'timestamp': '12:34:56', 'query': 'acapulco'},
+          {'country': 'canada', 'timestamp': '12:34:59', 'query': 'influenza'},
+        ]))
+
+        elements | beam.io.gcp.WriteToBigQuery(
+          table='project_name1.dataset_2.query_events_table',
+          additional_bq_parameters=additional_bq_parameters)
+
+  Much like the schema case, the parameter with `additional_bq_parameters` can
+  also take a callable that receives a table reference.
+
+
+  [1] https://cloud.google.com/bigquery/docs/reference/rest/v2/jobs#\
+configuration.load
+  [2] https://cloud.google.com/bigquery/docs/reference/rest/v2/tables/insert
+  [3] https://cloud.google.com/bigquery/docs/reference/rest/v2/tables#resource
+  """
 
   class Method(object):
     DEFAULT = 'DEFAULT'
