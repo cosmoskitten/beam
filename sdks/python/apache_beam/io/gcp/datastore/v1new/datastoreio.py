@@ -293,16 +293,13 @@ class _Mutate(PTransform):
     should be idempotent (`upsert` and `delete` mutations) to prevent duplicate
     data or errors.
     """
-    def __init__(self, project, fixed_batch_size=None):
+    def __init__(self, project):
       """
       Args:
         project: (str) cloud project id
-        fixed_batch_size: (int) for testing only, this forces all batches of
-           mutations to be a fixed size, for easier unit testing.
       """
       self._project = project
       self._client = None
-      self._fixed_batch_size = fixed_batch_size
       self._rpc_successes = Metrics.counter(
           _Mutate.DatastoreMutateFn, "datastoreRpcSuccesses")
       self._rpc_errors = Metrics.counter(
@@ -321,12 +318,9 @@ class _Mutate(PTransform):
       self._client = helper.get_client(self._project, namespace=None)
       self._init_batch()
 
-      if self._fixed_batch_size:
-        self._target_batch_size = self._fixed_batch_size
-      else:
-        self._batch_sizer = _Mutate._DynamicBatchSizer()
-        self._target_batch_size = self._batch_sizer.get_batch_size(
-            time.time() * 1000)
+      self._batch_sizer = util.DynamicBatchSizer()
+      self._target_batch_size = self._batch_sizer.get_batch_size(
+          time.time() * 1000)
 
     def add_element_to_batch(self, element):
       raise NotImplementedError
@@ -356,11 +350,10 @@ class _Mutate(PTransform):
       logging.debug("Successfully wrote %d mutations in %dms.",
                     len(self._batch.mutations), latency_ms)
 
-      if not self._fixed_batch_size:
-        now = time.time() * 1000
-        self._batch_sizer.report_latency(
-            now, latency_ms, len(self._batch.mutations))
-        self._target_batch_size = self._batch_sizer.get_batch_size(now)
+      now = time.time() * 1000
+      self._batch_sizer.report_latency(
+          now, latency_ms, len(self._batch.mutations))
+      self._target_batch_size = self._batch_sizer.get_batch_size(now)
 
       self._init_batch()
 

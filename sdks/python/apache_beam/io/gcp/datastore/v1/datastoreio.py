@@ -400,7 +400,7 @@ class _Mutate(PTransform):
       if self._fixed_batch_size:
         self._target_batch_size = self._fixed_batch_size
       else:
-        self._batch_sizer = _Mutate._DynamicBatchSizer()
+        self._batch_sizer = util.DynamicBatchSizer()
         self._target_batch_size = self._batch_sizer.get_batch_size(
             time.time()*1000)
 

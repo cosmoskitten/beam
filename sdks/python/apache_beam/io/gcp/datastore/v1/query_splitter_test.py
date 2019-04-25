@@ -39,10 +39,14 @@ except (ImportError, TypeError):
 # pylint: enable=wrong-import-order, wrong-import-position
 
 
-@unittest.skipIf(sys.version_info[0] == 3,
-                 'v1/query_splitter does not support Python 3 TODO: BEAM-4543')
 class QuerySplitterTest(unittest.TestCase):
+  @unittest.skipIf(
+      sys.version_info[0] == 3,
+      'v1/query_splitter does not support Python 3 TODO: BEAM-4543')
   @unittest.skipIf(datastore_pb2 is None, 'GCP dependencies are not installed')
+  def setUp(self):
+    pass
+
   def create_query(self, kinds=(), order=False, limit=None, offset=None,
                    inequality_filter=False):
     query = query_pb2.Query()

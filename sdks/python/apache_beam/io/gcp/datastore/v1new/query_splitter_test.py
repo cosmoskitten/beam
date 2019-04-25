@@ -54,6 +54,9 @@ class QuerySplitterTest(QuerySplitterTestBase):
   split_error = SplitNotPossibleError
   query_splitter = query_splitter
 
+  def setUp(self):
+    """Overrides base class version with skipIf() decorators."""
+
   def create_query(self, kinds=(), order=False, limit=None, offset=None,
                    inequality_filter=False):
     if len(kinds) > 1:
