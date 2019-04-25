@@ -34,7 +34,8 @@ task run(type: Exec) {
 
     def runnerArg = project.findProperty(runnerProperty) ?: ""
     if (runnerArg == 'DataflowRunner' || runnerArg == 'TestDataflowRunner') {
-        sdistPath = "${project.rootDir}/sdks/python/build/apache-beam.tar.gz"
+        def sdistPath = "${project.rootDir}/sdks/python/build/apache-beam.tar.gz"
+        println sdistPath
         if(!fileExists(sdistPath)){
             dependsOn "sdist"
         }
@@ -43,7 +44,7 @@ task run(type: Exec) {
         dependsOn "installGcpTest"
     }
 
-    print project.ext.envdir
+    println project.ext.envdir
     environment "LOAD_TEST_ENABLED", 'true'
     setWorkingDir "${project.rootDir}/sdks/python"
 
@@ -58,7 +59,7 @@ task run(type: Exec) {
 }
 
 def fileExists(filePath){
-    assert file (filePath).exists()
+    file (filePath).exists()
 }
 
 def parseOptions(String option) {
