@@ -497,7 +497,7 @@ class FnApiRunner(runner.PipelineRunner):
     for k in range(self._bundle_repeat):
       try:
         controller.state.checkpoint()
-        # TODO take these results here
+
         BundleManager(
             controller, lambda pcoll_id: [], get_input_coder_impl,
             process_bundle_descriptor, self._progress_frequency, k
@@ -609,7 +609,6 @@ class FnApiRunner(runner.PipelineRunner):
             self._progress_frequency,
             True).process_bundle(deferred_inputs, data_output)
         last_sent = deferred_inputs
-
         result = beam_fn_api_pb2.InstructionResponse(
             process_bundle=beam_fn_api_pb2.ProcessBundleResponse(
                 monitoring_infos=monitoring_infos.consolidate(
@@ -1281,7 +1280,6 @@ class BundleManager(object):
                                  name=output_name)
           for (transform_id, output_name), _ in expected_outputs.items()]
       logging.debug('Gather all output data from %s.', expected_targets)
-
       for output in self._controller.data_plane_handler.input_elements(
           process_bundle_id,
           expected_targets,

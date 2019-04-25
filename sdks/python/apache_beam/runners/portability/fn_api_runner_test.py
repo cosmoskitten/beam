@@ -69,11 +69,10 @@ def _matcher_or_equal_to(value_or_matcher):
 
 
 def has_urn_and_labels(mi, urn, labels):
-  def contains_labels(monitoring_info, labels):
+  """Returns true if it the monitoring_info contains the labels and urn."""
+  def contains_labels(mi, labels):
     # Check all the labels and their values exist in the monitoring_info
-    return len([x for x in labels.items() if
-                x[0] in monitoring_info.labels and monitoring_info.labels[
-                    x[0]] == x[1]]) == len(labels)
+    return all(item in monitoring_info.items() for item in labels.items())
   return contains_labels(mi, labels) and mi.urn == urn
 
 
@@ -798,12 +797,12 @@ class FnApiRunnerMetricsTest(unittest.TestCase):
                       and
                       monitoring_infos.PCOLLECTION_LABEL not in x.labels])
     try:
-      labels = {'PCOLLECTION' : 'Impulse'}
+      labels = {monitoring_infos.PCOLLECTION_LABEL : 'Impulse'}
       self.assert_has_counter(
           counters, monitoring_infos.ELEMENT_COUNT_URN, labels, 1)
 
       # Create/Read, "out" output.
-      labels = {'PCOLLECTION' : 'ref_PCollection_PCollection_1'}
+      labels = {monitoring_infos.PCOLLECTION_LABEL : 'ref_PCollection_PCollection_1'}
       self.assert_has_counter(
           counters,
           monitoring_infos.ELEMENT_COUNT_URN, labels, num_source_elems)
@@ -815,7 +814,7 @@ class FnApiRunnerMetricsTest(unittest.TestCase):
           count=hamcrest.greater_than(0))
 
       # GenerateTwoOutputs, main output.
-      labels = {'PCOLLECTION' : 'ref_PCollection_PCollection_2'}
+      labels = {monitoring_infos.PCOLLECTION_LABEL : 'ref_PCollection_PCollection_2'}
       self.assert_has_counter(
           counters,
           monitoring_infos.ELEMENT_COUNT_URN, labels, num_source_elems)
@@ -827,7 +826,7 @@ class FnApiRunnerMetricsTest(unittest.TestCase):
           count=hamcrest.greater_than(0))
 
       # GenerateTwoOutputs, "SecondOutput" output.
-      labels = {'PCOLLECTION' : 'ref_PCollection_PCollection_3'}
+      labels = {monitoring_infos.PCOLLECTION_LABEL : 'ref_PCollection_PCollection_3'}
       self.assert_has_counter(
           counters,
           monitoring_infos.ELEMENT_COUNT_URN, labels, 2 * num_source_elems)
@@ -839,7 +838,7 @@ class FnApiRunnerMetricsTest(unittest.TestCase):
           count=hamcrest.greater_than(0))
 
       # GenerateTwoOutputs, "ThirdOutput" output.
-      labels = {'PCOLLECTION' : 'ref_PCollection_PCollection_4'}
+      labels = {monitoring_infos.PCOLLECTION_LABEL : 'ref_PCollection_PCollection_4'}
       self.assert_has_counter(
           counters,
           monitoring_infos.ELEMENT_COUNT_URN, labels, num_source_elems)
@@ -853,7 +852,7 @@ class FnApiRunnerMetricsTest(unittest.TestCase):
       # Skipping other pcollections due to non-deterministic naming for multiple
       # outputs.
       # Flatten/Read, main output.
-      labels = {'PCOLLECTION' : 'ref_PCollection_PCollection_5'}
+      labels = {monitoring_infos.PCOLLECTION_LABEL : 'ref_PCollection_PCollection_5'}
       self.assert_has_counter(
           counters,
           monitoring_infos.ELEMENT_COUNT_URN, labels, 4 * num_source_elems)
@@ -865,7 +864,7 @@ class FnApiRunnerMetricsTest(unittest.TestCase):
           count=hamcrest.greater_than(0))
 
       # PassThrough, main output
-      labels = {'PCOLLECTION' : 'ref_PCollection_PCollection_6'}
+      labels = {monitoring_infos.PCOLLECTION_LABEL : 'ref_PCollection_PCollection_6'}
       self.assert_has_counter(
           counters,
           monitoring_infos.ELEMENT_COUNT_URN, labels, 4 * num_source_elems)
@@ -877,7 +876,7 @@ class FnApiRunnerMetricsTest(unittest.TestCase):
           count=hamcrest.greater_than(0))
 
       # PassThrough2, main output
-      labels = {'PCOLLECTION' : 'ref_PCollection_PCollection_7'}
+      labels = {monitoring_infos.PCOLLECTION_LABEL : 'ref_PCollection_PCollection_7'}
       self.assert_has_counter(
           counters,
           monitoring_infos.ELEMENT_COUNT_URN, labels, num_source_elems)
@@ -959,7 +958,7 @@ class FnApiRunnerMetricsTest(unittest.TestCase):
 
     def has_mi_for_ptransform(monitoring_infos, ptransform):
       for mi in monitoring_infos:
-        if ptransform in mi.labels['PTRANSFORM']:
+        if ptransform in mi.labels[monitoring_infos.PTRANSFORM_LABEL]:
           return True
       return False
 
@@ -1011,31 +1010,31 @@ class FnApiRunnerMetricsTest(unittest.TestCase):
         pregbk_mis, postgbk_mis = postgbk_mis, pregbk_mis
 
       # pregbk monitoring infos
-      labels = {'PCOLLECTION' : 'ref_PCollection_PCollection_1'}
+      labels = {monitoring_infos.PCOLLECTION_LABEL : 'ref_PCollection_PCollection_1'}
       self.assert_has_counter(
           pregbk_mis, monitoring_infos.ELEMENT_COUNT_URN, labels, value=4)
       self.assert_has_distribution(
           pregbk_mis, monitoring_infos.SAMPLED_BYTE_SIZE_URN, labels)
 
-      labels = {'PCOLLECTION' : 'ref_PCollection_PCollection_2'}
+      labels = {monitoring_infos.PCOLLECTION_LABEL : 'ref_PCollection_PCollection_2'}
       self.assert_has_counter(
           pregbk_mis, monitoring_infos.ELEMENT_COUNT_URN, labels, value=4)
       self.assert_has_distribution(
           pregbk_mis, monitoring_infos.SAMPLED_BYTE_SIZE_URN, labels)
 
-      labels = {'PTRANSFORM' : 'Map(sleep)'}
+      labels = {monitoring_infos.PTRANSFORM_LABEL : 'Map(sleep)'}
       self.assert_has_counter(
           pregbk_mis, monitoring_infos.TOTAL_MSECS_URN,
           labels, ge_value=4 * DEFAULT_SAMPLING_PERIOD_MS)
 
       # postgbk monitoring infos
-      labels = {'PCOLLECTION' : 'ref_PCollection_PCollection_6'}
+      labels = {monitoring_infos.PCOLLECTION_LABEL : 'ref_PCollection_PCollection_6'}
       self.assert_has_counter(
           postgbk_mis, monitoring_infos.ELEMENT_COUNT_URN, labels, value=1)
       self.assert_has_distribution(
           postgbk_mis, monitoring_infos.SAMPLED_BYTE_SIZE_URN, labels)
 
-      labels = {'PCOLLECTION' : 'ref_PCollection_PCollection_7'}
+      labels = {monitoring_infos.PCOLLECTION_LABEL : 'ref_PCollection_PCollection_7'}
       self.assert_has_counter(
           postgbk_mis, monitoring_infos.ELEMENT_COUNT_URN, labels, value=5)
       self.assert_has_distribution(

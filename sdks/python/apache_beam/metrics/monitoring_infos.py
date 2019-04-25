@@ -359,7 +359,5 @@ def consolidate(metrics, key=to_key):
               timestamp=max_timestamp(a.timestamp, b.timestamp))
         yield reduce(merge, values)
       else:
-        # TODO should we warn about the bug here? Ask pablo.
-        # The monitoring infos will not be combined.
         for value in values:
           yield value
