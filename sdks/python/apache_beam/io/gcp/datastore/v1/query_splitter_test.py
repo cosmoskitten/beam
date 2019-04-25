@@ -19,6 +19,7 @@
 
 from __future__ import absolute_import
 
+import sys
 import unittest
 
 from mock import MagicMock
@@ -38,6 +39,8 @@ except (ImportError, TypeError):
 # pylint: enable=wrong-import-order, wrong-import-position
 
 
+@unittest.skipIf(sys.version_info[0] == 3,
+                 'v1/query_splitter does not support Python 3 TODO: BEAM-4543')
 class QuerySplitterTest(unittest.TestCase):
   @unittest.skipIf(datastore_pb2 is None, 'GCP dependencies are not installed')
   def create_query(self, kinds=(), order=False, limit=None, offset=None,

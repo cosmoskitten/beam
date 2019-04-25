@@ -19,6 +19,7 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
+import sys
 import unittest
 from builtins import map
 from builtins import range
@@ -48,6 +49,8 @@ except (ImportError, TypeError):
 # pylint: enable=wrong-import-order, wrong-import-position, ungrouped-imports
 
 
+@unittest.skipIf(sys.version_info[0] == 3,
+                 'v1/datastoreio does not support Python 3 TODO: BEAM-4543')
 @unittest.skipIf(datastore_pb2 is None, 'GCP dependencies are not installed')
 class DatastoreioTest(unittest.TestCase):
   _PROJECT = 'project'

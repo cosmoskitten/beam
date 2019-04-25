@@ -45,6 +45,8 @@ except (ImportError, TypeError):
 # pylint: enable=wrong-import-order, wrong-import-position
 
 
+@unittest.skipIf(sys.version_info[0] == 3,
+                 'v1/helper does not support Python 3 TODO: BEAM-4543')
 @unittest.skipIf(datastore_helper is None, 'GCP dependencies are not installed')
 class HelperTest(unittest.TestCase):
 
