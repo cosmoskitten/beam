@@ -1641,10 +1641,10 @@ class BeamModulePlugin implements Plugin<Project> {
             "--python=python${project.ext.pythonVersion}",
           ]
           project.exec { commandLine virtualenvCmd }
-          project.exec { "ls ${project.ext.envdir}/bin/" }
+          project.exec { commandLine ['ls', "${project.ext.envdir}/bin/"] }
           project.exec {
             executable 'sh'
-            args '-c', ". ${project.ext.envdir}/bin/activate && ${project.ext.envdir}/bin/pip install --retries 10 --upgrade tox==3.0.0 grpcio-tools==1.3.5"
+            args '-c', ". ${project.ext.envdir}/bin/activate && pip install --retries 10 --upgrade tox==3.0.0 grpcio-tools==1.3.5"
           }
         }
         // Gradle will delete outputs whenever it thinks they are stale. Putting a
