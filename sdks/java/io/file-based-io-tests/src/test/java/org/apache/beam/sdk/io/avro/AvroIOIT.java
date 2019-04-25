@@ -41,6 +41,7 @@ import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.testutils.NamedTestResult;
 import org.apache.beam.sdk.testutils.metrics.ByteMonitor;
+import org.apache.beam.sdk.testutils.metrics.CountMonitor;
 import org.apache.beam.sdk.testutils.metrics.IOITMetrics;
 import org.apache.beam.sdk.testutils.metrics.MetricsReader;
 import org.apache.beam.sdk.testutils.metrics.TimeMonitor;
@@ -120,6 +121,7 @@ public class AvroIOIT {
             .setCoder(AvroCoder.of(AVRO_SCHEMA))
             .apply("Collect start time", ParDo.of(new TimeMonitor<>(AVRO_NAMESPACE, "writeStart")))
             .apply("Collect byte count", ParDo.of(new ByteMonitor<>(AVRO_NAMESPACE, "byteCount")))
+            .apply("Collect item count", ParDo.of(new CountMonitor<>(AVRO_NAMESPACE, "itemCount")))
             .apply(
                 "Write Avro records to files",
                 AvroIO.writeGenericRecords(AVRO_SCHEMA)
@@ -191,8 +193,14 @@ public class AvroIOIT {
 
     suppliers.add(
         reader -> {
-          double totalBytes = reader.getCounterMetric("totalBytes");
+          double totalBytes = reader.getCounterMetric("byteCount");
           return NamedTestResult.create(uuid, timestamp, "total_bytes", totalBytes);
+        });
+
+    suppliers.add(
+        reader -> {
+          double totalBytes = reader.getCounterMetric("itemCount");
+          return NamedTestResult.create(uuid, timestamp, "element_count", totalBytes);
         });
 
     return suppliers;
