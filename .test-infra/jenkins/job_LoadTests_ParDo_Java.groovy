@@ -179,7 +179,7 @@ def streamingLoadTestJob = {scope, triggeringContext ->
     scope.description('Runs Java ParDo load tests on Dataflow runner in streaming mode')
     commonJobProperties.setTopLevelMainJobProperties(scope, 'master', 240)
 
-    for (testConfiguration in commonLoadTestConfig('combine', true)) {
+    for (testConfiguration in commonLoadTestConfig('streaming', true)) {
         testConfiguration.jobProperties << [inputWindowDurationSec: 1200]
         loadTestsBuilder.loadTest(scope, testConfiguration.title, testConfiguration.runner, CommonTestProperties.SDK.JAVA, testConfiguration.jobProperties, testConfiguration.itClass, triggeringContext)
     }
