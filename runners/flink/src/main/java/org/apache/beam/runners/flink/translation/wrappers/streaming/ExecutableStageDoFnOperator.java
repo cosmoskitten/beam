@@ -685,9 +685,6 @@ public class ExecutableStageDoFnOperator<InputT, OutputT> extends DoFnOperator<I
     }
   }
 
-  // TODO: for testing only
-  ArrayDeque<KV<ByteBuffer, BoundedWindow>> cleanupQueue;
-
   private DoFnRunner<InputT, OutputT> ensureStateCleanup(
       SdkHarnessDoFnRunner<InputT, OutputT> sdkHarnessRunner) {
     if (keyCoder == null) {
@@ -714,7 +711,6 @@ public class ExecutableStageDoFnOperator<InputT, OutputT> extends DoFnOperator<I
     KeyedStateBackend<ByteBuffer> stateBackend = getKeyedStateBackend();
     StateCleaner stateCleaner =
         new StateCleaner(userStates, windowCoder, () -> stateBackend.getCurrentKey());
-    cleanupQueue = stateCleaner.cleanupQueue;
 
     return new StatefulDoFnRunner<InputT, OutputT, BoundedWindow>(
         sdkHarnessRunner, windowingStrategy, cleanupTimer, stateCleaner) {

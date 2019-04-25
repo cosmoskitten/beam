@@ -531,7 +531,12 @@ public class ExecutableStageDoFnOperatorTest {
 
     DoFnOperator.FlinkTimerInternals timerInternals =
         (DoFnOperator.FlinkTimerInternals) Whitebox.getInternalState(operator, "timerInternals");
-    Collection<?> cleanupTimers = (Collection) Whitebox.getInternalState(operator, "cleanupQueue");
+
+    Object doFnRunner = Whitebox.getInternalState(operator, "doFnRunner");
+    Object delegate = Whitebox.getInternalState(doFnRunner, "delegate");
+    Object stateCleaner = Whitebox.getInternalState(delegate, "stateCleaner");
+    Collection<?> cleanupTimers =
+        (Collection) Whitebox.getInternalState(stateCleaner, "cleanupQueue");
 
     // user timer that fires after the end of the window and after state cleanup
     TimerInternals.TimerData userTimer =
