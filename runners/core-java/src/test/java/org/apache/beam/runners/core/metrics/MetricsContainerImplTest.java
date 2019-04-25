@@ -191,18 +191,26 @@ public class MetricsContainerImplTest {
     c2.update(4L);
 
     SimpleMonitoringInfoBuilder builder1 = new SimpleMonitoringInfoBuilder();
-    builder1.setUrnForUserDistribution("ns", "name1");
-    builder1.setInt64DistributionValue(DistributionData.create(5, 1, 5, 5));
-    builder1.setPTransformLabel("step1");
+    builder1
+        .setUrn(MonitoringInfoConstants.Urns.USER_DISTRIBUTION_COUNTER)
+        .setLabel(MonitoringInfoConstants.Labels.NAMESPACE, "ns")
+        .setLabel(MonitoringInfoConstants.Labels.NAME, "name1")
+        .setInt64Value(4)
+        .setLabel(MonitoringInfoConstants.Labels.PTRANSFORM, "step1")
+        .setInt64DistributionValue(DistributionData.create(5, 1, 5, 5));
 
     SimpleMonitoringInfoBuilder builder2 = new SimpleMonitoringInfoBuilder();
-    builder2.setUrnForUserDistribution("ns", "name2");
-    builder2.setInt64DistributionValue(DistributionData.create(4, 1, 4, 4));
-    builder2.setPTransformLabel("step1");
+    builder2
+        .setUrn(MonitoringInfoConstants.Urns.USER_DISTRIBUTION_COUNTER)
+        .setLabel(MonitoringInfoConstants.Labels.NAMESPACE, "ns")
+        .setLabel(MonitoringInfoConstants.Labels.NAME, "name2")
+        .setInt64Value(4)
+        .setLabel(MonitoringInfoConstants.Labels.PTRANSFORM, "step1")
+        .setInt64DistributionValue(DistributionData.create(4, 1, 4, 4));
 
     ArrayList<MonitoringInfo> actualMonitoringInfos = new ArrayList<MonitoringInfo>();
     for (MonitoringInfo mi : testObject.getMonitoringInfos()) {
-      actualMonitoringInfos.add(SimpleMonitoringInfoBuilder.clearTimestamp(mi));
+      actualMonitoringInfos.add(SimpleMonitoringInfoBuilder.copyAndClearTimestamp(mi));
     }
 
     assertThat(actualMonitoringInfos, containsInAnyOrder(builder1.build(), builder2.build()));
