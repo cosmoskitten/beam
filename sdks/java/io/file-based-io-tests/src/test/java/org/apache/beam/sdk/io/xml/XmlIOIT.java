@@ -42,10 +42,7 @@ import org.apache.beam.sdk.options.Description;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.testutils.NamedTestResult;
-import org.apache.beam.sdk.testutils.metrics.ByteMonitor;
-import org.apache.beam.sdk.testutils.metrics.IOITMetrics;
-import org.apache.beam.sdk.testutils.metrics.MetricsReader;
-import org.apache.beam.sdk.testutils.metrics.TimeMonitor;
+import org.apache.beam.sdk.testutils.metrics.*;
 import org.apache.beam.sdk.transforms.Combine;
 import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.transforms.ParDo;
@@ -130,7 +127,10 @@ public class XmlIOIT {
                 "Gather write start time",
                 ParDo.of(new TimeMonitor<>(XMLIOIT_NAMESPACE, "writeStart")))
             .apply(
-                "Collect byte count", ParDo.of(new ByteMonitor<>(XMLIOIT_NAMESPACE, "totalBytes")))
+                "Gather byte count", ParDo.of(new ByteMonitor<>(XMLIOIT_NAMESPACE, "totalBytes")))
+            .apply(
+                "Gather element count",
+                ParDo.of(new CountMonitor<>(XMLIOIT_NAMESPACE, "elementCount")))
             .apply(
                 "Write xml files",
                 FileIO.<Bird>write()
@@ -219,6 +219,12 @@ public class XmlIOIT {
         reader -> {
           double totalBytes = reader.getCounterMetric("totalBytes");
           return NamedTestResult.create(uuid, timestamp, "total_bytes", totalBytes);
+        });
+
+    suppliers.add(
+        reader -> {
+          double totalBytes = reader.getCounterMetric("elementCount");
+          return NamedTestResult.create(uuid, timestamp, "element_count", totalBytes);
         });
 
     return suppliers;
