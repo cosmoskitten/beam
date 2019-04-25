@@ -61,6 +61,12 @@ public class SpannerReadIT {
 
   /** Pipeline options for this test. */
   public interface SpannerTestPipelineOptions extends TestPipelineOptions {
+    @Description("Project that hosts Spanner instance")
+    @Nullable
+    String getInstanceProjectId();
+
+    void setInstanceProjectId(String value);
+
     @Description("Instance ID to write to in Spanner")
     @Default.String("beam-test")
     String getInstanceId();
@@ -91,7 +97,10 @@ public class SpannerReadIT {
     PipelineOptionsFactory.register(SpannerTestPipelineOptions.class);
     options = TestPipeline.testingPipelineOptions().as(SpannerTestPipelineOptions.class);
 
-    project = options.as(GcpOptions.class).getProject();
+    project = options.getInstanceProjectId();
+    if (project == null) {
+      project = options.as(GcpOptions.class).getProject();
+    }
 
     spanner = SpannerOptions.newBuilder().setProjectId(project).build().getService();
 
