@@ -35,6 +35,7 @@ import static org.mockito.Mockito.verifyNoMoreInteractions;
 import static org.mockito.Mockito.when;
 
 import java.nio.ByteBuffer;
+import java.nio.charset.StandardCharsets;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
@@ -84,6 +85,7 @@ import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableLis
 import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Iterables;
 import org.apache.commons.lang3.SerializationUtils;
+import org.apache.commons.lang3.mutable.MutableObject;
 import org.apache.flink.api.common.cache.DistributedCache;
 import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
@@ -452,14 +454,20 @@ public class ExecutableStageDoFnOperatorTest {
     }
     ImmutableList<BagState<String>> bagStates = bagStateBuilder.build();
 
+    MutableObject<ByteBuffer> key =
+        new MutableObject<>(
+            ByteBuffer.wrap(stateInternals.getKey().getBytes(StandardCharsets.UTF_8)));
+
     // Test that state is cleaned up correctly
     ExecutableStageDoFnOperator.StateCleaner stateCleaner =
-        new ExecutableStageDoFnOperator.StateCleaner(userStateNames, windowCoder, stateInternals);
+        new ExecutableStageDoFnOperator.StateCleaner(
+            userStateNames, windowCoder, () -> key.getValue());
     for (BagState<String> bagState : bagStates) {
       assertThat(Iterables.size(bagState.read()), is(1));
     }
 
     stateCleaner.clearForWindow(GlobalWindow.INSTANCE);
+    stateCleaner.cleanupState(stateInternals, (k) -> key.setValue(k));
 
     for (BagState<String> bagState : bagStates) {
       assertThat(Iterables.size(bagState.read()), is(0));
@@ -523,7 +531,7 @@ public class ExecutableStageDoFnOperatorTest {
 
     DoFnOperator.FlinkTimerInternals timerInternals =
         (DoFnOperator.FlinkTimerInternals) Whitebox.getInternalState(operator, "timerInternals");
-    Collection<?> cleanupTimers = (Collection) Whitebox.getInternalState(operator, "cleanupTimers");
+    Collection<?> cleanupTimers = (Collection) Whitebox.getInternalState(operator, "cleanupQueue");
 
     // user timer that fires after the end of the window and after state cleanup
     TimerInternals.TimerData userTimer =
