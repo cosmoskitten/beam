@@ -118,7 +118,8 @@ public class ExecutableStageDoFnOperator<InputT, OutputT> extends DoFnOperator<I
   private transient SdkHarnessDoFnRunner<InputT, OutputT> sdkHarnessRunner;
   private transient FlinkMetricContainer flinkMetricContainer;
   private transient long backupWatermarkHold = Long.MIN_VALUE;
-  private transient ArrayDeque<InternalTimer<?, TimerInternals.TimerData>> cleanupTimers;
+  private transient ArrayDeque<KV<RemoteBundle, InternalTimer<?, TimerInternals.TimerData>>>
+      cleanupTimers;
 
   /** Constructor. */
   public ExecutableStageDoFnOperator(
@@ -401,7 +402,14 @@ public class ExecutableStageDoFnOperator<InputT, OutputT> extends DoFnOperator<I
   @SuppressWarnings("ByteBufferBackingArray")
   private void fireCleanupTimers() {
     while (!cleanupTimers.isEmpty()) {
-      InternalTimer<?, TimerInternals.TimerData> timer = cleanupTimers.remove();
+      KV<RemoteBundle, InternalTimer<?, TimerInternals.TimerData>> kv = cleanupTimers.peek();
+      if (kv.getKey() != null && kv.getKey() == sdkHarnessRunner.remoteBundle) {
+        // user timer and cleanup may trigger together in finish bundle,
+        // defer state cleanup to allow user timers to complete
+        return;
+      }
+      cleanupTimers.remove();
+      InternalTimer<?, TimerInternals.TimerData> timer = kv.getValue();
       final ByteBuffer encodedKey = (ByteBuffer) timer.getKey();
       try {
         // still need to process as timer, see CleanupTimer
@@ -424,7 +432,7 @@ public class ExecutableStageDoFnOperator<InputT, OutputT> extends DoFnOperator<I
   public void fireTimer(InternalTimer<?, TimerInternals.TimerData> timer) {
     if (CleanupTimer.GC_TIMER_ID.equals(timer.getNamespace().getTimerId())) {
       // hold cleanup until bundle is complete
-      cleanupTimers.add(timer);
+      cleanupTimers.add(KV.of(sdkHarnessRunner.remoteBundle, timer));
       return;
     }
     final ByteBuffer encodedKey = (ByteBuffer) timer.getKey();
