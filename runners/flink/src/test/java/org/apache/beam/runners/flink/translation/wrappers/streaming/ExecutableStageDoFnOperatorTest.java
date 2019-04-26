@@ -559,18 +559,17 @@ public class ExecutableStageDoFnOperatorTest {
     assertThat(cleanupTimers, hasSize(0));
 
     // upon finish bundle, watermark advances and timers can fire
+    // Note that this will finish the current bundle, but will also start a new one
+    // when timers fire as part of advancing the watermark
     operator.invokeFinishBundle();
 
     // the user timer was scheduled to fire after cleanup, but executes first
     assertTrue("Timer should have been triggered.", timerInputReceived.get());
-    // cleanup will be deferred to next bundle
+    // cleanup will be executed after the bundle is complete
     assertThat(cleanupTimers, hasSize(1));
 
     verifyNoMoreInteractions(receiver);
 
-    // one more bundle to execute the deferred cleanup
-    testHarness.processElement(new StreamRecord<>(one));
-    operator.processWatermark(new Watermark(window.maxTimestamp().plus(2).getMillis()));
     operator.invokeFinishBundle();
     assertThat(cleanupTimers, hasSize(0));
 

@@ -527,7 +527,6 @@ public class ExecutableStageDoFnOperator<InputT, OutputT> extends DoFnOperator<I
 
     private RemoteBundle remoteBundle;
     private FnDataReceiver<WindowedValue<?>> mainInputReceiver;
-    private ArrayDeque<KV<ByteBuffer, BoundedWindow>> cleanupWindows;
 
     public SdkHarnessDoFnRunner(
         String mainInput,
@@ -557,7 +556,6 @@ public class ExecutableStageDoFnOperator<InputT, OutputT> extends DoFnOperator<I
       }
       this.windowCoder = windowCoder;
       this.outputQueue = new LinkedBlockingQueue<>();
-      this.cleanupWindows = new ArrayDeque<>();
     }
 
     @Override
@@ -716,8 +714,9 @@ public class ExecutableStageDoFnOperator<InputT, OutputT> extends DoFnOperator<I
         sdkHarnessRunner, windowingStrategy, cleanupTimer, stateCleaner) {
       @Override
       public void finishBundle() {
+        // Before cleaning up state, first finish bundle for all underlying DoFnRunners
         super.finishBundle();
-        // state cleanup can only execute after the bundle is complete
+        // execute cleanup after the bundle is complete
         if (!stateCleaner.cleanupQueue.isEmpty()) {
           try {
             stateBackendLock.lock();
@@ -809,17 +808,18 @@ public class ExecutableStageDoFnOperator<InputT, OutputT> extends DoFnOperator<I
 
     @Override
     public void clearForWindow(BoundedWindow window) {
+      // Executed in the context of onTimer(..) where the correct key will be set
       cleanupQueue.add(KV.of(keyedStateBackend.get(), window));
     }
 
     @SuppressWarnings("ByteBufferBackingArray")
-    void cleanupState(StateInternals stateInternals, Consumer<ByteBuffer> keyedStateBackend) {
+    void cleanupState(StateInternals stateInternals, Consumer<ByteBuffer> keyContextConsumer) {
       while (!cleanupQueue.isEmpty()) {
         KV<ByteBuffer, BoundedWindow> kv = cleanupQueue.remove();
         if (LOG.isDebugEnabled()) {
           LOG.debug("State cleanup for {} {}", Arrays.toString(kv.getKey().array()), kv.getValue());
         }
-        keyedStateBackend.accept(kv.getKey());
+        keyContextConsumer.accept(kv.getKey());
         for (String userState : userStateNames) {
           StateNamespace namespace = StateNamespaces.window(windowCoder, kv.getValue());
           BagState<?> state = stateInternals.state(namespace, StateTags.bag(userState, null));
