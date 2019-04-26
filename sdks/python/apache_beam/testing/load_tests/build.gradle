@@ -29,7 +29,7 @@ def loadTestArgsProperty = "loadTest.args"
 
 def runnerProperty = "runner"
 
-task run(type: Exec) {
+task run(type: Exec, dependsOn: installGcpTest) {
     def loadTestArgs = project.findProperty(loadTestArgsProperty) ?: ""
 
     def runnerArg = project.findProperty(runnerProperty) ?: ""
@@ -40,8 +40,6 @@ task run(type: Exec) {
             dependsOn "sdist"
         }
         loadTestArgs +=" --sdk_location=${sdistPath}"
-    } else {
-        dependsOn "installGcpTest"
     }
 
     println project.ext.envdir
