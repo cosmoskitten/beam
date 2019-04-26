@@ -52,7 +52,7 @@ try:
   from googledatastore import helper as datastore_helper
   logging.warning(
       'Using deprecated Datastore client.\n'
-      'This client will be removed in the next Beam major release.\n'
+      'This client will be removed in Beam 3.0 (next Beam major release).\n'
       'Please migrate to apache_beam.io.gcp.datastore.v1new.datastoreio.')
 except ImportError:
   if sys.version_info[0] == 3:
