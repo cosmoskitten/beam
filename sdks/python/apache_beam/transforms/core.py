@@ -33,7 +33,6 @@ from past.builtins import unicode
 from apache_beam import coders
 from apache_beam import pvalue
 from apache_beam import typehints
-from apache_beam.coders import Coder
 from apache_beam.coders import typecoders
 from apache_beam.internal import pickler
 from apache_beam.internal import util
@@ -298,10 +297,10 @@ def get_function_arguments(obj, func):
   return getfullargspec(f)
 
 
-class RunnerAPIProtoHolder(object):
-  """An object for holding runner API protos for constructing a Python pipeline.
+class RunnerAPIPTransformHolder(PTransform):
+  """A `PTransform` that holds a runner API `PTransform` proto.
 
-  This is used for transforms, coders, etc. for which corresponding objects
+  This is used for transforms, for which corresponding objects
   cannot be initialized in Python SDK. For example, for `ParDo` transforms for
   remote SDKs that may be available in Python SDK transform graph when expanding
   a cross-language transform since a Python `ParDo` object cannot be generated
@@ -312,35 +311,15 @@ class RunnerAPIProtoHolder(object):
     self._proto = proto
 
   def proto(self):
-    """Runner API payload for constructing the Python pipeline construct."""
+    """Runner API payload for a `PTransform`"""
     return self._proto
-
-
-class RunnerAPIPTransformHolder(RunnerAPIProtoHolder, PTransform):
-  """A `RunnerAPIProtoHolder` for `PTransform`s"""
 
   def to_runner_api(self, context, has_parts=False):
     return self._proto
 
-  @staticmethod
-  def is_external_transform(proto):
-    if proto.urn != python_urns.PICKLED_TRANSFORM:
-      return True
-
-
-class RunnerAPICoderHolder(RunnerAPIProtoHolder, Coder):
-  """A `RunnerAPIProtoHolder` for `Coder`s"""
-
-  def to_runner_api(self, context):
-    return self._proto
-
-  def to_type_hint(self):
-    return typehints.Any
-
-  @staticmethod
-  def is_external_coder(proto):
-    if proto.spec.spec.urn != python_urns.PICKLED_CODER:
-      return True
+  def get_restriction_coder(self):
+    # TODO(chamikara): support external transforms that are SDFs.
+    return False
 
 
 class _DoFnParam(object):
@@ -1177,6 +1156,16 @@ class ParDo(PTransformWithSideInputs):
 
   def runner_api_requires_keyed_input(self):
     return userstate.is_stateful_dofn(self.fn)
+
+  def get_restriction_coder(self):
+    """Returns `restriction coder if `DoFn` of this `ParDo` is a SDF.
+
+    Returns `None` otherwise.
+    """
+    from apache_beam.runners.common import DoFnSignature
+    signature = DoFnSignature(self.fn)
+    return (signature.get_restriction_provider().restriction_coder()
+            if signature.is_splittable_dofn() else None)
 
 
 class _MultiParDo(PTransform):

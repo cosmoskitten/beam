@@ -243,13 +243,40 @@ class DataflowRunner(PipelineRunner):
               pcoll.element_type, transform_node.full_label)
           key_type, value_type = pcoll.element_type.tuple_types
           if transform_node.outputs:
+            from apache_beam.runners.portability.fn_api_runner_transforms import \
+              only_element
             key = (
                 None if None in transform_node.outputs.keys()
-                else next(iter(transform_node.outputs.keys())))
+                else only_element(transform_node.outputs.keys()))
             transform_node.outputs[key].element_type = typehints.KV[
                 key_type, typehints.Iterable[value_type]]
 
     return GroupByKeyInputVisitor()
+
+  @staticmethod
+  def _set_pdone_visitor(pipeline):
+    # Imported here to avoid circular dependencies.
+    from apache_beam.pipeline import PipelineVisitor
+
+    class SetPDoneVisitor(PipelineVisitor):
+
+      def __init__(self, pipeline):
+        self._pipeline = pipeline
+
+      @staticmethod
+      def _maybe_fix_output(transform_node, pipeline):
+        if not transform_node.outputs:
+          pval = pvalue.PDone(pipeline)
+          pval.producer = transform_node
+          transform_node.outputs = {None: pval}
+
+      def enter_composite_transform(self, transform_node):
+        SetPDoneVisitor._maybe_fix_output(transform_node, self._pipeline)
+
+      def visit_transform(self, transform_node):
+        SetPDoneVisitor._maybe_fix_output(transform_node, self._pipeline)
+
+    return SetPDoneVisitor(pipeline)
 
   @staticmethod
   def side_input_visitor():
@@ -355,9 +382,14 @@ class DataflowRunner(PipelineRunner):
       # external transforms are reflected in the Pipeline job graph.
       from apache_beam import Pipeline
       pipeline = Pipeline.from_runner_api(
-          self.proto_pipeline, pipeline.runner, options)
+          self.proto_pipeline, pipeline.runner, options,
+          allow_proto_holders=True)
 
-      # We need to generate a new context that maps to the next pipeline object.
+      # Pipelines generated from proto do not have output set to PDone set for
+      # leaf elements.
+      pipeline.visit(self._set_pdone_visitor(pipeline))
+
+      # We need to generate a new context that maps to the new pipeline object.
       self.proto_pipeline, self.proto_context = pipeline.to_runner_api(
           return_context=True)
 
@@ -476,10 +508,10 @@ class DataflowRunner(PipelineRunner):
 
   def _get_encoded_output_coder(self, transform_node, window_value=True):
     """Returns the cloud encoding of the coder for the output of a transform."""
-    output_tag = None if None in transform_node.outputs.keys() else next(
-        iter(transform_node.outputs.keys()))
-    if (len(transform_node.outputs) == 1
-        and transform_node.outputs[output_tag].element_type is not None):
+    from apache_beam.runners.portability.fn_api_runner_transforms import \
+      only_element
+    if len(transform_node.outputs) == 1:
+      output_tag = only_element(transform_node.outputs.keys())
       # TODO(robertwb): Handle type hints for multi-output transforms.
       element_type = transform_node.outputs[output_tag].element_type
     else:
@@ -488,6 +520,9 @@ class DataflowRunner(PipelineRunner):
       # usage of the fallback coder (i.e., cPickler).
       element_type = typehints.Any
     if window_value:
+      # All outputs have the same windowing. So getting the coder from an
+      # arbitrary window is fine.
+      output_tag = only_element(transform_node.outputs.keys())
       window_coder = (
           transform_node.outputs[
               output_tag].windowing.windowfn.get_window_coder())
@@ -508,9 +543,13 @@ class DataflowRunner(PipelineRunner):
     self.job.proto.steps.append(step.proto)
     step.add_property(PropertyNames.USER_NAME, step_label)
     # Cache the node/step association for the main output of the transform node.
-    output_tag = (
-        next(iter(transform_node.outputs.keys()))
-        if len(transform_node.outputs.keys()) == 1 else None)
+
+    # Main output key of external transforms can be ambiguous, so we only tag if
+    # there's only one tag instead of None.
+    from apache_beam.runners.portability.fn_api_runner_transforms import only_element
+    output_tag = (only_element(transform_node.outputs.keys())
+                  if len(transform_node.outputs.keys()) == 1 else None)
+
     self._cache.cache_output(transform_node, output_tag, step)
     # If side_tags is not () then this is a multi-output transform node and we
     # need to cache the (node, tag, step) for each of the tags used to access
@@ -682,11 +721,11 @@ class DataflowRunner(PipelineRunner):
     # TODO(chamikara): support other transforms that requires holder objects in
     #  Python SDk.
     if common_urns.primitives.PAR_DO.urn == urn:
-      self.run_ParDo(transform_node, options, True)
+      self.run_ParDo(transform_node, options)
     else:
-      raise NotImplementedError('run_RunnerAPIPayloadHolder')
+      NotImplementedError(urn)
 
-  def run_ParDo(self, transform_node, options, is_proto_holder=False):
+  def run_ParDo(self, transform_node, options):
     transform = transform_node.transform
     input_tag = transform_node.inputs[0].tag
     input_step = self._cache.get_pvalue(transform_node.inputs[0])
@@ -807,20 +846,13 @@ class DataflowRunner(PipelineRunner):
 
     step.add_property(PropertyNames.OUTPUT_INFO, outputs)
 
-    # Proto holder ParDos contain serialized DoFns from remote SDKs that cannot
-    # be examined by Python DoFnSignature.
-    if not is_proto_holder:
-      # TODO(chamikara): support external transforms that are SDFs.
-      # Add the restriction encoding if we are a splittable DoFn
-      # and are using the Fn API on the unified worker.
-      from apache_beam.runners.common import DoFnSignature
-      signature = DoFnSignature(transform_node.transform.fn)
-      if (use_fnapi and use_unified_worker and signature.is_splittable_dofn()):
-        restriction_coder = (
-            signature.get_restriction_provider().restriction_coder())
-        step.add_property(PropertyNames.RESTRICTION_ENCODING,
-                          self._get_cloud_encoding(
-                              restriction_coder, use_fnapi))
+    # Add the restriction encoding if we are a splittable DoFn
+    # and are using the Fn API on the unified worker.
+    restriction_coder = transform.get_restriction_coder()
+    if (use_fnapi and use_unified_worker and restriction_coder):
+      step.add_property(PropertyNames.RESTRICTION_ENCODING,
+                        self._get_cloud_encoding(
+                            restriction_coder, use_fnapi))
 
   @staticmethod
   def _pardo_fn_data(transform_node, get_label):

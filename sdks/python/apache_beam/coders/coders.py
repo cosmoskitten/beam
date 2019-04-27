@@ -287,9 +287,8 @@ class Coder(object):
           [context.coders.get_by_id(c)
            for c in coder_proto.component_coder_ids],
           context)
-    except:
-      from apache_beam.transforms.core import RunnerAPICoderHolder
-      if RunnerAPICoderHolder.is_external_coder(coder_proto):
+    except Exception:
+      if context.allow_proto_holders:
         return RunnerAPICoderHolder(coder_proto)
       raise
 
@@ -1148,3 +1147,25 @@ class StateBackedIterableCoder(FastCoder):
         read_state=context.iterable_state_read,
         write_state=context.iterable_state_write,
         write_state_threshold=int(payload))
+
+
+class RunnerAPICoderHolder(Coder):
+  """A `Coder` that holds a runner API `Coder` proto.
+
+  This is used for coders for which corresponding objects cannot be
+  initialized in Python SDK. For example, coders for remote SDKs that may
+  be available in Python SDK transform graph when expanding a cross-language
+  transform.
+  """
+
+  def __init__(self, proto):
+    self._proto = proto
+
+  def proto(self):
+    return self._proto
+
+  def to_runner_api(self, context):
+    return self._proto
+
+  def to_type_hint(self):
+    return typehints.Any

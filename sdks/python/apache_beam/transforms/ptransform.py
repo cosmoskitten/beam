@@ -606,11 +606,11 @@ class PTransform(WithTypeHints, HasDisplayData):
       return constructor(
           proto_utils.parse_Bytes(proto.payload, parameter_type),
           context)
-    except:
-      # For external transforms we cannot build a Python ParDo object so
-      # we build a holder transform instead.
-      from apache_beam.transforms.core import RunnerAPIPTransformHolder
-      if RunnerAPIPTransformHolder.is_external_transform(proto):
+    except Exception:
+      if context.allow_proto_holders:
+        # For external transforms we cannot build a Python ParDo object so
+        # we build a holder transform instead.
+        from apache_beam.transforms.core import RunnerAPIPTransformHolder
         return RunnerAPIPTransformHolder(proto)
       raise
 
