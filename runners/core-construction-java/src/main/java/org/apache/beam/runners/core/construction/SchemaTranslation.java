@@ -77,6 +77,7 @@ public class SchemaTranslation {
   }
 
   private static RunnerApi.Schema.FieldType toProto(FieldType fieldType) {
+    System.err.println("FOO");
     RunnerApi.Schema.FieldType.Builder builder =
         RunnerApi.Schema.FieldType.newBuilder()
             .setTypeName(TYPE_NAME_MAPPING.get(fieldType.getTypeName()));
