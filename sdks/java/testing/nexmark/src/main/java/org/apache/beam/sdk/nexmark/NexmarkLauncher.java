@@ -1255,6 +1255,10 @@ public class NexmarkLauncher<OptionT extends NexmarkOptions> {
 
   private Map<NexmarkQueryName, NexmarkQuery> createJavaQueries() {
     return ImmutableMap.<NexmarkQueryName, NexmarkQuery>builder()
+            .put(NexmarkQueryName.PASSTHROUGH, new NexmarkQuery(configuration, new Query0()))
+            .build();
+    /*
+    return ImmutableMap.<NexmarkQueryName, NexmarkQuery>builder()
         .put(NexmarkQueryName.PASSTHROUGH, new NexmarkQuery(configuration, new Query0()))
         .put(
             NexmarkQueryName.CURRENCY_CONVERSION,
@@ -1294,7 +1298,7 @@ public class NexmarkLauncher<OptionT extends NexmarkOptions> {
         .put(
             NexmarkQueryName.SESSION_SIDE_INPUT_JOIN,
             new NexmarkQuery(configuration, new SessionSideInputJoin(configuration)))
-        .build();
+        .build();*/
   }
 
   private static class PubsubMessageEventDoFn extends DoFn<PubsubMessage, Event> {

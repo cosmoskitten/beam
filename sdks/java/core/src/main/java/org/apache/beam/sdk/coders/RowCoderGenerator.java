@@ -17,6 +17,8 @@
  */
 package org.apache.beam.sdk.coders;
 
+import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkState;
+
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -220,6 +222,8 @@ public abstract class RowCoderGenerator {
     static void encodeDelegate(
         Coder[] coders, Row value, OutputStream outputStream, boolean hasNullableFields)
         throws IOException {
+      checkState(value.getFieldCount() == value.getSchema().getFieldCount());
+
       // Encode the field count. This allows us to handle compatible schema changes.
       VAR_INT_CODER.encode(value.getFieldCount(), outputStream);
       // Encode a bitmap for the null fields to save having to encode a bunch of nulls.
@@ -294,6 +298,8 @@ public abstract class RowCoderGenerator {
     static Row decodeDelegate(Schema schema, Coder[] coders, InputStream inputStream)
         throws IOException {
       int fieldCount = VAR_INT_CODER.decode(inputStream);
+      checkState(fieldCount == schema.getFieldCount());
+
       BitSet nullFields = NULL_LIST_CODER.decode(inputStream);
       List<Object> fieldValues = Lists.newArrayListWithCapacity(coders.length);
       for (int i = 0; i < fieldCount; ++i) {
@@ -309,6 +315,7 @@ public abstract class RowCoderGenerator {
       }
       // If the schema was evolved to contain more fields, we fill them in with nulls.
       for (int i = fieldCount; i < coders.length; i++) {
+        System.err.println("WE ARE HERE");
         fieldValues.add(null);
       }
       // We call attachValues instead of setValues. setValues validates every element in the list

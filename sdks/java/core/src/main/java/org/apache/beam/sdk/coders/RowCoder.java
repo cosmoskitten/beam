@@ -212,10 +212,8 @@ public class RowCoder extends CustomCoder<Row> {
   @Override
   public String toString() {
     String string = "Schema: " + schema
-            + "  UUID: " + id;
-    if (delegateCoder != null) {
-      string += " delegateCoder: " + delegateCoder;
-    }
+            + "  UUID: " + id
+            + " delegateCoder: " + getDelegateCoder();
     return string;
   }
 }
