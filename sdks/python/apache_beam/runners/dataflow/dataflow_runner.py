@@ -243,11 +243,9 @@ class DataflowRunner(PipelineRunner):
               pcoll.element_type, transform_node.full_label)
           key_type, value_type = pcoll.element_type.tuple_types
           if transform_node.outputs:
-            from apache_beam.runners.portability.fn_api_runner_transforms import \
-              only_element
             key = (
                 None if None in transform_node.outputs.keys()
-                else only_element(transform_node.outputs.keys()))
+                else next(iter(transform_node.outputs.keys())))
             transform_node.outputs[key].element_type = typehints.KV[
                 key_type, typehints.Iterable[value_type]]
 
@@ -522,7 +520,7 @@ class DataflowRunner(PipelineRunner):
     if window_value:
       # All outputs have the same windowing. So getting the coder from an
       # arbitrary window is fine.
-      output_tag = only_element(transform_node.outputs.keys())
+      output_tag = next(iter(transform_node.outputs.keys()))
       window_coder = (
           transform_node.outputs[
               output_tag].windowing.windowfn.get_window_coder())
