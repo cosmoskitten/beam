@@ -1149,7 +1149,7 @@ class TextSinkTest(unittest.TestCase):
   def test_write_dataflow_header(self):
     pipeline = TestPipeline()
     pcoll = pipeline | 'Create' >> beam.core.Create(self.lines)
-    header_text = b'foo'
+    header_text = 'foo'
     pcoll | 'Write' >> WriteToText(  # pylint: disable=expression-not-assigned
         self.path + '.gz',
         shard_name_template='',
