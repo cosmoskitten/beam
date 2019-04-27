@@ -49,6 +49,11 @@ public class Query0 extends NexmarkQueryTransform<Event> {
             new DoFn<Event, Event>() {
               private final Counter bytesMetric = Metrics.counter(name, "bytes");
 
+              @StartBundle
+              public void startBundle() {
+                  System.out.println("Coder " + coder);
+              }
+              
               @ProcessElement
               public void processElement(ProcessContext c) throws CoderException, IOException {
                 ByteArrayOutputStream outStream = new ByteArrayOutputStream();

@@ -208,4 +208,14 @@ public class RowCoder extends CustomCoder<Row> {
         return ESTIMATED_FIELD_SIZES.get(typeDescriptor.getTypeName());
     }
   }
+
+  @Override
+  public String toString() {
+    String string = "Schema: " + schema
+            + "  UUID: " + id;
+    if (delegateCoder != null) {
+      string += " delegateCoder: " + delegateCoder;
+    }
+    return string;
+  }
 }
