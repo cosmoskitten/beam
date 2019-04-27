@@ -226,9 +226,11 @@ public abstract class RowCoderGenerator {
 
       // Encode the field count. This allows us to handle compatible schema changes.
       VAR_INT_CODER.encode(value.getFieldCount(), outputStream);
+      System.err.println("ENCODING " + value.getFieldCount());
       // Encode a bitmap for the null fields to save having to encode a bunch of nulls.
       NULL_LIST_CODER.encode(scanNullFields(value, hasNullableFields), outputStream);
       for (int idx = 0; idx < value.getFieldCount(); ++idx) {
+        System.err.println("ENCODING FIELD" + value.getSchema().getField(idx).getName());
         Object fieldValue = value.getValue(idx);
         if (value.getValue(idx) != null) {
           coders[idx].encode(fieldValue, outputStream);
@@ -298,7 +300,7 @@ public abstract class RowCoderGenerator {
     static Row decodeDelegate(Schema schema, Coder[] coders, InputStream inputStream)
         throws IOException {
       int fieldCount = VAR_INT_CODER.decode(inputStream);
-      checkState(fieldCount == schema.getFieldCount());
+      System.err.println("DECODED FIELD COUNT " + fieldCount);
 
       BitSet nullFields = NULL_LIST_CODER.decode(inputStream);
       List<Object> fieldValues = Lists.newArrayListWithCapacity(coders.length);
@@ -309,13 +311,13 @@ public abstract class RowCoderGenerator {
           if (nullFields.get(i)) {
             fieldValues.add(null);
           } else {
+            System.err.println("DECODING FIELD " + schema.getField(i).getName());
             fieldValues.add(coders[i].decode(inputStream));
           }
         }
       }
       // If the schema was evolved to contain more fields, we fill them in with nulls.
       for (int i = fieldCount; i < coders.length; i++) {
-        System.err.println("WE ARE HERE");
         fieldValues.add(null);
       }
       // We call attachValues instead of setValues. setValues validates every element in the list
