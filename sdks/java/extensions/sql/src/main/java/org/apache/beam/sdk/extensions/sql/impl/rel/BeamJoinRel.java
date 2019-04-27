@@ -154,7 +154,7 @@ public class BeamJoinRel extends Join implements BeamRelNode {
 
       if ((joinType == JoinRelType.LEFT && leftRelNode.isBounded() == PCollection.IsBounded.BOUNDED)
           || (joinType == JoinRelType.RIGHT
-              && rightRelNode.isBounded() == PCollection.IsBounded.BOUNDED)) {
+          && rightRelNode.isBounded() == PCollection.IsBounded.BOUNDED)) {
         throw new UnsupportedOperationException(
             "LEFT side of an OUTER JOIN must be Unbounded table.");
       }
@@ -169,9 +169,9 @@ public class BeamJoinRel extends Join implements BeamRelNode {
     BeamRelNode leftRelNode = BeamSqlRelUtils.getBeamRelInput(left);
     BeamRelNode rightRelNode = BeamSqlRelUtils.getBeamRelInput(right);
     return (leftRelNode.isBounded() == PCollection.IsBounded.BOUNDED
-            && rightRelNode.isBounded() == UNBOUNDED)
+        && rightRelNode.isBounded() == UNBOUNDED)
         || (leftRelNode.isBounded() == UNBOUNDED
-            && rightRelNode.isBounded() == PCollection.IsBounded.BOUNDED);
+        && rightRelNode.isBounded() == PCollection.IsBounded.BOUNDED);
   }
 
   private boolean isSideInputLookupJoin() {
@@ -374,46 +374,46 @@ public class BeamJoinRel extends Join implements BeamRelNode {
 
     switch (joinType) {
       case LEFT:
-        {
-          Schema rigthNullSchema = buildNullSchema(rightSchema);
-          Row rightNullRow = Row.nullRow(rigthNullSchema);
+      {
+        Schema rigthNullSchema = buildNullSchema(rightSchema);
+        Row rightNullRow = Row.nullRow(rigthNullSchema);
 
-          extractedRightRows = setValueCoder(extractedRightRows, SchemaCoder.of(rigthNullSchema));
+        extractedRightRows = setValueCoder(extractedRightRows, SchemaCoder.of(rigthNullSchema));
 
-          joinedRows =
-              org.apache.beam.sdk.extensions.joinlibrary.Join.leftOuterJoin(
-                  extractedLeftRows, extractedRightRows, rightNullRow);
+        joinedRows =
+            org.apache.beam.sdk.extensions.joinlibrary.Join.leftOuterJoin(
+                extractedLeftRows, extractedRightRows, rightNullRow);
 
-          break;
-        }
+        break;
+      }
       case RIGHT:
-        {
-          Schema leftNullSchema = buildNullSchema(leftSchema);
-          Row leftNullRow = Row.nullRow(leftNullSchema);
+      {
+        Schema leftNullSchema = buildNullSchema(leftSchema);
+        Row leftNullRow = Row.nullRow(leftNullSchema);
 
-          extractedLeftRows = setValueCoder(extractedLeftRows, SchemaCoder.of(leftNullSchema));
+        extractedLeftRows = setValueCoder(extractedLeftRows, SchemaCoder.of(leftNullSchema));
 
-          joinedRows =
-              org.apache.beam.sdk.extensions.joinlibrary.Join.rightOuterJoin(
-                  extractedLeftRows, extractedRightRows, leftNullRow);
-          break;
-        }
+        joinedRows =
+            org.apache.beam.sdk.extensions.joinlibrary.Join.rightOuterJoin(
+                extractedLeftRows, extractedRightRows, leftNullRow);
+        break;
+      }
       case FULL:
-        {
-          Schema leftNullSchema = buildNullSchema(leftSchema);
-          Schema rightNullSchema = buildNullSchema(rightSchema);
+      {
+        Schema leftNullSchema = buildNullSchema(leftSchema);
+        Schema rightNullSchema = buildNullSchema(rightSchema);
 
-          Row leftNullRow = Row.nullRow(leftNullSchema);
-          Row rightNullRow = Row.nullRow(rightNullSchema);
+        Row leftNullRow = Row.nullRow(leftNullSchema);
+        Row rightNullRow = Row.nullRow(rightNullSchema);
 
-          extractedLeftRows = setValueCoder(extractedLeftRows, SchemaCoder.of(leftNullSchema));
-          extractedRightRows = setValueCoder(extractedRightRows, SchemaCoder.of(rightNullSchema));
+        extractedLeftRows = setValueCoder(extractedLeftRows, SchemaCoder.of(leftNullSchema));
+        extractedRightRows = setValueCoder(extractedRightRows, SchemaCoder.of(rightNullSchema));
 
-          joinedRows =
-              org.apache.beam.sdk.extensions.joinlibrary.Join.fullOuterJoin(
-                  extractedLeftRows, extractedRightRows, leftNullRow, rightNullRow);
-          break;
-        }
+        joinedRows =
+            org.apache.beam.sdk.extensions.joinlibrary.Join.fullOuterJoin(
+                extractedLeftRows, extractedRightRows, leftNullRow, rightNullRow);
+        break;
+      }
       case INNER:
       default:
         joinedRows =
@@ -474,8 +474,8 @@ public class BeamJoinRel extends Join implements BeamRelNode {
     return leftRows
         .apply(
             ParDo.of(
-                    new BeamJoinTransforms.SideInputJoinDoFn(
-                        joinType, rightNullRow, rowsView, swapped, schema))
+                new BeamJoinTransforms.SideInputJoinDoFn(
+                    joinType, rightNullRow, rowsView, swapped, schema))
                 .withSideInputs(rowsView))
         .setRowSchema(schema);
   }
@@ -566,7 +566,12 @@ public class BeamJoinRel extends Join implements BeamRelNode {
 
   private Pair<RexNode, RexNode> extractJoinPairOfRexNodes(RexCall rexCall) {
     if (!rexCall.getOperator().getName().equals("=")) {
-      throw new UnsupportedOperationException("Non equi-join is not supported!");
+      throw new UnsupportedOperationException("Non equi-join is not supported");
+    }
+
+    if (isIllegalJoinConjunctionClause(rexCall)) {
+      throw new UnsupportedOperationException(
+          "Only support column reference or struct field access in conjunction clause");
     }
 
     int leftIndex = getColumnIndex(rexCall.getOperands().get(0));
@@ -576,6 +581,14 @@ public class BeamJoinRel extends Join implements BeamRelNode {
     } else {
       return new Pair<>(rexCall.getOperands().get(1), rexCall.getOperands().get(0));
     }
+  }
+
+  // Only support {RexInputRef | RexFieldAccess} = {RexInputRef | RexFieldAccess}
+  private boolean isIllegalJoinConjunctionClause(RexCall rexCall) {
+    return (!(rexCall.getOperands().get(0) instanceof RexInputRef)
+        && !(rexCall.getOperands().get(0) instanceof RexFieldAccess))
+        || (!(rexCall.getOperands().get(1) instanceof RexInputRef)
+        && !(rexCall.getOperands().get(1) instanceof RexFieldAccess));
   }
 
   private int getColumnIndex(RexNode rexNode) {
