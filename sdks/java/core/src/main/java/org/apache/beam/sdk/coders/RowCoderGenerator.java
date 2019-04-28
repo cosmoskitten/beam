@@ -160,7 +160,7 @@ public abstract class RowCoderGenerator {
       Schema schema, DynamicType.Builder<Coder> builder) {
     boolean hasNullableFields =
         schema.getFields().stream().map(Field::getType).anyMatch(FieldType::getNullable);
-    System.err.println("HASNULLABLEFIELDS " + hasNullableFields);
+    System.err.println("HASNULLABLEFIELDS " + hasNullableFields + " FOR SCHEMA " + schema);
     return builder
         .defineMethod("getSchema", Schema.class, Visibility.PRIVATE, Ownership.STATIC)
         .intercept(FixedValue.reference(schema))
