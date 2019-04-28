@@ -19,11 +19,15 @@ package org.apache.beam.sdk.extensions.protobuf;
 
 import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkArgument;
 
+import com.google.protobuf.Descriptors;
+import com.google.protobuf.DynamicMessage;
 import com.google.protobuf.ExtensionRegistry;
 import com.google.protobuf.Message;
 import com.google.protobuf.Parser;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.ObjectInputStream;
+import java.io.ObjectOutputStream;
 import java.io.OutputStream;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
@@ -107,6 +111,8 @@ import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Sets;
  */
 public class ProtoCoder<T extends Message> extends CustomCoder<T> {
 
+  public static final long serialVersionUID = -5043999806040629525L;
+
   /** Returns a {@link ProtoCoder} for the given Protocol Buffers {@link Message}. */
   public static <T extends Message> ProtoCoder<T> of(Class<T> protoMessageClass) {
     return new ProtoCoder<>(protoMessageClass, ImmutableSet.of());
@@ -120,6 +126,14 @@ public class ProtoCoder<T extends Message> extends CustomCoder<T> {
     @SuppressWarnings("unchecked")
     Class<T> protoMessageClass = (Class<T>) protoMessageType.getRawType();
     return of(protoMessageClass);
+  }
+
+  /**
+   * Returns a {@link ProtoCoder} for the Protocol Buffers {@link DynamicMessage} for the given
+   * {@link Descriptors.Descriptor}.
+   */
+  public static ProtoCoder<DynamicMessage> of(Descriptors.Descriptor protoMessageDescriptor) {
+    return new ProtoCoder<>(protoMessageDescriptor, ImmutableSet.of());
   }
 
   /**
@@ -269,21 +283,61 @@ public class ProtoCoder<T extends Message> extends CustomCoder<T> {
   private transient ExtensionRegistry memoizedExtensionRegistry;
   private transient Parser<T> memoizedParser;
 
+  // Descriptor used by DynamicMessage.
+  private transient Descriptors.Descriptor protoMessageDescriptor;
+
   /** Private constructor. */
   private ProtoCoder(Class<T> protoMessageClass, Set<Class<?>> extensionHostClasses) {
     this.protoMessageClass = protoMessageClass;
     this.extensionHostClasses = extensionHostClasses;
+    this.protoMessageDescriptor = null;
+  }
+
+  private ProtoCoder(
+      Descriptors.Descriptor protoMessageDescriptor, Set<Class<?>> extensionHostClasses) {
+    @SuppressWarnings("unchecked")
+    Class<T> protoMessageClass = (Class<T>) DynamicMessage.class;
+    this.protoMessageClass = protoMessageClass;
+    this.extensionHostClasses = extensionHostClasses;
+    this.protoMessageDescriptor = protoMessageDescriptor;
+  }
+
+  private void writeObject(ObjectOutputStream oos) throws IOException {
+    oos.defaultWriteObject();
+    if (DynamicMessage.class.equals(this.protoMessageClass)) {
+      if (this.protoMessageDescriptor == null) {
+        throw new RuntimeException("DynamicMessages require provider a Descriptor to the coder.");
+      }
+      ProtoDescriptorSerializer.writeObject(oos, this.protoMessageDescriptor);
+    }
+  }
+
+  private void readObject(ObjectInputStream ois) throws ClassNotFoundException, IOException {
+    ois.defaultReadObject();
+    if (DynamicMessage.class.equals(this.protoMessageClass)) {
+      this.protoMessageDescriptor = ProtoDescriptorSerializer.readObject(ois);
+    }
   }
 
   /** Get the memoized {@link Parser}, possibly initializing it lazily. */
   private Parser<T> getParser() {
     if (memoizedParser == null) {
       try {
-        @SuppressWarnings("unchecked")
-        T protoMessageInstance = (T) protoMessageClass.getMethod("getDefaultInstance").invoke(null);
-        @SuppressWarnings("unchecked")
-        Parser<T> tParser = (Parser<T>) protoMessageInstance.getParserForType();
-        memoizedParser = tParser;
+        if (DynamicMessage.class.equals(protoMessageClass)) {
+          @SuppressWarnings("unchecked")
+          T protoMessageInstance =
+              (T) DynamicMessage.newBuilder(this.protoMessageDescriptor).build();
+          @SuppressWarnings("unchecked")
+          Parser<T> tParser = (Parser<T>) protoMessageInstance.getParserForType();
+          memoizedParser = tParser;
+        } else {
+          @SuppressWarnings("unchecked")
+          T protoMessageInstance =
+              (T) protoMessageClass.getMethod("getDefaultInstance").invoke(null);
+          @SuppressWarnings("unchecked")
+          Parser<T> tParser = (Parser<T>) protoMessageInstance.getParserForType();
+          memoizedParser = tParser;
+        }
       } catch (IllegalAccessException | InvocationTargetException | NoSuchMethodException e) {
         throw new IllegalArgumentException(e);
       }
