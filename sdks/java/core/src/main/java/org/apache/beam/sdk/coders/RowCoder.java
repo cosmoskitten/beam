@@ -123,6 +123,10 @@ public class RowCoder extends CustomCoder<Row> {
 
       case ARRAY:
         setSchemaIds(fieldType.getCollectionElementType());
+        return;
+        
+      default:
+        return;
     }
   }
 

@@ -48,7 +48,7 @@ public class Query0 extends NexmarkQueryTransform<Event> {
         ParDo.of(
             new DoFn<Event, Event>() {
               private final Counter bytesMetric = Metrics.counter(name, "bytes");
-              
+
               @ProcessElement
               public void processElement(ProcessContext c) throws CoderException, IOException {
                 ByteArrayOutputStream outStream = new ByteArrayOutputStream();
