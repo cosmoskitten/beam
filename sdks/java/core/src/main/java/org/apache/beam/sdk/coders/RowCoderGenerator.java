@@ -160,6 +160,7 @@ public abstract class RowCoderGenerator {
       Schema schema, DynamicType.Builder<Coder> builder) {
     boolean hasNullableFields =
         schema.getFields().stream().map(Field::getType).anyMatch(FieldType::getNullable);
+    System.err.println("HASNULLABLEFIELDS " + hasNullableFields);
     return builder
         .defineMethod("getSchema", Schema.class, Visibility.PRIVATE, Ownership.STATIC)
         .intercept(FixedValue.reference(schema))
@@ -226,14 +227,16 @@ public abstract class RowCoderGenerator {
 
       // Encode the field count. This allows us to handle compatible schema changes.
       VAR_INT_CODER.encode(value.getFieldCount(), outputStream);
-      System.err.println("ENCODING " + value.getFieldCount());
+      System.err.println("ENCODING FIELD COUNT " + value.getFieldCount());
       // Encode a bitmap for the null fields to save having to encode a bunch of nulls.
       NULL_LIST_CODER.encode(scanNullFields(value, hasNullableFields), outputStream);
       for (int idx = 0; idx < value.getFieldCount(); ++idx) {
-        System.err.println("ENCODING FIELD" + value.getSchema().getField(idx).getName());
         Object fieldValue = value.getValue(idx);
         if (value.getValue(idx) != null) {
+          System.err.println("ENCODING FIELD " + value.getSchema().getField(idx).getName());
           coders[idx].encode(fieldValue, outputStream);
+        } else {
+          System.err.println("SKIP ENCODING NULL FIELD " + value.getSchema().getField(idx).getName());
         }
       }
     }
@@ -245,6 +248,7 @@ public abstract class RowCoderGenerator {
       if (hasNullableFields) {
         for (int idx = 0; idx < row.getFieldCount(); ++idx) {
           if (row.getValue(idx) == null) {
+            System.err.println ("SCANNED NULL FIELD " + row.getSchema().getFieldNames().get(idx));
             nullFields.set(idx);
           }
         }
@@ -309,6 +313,7 @@ public abstract class RowCoderGenerator {
         // in which case we drop the extra fields.
         if (i < coders.length) {
           if (nullFields.get(i)) {
+            System.err.println("DECODING FIELD " + schema.getField(i).getName());
             fieldValues.add(null);
           } else {
             System.err.println("DECODING FIELD " + schema.getField(i).getName());
