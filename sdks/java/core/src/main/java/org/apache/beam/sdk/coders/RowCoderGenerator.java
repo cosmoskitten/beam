@@ -53,6 +53,7 @@ import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.Field;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.apache.beam.sdk.schemas.Schema.TypeName;
+import org.apache.beam.sdk.util.SerializableUtils;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Lists;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Maps;
@@ -127,6 +128,10 @@ public abstract class RowCoderGenerator {
 
   @SuppressWarnings("unchecked")
   public static Coder<Row> generate(Schema schema, UUID coderId) {
+    System.err.println("GENERATING FOR " + schema);
+    if (schema.getFieldCount() == 0) {
+      throw new RuntimeException("GENERATING EMPTY SCHEMA");
+    }
     // Using ConcurrentHashMap::computeIfAbsent here would deadlock in case of nested
     // coders. Using HashMap::computeIfAbsent generates ConcurrentModificationExceptions in Java 11.
     Coder<Row> rowCoder = generatedCoders.get(coderId);
@@ -381,8 +386,11 @@ public abstract class RowCoderGenerator {
     } else if (TypeName.MAP.equals(fieldType.getTypeName())) {
       return mapCoder(fieldType.getMapKeyType(), fieldType.getMapValueType());
     } else if (TypeName.ROW.equals(fieldType.getTypeName())) {
-      Coder<Row> nestedCoder = generate(fieldType.getRowSchema(), UUID.randomUUID());
-      RowCoder.of(fieldType.getRowSchema());
+      Schema nestedSchema = SerializableUtils.clone(fieldType.getRowSchema());
+      if (nestedSchema.getUUID() == null) {
+        nestedSchema.setUUID(UUID.randomUUID());
+      }
+      Coder<Row> nestedCoder = generate(nestedSchema, nestedSchema.getUUID());
       return rowCoder(nestedCoder.getClass());
     } else {
       StackManipulation primitiveCoder = coderForPrimitiveType(fieldType.getTypeName());
