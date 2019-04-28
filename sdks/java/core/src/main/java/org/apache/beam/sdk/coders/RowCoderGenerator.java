@@ -53,7 +53,6 @@ import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.Field;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.apache.beam.sdk.schemas.Schema.TypeName;
-import org.apache.beam.sdk.util.SerializableUtils;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Lists;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Maps;
@@ -62,7 +61,7 @@ import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Maps;
  * A utility for automatically generating a {@link Coder} for {@link Row} objects corresponding to a
  * specific schema. The resulting coder is loaded into the default ClassLoader and returned.
  *
- * <p>When {@link RowCoderGenerator#generate(Schema, UUID)} is called, a new subclass of {@literal
+ * <p>When {@link RowCoderGenerator#generate(Schema)} is called, a new subclass of {@literal
  * Coder<Row>} is generated for the specified schema. This class is generated using low-level
  * bytecode generation, and hardcodes encodings for all fields of the Schema. Empirically, this is
  * 30-40% faster than a coder that introspects the schema.
@@ -127,14 +126,10 @@ public abstract class RowCoderGenerator {
   }
 
   @SuppressWarnings("unchecked")
-  public static Coder<Row> generate(Schema schema, UUID coderId) {
-    System.err.println("GENERATING FOR " + schema);
-    if (schema.getFieldCount() == 0) {
-      throw new RuntimeException("GENERATING EMPTY SCHEMA");
-    }
+  public static Coder<Row> generate(Schema schema) {
     // Using ConcurrentHashMap::computeIfAbsent here would deadlock in case of nested
     // coders. Using HashMap::computeIfAbsent generates ConcurrentModificationExceptions in Java 11.
-    Coder<Row> rowCoder = generatedCoders.get(coderId);
+    Coder<Row> rowCoder = generatedCoders.get(schema.getUUID());
     if (rowCoder == null) {
       TypeDescription.Generic coderType =
           TypeDescription.Generic.Builder.parameterizedType(Coder.class, Row.class).build();
@@ -156,7 +151,7 @@ public abstract class RowCoderGenerator {
           | InvocationTargetException e) {
         throw new RuntimeException("Unable to generate coder for schema " + schema);
       }
-      generatedCoders.put(coderId, rowCoder);
+      generatedCoders.put(schema.getUUID(), rowCoder);
     }
     return rowCoder;
   }
@@ -165,7 +160,6 @@ public abstract class RowCoderGenerator {
       Schema schema, DynamicType.Builder<Coder> builder) {
     boolean hasNullableFields =
         schema.getFields().stream().map(Field::getType).anyMatch(FieldType::getNullable);
-    System.err.println("HASNULLABLEFIELDS " + hasNullableFields + " FOR SCHEMA " + schema);
     return builder
         .defineMethod("getSchema", Schema.class, Visibility.PRIVATE, Ownership.STATIC)
         .intercept(FixedValue.reference(schema))
@@ -232,16 +226,12 @@ public abstract class RowCoderGenerator {
 
       // Encode the field count. This allows us to handle compatible schema changes.
       VAR_INT_CODER.encode(value.getFieldCount(), outputStream);
-      System.err.println("ENCODING FIELD COUNT " + value.getFieldCount());
       // Encode a bitmap for the null fields to save having to encode a bunch of nulls.
       NULL_LIST_CODER.encode(scanNullFields(value, hasNullableFields), outputStream);
       for (int idx = 0; idx < value.getFieldCount(); ++idx) {
         Object fieldValue = value.getValue(idx);
         if (value.getValue(idx) != null) {
-          System.err.println("ENCODING FIELD " + value.getSchema().getField(idx).getName());
           coders[idx].encode(fieldValue, outputStream);
-        } else {
-          System.err.println("SKIP ENCODING NULL FIELD " + value.getSchema().getField(idx).getName());
         }
       }
     }
@@ -253,7 +243,6 @@ public abstract class RowCoderGenerator {
       if (hasNullableFields) {
         for (int idx = 0; idx < row.getFieldCount(); ++idx) {
           if (row.getValue(idx) == null) {
-            System.err.println ("SCANNED NULL FIELD " + row.getSchema().getFieldNames().get(idx));
             nullFields.set(idx);
           }
         }
@@ -309,7 +298,6 @@ public abstract class RowCoderGenerator {
     static Row decodeDelegate(Schema schema, Coder[] coders, InputStream inputStream)
         throws IOException {
       int fieldCount = VAR_INT_CODER.decode(inputStream);
-      System.err.println("DECODED FIELD COUNT " + fieldCount);
 
       BitSet nullFields = NULL_LIST_CODER.decode(inputStream);
       List<Object> fieldValues = Lists.newArrayListWithCapacity(coders.length);
@@ -318,10 +306,8 @@ public abstract class RowCoderGenerator {
         // in which case we drop the extra fields.
         if (i < coders.length) {
           if (nullFields.get(i)) {
-            System.err.println("DECODING FIELD " + schema.getField(i).getName());
             fieldValues.add(null);
           } else {
-            System.err.println("DECODING FIELD " + schema.getField(i).getName());
             fieldValues.add(coders[i].decode(inputStream));
           }
         }
@@ -386,11 +372,8 @@ public abstract class RowCoderGenerator {
     } else if (TypeName.MAP.equals(fieldType.getTypeName())) {
       return mapCoder(fieldType.getMapKeyType(), fieldType.getMapValueType());
     } else if (TypeName.ROW.equals(fieldType.getTypeName())) {
-      Schema nestedSchema = SerializableUtils.clone(fieldType.getRowSchema());
-      if (nestedSchema.getUUID() == null) {
-        nestedSchema.setUUID(UUID.randomUUID());
-      }
-      Coder<Row> nestedCoder = generate(nestedSchema, nestedSchema.getUUID());
+      checkState(fieldType.getRowSchema().getUUID() != null);
+      Coder<Row> nestedCoder = generate(fieldType.getRowSchema());
       return rowCoder(nestedCoder.getClass());
     } else {
       StackManipulation primitiveCoder = coderForPrimitiveType(fieldType.getTypeName());
