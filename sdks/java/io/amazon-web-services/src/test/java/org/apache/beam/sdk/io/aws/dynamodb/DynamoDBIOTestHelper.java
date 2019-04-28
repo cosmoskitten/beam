@@ -41,10 +41,10 @@ import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableLis
 import org.junit.Assert;
 
 /**
- * A utility to generate test table and data for {@link DynamodbIOWriterTest} and {@link
- * DynamodbIOReaderTest}.
+ * A utility to generate test table and data for {@link DynamoDBIOWriterTest} and {@link
+ * DynamoDBIOReaderTest}.
  */
-public class DynamodbIOTestHelper implements Serializable {
+public class DynamoDBIOTestHelper implements Serializable {
 
   public static final String ATTR_NAME_1 = "hashKey1";
   public static final String ATTR_NAME_2 = "rangeKey2";

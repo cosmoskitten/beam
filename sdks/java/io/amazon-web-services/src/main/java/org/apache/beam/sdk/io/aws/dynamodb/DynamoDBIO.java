@@ -64,11 +64,11 @@ import org.slf4j.LoggerFactory;
  * <pre>{@code
  * PCollection<BatchWriteItemRequest> data = ...;
  *
- * data.apply(DynamodbIO.write()
+ * data.apply(DynamoDBIO.write()
  *     .withRetryConfiguration(
- *        DynamodbIO.RetryConfiguration.create(
+ *        DynamoDBIO.RetryConfiguration.create(
  *          4, org.joda.time.Duration.standardSeconds(10)))
- *     .withAWSClientsProvider(new BasisDynamodbProvider(accessKey, secretKey, region))
+ *     .withAWSClientsProvider(new BasisDynamoDBProvider(accessKey, secretKey, region))
  *     .withResultOutputTag(results));
  * }</pre>
  *
@@ -76,21 +76,21 @@ import org.slf4j.LoggerFactory;
  *
  * <ul>
  *   <li>retry configuration
- *   <li>need to specify AwsClientsProvider. You can pass on the default one BasisDynamodbProvider
- *   <li>an output tag where you can get results. Example in DynamodbIOTest
+ *   <li>need to specify AwsClientsProvider. You can pass on the default one BasisDynamoDBProvider
+ *   <li>an output tag where you can get results. Example in DynamoDBIOTest
  * </ul>
  */
 @Experimental(Experimental.Kind.SOURCE_SINK)
-public final class DynamodbIO {
+public final class DynamoDBIO {
   public static Read read() {
-    return new AutoValue_DynamodbIO_Read.Builder()
+    return new AutoValue_DynamoDBIO_Read.Builder()
         .setNumOfItemPerSegment(Integer.MAX_VALUE)
         .setNumOfSplits(1)
         .build();
   }
 
   public static Write write() {
-    return new AutoValue_DynamodbIO_Write.Builder().build();
+    return new AutoValue_DynamoDBIO_Write.Builder().build();
   }
 
   /** Read data from DynamoDB by BatchGetItemRequest. Todo: doc more */
@@ -143,7 +143,6 @@ public final class DynamodbIO {
 
       abstract Read build();
     }
-    // TODO: add more AwsClientProviders
     /**
      * Allows to specify custom {@link AwsClientsProvider}. {@link AwsClientsProvider} provides
      * {@link AmazonDynamoDB} and {@link AmazonCloudWatch} instances which are later used for
@@ -157,7 +156,7 @@ public final class DynamodbIO {
     /**
      * Specify credential details and region to be used to write to dynamo. If you need more
      * sophisticated credential protocol, then you should look at {@link
-     * DynamodbIO.Write#withAWSClientsProvider(AwsClientsProvider)}.
+     * DynamoDBIO.Write#withAWSClientsProvider(AwsClientsProvider)}.
      */
     public Read withAWSClientsProvider(String awsAccessKey, String awsSecretKey, Regions region) {
       return withAWSClientsProvider(awsAccessKey, awsSecretKey, region, null);
@@ -166,7 +165,7 @@ public final class DynamodbIO {
     /**
      * Specify credential details and region to be used to write to DynamoDB. If you need more
      * sophisticated credential protocol, then you should look at {@link
-     * DynamodbIO.Write#withAWSClientsProvider(AwsClientsProvider)}.
+     * DynamoDBIO.Write#withAWSClientsProvider(AwsClientsProvider)}.
      *
      * <p>The {@code serviceEndpoint} sets an alternative service host. This is useful to execute
      * the tests with Kinesis service emulator.
@@ -174,7 +173,7 @@ public final class DynamodbIO {
     public Read withAWSClientsProvider(
         String awsAccessKey, String awsSecretKey, Regions region, String serviceEndpoint) {
       return withAWSClientsProvider(
-          new BasisDynamodbProvider(awsAccessKey, awsSecretKey, region, serviceEndpoint));
+          new BasisDynamoDBProvider(awsAccessKey, awsSecretKey, region, serviceEndpoint));
     }
 
     public Read withTableName(String tableName) {
@@ -209,18 +208,7 @@ public final class DynamodbIO {
     @Override
     public PCollection<Map<String, AttributeValue>> expand(PBegin input) {
 
-      return input.apply(
-          org.apache.beam.sdk.io.Read.from(
-              new DynamodbBoundedSource(
-                  getAWSClientsProvider(),
-                  getTableName(),
-                  getFilterExpression(),
-                  getExpressionAttributeNames(),
-                  getExpressionAttributeValues(),
-                  getProjectionExpression(),
-                  getNumOfItemPerSegment(),
-                  getNumOfSplits(),
-                  0)));
+      return input.apply(org.apache.beam.sdk.io.Read.from(new DynamoDBBoundedSource(this, 0)));
     }
   }
 
@@ -242,16 +230,16 @@ public final class DynamodbIO {
 
     abstract Duration getMaxDuration();
 
-    abstract DynamodbIO.RetryConfiguration.RetryPredicate getRetryPredicate();
+    abstract DynamoDBIO.RetryConfiguration.RetryPredicate getRetryPredicate();
 
-    abstract DynamodbIO.RetryConfiguration.Builder builder();
+    abstract DynamoDBIO.RetryConfiguration.Builder builder();
 
-    public static DynamodbIO.RetryConfiguration create(int maxAttempts, Duration maxDuration) {
+    public static DynamoDBIO.RetryConfiguration create(int maxAttempts, Duration maxDuration) {
       checkArgument(maxAttempts > 0, "maxAttempts should be greater than 0");
       checkArgument(
           maxDuration != null && maxDuration.isLongerThan(Duration.ZERO),
           "maxDuration should be greater than 0");
-      return new AutoValue_DynamodbIO_RetryConfiguration.Builder()
+      return new AutoValue_DynamoDBIO_RetryConfiguration.Builder()
           .setMaxAttempts(maxAttempts)
           .setMaxDuration(maxDuration)
           .setRetryPredicate(DEFAULT_RETRY_PREDICATE)
@@ -260,14 +248,14 @@ public final class DynamodbIO {
 
     @AutoValue.Builder
     abstract static class Builder {
-      abstract DynamodbIO.RetryConfiguration.Builder setMaxAttempts(int maxAttempts);
+      abstract DynamoDBIO.RetryConfiguration.Builder setMaxAttempts(int maxAttempts);
 
-      abstract DynamodbIO.RetryConfiguration.Builder setMaxDuration(Duration maxDuration);
+      abstract DynamoDBIO.RetryConfiguration.Builder setMaxDuration(Duration maxDuration);
 
-      abstract DynamodbIO.RetryConfiguration.Builder setRetryPredicate(
+      abstract DynamoDBIO.RetryConfiguration.Builder setRetryPredicate(
           RetryPredicate retryPredicate);
 
-      abstract DynamodbIO.RetryConfiguration build();
+      abstract DynamoDBIO.RetryConfiguration build();
     }
 
     /**
@@ -322,7 +310,7 @@ public final class DynamodbIO {
 
     /**
      * Allows to specify custom {@link AwsClientsProvider}. {@link AwsClientsProvider} creates new
-     * {@link AmazonDynamoDB} which is later used for writing to a dynamo db database.
+     * {@link AmazonDynamoDB} which is later used for writing to a dynamo client database.
      */
     public Write withAWSClientsProvider(AwsClientsProvider awsClientsProvider) {
       return builder().setAWSClientsProvider(awsClientsProvider).build();
@@ -331,7 +319,7 @@ public final class DynamodbIO {
     /**
      * Specify credential details and region to be used to write to dynamo. If you need more
      * sophisticated credential protocol, then you should look at {@link
-     * DynamodbIO.Write#withAWSClientsProvider(AwsClientsProvider)}.
+     * DynamoDBIO.Write#withAWSClientsProvider(AwsClientsProvider)}.
      */
     public Write withAWSClientsProvider(String awsAccessKey, String awsSecretKey, Regions region) {
       return withAWSClientsProvider(awsAccessKey, awsSecretKey, region, null);
@@ -340,7 +328,7 @@ public final class DynamodbIO {
     /**
      * Specify credential details and region to be used to write to DynamoDB. If you need more
      * sophisticated credential protocol, then you should look at {@link
-     * DynamodbIO.Write#withAWSClientsProvider(AwsClientsProvider)}.
+     * DynamoDBIO.Write#withAWSClientsProvider(AwsClientsProvider)}.
      *
      * <p>The {@code serviceEndpoint} sets an alternative service host. This is useful to execute
      * the tests with Kinesis service emulator.
@@ -348,7 +336,7 @@ public final class DynamodbIO {
     public Write withAWSClientsProvider(
         String awsAccessKey, String awsSecretKey, Regions region, String serviceEndpoint) {
       return withAWSClientsProvider(
-          new BasisDynamodbProvider(awsAccessKey, awsSecretKey, region, serviceEndpoint));
+          new BasisDynamoDBProvider(awsAccessKey, awsSecretKey, region, serviceEndpoint));
     }
 
     /**
@@ -363,13 +351,13 @@ public final class DynamodbIO {
      * <p>Example use:
      *
      * <pre>{@code
-     * DynamodbIO.write()
-     *   .withRetryConfiguration(DynamodbIO.RetryConfiguration.create(5, Duration.standardMinutes(1))
+     * DynamoDBIO.write()
+     *   .withRetryConfiguration(DynamoDBIO.RetryConfiguration.create(5, Duration.standardMinutes(1))
      *   ...
      * }</pre>
      *
      * @param retryConfiguration the rules which govern the retry behavior
-     * @return the {@link DynamodbIO.Write} with retrying configured
+     * @return the {@link DynamoDBIO.Write} with retrying configured
      */
     public Write withRetryConfiguration(RetryConfiguration retryConfiguration) {
       checkArgument(retryConfiguration != null, "retryConfiguration is required");
@@ -395,20 +383,20 @@ public final class DynamodbIO {
       private static final Duration RETRY_INITIAL_BACKOFF = Duration.standardSeconds(5);
       private transient FluentBackoff retryBackoff; // defaults to no retries
       private static final Logger LOG =
-          LoggerFactory.getLogger(DynamodbIO.Write.DynamoDbWriterFn.class);
+          LoggerFactory.getLogger(DynamoDBIO.Write.DynamoDbWriterFn.class);
       private static final Counter DYNAMO_DB_WRITE_FAILURES =
-          Metrics.counter(DynamodbIO.Write.DynamoDbWriterFn.class, "DynamoDB_Write_Failures");
+          Metrics.counter(DynamoDBIO.Write.DynamoDbWriterFn.class, "DynamoDB_Write_Failures");
 
-      private transient AmazonDynamoDB db;
-      private final DynamodbIO.Write spec;
+      private transient AmazonDynamoDB client;
+      private final DynamoDBIO.Write spec;
 
-      DynamoDbWriterFn(DynamodbIO.Write spec) {
+      DynamoDbWriterFn(DynamoDBIO.Write spec) {
         this.spec = spec;
       }
 
       @Setup
       public void setup() throws Exception {
-        db = spec.getAWSClientsProvider().createDynamoDB();
+        client = spec.getAWSClientsProvider().createDynamoDB();
         retryBackoff =
             FluentBackoff.DEFAULT
                 .withMaxRetries(0) // default to no retrying
@@ -430,7 +418,7 @@ public final class DynamodbIO {
         while (true) {
           attempt++;
           try {
-            final BatchWriteItemResult batchWriteItemResult = db.batchWriteItem(writeRequest);
+            final BatchWriteItemResult batchWriteItemResult = client.batchWriteItem(writeRequest);
             context.output(batchWriteItemResult);
             break;
           } catch (Exception ex) {
@@ -461,9 +449,9 @@ public final class DynamodbIO {
 
       @Teardown
       public void tearDown() {
-        if (db != null) {
-          db.shutdown();
-          db = null;
+        if (client != null) {
+          client.shutdown();
+          client = null;
         }
       }
     }

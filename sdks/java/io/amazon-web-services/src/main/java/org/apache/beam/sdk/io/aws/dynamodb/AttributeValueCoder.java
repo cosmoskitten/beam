@@ -28,12 +28,13 @@ import java.util.List;
 import org.apache.beam.sdk.coders.AtomicCoder;
 import org.apache.beam.sdk.coders.BooleanCoder;
 import org.apache.beam.sdk.coders.ByteArrayCoder;
+import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.coders.ListCoder;
 import org.apache.beam.sdk.coders.MapCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 
-/** Provide a mechanism to encode and decode AttributeValue object. */
+/** A {@link Coder} that serializes and deserializes the {@link AttributeValue} objects. */
 public class AttributeValueCoder extends AtomicCoder<AttributeValue> implements Serializable {
 
   /** Data type of each value type in AttributeValue object. */

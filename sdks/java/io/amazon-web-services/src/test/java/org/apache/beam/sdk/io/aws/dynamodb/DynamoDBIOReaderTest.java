@@ -35,7 +35,7 @@ import org.junit.Rule;
 import org.junit.Test;
 
 /** Unit tests for Reader to cover different kind of parallel scan. */
-public class DynamodbIOReaderTest implements Serializable {
+public class DynamoDBIOReaderTest implements Serializable {
 
   @Rule public final transient TestPipeline pipeline = TestPipeline.create();
 
@@ -50,16 +50,16 @@ public class DynamodbIOReaderTest implements Serializable {
   @Before
   public void setup() {
     dynamoClient = DynamoDBEmbedded.create().amazonDynamoDB();
-    awsClientsProvider = AwsClientProviderMock.of(dynamoClient);
-    DynamodbIOTestHelper.createTestTable(dynamoClient, tableName);
-    expected = DynamodbIOTestHelper.generateTestData(dynamoClient, tableName, numOfItemsToGen);
+    awsClientsProvider = MockAwsClientProvider.of(dynamoClient);
+    DynamoDBIOTestHelper.createTestTable(dynamoClient, tableName);
+    expected = DynamoDBIOTestHelper.generateTestData(dynamoClient, tableName, numOfItemsToGen);
   }
 
   @Test
   public void testLimit10AndSplit1() {
     final PCollection<Map<String, AttributeValue>> actual =
         pipeline.apply(
-            DynamodbIO.read()
+            DynamoDBIO.read()
                 .withTableName(tableName)
                 .withNumOfItemPerSegment(10)
                 .withNumOfSplits(1)
@@ -73,7 +73,7 @@ public class DynamodbIOReaderTest implements Serializable {
   public void testLimit99WhileHasLess() {
     final PCollection<Map<String, AttributeValue>> actual =
         pipeline.apply(
-            DynamodbIO.read()
+            DynamoDBIO.read()
                 .withTableName(tableName)
                 .withNumOfItemPerSegment(99)
                 .withNumOfSplits(1)
@@ -87,7 +87,7 @@ public class DynamodbIOReaderTest implements Serializable {
   public void testLimit2WhileHasMore() {
     final PCollection<Map<String, AttributeValue>> actual =
         pipeline.apply(
-            DynamodbIO.read()
+            DynamoDBIO.read()
                 .withTableName(tableName)
                 .withNumOfItemPerSegment(2)
                 .withNumOfSplits(1)
@@ -101,7 +101,7 @@ public class DynamodbIOReaderTest implements Serializable {
   public void testLimit2AndSplit2WhileHasMore() {
     final PCollection<Map<String, AttributeValue>> output =
         pipeline.apply(
-            DynamodbIO.read()
+            DynamoDBIO.read()
                 .withTableName(tableName)
                 .withNumOfItemPerSegment(2)
                 .withNumOfSplits(2)
@@ -115,7 +115,7 @@ public class DynamodbIOReaderTest implements Serializable {
   public void testLimit2AndSplit5ReturnLessThan10() {
     final PCollection<Map<String, AttributeValue>> actual =
         pipeline.apply(
-            DynamodbIO.read()
+            DynamoDBIO.read()
                 .withTableName(tableName)
                 .withNumOfItemPerSegment(2)
                 .withNumOfSplits(5)
@@ -129,7 +129,7 @@ public class DynamodbIOReaderTest implements Serializable {
   public void testLimit2AndSplit5() {
     final PCollection<Map<String, AttributeValue>> actual =
         pipeline.apply(
-            DynamodbIO.read()
+            DynamoDBIO.read()
                 .withTableName(tableName)
                 // Don't set a limit when num of split is calculated. One segment can select more
                 // item than your limit
@@ -145,7 +145,7 @@ public class DynamodbIOReaderTest implements Serializable {
   public void testParallelWith12Split() {
     final PCollection<Map<String, AttributeValue>> actual =
         pipeline.apply(
-            DynamodbIO.read()
+            DynamoDBIO.read()
                 .withTableName(tableName)
                 .withNumOfSplits(12)
                 .withAWSClientsProvider(awsClientsProvider));
@@ -157,7 +157,7 @@ public class DynamodbIOReaderTest implements Serializable {
   public void testParallelWith3Split() {
     final PCollection<Map<String, AttributeValue>> actual =
         pipeline.apply(
-            DynamodbIO.read()
+            DynamoDBIO.read()
                 .withTableName(tableName)
                 .withNumOfSplits(3)
                 .withAWSClientsProvider(awsClientsProvider));
@@ -172,13 +172,13 @@ public class DynamodbIOReaderTest implements Serializable {
     filterExpressionValues.put(":number", new AttributeValue().withN("10005"));
 
     Map<String, String> filterExpressionNames = new HashMap<>();
-    filterExpressionNames.put(DynamodbIOTestHelper.ATTR_NAME_1, "HELLO");
+    filterExpressionNames.put(DynamoDBIOTestHelper.ATTR_NAME_1, "HELLO");
 
     final PCollection<Map<String, AttributeValue>> actual =
         pipeline.apply(
-            DynamodbIO.read()
+            DynamoDBIO.read()
                 .withTableName(tableName)
-                .withFilterExpression(DynamodbIOTestHelper.ATTR_NAME_2 + " < :number")
+                .withFilterExpression(DynamoDBIOTestHelper.ATTR_NAME_2 + " < :number")
                 .withExpressionAttributeValues(filterExpressionValues)
                 .withNumOfSplits(2)
                 .withAWSClientsProvider(awsClientsProvider));
@@ -191,21 +191,21 @@ public class DynamodbIOReaderTest implements Serializable {
   public void testFilterAndProjectWith2Split() {
     List<Map<String, AttributeValue>> expectedFilter =
         ImmutableList.of(
-            ImmutableMap.of(DynamodbIOTestHelper.ATTR_NAME_2, new AttributeValue().withN("10001")),
-            ImmutableMap.of(DynamodbIOTestHelper.ATTR_NAME_2, new AttributeValue().withN("10002")),
-            ImmutableMap.of(DynamodbIOTestHelper.ATTR_NAME_2, new AttributeValue().withN("10003")),
-            ImmutableMap.of(DynamodbIOTestHelper.ATTR_NAME_2, new AttributeValue().withN("10004")));
+            ImmutableMap.of(DynamoDBIOTestHelper.ATTR_NAME_2, new AttributeValue().withN("10001")),
+            ImmutableMap.of(DynamoDBIOTestHelper.ATTR_NAME_2, new AttributeValue().withN("10002")),
+            ImmutableMap.of(DynamoDBIOTestHelper.ATTR_NAME_2, new AttributeValue().withN("10003")),
+            ImmutableMap.of(DynamoDBIOTestHelper.ATTR_NAME_2, new AttributeValue().withN("10004")));
 
     Map<String, AttributeValue> filterExpressionValues = new HashMap<>();
     filterExpressionValues.put(":number", new AttributeValue().withN("10005"));
 
     final PCollection<Map<String, AttributeValue>> actual =
         pipeline.apply(
-            DynamodbIO.read()
+            DynamoDBIO.read()
                 .withTableName(tableName)
-                .withFilterExpression(DynamodbIOTestHelper.ATTR_NAME_2 + " < :number")
+                .withFilterExpression(DynamoDBIOTestHelper.ATTR_NAME_2 + " < :number")
                 .withExpressionAttributeValues(filterExpressionValues)
-                .withProjectionExpression(DynamodbIOTestHelper.ATTR_NAME_2)
+                .withProjectionExpression(DynamoDBIOTestHelper.ATTR_NAME_2)
                 .withNumOfSplits(2)
                 .withAWSClientsProvider(awsClientsProvider));
 

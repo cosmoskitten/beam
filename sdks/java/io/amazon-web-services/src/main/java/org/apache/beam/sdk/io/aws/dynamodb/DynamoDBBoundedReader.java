@@ -30,20 +30,19 @@ import org.slf4j.LoggerFactory;
 
 /**
  * Provider reader for scanning or reading data from DynamoDb. It will scan your table in parallel
- * base of totalScannedItemCount and segmentId arguments from {@link DynamodbBoundedSource}.
+ * base of totalScannedItemCount and segmentId arguments from {@link DynamoDBBoundedSource}.
  */
-public class DynamodbBoundedReader
-    extends BoundedSource.BoundedReader<Map<String, AttributeValue>> {
+class DynamoDBBoundedReader extends BoundedSource.BoundedReader<Map<String, AttributeValue>> {
 
-  private static final Logger LOG = LoggerFactory.getLogger(DynamodbBoundedReader.class);
+  private static final Logger LOG = LoggerFactory.getLogger(DynamoDBBoundedReader.class);
 
-  private DynamodbBoundedSource source;
+  private DynamoDBBoundedSource source;
 
   private Iterator<Map<String, AttributeValue>> iter;
   private Map<String, AttributeValue> current;
   private long totalScannedItemCount;
 
-  public DynamodbBoundedReader(DynamodbBoundedSource source) {
+  public DynamoDBBoundedReader(DynamoDBBoundedSource source) {
     this.source = source;
   }
 
@@ -51,16 +50,16 @@ public class DynamodbBoundedReader
   public boolean start() throws IOException {
     ScanRequest scanRequest =
         new ScanRequest()
-            .withTableName(source.tableName)
-            .withFilterExpression(source.filterExpression)
-            .withExpressionAttributeNames(source.filterExpressionMapName)
-            .withExpressionAttributeValues(source.filterExpressionMapValue)
-            .withProjectionExpression(source.projectionExpression)
-            .withLimit(source.numOfItemPerSegment)
-            .withTotalSegments(source.totalSegment)
-            .withSegment(source.segmentId);
+            .withTableName(source.getRead().getTableName())
+            .withFilterExpression(source.getRead().getFilterExpression())
+            .withExpressionAttributeNames(source.getRead().getExpressionAttributeNames())
+            .withExpressionAttributeValues(source.getRead().getExpressionAttributeValues())
+            .withProjectionExpression(source.getRead().getProjectionExpression())
+            .withLimit(source.getRead().getNumOfItemPerSegment())
+            .withTotalSegments(source.getRead().getNumOfSplits())
+            .withSegment(source.getSegmentId());
 
-    ScanResult result = source.awsClientsProvider.createDynamoDB().scan(scanRequest);
+    ScanResult result = source.getRead().getAWSClientsProvider().createDynamoDB().scan(scanRequest);
     if (result == null) {
       return false;
     }
@@ -87,7 +86,9 @@ public class DynamodbBoundedReader
   @Override
   public void close() throws IOException {
     LOG.debug(
-        "Closing reader id {} after reading {} records.", source.segmentId, totalScannedItemCount);
+        "Closing reader id {} after reading {} records.",
+        source.getSegmentId(),
+        totalScannedItemCount);
   }
 
   @Override

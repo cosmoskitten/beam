@@ -20,26 +20,18 @@ package org.apache.beam.sdk.io.aws.dynamodb;
 import com.amazonaws.services.dynamodbv2.model.AttributeValue;
 import com.google.auto.service.AutoService;
 import java.util.List;
-import org.apache.beam.sdk.coders.CannotProvideCoderException;
-import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderProvider;
+import org.apache.beam.sdk.coders.CoderProviderRegistrar;
+import org.apache.beam.sdk.coders.CoderProviders;
 import org.apache.beam.sdk.values.TypeDescriptor;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableList;
 
-// TODO: Question: do we still need this Provider?
-/** TODO: Doc it. */
-@AutoService(CoderProvider.class)
-public class AttributeValueCoderProvider extends CoderProvider {
+/** A {@link CoderProviderRegistrar} for standard types used with {@link DynamoDBIO}. */
+@AutoService(CoderProviderRegistrar.class)
+public class AttributeValueCoderProvider implements CoderProviderRegistrar {
   @Override
-  public <T> Coder<T> coderFor(
-      TypeDescriptor<T> typeDescriptor, List<? extends Coder<?>> componentCoders)
-      throws CannotProvideCoderException {
-    if (!AttributeValue.class.isAssignableFrom(typeDescriptor.getRawType())) {
-      throw new CannotProvideCoderException(
-          String.format("Type %s is not a AttributeValueCoder", typeDescriptor));
-    }
-
-    @SuppressWarnings("unchecked")
-    final Coder<T> coder = (Coder<T>) AttributeValueCoder.of();
-    return coder;
+  public List<CoderProvider> getCoderProviders() {
+    return ImmutableList.of(
+        CoderProviders.forCoder(TypeDescriptor.of(AttributeValue.class), AttributeValueCoder.of()));
   }
 }

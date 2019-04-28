@@ -43,10 +43,10 @@ import org.junit.Test;
 import org.junit.rules.ExpectedException;
 
 /** Unit tests for Writer to cover the write and retry functionality. */
-public class DynamodbIOWriterTest implements Serializable {
+public class DynamoDBIOWriterTest implements Serializable {
 
   @Rule public final transient TestPipeline pipeline = TestPipeline.create();
-  @Rule public final transient ExpectedLogs expectedLogs = ExpectedLogs.none(DynamodbIO.class);
+  @Rule public final transient ExpectedLogs expectedLogs = ExpectedLogs.none(DynamoDBIO.class);
 
   private AwsClientsProvider awsClientsProvider;
   private transient AmazonDynamoDB dynamoClient;
@@ -57,14 +57,14 @@ public class DynamodbIOWriterTest implements Serializable {
   @Before
   public void setup() {
     dynamoClient = DynamoDBEmbedded.create().amazonDynamoDB();
-    awsClientsProvider = AwsClientProviderMock.of(dynamoClient);
-    DynamodbIOTestHelper.createTestTable(dynamoClient, tableName);
+    awsClientsProvider = MockAwsClientProvider.of(dynamoClient);
+    DynamoDBIOTestHelper.createTestTable(dynamoClient, tableName);
   }
 
   @Test
   public void testWriteDataToDynamo() {
     final BatchWriteItemRequest batchWriteItemRequest =
-        DynamodbIOTestHelper.generateBatchWriteItemRequest(tableName, numOfItemsToGen);
+        DynamoDBIOTestHelper.generateBatchWriteItemRequest(tableName, numOfItemsToGen);
 
     final TupleTag<BatchWriteItemResult> results = new TupleTag<>();
 
@@ -72,9 +72,9 @@ public class DynamodbIOWriterTest implements Serializable {
         pipeline
             .apply(Create.of(batchWriteItemRequest))
             .apply(
-                DynamodbIO.write()
+                DynamoDBIO.write()
                     .withRetryConfiguration(
-                        DynamodbIO.RetryConfiguration.create(5, Duration.standardMinutes(1)))
+                        DynamoDBIO.RetryConfiguration.create(5, Duration.standardMinutes(1)))
                     .withAWSClientsProvider(awsClientsProvider)
                     .withResultOutputTag(results));
 
@@ -90,7 +90,7 @@ public class DynamodbIOWriterTest implements Serializable {
   public void testRetries() throws Throwable {
     thrown.expectMessage("Error writing to DynamoDB");
     final BatchWriteItemRequest batchWriteItemRequest =
-        DynamodbIOTestHelper.generateBatchWriteItemRequest(tableName, numOfItemsToGen);
+        DynamoDBIOTestHelper.generateBatchWriteItemRequest(tableName, numOfItemsToGen);
 
     AmazonDynamoDB dynamoMock = mock(AmazonDynamoDB.class);
     when(dynamoMock.batchWriteItem(batchWriteItemRequest))
@@ -100,10 +100,10 @@ public class DynamodbIOWriterTest implements Serializable {
     pipeline
         .apply(Create.of(batchWriteItemRequest))
         .apply(
-            DynamodbIO.write()
+            DynamoDBIO.write()
                 .withRetryConfiguration(
-                    DynamodbIO.RetryConfiguration.create(4, Duration.standardSeconds(10)))
-                .withAWSClientsProvider(AwsClientProviderMock.of(dynamoMock))
+                    DynamoDBIO.RetryConfiguration.create(4, Duration.standardSeconds(10)))
+                .withAWSClientsProvider(MockAwsClientProvider.of(dynamoMock))
                 .withResultOutputTag(results));
 
     try {
@@ -111,13 +111,13 @@ public class DynamodbIOWriterTest implements Serializable {
     } catch (final Pipeline.PipelineExecutionException e) {
       // check 3 retries were initiated by inspecting the log before passing on the exception
       expectedLogs.verifyWarn(
-          String.format(DynamodbIO.Write.DynamoDbWriterFn.RETRY_ATTEMPT_LOG, 1));
+          String.format(DynamoDBIO.Write.DynamoDbWriterFn.RETRY_ATTEMPT_LOG, 1));
       expectedLogs.verifyWarn(
-          String.format(DynamodbIO.Write.DynamoDbWriterFn.RETRY_ATTEMPT_LOG, 2));
+          String.format(DynamoDBIO.Write.DynamoDbWriterFn.RETRY_ATTEMPT_LOG, 2));
       expectedLogs.verifyWarn(
-          String.format(DynamodbIO.Write.DynamoDbWriterFn.RETRY_ATTEMPT_LOG, 3));
+          String.format(DynamoDBIO.Write.DynamoDbWriterFn.RETRY_ATTEMPT_LOG, 3));
       throw e.getCause();
     }
-    fail("Pipeline is expected to fail because we were unable to write to Dynamodb.");
+    fail("Pipeline is expected to fail because we were unable to write to DynamoDB.");
   }
 }

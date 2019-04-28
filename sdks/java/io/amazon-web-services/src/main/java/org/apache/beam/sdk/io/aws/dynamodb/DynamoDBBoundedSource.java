@@ -30,40 +30,17 @@ import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.annotations.VisibleForTesting;
 
 /**
- * Provide BoundedSource instance for {@link DynamodbIO}, and parameters used by {@link
- * DynamodbBoundedReader}.
+ * Provide BoundedSource instance for {@link DynamoDBIO}, and parameters used by {@link
+ * DynamoDBBoundedReader}.
  */
 @VisibleForTesting
-public class DynamodbBoundedSource extends BoundedSource<Map<String, AttributeValue>> {
+class DynamoDBBoundedSource extends BoundedSource<Map<String, AttributeValue>> {
 
-  final AwsClientsProvider awsClientsProvider;
-  final String tableName;
-  final String filterExpression;
-  final Map<String, String> filterExpressionMapName;
-  final Map<String, AttributeValue> filterExpressionMapValue;
-  final String projectionExpression;
-  final int numOfItemPerSegment;
-  final int segmentId;
-  final int totalSegment;
+  private final DynamoDBIO.Read read;
+  private final int segmentId;
 
-  public DynamodbBoundedSource(
-      AwsClientsProvider awsClientsProvider,
-      String tableName,
-      String filterExpression,
-      Map<String, String> filterExpressionMapName,
-      Map<String, AttributeValue> filterExpressionMapValue,
-      String projectionExpression,
-      int numOfItemPerSegment,
-      int totalSegment,
-      int segmentId) {
-    this.awsClientsProvider = awsClientsProvider;
-    this.tableName = tableName;
-    this.filterExpression = filterExpression;
-    this.filterExpressionMapName = filterExpressionMapName;
-    this.filterExpressionMapValue = filterExpressionMapValue;
-    this.projectionExpression = projectionExpression;
-    this.numOfItemPerSegment = numOfItemPerSegment;
-    this.totalSegment = totalSegment;
+  public DynamoDBBoundedSource(DynamoDBIO.Read read, int segmentId) {
+    this.read = read;
     this.segmentId = segmentId;
   }
 
@@ -75,19 +52,9 @@ public class DynamodbBoundedSource extends BoundedSource<Map<String, AttributeVa
   @Override
   public List<? extends BoundedSource<Map<String, AttributeValue>>> split(
       long desiredBundleSizeBytes, PipelineOptions options) throws Exception {
-    List<DynamodbBoundedSource> sources = new ArrayList<>();
-    for (int i = 0; i < totalSegment; i++) {
-      sources.add(
-          new DynamodbBoundedSource(
-              awsClientsProvider,
-              tableName,
-              filterExpression,
-              filterExpressionMapName,
-              filterExpressionMapValue,
-              projectionExpression,
-              numOfItemPerSegment,
-              totalSegment,
-              i));
+    List<DynamoDBBoundedSource> sources = new ArrayList<>();
+    for (int i = 0; i < read.getNumOfSplits(); i++) {
+      sources.add(new DynamoDBBoundedSource(read, i));
     }
 
     return sources;
@@ -102,6 +69,14 @@ public class DynamodbBoundedSource extends BoundedSource<Map<String, AttributeVa
   @Override
   public BoundedReader<Map<String, AttributeValue>> createReader(PipelineOptions options)
       throws IOException {
-    return new DynamodbBoundedReader(this);
+    return new DynamoDBBoundedReader(this);
+  }
+
+  public DynamoDBIO.Read getRead() {
+    return read;
+  }
+
+  public int getSegmentId() {
+    return segmentId;
   }
 }

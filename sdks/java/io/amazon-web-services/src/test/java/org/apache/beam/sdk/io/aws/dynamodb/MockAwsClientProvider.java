@@ -24,14 +24,14 @@ import org.mockito.Mockito;
 /**
  * Mocking AwsClientProvider instance so it can take i different {@link AmazonDynamoDB} object type.
  */
-public class AwsClientProviderMock implements AwsClientsProvider {
+class MockAwsClientProvider implements AwsClientsProvider {
 
-  private static AwsClientProviderMock instance = new AwsClientProviderMock();
+  private static MockAwsClientProvider instance = new MockAwsClientProvider();
   private static AmazonDynamoDB db;
 
-  private AwsClientProviderMock() {}
+  private MockAwsClientProvider() {}
 
-  public static AwsClientProviderMock of(AmazonDynamoDB dynamoDB) {
+  public static MockAwsClientProvider of(AmazonDynamoDB dynamoDB) {
     db = dynamoDB;
     return instance;
   }

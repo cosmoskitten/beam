@@ -30,14 +30,14 @@ import com.amazonaws.services.dynamodbv2.AmazonDynamoDB;
 import com.amazonaws.services.dynamodbv2.AmazonDynamoDBClientBuilder;
 import javax.annotation.Nullable;
 
-/** Basic implementation of {@link AwsClientsProvider} used by default in {@link DynamodbIO}. */
-public class BasisDynamodbProvider implements AwsClientsProvider {
+/** Basic implementation of {@link AwsClientsProvider} used by default in {@link DynamoDBIO}. */
+public class BasisDynamoDBProvider implements AwsClientsProvider {
   private final String accessKey;
   private final String secretKey;
   private final Regions region;
   @Nullable private final String serviceEndpoint;
 
-  BasisDynamodbProvider(
+  BasisDynamoDBProvider(
       String accessKey, String secretKey, Regions region, @Nullable String serviceEndpoint) {
     checkArgument(accessKey != null, "accessKey can not be null");
     checkArgument(secretKey != null, "secretKey can not be null");
