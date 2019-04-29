@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.sdk.schemas.transforms;
 
 import static junit.framework.TestCase.assertEquals;
@@ -33,53 +32,58 @@ import org.junit.experimental.categories.Category;
 import org.junit.rules.ExpectedException;
 
 public class AddFieldsTest {
-    @Rule
-    public final transient TestPipeline pipeline = TestPipeline.create();
-    @Rule public transient ExpectedException thrown = ExpectedException.none();
+  @Rule public final transient TestPipeline pipeline = TestPipeline.create();
+  @Rule public transient ExpectedException thrown = ExpectedException.none();
 
-    @Test
-    @Category(NeedsRunner.class)
-    public void addSimpleFields() {
-        Schema schema = Schema.builder().addStringField("field1").build();
-        PCollection<Row> added =
-                pipeline.apply(Create.of(Row.withSchema(schema).addValue("value").build()).withRowSchema(schema))
-                .apply(AddFields.fields(
-                        Schema.Field.nullable("field2", Schema.FieldType.INT16),
-                        Schema.Field.nullable("field3", Schema.FieldType.array(Schema.FieldType.STRING))));
+  @Test
+  @Category(NeedsRunner.class)
+  public void addSimpleFields() {
+    Schema schema = Schema.builder().addStringField("field1").build();
+    PCollection<Row> added =
+        pipeline
+            .apply(
+                Create.of(Row.withSchema(schema).addValue("value").build()).withRowSchema(schema))
+            .apply(
+                AddFields.fields(
+                    Schema.Field.nullable("field2", Schema.FieldType.INT16),
+                    Schema.Field.nullable(
+                        "field3", Schema.FieldType.array(Schema.FieldType.STRING))));
 
-        Schema expectedSchema = Schema.builder()
-                .addStringField("field1")
-                .addNullableField("field2", Schema.FieldType.INT16)
-                .addNullableField("field3", Schema.FieldType.array(Schema.FieldType.STRING))
-                .build();
-        assertEquals(expectedSchema, added.getSchema());
-        Row expected = Row.withSchema(expectedSchema).addValues("value", null, null).build();
-        PAssert.that(added).containsInAnyOrder(expected);
-        pipeline.run();
-    }
+    Schema expectedSchema =
+        Schema.builder()
+            .addStringField("field1")
+            .addNullableField("field2", Schema.FieldType.INT16)
+            .addNullableField("field3", Schema.FieldType.array(Schema.FieldType.STRING))
+            .build();
+    assertEquals(expectedSchema, added.getSchema());
+    Row expected = Row.withSchema(expectedSchema).addValues("value", null, null).build();
+    PAssert.that(added).containsInAnyOrder(expected);
+    pipeline.run();
+  }
 
-    @Test
-    @Category(NeedsRunner.class)
-    public void addDuplicateField() {
-        Schema schema = Schema.builder().addStringField("field1").build();
-        thrown.expect(IllegalArgumentException.class);
-        PCollection<Row> added =
-                pipeline.apply(Create.of(Row.withSchema(schema).addValue("value").build()).withRowSchema(schema))
-                        .apply(AddFields.fields(
-                                Schema.Field.nullable("field1", Schema.FieldType.INT16)));
-        pipeline.run();
-    }
+  @Test
+  @Category(NeedsRunner.class)
+  public void addDuplicateField() {
+    Schema schema = Schema.builder().addStringField("field1").build();
+    thrown.expect(IllegalArgumentException.class);
+    PCollection<Row> added =
+        pipeline
+            .apply(
+                Create.of(Row.withSchema(schema).addValue("value").build()).withRowSchema(schema))
+            .apply(AddFields.fields(Schema.Field.nullable("field1", Schema.FieldType.INT16)));
+    pipeline.run();
+  }
 
-    @Test
-    @Category(NeedsRunner.class)
-    public void addNonNullableField() {
-        Schema schema = Schema.builder().addStringField("field1").build();
-        thrown.expect(IllegalArgumentException.class);
-        PCollection<Row> added =
-                pipeline.apply(Create.of(Row.withSchema(schema).addValue("value").build()).withRowSchema(schema))
-                        .apply(AddFields.fields(
-                                Schema.Field.of("field2", Schema.FieldType.INT16)));
-        pipeline.run();
-    }
-
+  @Test
+  @Category(NeedsRunner.class)
+  public void addNonNullableField() {
+    Schema schema = Schema.builder().addStringField("field1").build();
+    thrown.expect(IllegalArgumentException.class);
+    PCollection<Row> added =
+        pipeline
+            .apply(
+                Create.of(Row.withSchema(schema).addValue("value").build()).withRowSchema(schema))
+            .apply(AddFields.fields(Schema.Field.of("field2", Schema.FieldType.INT16)));
+    pipeline.run();
+  }
 }

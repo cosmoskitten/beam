@@ -22,7 +22,6 @@ import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Precondi
 
 import com.google.auto.value.AutoOneOf;
 import com.google.auto.value.AutoValue;
-import com.google.common.collect.Iterators;
 import java.io.Serializable;
 import java.util.Arrays;
 import java.util.Collection;
@@ -539,12 +538,15 @@ public abstract class FieldAccessDescriptor implements Serializable {
       return "*";
     }
 
-    List<String> singleSelectors = getFieldsAccessed().stream()
-        .map(FieldDescriptor::getFieldName)
-        .collect(Collectors.toList());
-    List<String> nestedSelectors = getNestedFieldsAccessed().entrySet().stream()
-        .map(e -> e.getKey().getFieldName() + "." + e.getValue().toString())
-        .collect(Collectors.toList());;
-   return String.join(", ", Iterables.concat(singleSelectors, nestedSelectors));
+    List<String> singleSelectors =
+        getFieldsAccessed().stream()
+            .map(FieldDescriptor::getFieldName)
+            .collect(Collectors.toList());
+    List<String> nestedSelectors =
+        getNestedFieldsAccessed().entrySet().stream()
+            .map(e -> e.getKey().getFieldName() + "." + e.getValue().toString())
+            .collect(Collectors.toList());
+    ;
+    return String.join(", ", Iterables.concat(singleSelectors, nestedSelectors));
   }
 }

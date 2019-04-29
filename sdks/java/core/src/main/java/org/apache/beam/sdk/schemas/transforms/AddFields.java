@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.sdk.schemas.transforms;
 
 import com.google.common.collect.Lists;
@@ -30,8 +29,9 @@ import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.Row;
 
-/** A transform to add new nullable fields to a PCollection's schema. Elements are extended to
- * have the new schema, with null values used for the new fields. Any new fields added must be nullable.
+/**
+ * A transform to add new nullable fields to a PCollection's schema. Elements are extended to have
+ * the new schema, with null values used for the new fields. Any new fields added must be nullable.
  *
  * <p>Example use:
  *
@@ -40,12 +40,14 @@ import org.apache.beam.sdk.values.Row;
  *   events.apply(AddFields.fields(Field.nullable("newField1", FieldType.STRING),
  *                                 Field.nullable("newField2", FieldType.INT64)));
  * }</pre>
- **/
+ */
 public class AddFields {
+  /** Add all specified fields to the schema. */
   public static <T> Inner<T> fields(Field... fields) {
     return fields(Arrays.asList(fields));
   }
 
+  /** Add all specified fields to the schema. */
   public static <T> Inner<T> fields(List<Field> fields) {
     for (Field field : fields) {
       if (!field.getType().getNullable()) {
@@ -69,20 +71,24 @@ public class AddFields {
     @Override
     public PCollection<Row> expand(PCollection<T> input) {
       Schema inputSchema = input.getSchema();
-      Schema outputSchema = Schema.builder()
-          .addFields(inputSchema.getFields())
-          .addFields(newFields)
-          .build();
+      Schema outputSchema =
+          Schema.builder().addFields(inputSchema.getFields()).addFields(newFields).build();
 
-      return input.apply(ParDo.of(new DoFn<T, Row>() {
-        @ProcessElement
-        public void processElement(@Element Row row, OutputReceiver<Row> o) {
-          List<Object> values = Lists.newArrayListWithCapacity(outputSchema.getFieldCount());
-          values.addAll(row.getValues());
-          values.addAll(nullValues);
-          Row newRow = Row.withSchema(outputSchema).attachValues(values).build();
-          o.output(newRow);
-        }})).setRowSchema(outputSchema);
+      return input
+          .apply(
+              ParDo.of(
+                  new DoFn<T, Row>() {
+                    @ProcessElement
+                    public void processElement(@Element Row row, OutputReceiver<Row> o) {
+                      List<Object> values =
+                          Lists.newArrayListWithCapacity(outputSchema.getFieldCount());
+                      values.addAll(row.getValues());
+                      values.addAll(nullValues);
+                      Row newRow = Row.withSchema(outputSchema).attachValues(values).build();
+                      o.output(newRow);
+                    }
+                  }))
+          .setRowSchema(outputSchema);
     }
   }
 }

@@ -15,36 +15,27 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.sdk.schemas.transforms;
 
 import com.google.common.base.Preconditions;
-import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.function.Function;
 import java.util.stream.Collectors;
-
 import org.apache.beam.sdk.schemas.FieldAccessDescriptor;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.Field;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
-import org.apache.beam.sdk.transforms.DoFn;
-import org.apache.beam.sdk.transforms.DoFn.FieldAccess;
 import org.apache.beam.sdk.transforms.PTransform;
-import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.Row;
 
-/** A transform to drop fields from a schema.
+/**
+ * A transform to drop fields from a schema.
  *
- * <p>This transform acts as the inverse of the {@link Select} transform. A list of fields to drop is specified, and
- * all fields in the schema that are not specified are selected. For example:
+ * <p>This transform acts as the inverse of the {@link Select} transform. A list of fields to drop
+ * is specified, and all fields in the schema that are not specified are selected. For example:
  *
  * <pre>{@code @DefaultSchema(JavaFieldSchema.class)
  * public class UserEvent {
@@ -66,12 +57,11 @@ import org.apache.beam.sdk.values.Row;
  * // Drop the latitude field.
  * PCollection<Row> noLatitude = events.apply(DropFields.fields("location.latitude"));
  * }</pre>
- **/
+ */
 public class DropFields {
   public static <T> Inner<T> fields(String... fields) {
     return fields(FieldAccessDescriptor.withFieldNames(fields));
   }
-
 
   public static <T> Inner<T> fields(Integer... fieldIds) {
     return fields(FieldAccessDescriptor.withFieldIds(fieldIds));
@@ -90,7 +80,8 @@ public class DropFields {
 
     FieldAccessDescriptor complement(Schema inputSchema, FieldAccessDescriptor input) {
       Set<String> fieldNamesToSelect = Sets.newHashSet();
-      Map<FieldAccessDescriptor.FieldDescriptor, FieldAccessDescriptor> nestedFieldsToSelect = Maps.newHashMap();
+      Map<FieldAccessDescriptor.FieldDescriptor, FieldAccessDescriptor> nestedFieldsToSelect =
+          Maps.newHashMap();
       for (int i = 0; i < inputSchema.getFieldCount(); ++i) {
         if (input.fieldIdsAccessed().contains(i)) {
           // This field is selected, so exclude it from the complement.
@@ -98,15 +89,17 @@ public class DropFields {
         }
         Field field = inputSchema.getField(i);
         Map<Integer, FieldAccessDescriptor.FieldDescriptor> nestedFields =
-                input.getNestedFieldsAccessed().entrySet().stream()
-                        .map(Map.Entry::getKey)
+            input.getNestedFieldsAccessed().entrySet().stream()
+                .map(Map.Entry::getKey)
                 .collect(Collectors.toMap(k -> k.getFieldId(), k -> k));
 
         FieldAccessDescriptor.FieldDescriptor fieldDescriptor = nestedFields.get(i);
         if (fieldDescriptor != null) {
-          // Some subfields are selected, so recursively calculate the complementary subfields to select.
+          // Some subfields are selected, so recursively calculate the complementary subfields to
+          // select.
           FieldType fieldType = inputSchema.getField(i).getType();
-          for (FieldAccessDescriptor.FieldDescriptor.Qualifier qualifier : fieldDescriptor.getQualifiers()) {
+          for (FieldAccessDescriptor.FieldDescriptor.Qualifier qualifier :
+              fieldDescriptor.getQualifiers()) {
             switch (qualifier.getKind()) {
               case LIST:
                 fieldType = fieldType.getCollectionElementType();
@@ -119,8 +112,10 @@ public class DropFields {
             }
           }
           Preconditions.checkArgument(fieldType.getTypeName().isCompositeType());
-          FieldAccessDescriptor nestedDescriptor = input.getNestedFieldsAccessed().get(fieldDescriptor);
-          nestedFieldsToSelect.put(fieldDescriptor, complement(fieldType.getRowSchema(), nestedDescriptor));
+          FieldAccessDescriptor nestedDescriptor =
+              input.getNestedFieldsAccessed().get(fieldDescriptor);
+          nestedFieldsToSelect.put(
+              fieldDescriptor, complement(fieldType.getRowSchema(), nestedDescriptor));
         } else {
           // Neither the field nor the subfield is selected. This means we should select it.
           fieldNamesToSelect.add(field.getName());
@@ -128,8 +123,8 @@ public class DropFields {
       }
 
       FieldAccessDescriptor fieldAccess = FieldAccessDescriptor.withFieldNames(fieldNamesToSelect);
-      for (Map.Entry<FieldAccessDescriptor.FieldDescriptor, FieldAccessDescriptor>
-              entry : nestedFieldsToSelect.entrySet()) {
+      for (Map.Entry<FieldAccessDescriptor.FieldDescriptor, FieldAccessDescriptor> entry :
+          nestedFieldsToSelect.entrySet()) {
         fieldAccess = fieldAccess.withNestedField(entry.getKey(), entry.getValue());
       }
       return fieldAccess.resolve(inputSchema);
@@ -138,8 +133,8 @@ public class DropFields {
     @Override
     public PCollection<Row> expand(PCollection<T> input) {
       Schema inputSchema = input.getSchema();
-      FieldAccessDescriptor selectDescriptor = complement(
-          inputSchema, fieldsToDrop.resolve(inputSchema));
+      FieldAccessDescriptor selectDescriptor =
+          complement(inputSchema, fieldsToDrop.resolve(inputSchema));
 
       return Select.<T>fieldAccess(selectDescriptor).expand(input);
     }
