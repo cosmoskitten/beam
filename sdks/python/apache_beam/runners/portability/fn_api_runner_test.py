@@ -402,7 +402,11 @@ class FnApiRunnerTest(unittest.TestCase):
   def test_sdf(self):
 
     class ExpandingStringsDoFn(beam.DoFn):
-      def process(self, element, restriction_tracker=ExpandStringsProvider()):
+      def process(
+          self,
+          element,
+          restriction_tracker=beam.DoFn.RestrictionParam(
+              ExpandStringsProvider())):
         assert isinstance(
             restriction_tracker,
             restriction_trackers.OffsetRestrictionTracker), restriction_tracker
@@ -422,7 +426,11 @@ class FnApiRunnerTest(unittest.TestCase):
     counter = beam.metrics.Metrics.counter('ns', 'my_counter')
 
     class ExpandStringsDoFn(beam.DoFn):
-      def process(self, element, restriction_tracker=ExpandStringsProvider()):
+      def process(
+          self,
+          element,
+          restriction_tracker=beam.DoFn.RestrictionParam(
+              ExpandStringsProvider())):
         assert isinstance(
             restriction_tracker,
             restriction_trackers.OffsetRestrictionTracker), restriction_tracker
@@ -1081,7 +1089,10 @@ class FnApiRunnerSplitTest(unittest.TestCase):
         return restriction[1] - restriction[0]
 
     class EnumerateSdf(beam.DoFn):
-      def process(self, element, restriction_tracker=EnumerateProvider()):
+      def process(
+          self,
+          element,
+          restriction_tracker=beam.DoFn.RestrictionParam(EnumerateProvider())):
         to_emit = []
         for k in range(*restriction_tracker.current_restriction()):
           if restriction_tracker.try_claim(k):
