@@ -566,12 +566,9 @@ public class ExecutableStageDoFnOperatorTest {
     // the user timer was scheduled to fire after cleanup, but executes first
     assertTrue("Timer should have been triggered.", timerInputReceived.get());
     // cleanup will be executed after the bundle is complete
-    assertThat(cleanupTimers, hasSize(1));
+    assertThat(cleanupTimers, hasSize(0));
 
     verifyNoMoreInteractions(receiver);
-
-    operator.invokeFinishBundle();
-    assertThat(cleanupTimers, hasSize(0));
 
     testHarness.close();
   }

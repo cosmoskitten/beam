@@ -710,7 +710,7 @@ public class DoFnOperator<InputT, OutputT> extends AbstractStreamOperator<Window
   }
 
   protected final void invokeFinishBundle() {
-    if (bundleStarted.compareAndSet(true, false)) {
+    while (bundleStarted.compareAndSet(true, false)) {
       pushbackDoFnRunner.finishBundle();
       elementCount = 0L;
       lastFinishBundleTime = getProcessingTimeService().getCurrentProcessingTime();
