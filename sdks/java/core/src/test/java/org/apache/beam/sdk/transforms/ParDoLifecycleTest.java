@@ -49,62 +49,6 @@ public class ParDoLifecycleTest implements Serializable {
 
   @Rule public final transient TestPipeline p = TestPipeline.create();
 
-  private static class CallSequenceEnforcingDoFn<T> extends DoFn<T, T> {
-    private boolean setupCalled = false;
-    private int startBundleCalls = 0;
-    private int finishBundleCalls = 0;
-    private boolean teardownCalled = false;
-
-    @Setup
-    public void setup() {
-      assertThat("setup should not be called twice", setupCalled, is(false));
-      assertThat("setup should be called before startBundle", startBundleCalls, equalTo(0));
-      assertThat("setup should be called before finishBundle", finishBundleCalls, equalTo(0));
-      assertThat("setup should be called before teardown", teardownCalled, is(false));
-      setupCalled = true;
-    }
-
-    @StartBundle
-    public void startBundle() {
-      assertThat("setup should have been called", setupCalled, is(true));
-      assertThat(
-          "Even number of startBundle and finishBundle calls in startBundle",
-          startBundleCalls,
-          equalTo(finishBundleCalls));
-      assertThat("teardown should not have been called", teardownCalled, is(false));
-      startBundleCalls++;
-    }
-
-    @ProcessElement
-    public void processElement(ProcessContext c) throws Exception {
-      assertThat("startBundle should have been called", startBundleCalls, greaterThan(0));
-      assertThat(
-          "there should be one startBundle call with no call to finishBundle",
-          startBundleCalls,
-          equalTo(finishBundleCalls + 1));
-      assertThat("teardown should not have been called", teardownCalled, is(false));
-    }
-
-    @FinishBundle
-    public void finishBundle() {
-      assertThat("startBundle should have been called", startBundleCalls, greaterThan(0));
-      assertThat(
-          "there should be one bundle that has been started but not finished",
-          startBundleCalls,
-          equalTo(finishBundleCalls + 1));
-      assertThat("teardown should not have been called", teardownCalled, is(false));
-      finishBundleCalls++;
-    }
-
-    @Teardown
-    public void teardown() {
-      assertThat(setupCalled, is(true));
-      assertThat(startBundleCalls, anyOf(equalTo(finishBundleCalls)));
-      assertThat(teardownCalled, is(false));
-      teardownCalled = true;
-    }
-  }
-
   @Test
   @Category({ValidatesRunner.class, UsesParDoLifecycle.class})
   public void testFnCallSequence() {
@@ -201,7 +145,7 @@ public class ParDoLifecycleTest implements Serializable {
   }
 
   private static class CallSequenceEnforcingStatefulFn<K, V>
-      extends CallSequenceEnforcingDoFn<KV<K, V>> {
+      extends CallSequenceEnforcingFn<KV<K, V>> {
     private static final String STATE_ID = "foo";
 
     @StateId(STATE_ID)
