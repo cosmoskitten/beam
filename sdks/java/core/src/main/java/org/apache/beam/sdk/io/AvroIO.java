@@ -609,16 +609,19 @@ public class AvroIO {
                         getSchema())));
         return getInferBeamSchema() ? setBeamSchema(read, getRecordClass(), getSchema()) : read;
       }
-      // All other cases go through ReadAll.
 
-      ReadAll<T> readAll =
+      // All other cases go through FileIO + ReadFiles
+      ReadFiles<T> readFiles =
           (getRecordClass() == GenericRecord.class)
-              ? (ReadAll<T>) readAllGenericRecords(getSchema())
-              : readAll(getRecordClass());
-      readAll = readAll.withMatchConfiguration(getMatchConfiguration());
+              ? (ReadFiles<T>) readFilesGenericRecords(getSchema())
+              : readFiles(getRecordClass());
       return input
           .apply("Create filepattern", Create.ofProvider(getFilepattern(), StringUtf8Coder.of()))
-          .apply("Via ReadAll", readAll);
+          .apply("Match All", FileIO.matchAll().withConfiguration(getMatchConfiguration()))
+          .apply(
+              "Read Matches",
+              FileIO.readMatches().withDirectoryTreatment(DirectoryTreatment.PROHIBIT))
+          .apply("Via ReadFiles", readFiles);
     }
 
     @Override
@@ -792,7 +795,7 @@ public class AvroIO {
     private final Class<T> recordClass;
     private final Supplier<Schema> schemaSupplier;
 
-    public CreateSourceFn(Class<T> recordClass, String jsonSchema) {
+    CreateSourceFn(Class<T> recordClass, String jsonSchema) {
       this.recordClass = recordClass;
       this.schemaSupplier = AvroUtils.serializableSchemaSupplier(jsonSchema);
     }
@@ -889,14 +892,15 @@ public class AvroIO {
             org.apache.beam.sdk.io.Read.from(
                 AvroSource.from(getFilepattern()).withParseFn(getParseFn(), coder)));
       }
-      // All other cases go through ParseAllGenericRecords.
+
+      // All other cases go through FileIO + ParseFilesGenericRecords.
       return input
           .apply("Create filepattern", Create.ofProvider(getFilepattern(), StringUtf8Coder.of()))
+          .apply("Match All", FileIO.matchAll().withConfiguration(getMatchConfiguration()))
           .apply(
-              "Via ParseAll",
-              parseAllGenericRecords(getParseFn())
-                  .withCoder(coder)
-                  .withMatchConfiguration(getMatchConfiguration()));
+              "Read Matches",
+              FileIO.readMatches().withDirectoryTreatment(DirectoryTreatment.PROHIBIT))
+          .apply("Via ParseFiles", parseFilesGenericRecords(getParseFn()).withCoder(coder));
     }
 
     private static <T> Coder<T> inferCoder(
@@ -986,7 +990,7 @@ public class AvroIO {
       private final SerializableFunction<GenericRecord, T> parseFn;
       private final Coder<T> coder;
 
-      public CreateParseSourceFn(SerializableFunction<GenericRecord, T> parseFn, Coder<T> coder) {
+      CreateParseSourceFn(SerializableFunction<GenericRecord, T> parseFn, Coder<T> coder) {
         this.parseFn = parseFn;
         this.coder = coder;
       }
@@ -1698,10 +1702,9 @@ public class AvroIO {
       this.schema = new Schema.Parser().parse(getJsonSchema());
       DataFileWriter<?> writer;
       if (getRecordFormatter() == null) {
-        writer = reflectWriter = new DataFileWriter<>(new ReflectDatumWriter<ElementT>(schema));
+        writer = reflectWriter = new DataFileWriter<>(new ReflectDatumWriter<>(schema));
       } else {
-        writer =
-            genericWriter = new DataFileWriter<>(new GenericDatumWriter<GenericRecord>(schema));
+        writer = genericWriter = new DataFileWriter<>(new GenericDatumWriter<>(schema));
       }
       writer.setCodec(getCodec().getCodec());
       for (Map.Entry<String, Object> entry : getMetadata().entrySet()) {
