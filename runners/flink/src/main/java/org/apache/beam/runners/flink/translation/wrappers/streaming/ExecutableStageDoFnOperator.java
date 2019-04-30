@@ -164,6 +164,12 @@ public class ExecutableStageDoFnOperator<InputT, OutputT> extends DoFnOperator<I
   }
 
   @Override
+  protected BufferedOutputManager<OutputT> createOutputManager() throws Exception {
+    return outputManagerFactory.create(
+        output, stateBackendLock, getOperatorStateBackend(), getKeyedStateBackend(), keySelector);
+  }
+
+  @Override
   public void open() throws Exception {
     executableStage = ExecutableStage.fromPayload(payload);
     // TODO: Wire this into the distributed cache and make it pluggable.
