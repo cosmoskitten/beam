@@ -22,7 +22,7 @@ import CommonJobProperties as commonJobProperties
 // is on each machine.
 def nums = 1..16
 nums.each {
-  def machine = "beam${it}"
+  def machine = "apache-beam-jenkins-${it}"
   job("beam_Inventory_${machine}") {
     description("Run inventory on ${machine}")
 
