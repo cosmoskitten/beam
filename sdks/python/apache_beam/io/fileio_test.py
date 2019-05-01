@@ -30,6 +30,7 @@ from nose.plugins.attrib import attr
 import apache_beam as beam
 from apache_beam.io import fileio
 from apache_beam.io.filebasedsink_test import _TestCaseWithTempDirCleanUp
+from apache_beam.io.filesystems import FileSystems
 from apache_beam.testing.test_pipeline import TestPipeline
 from apache_beam.testing.test_utils import compute_hash
 from apache_beam.testing.util import assert_that
@@ -40,14 +41,16 @@ class MatchTest(_TestCaseWithTempDirCleanUp):
 
   def test_basic_two_files(self):
     files = []
-    tempdir = '%s/' % self._new_tempdir()
+    tempdir = self._new_tempdir()
 
     # Create a couple files to be matched
     files.append(self._create_temp_file(dir=tempdir))
     files.append(self._create_temp_file(dir=tempdir))
 
     with TestPipeline() as p:
-      files_pc = p | fileio.MatchFiles(tempdir) | beam.Map(lambda x: x.path)
+      files_pc = (p
+                  | fileio.MatchFiles(FileSystems.join(tempdir, '*'))
+                  | beam.Map(lambda x: x.path))
 
       assert_that(files_pc, equal_to(files))
 
@@ -56,8 +59,7 @@ class MatchTest(_TestCaseWithTempDirCleanUp):
     directories = []
 
     for _ in range(2):
-      # TODO: What about this having to append the ending slash?
-      d = '%s/' % self._new_tempdir()
+      d = self._new_tempdir()
       directories.append(d)
 
       files.append(self._create_temp_file(dir=d))
@@ -65,16 +67,16 @@ class MatchTest(_TestCaseWithTempDirCleanUp):
 
     with TestPipeline() as p:
       files_pc = (p
-                  | beam.Create(directories)
+                  | beam.Create([FileSystems.join(d, '*')
+                                 for d in directories])
                   | fileio.MatchAll()
                   | beam.Map(lambda x: x.path))
 
       assert_that(files_pc, equal_to(files))
 
   def test_match_files_one_directory_failure(self):
-    directories = [
-        '%s/' % self._new_tempdir(),
-        '%s/' % self._new_tempdir()]
+    directories = [self._new_tempdir(),
+                   self._new_tempdir()]
 
     files = list()
     files.append(self._create_temp_file(dir=directories[0]))
@@ -84,7 +86,7 @@ class MatchTest(_TestCaseWithTempDirCleanUp):
       with TestPipeline() as p:
         files_pc = (
             p
-            | beam.Create(directories)
+            | beam.Create([FileSystems.join(d, '*') for d in directories])
             | fileio.MatchAll(fileio.EmptyMatchTreatment.DISALLOW)
             | beam.Map(lambda x: x.path))
 
@@ -92,8 +94,8 @@ class MatchTest(_TestCaseWithTempDirCleanUp):
 
   def test_match_files_one_directory_failure(self):
     directories = [
-        '%s/' % self._new_tempdir(),
-        '%s/' % self._new_tempdir()]
+        self._new_tempdir(),
+        self._new_tempdir()]
 
     files = list()
     files.append(self._create_temp_file(dir=directories[0]))
@@ -102,7 +104,7 @@ class MatchTest(_TestCaseWithTempDirCleanUp):
     with TestPipeline() as p:
       files_pc = (
           p
-          | beam.Create(['%s*' % d for d in directories])
+          | beam.Create([FileSystems.join(d, '*') for d in directories])
           | fileio.MatchAll(fileio.EmptyMatchTreatment.ALLOW_IF_WILDCARD)
           | beam.Map(lambda x: x.path))
 
@@ -113,12 +115,12 @@ class ReadTest(_TestCaseWithTempDirCleanUp):
 
   def test_basic_file_name_provided(self):
     content = 'TestingMyContent\nIn multiple lines\nhaha!'
-    dir = '%s/' % self._new_tempdir()
+    dir = self._new_tempdir()
     self._create_temp_file(dir=dir, content=content)
 
     with TestPipeline() as p:
       content_pc = (p
-                    | beam.Create([dir])
+                    | beam.Create([FileSystems.join(dir, '*')])
                     | fileio.MatchAll()
                     | fileio.ReadMatches()
                     | beam.Map(lambda f: f.read().decode('utf-8')))
@@ -129,7 +131,7 @@ class ReadTest(_TestCaseWithTempDirCleanUp):
     content = 'name,year,place\ngoogle,1999,CA\nspotify,2006,sweden'
     rows = [r.split(',') for r in content.split('\n')]
 
-    dir = '%s/' % self._new_tempdir()
+    dir = self._new_tempdir()
     self._create_temp_file(dir=dir, content=content)
 
     def get_csv_reader(readable_file):
@@ -140,7 +142,7 @@ class ReadTest(_TestCaseWithTempDirCleanUp):
 
     with TestPipeline() as p:
       content_pc = (p
-                    | beam.Create([dir])
+                    | beam.Create([FileSystems.join(dir, '*')])
                     | fileio.MatchAll()
                     | fileio.ReadMatches()
                     | beam.FlatMap(get_csv_reader))
