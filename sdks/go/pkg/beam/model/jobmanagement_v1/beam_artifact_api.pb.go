@@ -8,6 +8,8 @@ import (
 	fmt "fmt"
 	proto "github.com/golang/protobuf/proto"
 	grpc "google.golang.org/grpc"
+	codes "google.golang.org/grpc/codes"
+	status "google.golang.org/grpc/status"
 	math "math"
 )
 
@@ -20,7 +22,7 @@ var _ = math.Inf
 // is compatible with the proto package it is being compiled against.
 // A compilation error at this line likely means your copy of the
 // proto package needs to be updated.
-const _ = proto.ProtoPackageIsVersion2 // please upgrade the proto package
+const _ = proto.ProtoPackageIsVersion3 // please upgrade the proto package
 
 // An artifact identifier and associated metadata.
 type ArtifactMetadata struct {
@@ -525,78 +527,12 @@ func (m *PutArtifactRequest) GetData() *ArtifactChunk {
 	return nil
 }
 
-// XXX_OneofFuncs is for the internal use of the proto package.
-func (*PutArtifactRequest) XXX_OneofFuncs() (func(msg proto.Message, b *proto.Buffer) error, func(msg proto.Message, tag, wire int, b *proto.Buffer) (bool, error), func(msg proto.Message) (n int), []interface{}) {
-	return _PutArtifactRequest_OneofMarshaler, _PutArtifactRequest_OneofUnmarshaler, _PutArtifactRequest_OneofSizer, []interface{}{
+// XXX_OneofWrappers is for the internal use of the proto package.
+func (*PutArtifactRequest) XXX_OneofWrappers() []interface{} {
+	return []interface{}{
 		(*PutArtifactRequest_Metadata)(nil),
 		(*PutArtifactRequest_Data)(nil),
 	}
-}
-
-func _PutArtifactRequest_OneofMarshaler(msg proto.Message, b *proto.Buffer) error {
-	m := msg.(*PutArtifactRequest)
-	// content
-	switch x := m.Content.(type) {
-	case *PutArtifactRequest_Metadata:
-		b.EncodeVarint(1<<3 | proto.WireBytes)
-		if err := b.EncodeMessage(x.Metadata); err != nil {
-			return err
-		}
-	case *PutArtifactRequest_Data:
-		b.EncodeVarint(2<<3 | proto.WireBytes)
-		if err := b.EncodeMessage(x.Data); err != nil {
-			return err
-		}
-	case nil:
-	default:
-		return fmt.Errorf("PutArtifactRequest.Content has unexpected type %T", x)
-	}
-	return nil
-}
-
-func _PutArtifactRequest_OneofUnmarshaler(msg proto.Message, tag, wire int, b *proto.Buffer) (bool, error) {
-	m := msg.(*PutArtifactRequest)
-	switch tag {
-	case 1: // content.metadata
-		if wire != proto.WireBytes {
-			return true, proto.ErrInternalBadWireType
-		}
-		msg := new(PutArtifactMetadata)
-		err := b.DecodeMessage(msg)
-		m.Content = &PutArtifactRequest_Metadata{msg}
-		return true, err
-	case 2: // content.data
-		if wire != proto.WireBytes {
-			return true, proto.ErrInternalBadWireType
-		}
-		msg := new(ArtifactChunk)
-		err := b.DecodeMessage(msg)
-		m.Content = &PutArtifactRequest_Data{msg}
-		return true, err
-	default:
-		return false, nil
-	}
-}
-
-func _PutArtifactRequest_OneofSizer(msg proto.Message) (n int) {
-	m := msg.(*PutArtifactRequest)
-	// content
-	switch x := m.Content.(type) {
-	case *PutArtifactRequest_Metadata:
-		s := proto.Size(x.Metadata)
-		n += 1 // tag and wire
-		n += proto.SizeVarint(uint64(s))
-		n += s
-	case *PutArtifactRequest_Data:
-		s := proto.Size(x.Data)
-		n += 1 // tag and wire
-		n += proto.SizeVarint(uint64(s))
-		n += s
-	case nil:
-	default:
-		panic(fmt.Sprintf("proto: unexpected type %T in oneof", x))
-	}
-	return n
 }
 
 type PutArtifactResponse struct {
@@ -874,6 +810,17 @@ type ArtifactStagingServiceServer interface {
 	CommitManifest(context.Context, *CommitManifestRequest) (*CommitManifestResponse, error)
 }
 
+// UnimplementedArtifactStagingServiceServer can be embedded to have forward compatible implementations.
+type UnimplementedArtifactStagingServiceServer struct {
+}
+
+func (*UnimplementedArtifactStagingServiceServer) PutArtifact(srv ArtifactStagingService_PutArtifactServer) error {
+	return status.Errorf(codes.Unimplemented, "method PutArtifact not implemented")
+}
+func (*UnimplementedArtifactStagingServiceServer) CommitManifest(ctx context.Context, req *CommitManifestRequest) (*CommitManifestResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method CommitManifest not implemented")
+}
+
 func RegisterArtifactStagingServiceServer(s *grpc.Server, srv ArtifactStagingServiceServer) {
 	s.RegisterService(&_ArtifactStagingService_serviceDesc, srv)
 }
@@ -1006,6 +953,17 @@ type ArtifactRetrievalServiceServer interface {
 	GetManifest(context.Context, *GetManifestRequest) (*GetManifestResponse, error)
 	// Get an artifact staged for the job. The requested artifact must be within the manifest
 	GetArtifact(*GetArtifactRequest, ArtifactRetrievalService_GetArtifactServer) error
+}
+
+// UnimplementedArtifactRetrievalServiceServer can be embedded to have forward compatible implementations.
+type UnimplementedArtifactRetrievalServiceServer struct {
+}
+
+func (*UnimplementedArtifactRetrievalServiceServer) GetManifest(ctx context.Context, req *GetManifestRequest) (*GetManifestResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetManifest not implemented")
+}
+func (*UnimplementedArtifactRetrievalServiceServer) GetArtifact(req *GetArtifactRequest, srv ArtifactRetrievalService_GetArtifactServer) error {
+	return status.Errorf(codes.Unimplemented, "method GetArtifact not implemented")
 }
 
 func RegisterArtifactRetrievalServiceServer(s *grpc.Server, srv ArtifactRetrievalServiceServer) {

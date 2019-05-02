@@ -9,6 +9,8 @@ import (
 	proto "github.com/golang/protobuf/proto"
 	_struct "github.com/golang/protobuf/ptypes/struct"
 	grpc "google.golang.org/grpc"
+	codes "google.golang.org/grpc/codes"
+	status "google.golang.org/grpc/status"
 	math "math"
 )
 
@@ -21,7 +23,7 @@ var _ = math.Inf
 // is compatible with the proto package it is being compiled against.
 // A compilation error at this line likely means your copy of the
 // proto package needs to be updated.
-const _ = proto.ProtoPackageIsVersion2 // please upgrade the proto package
+const _ = proto.ProtoPackageIsVersion3 // please upgrade the proto package
 
 // A request to get the provision info of a SDK harness worker instance.
 type GetProvisionInfoRequest struct {
@@ -458,6 +460,14 @@ func (c *provisionServiceClient) GetProvisionInfo(ctx context.Context, in *GetPr
 type ProvisionServiceServer interface {
 	// Get provision information for the SDK harness worker instance.
 	GetProvisionInfo(context.Context, *GetProvisionInfoRequest) (*GetProvisionInfoResponse, error)
+}
+
+// UnimplementedProvisionServiceServer can be embedded to have forward compatible implementations.
+type UnimplementedProvisionServiceServer struct {
+}
+
+func (*UnimplementedProvisionServiceServer) GetProvisionInfo(ctx context.Context, req *GetProvisionInfoRequest) (*GetProvisionInfoResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetProvisionInfo not implemented")
 }
 
 func RegisterProvisionServiceServer(s *grpc.Server, srv ProvisionServiceServer) {
