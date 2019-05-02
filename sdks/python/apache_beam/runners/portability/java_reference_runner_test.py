@@ -63,7 +63,7 @@ if __name__ == '__main__':
     _use_subprocesses = True
 
     @classmethod
-    def _subprocess_command(cls, port):
+    def _subprocess_command(cls, port, _):
       return [
           'java',
           #'-Dorg.slf4j.simpleLogger.defaultLogLevel=info'
@@ -160,6 +160,10 @@ if __name__ == '__main__':
     def test_progress_metrics(self):
       # Skip until Reference Runner provides metrics support.
       raise unittest.SkipTest("BEAM-5452")
+
+    def test_external_transforms(self):
+      raise unittest.SkipTest(
+          "Java Reference Runner does not support external transforms.")
 
   # Run the tests.
   logging.getLogger().setLevel(logging.INFO)

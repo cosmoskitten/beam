@@ -32,6 +32,10 @@ import unittest
 import grpc
 
 import apache_beam as beam
+from apache_beam import Impulse
+from apache_beam import Map
+from apache_beam.io.external.kafka import ReadFromKafka
+from apache_beam.io.external.kafka import WriteToKafka
 from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.options.pipeline_options import PortableOptions
 from apache_beam.portability import common_urns
@@ -44,6 +48,10 @@ from apache_beam.runners.portability import portable_runner
 from apache_beam.runners.portability.local_job_service import LocalJobServicer
 from apache_beam.runners.portability.portable_runner import PortableRunner
 from apache_beam.runners.worker.channel_factory import GRPCChannelFactory
+from apache_beam.testing.util import assert_that
+from apache_beam.testing.util import equal_to
+from apache_beam.io.external.generate_sequence import GenerateSequence
+from apache_beam.metrics import Metrics
 
 
 class PortableRunnerTest(fn_api_runner_test.FnApiRunnerTest):
@@ -102,10 +110,10 @@ class PortableRunnerTest(fn_api_runner_test.FnApiRunnerTest):
     # TODO(robertwb): Consider letting the subprocess pick one and
     # communicate it back...
     # pylint: disable=unbalanced-tuple-unpacking
-    job_port, expansion_port = cls._pick_unused_ports(num_ports=2)
+    job_port, cls.expansion_port = cls._pick_unused_ports(num_ports=2)
     logging.info('Starting server on port %d.', job_port)
     cls._subprocess = subprocess.Popen(
-        cls._subprocess_command(job_port, expansion_port))
+        cls._subprocess_command(job_port, cls.expansion_port))
     address = 'localhost:%d' % job_port
     job_service = beam_job_api_pb2_grpc.JobServiceStub(
         GRPCChannelFactory.insecure_channel(address))
@@ -180,6 +188,120 @@ class PortableRunnerTest(fn_api_runner_test.FnApiRunnerTest):
 
   def create_pipeline(self):
     return beam.Pipeline(self.get_runner(), self.create_options())
+
+  # Can't read host files from within docker, read a "local" file there.
+  def test_read(self):
+    with self.create_pipeline() as p:
+      lines = p | beam.io.ReadFromText('/etc/profile')
+      assert_that(lines, lambda lines: len(lines) > 0)
+
+  def test_no_subtransform_composite(self):
+    raise unittest.SkipTest("BEAM-4781")
+
+  def test_external_transforms(self):
+    # TODO Move expansion address resides into PipelineOptions
+    def get_expansion_service():
+      return "localhost:" + str(type(self).expansion_port)
+
+    with self.create_pipeline() as p:
+      res = (
+          p
+          | GenerateSequence(start=1, stop=10,
+                             expansion_service=get_expansion_service()))
+
+      assert_that(res, equal_to([i for i in range(1, 10)]))
+
+    # We expect to fail here because we do not have a Kafka cluster handy.
+    # Nevertheless, we check that the transform is expanded by the
+    # ExpansionService and that the pipeline fails during execution.
+    with self.assertRaises(Exception) as ctx:
+      with self.create_pipeline() as p:
+        # pylint: disable=expression-not-assigned
+        (p
+         | ReadFromKafka(consumer_config={'bootstrap.servers':
+                                            'notvalid1:7777, notvalid2:3531'},
+                         topics=['topic1', 'topic2'],
+                         key_deserializer='org.apache.kafka.'
+                                          'common.serialization.'
+                                          'ByteArrayDeserializer',
+                         value_deserializer='org.apache.kafka.'
+                                            'common.serialization.'
+                                            'LongDeserializer',
+                         expansion_service=get_expansion_service()))
+    self.assertTrue('No resolvable bootstrap urls given in bootstrap.servers'
+                    in str(ctx.exception),
+                    'Expected to fail due to invalid bootstrap.servers, but '
+                    'failed due to:\n%s' % str(ctx.exception))
+
+    # We just test the expansion but do not execute.
+    # pylint: disable=expression-not-assigned
+    (self.create_pipeline()
+     | Impulse()
+     | Map(lambda input: (1, input))
+     | WriteToKafka(producer_config={'bootstrap.servers':
+                                       'localhost:9092, notvalid2:3531'},
+                    topic='topic1',
+                    key_serializer='org.apache.kafka.'
+                                   'common.serialization.'
+                                   'LongSerializer',
+                    value_serializer='org.apache.kafka.'
+                                     'common.serialization.'
+                                     'ByteArraySerializer',
+                    expansion_service=get_expansion_service()))
+
+  def test_flattened_side_input(self):
+    # Blocked on support for transcoding
+    # https://jira.apache.org/jira/browse/BEAM-6523
+    super(PortableRunnerTest, self).test_flattened_side_input(
+        with_transcoding=False)
+
+  def test_metrics(self):
+    """Run a simple DoFn that increments a counter, and verify that its
+     expected value is written to a temporary file by the FileReporter"""
+
+    counter_name = 'elem_counter'
+
+    class DoFn(beam.DoFn):
+      def __init__(self):
+        self.counter = Metrics.counter(self.__class__, counter_name)
+        logging.info('counter: %s' % self.counter.metric_name)
+
+      def process(self, v):
+        self.counter.inc()
+
+    p = self.create_pipeline()
+    n = 100
+
+    # pylint: disable=expression-not-assigned
+    p \
+    | beam.Create(list(range(n))) \
+    | beam.ParDo(DoFn())
+
+    result = p.run()
+    result.wait_until_finish()
+
+    with open(self.test_metrics_path, 'r') as f:
+      lines = [line for line in f.readlines() if counter_name in line]
+      self.assertEqual(
+          len(lines), 1,
+          msg='Expected 1 line matching "%s":\n%s' % (
+            counter_name, '\n'.join(lines))
+      )
+      line = lines[0]
+      self.assertTrue(
+          '%s: 100' % counter_name in line,
+          msg='Failed to find expected counter %s in line %s' % (
+            counter_name, line)
+      )
+
+  def test_sdf_with_sdf_initiated_checkpointing(self):
+    raise unittest.SkipTest("BEAM-2939")
+
+  def test_callbacks_with_exception(self):
+    raise unittest.SkipTest("BEAM-6868")
+
+  def test_register_finalizations(self):
+    raise unittest.SkipTest("BEAM-6868")
 
   # Inherits all tests from fn_api_runner_test.FnApiRunnerTest
 
