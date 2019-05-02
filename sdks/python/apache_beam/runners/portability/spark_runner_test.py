@@ -21,32 +21,24 @@ import argparse
 import logging
 import sys
 import unittest
-from os import linesep
-from os import path
-from os.path import exists
 from shutil import rmtree
 from tempfile import mkdtemp
 
 from apache_beam.options.pipeline_options import DebugOptions
 from apache_beam.options.pipeline_options import PortableOptions
-from apache_beam.options.pipeline_options import StandardOptions
 from apache_beam.runners.portability import portable_runner
 from apache_beam.runners.portability import portable_runner_test
 
 if __name__ == '__main__':
   # Run as
   #
-  # python -m apache_beam.runners.portability.flink_runner_test \
-  #     --flink_job_server_jar=/path/to/job_server.jar \
-  #     --environment_type=docker \
-  #     --extra_experiments=beam_experiments \
-  #     [FlinkRunnerTest.test_method, ...]
+  # python -m apache_beam.runners.portability.spark_runner_test \
+  #     --spark_job_server_jar=/path/to/job_server.jar \
+  #     [SparkRunnerTest.test_method, ...]
 
   parser = argparse.ArgumentParser(add_help=True)
-  parser.add_argument('--flink_job_server_jar',
+  parser.add_argument('--spark_job_server_jar',
                       help='Job server jar to submit jobs.')
-  parser.add_argument('--streaming', default=False, action='store_true',
-                      help='Job type. batch or streaming')
   parser.add_argument('--environment_type', default='docker',
                       help='Environment type. docker or process')
   parser.add_argument('--environment_config', help='Environment config.')
@@ -55,64 +47,29 @@ if __name__ == '__main__':
   known_args, args = parser.parse_known_args(sys.argv)
   sys.argv = args
 
-  flink_job_server_jar = known_args.flink_job_server_jar
-  streaming = known_args.streaming
+  spark_job_server_jar = known_args.spark_job_server_jar
   environment_type = known_args.environment_type.lower()
   environment_config = (
       known_args.environment_config if known_args.environment_config else None)
   extra_experiments = known_args.extra_experiments
 
   # This is defined here to only be run when we invoke this file explicitly.
-  class FlinkRunnerTest(portable_runner_test.PortableRunnerTest):
+  class SparkRunnerTest(portable_runner_test.PortableRunnerTest):
     _use_grpc = True
     _use_subprocesses = True
-
-    conf_dir = None
-
-    @classmethod
-    def tearDownClass(cls):
-      if cls.conf_dir and exists(cls.conf_dir):
-        logging.info("removing conf dir: %s" % cls.conf_dir)
-        rmtree(cls.conf_dir)
-      super(FlinkRunnerTest, cls).tearDownClass()
-
-    @classmethod
-    def _create_conf_dir(cls):
-      """Create (and save a static reference to) a "conf dir", used to provide
-       metrics configs and verify metrics output
-
-       It gets cleaned up when the suite is done executing"""
-
-      if hasattr(cls, 'conf_dir'):
-        cls.conf_dir = mkdtemp(prefix='flinktest-conf')
-
-        # path for a FileReporter to write metrics to
-        cls.test_metrics_path = path.join(cls.conf_dir, 'test-metrics.txt')
-
-        # path to write Flink configuration to
-        conf_path = path.join(cls.conf_dir, 'flink-conf.yaml')
-        file_reporter = 'org.apache.beam.runners.flink.metrics.FileReporter'
-        with open(conf_path, 'w') as f:
-          f.write(linesep.join([
-              'metrics.reporters: file',
-              'metrics.reporter.file.class: %s' % file_reporter,
-              'metrics.reporter.file.path: %s' % cls.test_metrics_path
-          ]))
 
     @classmethod
     def _subprocess_command(cls, job_port, expansion_port):
       # will be cleaned up at the end of this method, and recreated and used by
       # the job server
-      tmp_dir = mkdtemp(prefix='flinktest')
-
-      cls._create_conf_dir()
+      tmp_dir = mkdtemp(prefix='sparktest')
 
       try:
         return [
             'java',
-            '-jar', flink_job_server_jar,
-            '--flink-master-url', '[local]',
-            '--flink-conf-dir', cls.conf_dir,
+            '-Dbeam.spark.test.reuseSparkContext=true',
+            '-jar', spark_job_server_jar,
+            '--spark-master-url', 'local',
             '--artifacts-dir', tmp_dir,
             '--job-port', str(job_port),
             '--artifact-port', '0',
@@ -126,7 +83,7 @@ if __name__ == '__main__':
       return portable_runner.PortableRunner()
 
     def create_options(self):
-      options = super(FlinkRunnerTest, self).create_options()
+      options = super(SparkRunnerTest, self).create_options()
       options.view_as(DebugOptions).experiments = [
           'beam_fn_api'] + extra_experiments
       options._all_options['parallelism'] = 1
@@ -136,17 +93,45 @@ if __name__ == '__main__':
       if environment_config:
         options.view_as(PortableOptions).environment_config = environment_config
 
-      if streaming:
-        options.view_as(StandardOptions).streaming = True
       return options
 
+    def test_metrics(self):
+      # Skip until Spark runner supports metrics.
+      raise unittest.SkipTest("BEAM-7219")
+
+    def test_pardo_state_only(self):
+      # Skip until Spark runner supports user state.
+      raise unittest.SkipTest("BEAM-7044")
+
+    def test_pardo_timers(self):
+      # Skip until Spark runner supports timers.
+      raise unittest.SkipTest("BEAM-7221")
+
+    def test_pardo_state_timers(self):
+      # Skip until Spark runner supports user state and timers.
+      raise unittest.SkipTest("BEAM-7044, BEAM-7221")
+
+    def test_windowed_pardo_state_timers(self):
+      # Skip until Spark runner supports user state and timers.
+      raise unittest.SkipTest("BEAM-7044, BEAM-7221")
+
+    def test_sdf(self):
+      # Skip until Spark runner supports SDF.
+      raise unittest.SkipTest("BEAM-7222")
+
+    def test_external_transforms(self):
+      # Skip until Spark runner supports external transforms.
+      raise unittest.SkipTest("BEAM-7232")
+
     def test_callbacks_with_exception(self):
-      raise unittest.SkipTest("BEAM-6868")
+      # Skip until Spark runner supports bundle finalization.
+      raise unittest.SkipTest("BEAM-7233")
 
     def test_register_finalizations(self):
-      raise unittest.SkipTest("BEAM-6868")
+      # Skip until Spark runner supports bundle finalization.
+      raise unittest.SkipTest("BEAM-7233")
 
-    # Inherits all other tests from PortableRunnerTest.
+  # Inherits all other tests from PortableRunnerTest.
 
   # Run the tests.
   logging.getLogger().setLevel(logging.INFO)
