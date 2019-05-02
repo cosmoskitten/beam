@@ -344,10 +344,7 @@ class TriggerLoadJobs(beam.DoFn):
   def display_data(self):
     result = {'create_disposition': str(self.create_disposition),
               'write_disposition': str(self.write_disposition)}
-    if self.schema is not None:
-      result['schema'] = str(self.schema)
-    else:
-      result['schema'] = 'AUTODETECT'
+    result['schema'] = str(self.schema)
 
     return result
 
