@@ -19,13 +19,16 @@ package org.apache.beam.sdk.io.aws.dynamodb;
 
 import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkArgument;
 
-import com.amazonaws.regions.Regions;
-import com.amazonaws.services.cloudwatch.AmazonCloudWatch;
+import com.amazonaws.auth.AWSStaticCredentialsProvider;
+import com.amazonaws.auth.BasicAWSCredentials;
+import com.amazonaws.client.builder.AwsClientBuilder;
 import com.amazonaws.services.dynamodbv2.AmazonDynamoDB;
+import com.amazonaws.services.dynamodbv2.AmazonDynamoDBClientBuilder;
 import com.amazonaws.services.dynamodbv2.model.AmazonDynamoDBException;
 import com.amazonaws.services.dynamodbv2.model.AttributeValue;
 import com.amazonaws.services.dynamodbv2.model.BatchWriteItemRequest;
 import com.amazonaws.services.dynamodbv2.model.BatchWriteItemResult;
+import com.amazonaws.services.dynamodbv2.model.ScanRequest;
 import com.google.auto.value.AutoValue;
 import java.io.IOException;
 import java.io.Serializable;
@@ -35,9 +38,11 @@ import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.metrics.Counter;
 import org.apache.beam.sdk.metrics.Metrics;
+import org.apache.beam.sdk.options.ValueProvider;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
+import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.util.BackOff;
 import org.apache.beam.sdk.util.BackOffUtils;
 import org.apache.beam.sdk.util.FluentBackoff;
@@ -62,151 +67,215 @@ import org.slf4j.LoggerFactory;
  * <p>Example usage:
  *
  * <pre>{@code
+ * DynamoDBIO.DynamoDBConfiguration config = DynamoDBIO.DynamoDBConfiguration.create(
+ *     "region", "accessKey", "secretKey");
  * PCollection<BatchWriteItemRequest> data = ...;
  *
  * data.apply(DynamoDBIO.write()
  *     .withRetryConfiguration(
  *        DynamoDBIO.RetryConfiguration.create(
  *          4, org.joda.time.Duration.standardSeconds(10)))
- *     .withAWSClientsProvider(new BasisDynamoDBProvider(accessKey, secretKey, region))
+ *     .withDynamoDBConfiguration(config)
  *     .withResultOutputTag(results));
  * }</pre>
  *
  * <p>As a client, you need to provide at least the following things:
  *
  * <ul>
- *   <li>retry configuration
- *   <li>need to specify AwsClientsProvider. You can pass on the default one BasisDynamoDBProvider
- *   <li>an output tag where you can get results. Example in DynamoDBIOTest
+ *   <li>Retry configuration
+ *   <li>DynamoDb configuration
+ *   <li>An output tag where you can get results. Example in DynamoDBIOTest
+ * </ul>
+ *
+ * <h3>Reading from DynamoDB</h3>
+ *
+ * <p>Example usage:
+ *
+ * <pre>{@code
+ * DynamoDBIO.DynamoDBConfiguration config = DynamoDBIO.DynamoDBConfiguration.create(
+ *     "endpointUrl", "region", "accessKey", "secretKey");
+ * PCollection<Map<String, AttributeValue>> actual =
+ *     pipeline.apply(DynamoDBIO.read()
+ *         .withScanRequestFn((v) -> new ScanRequest(tableName).withTotalSegment(10))
+ *         .withDynamoDBConfiguration(config));
+ * }</pre>
+ *
+ * <p>As a client, you need to provide at least the following things:
+ *
+ * <ul>
+ *   <li>DynamoDb configuration
+ *   <li>ScanRequestFn, which you build a ScanRequest object with at least table name and total
+ *       number of segment. Note This number should base on the number of your workers
  * </ul>
  */
 @Experimental(Experimental.Kind.SOURCE_SINK)
 public final class DynamoDBIO {
   public static Read read() {
-    return new AutoValue_DynamoDBIO_Read.Builder()
-        .setNumOfItemPerSegment(Integer.MAX_VALUE)
-        .setNumOfSplits(1)
-        .build();
+    return new AutoValue_DynamoDBIO_Read.Builder().build();
   }
 
   public static Write write() {
     return new AutoValue_DynamoDBIO_Write.Builder().build();
   }
 
-  /** Read data from DynamoDB by BatchGetItemRequest. Todo: doc more */
+  /** A config object used to construct AmazonDynamoDB client object. */
+  @AutoValue
+  public abstract static class DynamoDBConfiguration implements Serializable {
+    @Nullable
+    abstract ValueProvider<String> getRegion();
+
+    @Nullable
+    abstract ValueProvider<String> getEndpointUrl();
+
+    @Nullable
+    abstract ValueProvider<String> getAwsAccessKey();
+
+    @Nullable
+    abstract ValueProvider<String> getAwsSecretKey();
+
+    abstract Builder builder();
+
+    @AutoValue.Builder
+    abstract static class Builder {
+      abstract Builder setRegion(ValueProvider<String> region);
+
+      abstract Builder setEndpointUrl(ValueProvider<String> endpointUrl);
+
+      abstract Builder setAwsAccessKey(ValueProvider<String> accessKey);
+
+      abstract Builder setAwsSecretKey(ValueProvider<String> secretKey);
+
+      abstract DynamoDBConfiguration build();
+    }
+
+    public static DynamoDBConfiguration create(String region, String accessKey, String secretKey) {
+      checkArgument(region != null, "region can not be null");
+      checkArgument(accessKey != null, "accessKey can not be null");
+      checkArgument(secretKey != null, "secretKey can not be null");
+      return create(
+          null,
+          ValueProvider.StaticValueProvider.of(region),
+          ValueProvider.StaticValueProvider.of(accessKey),
+          ValueProvider.StaticValueProvider.of(secretKey));
+    }
+
+    public static DynamoDBConfiguration create(
+        String endpointUrl, String region, String accessKey, String secretKey) {
+      checkArgument(region != null, "region can not be null");
+      checkArgument(accessKey != null, "accessKey can not be null");
+      checkArgument(secretKey != null, "secretKey can not be null");
+      return create(
+          ValueProvider.StaticValueProvider.of(endpointUrl),
+          ValueProvider.StaticValueProvider.of(region),
+          ValueProvider.StaticValueProvider.of(accessKey),
+          ValueProvider.StaticValueProvider.of(secretKey));
+    }
+
+    public static DynamoDBConfiguration create(
+        ValueProvider<String> endpointUrl,
+        ValueProvider<String> region,
+        ValueProvider<String> accessKey,
+        ValueProvider<String> secretKey) {
+      checkArgument(region != null, "region can not be null");
+      checkArgument(accessKey != null, "accessKey can not be null");
+      checkArgument(secretKey != null, "secretKey can not be null");
+      return new AutoValue_DynamoDBIO_DynamoDBConfiguration.Builder()
+          .setEndpointUrl(endpointUrl)
+          .setRegion(region)
+          .setAwsAccessKey(accessKey)
+          .setAwsSecretKey(secretKey)
+          .build();
+    }
+
+    public DynamoDBConfiguration withRegion(String region) {
+      return withRegion(ValueProvider.StaticValueProvider.of(region));
+    }
+
+    public DynamoDBConfiguration withRegion(ValueProvider<String> region) {
+      return builder().setRegion(region).build();
+    }
+
+    public DynamoDBConfiguration withEndpointUrl(String endpointUrl) {
+      return withEndpointUrl(ValueProvider.StaticValueProvider.of(endpointUrl));
+    }
+
+    public DynamoDBConfiguration withEndpointUrl(ValueProvider<String> endpointUrl) {
+      return builder().setRegion(endpointUrl).build();
+    }
+
+    public DynamoDBConfiguration withAwsAccessKey(String accessKey) {
+      return withAwsAccessKey(ValueProvider.StaticValueProvider.of(accessKey));
+    }
+
+    public DynamoDBConfiguration withAwsAccessKey(ValueProvider<String> accessKey) {
+      return builder().setAwsAccessKey(accessKey).build();
+    }
+
+    public DynamoDBConfiguration withAwsSecretKey(String secretKey) {
+      return withAwsSecretKey(ValueProvider.StaticValueProvider.of(secretKey));
+    }
+
+    public DynamoDBConfiguration withAwsSecretKey(ValueProvider<String> secretKey) {
+      return builder().setAwsSecretKey(secretKey).build();
+    }
+
+    AmazonDynamoDB buildAmazonDynamoDB() {
+      AmazonDynamoDBClientBuilder builder = AmazonDynamoDBClientBuilder.standard();
+      if (getEndpointUrl() != null) {
+        builder.setEndpointConfiguration(
+            new AwsClientBuilder.EndpointConfiguration(getEndpointUrl().get(), getRegion().get()));
+      }
+      if (getEndpointUrl() == null && getRegion() != null) {
+        builder.setRegion(getRegion().get());
+      }
+      if (getAwsAccessKey() != null && getAwsSecretKey() != null) {
+        builder.setCredentials(
+            new AWSStaticCredentialsProvider(
+                new BasicAWSCredentials(getAwsAccessKey().get(), getAwsSecretKey().get())));
+      }
+      return builder.build();
+    }
+  }
+
+  /** Read data from DynamoDB and return PCollection<Map<String, AttributeValue>>. */
   @AutoValue
   public abstract static class Read
       extends PTransform<PBegin, PCollection<Map<String, AttributeValue>>> {
     @Nullable
-    abstract AwsClientsProvider getAWSClientsProvider();
+    abstract DynamoDBConfiguration getDynamoDBConfiguration();
 
     @Nullable
-    abstract String getTableName();
-
-    @Nullable
-    abstract String getFilterExpression();
-
-    @Nullable
-    abstract Map<String, AttributeValue> getExpressionAttributeValues();
-
-    @Nullable
-    abstract Map<String, String> getExpressionAttributeNames();
-
-    @Nullable
-    abstract String getProjectionExpression();
-
-    abstract int getNumOfItemPerSegment();
-
-    abstract int getNumOfSplits();
+    abstract SerializableFunction<Void, ScanRequest> getScanRequestFn();
 
     abstract Builder toBuilder();
 
     @AutoValue.Builder
     abstract static class Builder {
 
-      abstract Builder setAWSClientsProvider(AwsClientsProvider clientProvider);
+      abstract Builder setDynamoDBConfiguration(DynamoDBConfiguration dynamoDBConfiguration);
 
-      abstract Builder setTableName(String tableName);
-
-      abstract Builder setFilterExpression(String filterExpression);
-
-      abstract Builder setExpressionAttributeValues(
-          Map<String, AttributeValue> filterExpressionMapValue);
-
-      abstract Builder setExpressionAttributeNames(Map<String, String> filterExpressionMapName);
-
-      abstract Builder setProjectionExpression(String projectionExpression);
-
-      abstract Builder setNumOfItemPerSegment(int numOfItemPerSegment);
-
-      abstract Builder setNumOfSplits(int numOfSplits);
+      abstract Builder setScanRequestFn(SerializableFunction<Void, ScanRequest> fn);
 
       abstract Read build();
     }
-    /**
-     * Allows to specify custom {@link AwsClientsProvider}. {@link AwsClientsProvider} provides
-     * {@link AmazonDynamoDB} and {@link AmazonCloudWatch} instances which are later used for
-     * communication with DynamoDB. You should use this method if {@link
-     * Read#withAWSClientsProvider(AwsClientsProvider)} does not suit your needs.
-     */
-    public Read withAWSClientsProvider(AwsClientsProvider awsClientsProvider) {
-      return toBuilder().setAWSClientsProvider(awsClientsProvider).build();
+
+    public Read withDynamoDBConfiguration(DynamoDBConfiguration dynamoDBConfiguration) {
+      return toBuilder().setDynamoDBConfiguration(dynamoDBConfiguration).build();
     }
 
-    /**
-     * Specify credential details and region to be used to write to dynamo. If you need more
-     * sophisticated credential protocol, then you should look at {@link
-     * DynamoDBIO.Write#withAWSClientsProvider(AwsClientsProvider)}.
-     */
-    public Read withAWSClientsProvider(String awsAccessKey, String awsSecretKey, Regions region) {
-      return withAWSClientsProvider(awsAccessKey, awsSecretKey, region, null);
-    }
-
-    /**
-     * Specify credential details and region to be used to write to DynamoDB. If you need more
-     * sophisticated credential protocol, then you should look at {@link
-     * DynamoDBIO.Write#withAWSClientsProvider(AwsClientsProvider)}.
-     *
-     * <p>The {@code serviceEndpoint} sets an alternative service host. This is useful to execute
-     * the tests with Kinesis service emulator.
-     */
-    public Read withAWSClientsProvider(
-        String awsAccessKey, String awsSecretKey, Regions region, String serviceEndpoint) {
-      return withAWSClientsProvider(
-          new BasisDynamoDBProvider(awsAccessKey, awsSecretKey, region, serviceEndpoint));
-    }
-
-    public Read withTableName(String tableName) {
-      return toBuilder().setTableName(tableName).build();
-    }
-
-    public Read withFilterExpression(String filterExpression) {
-      return toBuilder().setFilterExpression(filterExpression).build();
-    }
-
-    public Read withExpressionAttributeNames(Map<String, String> filterExpressionMapName) {
-      return toBuilder().setExpressionAttributeNames(filterExpressionMapName).build();
-    }
-
-    public Read withExpressionAttributeValues(
-        Map<String, AttributeValue> filterExpressionMapValue) {
-      return toBuilder().setExpressionAttributeValues(filterExpressionMapValue).build();
-    }
-
-    public Read withProjectionExpression(String projectionExpression) {
-      return toBuilder().setProjectionExpression(projectionExpression).build();
-    }
-
-    public Read withNumOfItemPerSegment(int numOfItemPerSegment) {
-      return toBuilder().setNumOfItemPerSegment(numOfItemPerSegment).build();
-    }
-
-    public Read withNumOfSplits(int numOfSplits) {
-      return toBuilder().setNumOfSplits(numOfSplits).build();
+    public Read withScanRequestFn(SerializableFunction<Void, ScanRequest> fn) {
+      return toBuilder().setScanRequestFn(fn).build();
     }
 
     @Override
     public PCollection<Map<String, AttributeValue>> expand(PBegin input) {
+      checkArgument((getScanRequestFn() != null), "withScanRequestFn() is required");
+      checkArgument(
+          (getDynamoDBConfiguration() != null), "withDynamoDBConfiguration() is required");
+      checkArgument(
+          (getScanRequestFn().apply(null).getTotalSegments() != null
+              && getScanRequestFn().apply(null).getTotalSegments() > 0),
+          "TotalSegments is required with withScanRequestFn() and greater zero");
 
       return input.apply(org.apache.beam.sdk.io.Read.from(new DynamoDBBoundedSource(this, 0)));
     }
@@ -261,7 +330,7 @@ public final class DynamoDBIO {
     /**
      * An interface used to control if we retry the BatchWriteItemRequest call when a {@link
      * Throwable} occurs. If {@link RetryPredicate#test(Object)} returns true, {@link Write} tries
-     * to resend the requests to the Solr server if the {@link RetryConfiguration} permits it.
+     * to resend the requests to the dynamodb server if the {@link RetryConfiguration} permits it.
      */
     @FunctionalInterface
     interface RetryPredicate extends Predicate<Throwable>, Serializable {}
@@ -286,7 +355,7 @@ public final class DynamoDBIO {
       extends PTransform<PCollection<BatchWriteItemRequest>, PCollectionTuple> {
 
     @Nullable
-    abstract AwsClientsProvider getAWSClientsProvider();
+    abstract DynamoDBConfiguration getDynamoDBConfiguration();
 
     @Nullable
     abstract RetryConfiguration getRetryConfiguration();
@@ -299,7 +368,7 @@ public final class DynamoDBIO {
     @AutoValue.Builder
     abstract static class Builder {
 
-      abstract Builder setAWSClientsProvider(AwsClientsProvider clientProvider);
+      abstract Builder setDynamoDBConfiguration(DynamoDBConfiguration dynamoDBConfiguration);
 
       abstract Builder setRetryConfiguration(RetryConfiguration retryConfiguration);
 
@@ -308,35 +377,8 @@ public final class DynamoDBIO {
       abstract Write build();
     }
 
-    /**
-     * Allows to specify custom {@link AwsClientsProvider}. {@link AwsClientsProvider} creates new
-     * {@link AmazonDynamoDB} which is later used for writing to a dynamo client database.
-     */
-    public Write withAWSClientsProvider(AwsClientsProvider awsClientsProvider) {
-      return builder().setAWSClientsProvider(awsClientsProvider).build();
-    }
-
-    /**
-     * Specify credential details and region to be used to write to dynamo. If you need more
-     * sophisticated credential protocol, then you should look at {@link
-     * DynamoDBIO.Write#withAWSClientsProvider(AwsClientsProvider)}.
-     */
-    public Write withAWSClientsProvider(String awsAccessKey, String awsSecretKey, Regions region) {
-      return withAWSClientsProvider(awsAccessKey, awsSecretKey, region, null);
-    }
-
-    /**
-     * Specify credential details and region to be used to write to DynamoDB. If you need more
-     * sophisticated credential protocol, then you should look at {@link
-     * DynamoDBIO.Write#withAWSClientsProvider(AwsClientsProvider)}.
-     *
-     * <p>The {@code serviceEndpoint} sets an alternative service host. This is useful to execute
-     * the tests with Kinesis service emulator.
-     */
-    public Write withAWSClientsProvider(
-        String awsAccessKey, String awsSecretKey, Regions region, String serviceEndpoint) {
-      return withAWSClientsProvider(
-          new BasisDynamoDBProvider(awsAccessKey, awsSecretKey, region, serviceEndpoint));
+    public Write withDynamoDBConfiguration(DynamoDBConfiguration dynamoDBConfiguration) {
+      return builder().setDynamoDBConfiguration(dynamoDBConfiguration).build();
     }
 
     /**
@@ -396,7 +438,7 @@ public final class DynamoDBIO {
 
       @Setup
       public void setup() throws Exception {
-        client = spec.getAWSClientsProvider().createDynamoDB();
+        client = spec.getDynamoDBConfiguration().buildAmazonDynamoDB();
         retryBackoff =
             FluentBackoff.DEFAULT
                 .withMaxRetries(0) // default to no retrying

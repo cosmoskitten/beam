@@ -21,10 +21,9 @@ import com.amazonaws.services.dynamodbv2.model.AttributeValue;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
-import java.io.Serializable;
 import java.nio.ByteBuffer;
-import java.util.ArrayList;
 import java.util.List;
+import java.util.stream.Collectors;
 import org.apache.beam.sdk.coders.AtomicCoder;
 import org.apache.beam.sdk.coders.BooleanCoder;
 import org.apache.beam.sdk.coders.ByteArrayCoder;
@@ -35,7 +34,7 @@ import org.apache.beam.sdk.coders.MapCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 
 /** A {@link Coder} that serializes and deserializes the {@link AttributeValue} objects. */
-public class AttributeValueCoder extends AtomicCoder<AttributeValue> implements Serializable {
+public class AttributeValueCoder extends AtomicCoder<AttributeValue> {
 
   /** Data type of each value type in AttributeValue object. */
   private enum AttributeValueType {
@@ -46,23 +45,19 @@ public class AttributeValueCoder extends AtomicCoder<AttributeValue> implements 
     nS, // for List of Number
     bS, // for List of Byte
     m, // for Map of String and AttributeValue
-    l, // for list of AttributeValued
+    l, // for list of AttributeValue
     bOOL, // for Boolean
     nULLValue, // for null
-  };
+  }
 
   private static final AttributeValueCoder INSTANCE = new AttributeValueCoder();
-
-  private static final StringUtf8Coder STRING_CODER = StringUtf8Coder.of();
-  private static final ByteArrayCoder BYTE_ARRAY_CODER = ByteArrayCoder.of();
-  private static final BooleanCoder BOOLEAN_CODER = BooleanCoder.of();
 
   private static final ListCoder<String> LIST_STRING_CODER = ListCoder.of(StringUtf8Coder.of());
   private static final ListCoder<byte[]> LIST_BYTE_CODER = ListCoder.of(ByteArrayCoder.of());
 
-  private static final ListCoder<AttributeValue> LIST_CODER =
+  private static final ListCoder<AttributeValue> LIST_ATTRIBUTE_CODER =
       ListCoder.of(AttributeValueCoder.of());
-  private static final MapCoder<String, AttributeValue> MAP_CODER =
+  private static final MapCoder<String, AttributeValue> MAP_ATTRIBUTE_CODER =
       MapCoder.of(StringUtf8Coder.of(), AttributeValueCoder.of());
 
   private AttributeValueCoder() {}
@@ -72,63 +67,62 @@ public class AttributeValueCoder extends AtomicCoder<AttributeValue> implements 
   }
 
   @Override
-  public void encode(AttributeValue value, OutputStream outStream)
-      throws CoderException, IOException {
+  public void encode(AttributeValue value, OutputStream outStream) throws IOException {
 
     if (value.getS() != null) {
-      STRING_CODER.encode(AttributeValueType.s.toString(), outStream);
-      STRING_CODER.encode(value.getS(), outStream);
+      StringUtf8Coder.of().encode(AttributeValueType.s.toString(), outStream);
+      StringUtf8Coder.of().encode(value.getS(), outStream);
     } else if (value.getN() != null) {
-      STRING_CODER.encode(AttributeValueType.n.toString(), outStream);
-      STRING_CODER.encode(value.getN(), outStream);
+      StringUtf8Coder.of().encode(AttributeValueType.n.toString(), outStream);
+      StringUtf8Coder.of().encode(value.getN(), outStream);
     } else if (value.getBOOL() != null) {
-      STRING_CODER.encode(AttributeValueType.bOOL.toString(), outStream);
-      BOOLEAN_CODER.encode(value.getBOOL(), outStream);
+      StringUtf8Coder.of().encode(AttributeValueType.bOOL.toString(), outStream);
+      BooleanCoder.of().encode(value.getBOOL(), outStream);
     } else if (value.getB() != null) {
-      STRING_CODER.encode(AttributeValueType.b.toString(), outStream);
-      BYTE_ARRAY_CODER.encode(convertToByteArray(value.getB()), outStream);
+      StringUtf8Coder.of().encode(AttributeValueType.b.toString(), outStream);
+      ByteArrayCoder.of().encode(convertToByteArray(value.getB()), outStream);
     } else if (value.getSS() != null) {
-      STRING_CODER.encode(AttributeValueType.sS.toString(), outStream);
+      StringUtf8Coder.of().encode(AttributeValueType.sS.toString(), outStream);
       LIST_STRING_CODER.encode(value.getSS(), outStream);
     } else if (value.getNS() != null) {
-      STRING_CODER.encode(AttributeValueType.nS.toString(), outStream);
+      StringUtf8Coder.of().encode(AttributeValueType.nS.toString(), outStream);
       LIST_STRING_CODER.encode(value.getNS(), outStream);
     } else if (value.getBS() != null) {
-      STRING_CODER.encode(AttributeValueType.bS.toString(), outStream);
+      StringUtf8Coder.of().encode(AttributeValueType.bS.toString(), outStream);
       LIST_BYTE_CODER.encode(convertToListByteArray(value.getBS()), outStream);
     } else if (value.getL() != null) {
-      STRING_CODER.encode(AttributeValueType.l.toString(), outStream);
-      LIST_CODER.encode(value.getL(), outStream);
+      StringUtf8Coder.of().encode(AttributeValueType.l.toString(), outStream);
+      LIST_ATTRIBUTE_CODER.encode(value.getL(), outStream);
     } else if (value.getM() != null) {
-      STRING_CODER.encode(AttributeValueType.m.toString(), outStream);
-      MAP_CODER.encode(value.getM(), outStream);
+      StringUtf8Coder.of().encode(AttributeValueType.m.toString(), outStream);
+      MAP_ATTRIBUTE_CODER.encode(value.getM(), outStream);
     } else if (value.getNULL() != null) {
-      STRING_CODER.encode(AttributeValueType.nULLValue.toString(), outStream);
-      BOOLEAN_CODER.encode(value.getNULL(), outStream);
+      StringUtf8Coder.of().encode(AttributeValueType.nULLValue.toString(), outStream);
+      BooleanCoder.of().encode(value.getNULL(), outStream);
     } else {
       throw new CoderException("Unknown Type");
     }
   }
 
   @Override
-  public AttributeValue decode(InputStream inStream) throws CoderException, IOException {
+  public AttributeValue decode(InputStream inStream) throws IOException {
     AttributeValue attrValue = new AttributeValue();
 
-    String type = STRING_CODER.decode(inStream);
+    String type = StringUtf8Coder.of().decode(inStream);
     AttributeValueType attrType = AttributeValueType.valueOf(type);
 
     switch (attrType) {
       case s:
-        attrValue.setS(STRING_CODER.decode(inStream));
+        attrValue.setS(StringUtf8Coder.of().decode(inStream));
         break;
       case n:
-        attrValue.setN(STRING_CODER.decode(inStream));
+        attrValue.setN(StringUtf8Coder.of().decode(inStream));
         break;
       case bOOL:
-        attrValue.setBOOL(BOOLEAN_CODER.decode(inStream));
+        attrValue.setBOOL(BooleanCoder.of().decode(inStream));
         break;
       case b:
-        attrValue.setB(ByteBuffer.wrap(BYTE_ARRAY_CODER.decode(inStream)));
+        attrValue.setB(ByteBuffer.wrap(ByteArrayCoder.of().decode(inStream)));
         break;
       case sS:
         attrValue.setSS(LIST_STRING_CODER.decode(inStream));
@@ -140,13 +134,13 @@ public class AttributeValueCoder extends AtomicCoder<AttributeValue> implements 
         attrValue.setBS(convertToListByteBuffer(LIST_BYTE_CODER.decode(inStream)));
         break;
       case l:
-        attrValue.setL(LIST_CODER.decode(inStream));
+        attrValue.setL(LIST_ATTRIBUTE_CODER.decode(inStream));
         break;
       case m:
-        attrValue.setM(MAP_CODER.decode(inStream));
+        attrValue.setM(MAP_ATTRIBUTE_CODER.decode(inStream));
         break;
       case nULLValue:
-        attrValue.setNULL(BOOLEAN_CODER.decode(inStream));
+        attrValue.setNULL(BooleanCoder.of().decode(inStream));
         break;
       default:
         throw new CoderException("Unknown Type");
@@ -156,11 +150,7 @@ public class AttributeValueCoder extends AtomicCoder<AttributeValue> implements 
   }
 
   private List<byte[]> convertToListByteArray(List<ByteBuffer> listByteBuffer) {
-    List<byte[]> listByteArray = new ArrayList<>();
-    for (ByteBuffer buff : listByteBuffer) {
-      listByteArray.add(convertToByteArray(buff));
-    }
-    return listByteArray;
+    return listByteBuffer.stream().map(this::convertToByteArray).collect(Collectors.toList());
   }
 
   private byte[] convertToByteArray(ByteBuffer buffer) {
@@ -171,10 +161,6 @@ public class AttributeValueCoder extends AtomicCoder<AttributeValue> implements 
   }
 
   private List<ByteBuffer> convertToListByteBuffer(List<byte[]> listByteArr) {
-    List<ByteBuffer> byteBufferList = new ArrayList<>();
-    for (byte[] byteArr : listByteArr) {
-      byteBufferList.add(ByteBuffer.wrap(byteArr));
-    }
-    return byteBufferList;
+    return listByteArr.stream().map(ByteBuffer::wrap).collect(Collectors.toList());
   }
 }

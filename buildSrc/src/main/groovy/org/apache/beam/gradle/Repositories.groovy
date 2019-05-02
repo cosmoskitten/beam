@@ -54,9 +54,6 @@ class Repositories {
 
       // Apache release snapshots
       maven { url "https://repository.apache.org/content/repositories/releases" }
-
-      // Mulesoft public repository
-      maven { url "https://repository.mulesoft.org/nexus/content/repositories/public" }
     }
 
     // Apply a plugin which provides the 'updateOfflineRepository' task that creates an offline

@@ -17,18 +17,43 @@
  */
 package org.apache.beam.sdk.io.aws.dynamodb;
 
-import com.amazonaws.services.cloudwatch.AmazonCloudWatch;
 import com.amazonaws.services.dynamodbv2.AmazonDynamoDB;
-import java.io.Serializable;
+import javax.annotation.Nullable;
+import org.apache.beam.sdk.options.ValueProvider;
 
-/**
- * Provides instances of AWS clients.
- *
- * <p>Please note, that any instance of {@link AwsClientsProvider} must be {@link Serializable} to
- * ensure it can be sent to worker machines.
- */
-public interface AwsClientsProvider extends Serializable {
-  AmazonCloudWatch getCloudWatchClient();
+/** Mock DynamoDBConfiguration to pass it over the write to writer for testing Writer's retries. */
+public class DynamoDBConfigMock extends DynamoDBIO.DynamoDBConfiguration {
+  @Override
+  AmazonDynamoDB buildAmazonDynamoDB() {
+    return new AmazonDynamoDBMockErrors();
+  }
 
-  AmazonDynamoDB createDynamoDB();
+  @Nullable
+  @Override
+  ValueProvider<String> getRegion() {
+    return null;
+  }
+
+  @Nullable
+  @Override
+  ValueProvider<String> getEndpointUrl() {
+    return null;
+  }
+
+  @Nullable
+  @Override
+  ValueProvider<String> getAwsAccessKey() {
+    return null;
+  }
+
+  @Nullable
+  @Override
+  ValueProvider<String> getAwsSecretKey() {
+    return null;
+  }
+
+  @Override
+  Builder builder() {
+    return null;
+  }
 }

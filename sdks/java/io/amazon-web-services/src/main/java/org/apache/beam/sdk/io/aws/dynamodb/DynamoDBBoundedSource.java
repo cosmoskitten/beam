@@ -17,17 +17,21 @@
  */
 package org.apache.beam.sdk.io.aws.dynamodb;
 
+import com.amazonaws.services.dynamodbv2.AmazonDynamoDB;
 import com.amazonaws.services.dynamodbv2.model.AttributeValue;
-import java.io.IOException;
+import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.MapCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.io.BoundedSource;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Supplier;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Suppliers;
 
 /**
  * Provide BoundedSource instance for {@link DynamoDBIO}, and parameters used by {@link
@@ -38,10 +42,16 @@ class DynamoDBBoundedSource extends BoundedSource<Map<String, AttributeValue>> {
 
   private final DynamoDBIO.Read read;
   private final int segmentId;
+  private final Supplier<AmazonDynamoDB> client;
 
-  public DynamoDBBoundedSource(DynamoDBIO.Read read, int segmentId) {
+  DynamoDBBoundedSource(DynamoDBIO.Read read, int segmentId) {
     this.read = read;
     this.segmentId = segmentId;
+    client =
+        Suppliers.memoize(
+            (Supplier<AmazonDynamoDB> & Serializable)
+                () ->
+                    Objects.requireNonNull(read.getDynamoDBConfiguration()).buildAmazonDynamoDB());
   }
 
   @Override
@@ -51,9 +61,11 @@ class DynamoDBBoundedSource extends BoundedSource<Map<String, AttributeValue>> {
 
   @Override
   public List<? extends BoundedSource<Map<String, AttributeValue>>> split(
-      long desiredBundleSizeBytes, PipelineOptions options) throws Exception {
+      long desiredBundleSizeBytes, PipelineOptions options) {
     List<DynamoDBBoundedSource> sources = new ArrayList<>();
-    for (int i = 0; i < read.getNumOfSplits(); i++) {
+    int numOfSplits =
+        Objects.requireNonNull(read.getScanRequestFn()).apply(null).getTotalSegments();
+    for (int i = 0; i < numOfSplits; i++) {
       sources.add(new DynamoDBBoundedSource(read, i));
     }
 
@@ -61,14 +73,13 @@ class DynamoDBBoundedSource extends BoundedSource<Map<String, AttributeValue>> {
   }
 
   @Override
-  public long getEstimatedSizeBytes(PipelineOptions options) throws Exception {
+  public long getEstimatedSizeBytes(PipelineOptions options) {
     // Dynamo does not seem to expose table sizes
     return 0;
   }
 
   @Override
-  public BoundedReader<Map<String, AttributeValue>> createReader(PipelineOptions options)
-      throws IOException {
+  public BoundedReader<Map<String, AttributeValue>> createReader(PipelineOptions options) {
     return new DynamoDBBoundedReader(this);
   }
 
@@ -76,7 +87,11 @@ class DynamoDBBoundedSource extends BoundedSource<Map<String, AttributeValue>> {
     return read;
   }
 
-  public int getSegmentId() {
+  int getSegmentId() {
     return segmentId;
+  }
+
+  public AmazonDynamoDB getClient() {
+    return client.get();
   }
 }
