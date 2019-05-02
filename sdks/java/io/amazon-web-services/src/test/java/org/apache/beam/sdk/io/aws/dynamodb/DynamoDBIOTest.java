@@ -17,44 +17,60 @@
  */
 package org.apache.beam.sdk.io.aws.dynamodb;
 
-import com.amazonaws.services.dynamodbv2.AmazonDynamoDB;
-import com.amazonaws.services.dynamodbv2.local.embedded.DynamoDBEmbedded;
+import static org.junit.Assert.fail;
+
 import com.amazonaws.services.dynamodbv2.model.AttributeValue;
+import com.amazonaws.services.dynamodbv2.model.BatchWriteItemRequest;
+import com.amazonaws.services.dynamodbv2.model.BatchWriteItemResult;
 import java.io.Serializable;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import org.apache.beam.sdk.Pipeline;
+import org.apache.beam.sdk.testing.ExpectedLogs;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Count;
+import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.PCollectionTuple;
+import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableMap;
-import org.junit.Before;
+import org.joda.time.Duration;
+import org.junit.AfterClass;
+import org.junit.BeforeClass;
 import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.ExpectedException;
 
-/** Unit tests for Reader to cover different kind of parallel scan. */
-public class DynamoDBIOReaderTest implements Serializable {
-
+/** Unit Coverage for the IO. */
+public class DynamoDBIOTest implements Serializable {
   @Rule public final transient TestPipeline pipeline = TestPipeline.create();
+  @Rule public final transient ExpectedLogs expectedLogs = ExpectedLogs.none(DynamoDBIO.class);
 
-  private AwsClientsProvider awsClientsProvider;
-  private transient AmazonDynamoDB dynamoClient;
+  private static DynamoDBIO.DynamoDBConfiguration config;
 
-  private final String tableName = "Task";
-  private final int numOfItemsToGen = 10;
+  private static final String tableName = "TaskA";
+  private static final int numOfItems = 10;
 
-  private List<Map<String, AttributeValue>> expected;
+  private static List<Map<String, AttributeValue>> expected;
 
-  @Before
-  public void setup() {
-    dynamoClient = DynamoDBEmbedded.create().amazonDynamoDB();
-    awsClientsProvider = MockAwsClientProvider.of(dynamoClient);
-    DynamoDBIOTestHelper.createTestTable(dynamoClient, tableName);
-    expected = DynamoDBIOTestHelper.generateTestData(dynamoClient, tableName, numOfItemsToGen);
+  @BeforeClass
+  public static void setup() throws Exception {
+    DynamoDBIOTestHelper.startServerClient();
+    DynamoDBIOTestHelper.createTestTable(tableName);
+    expected = DynamoDBIOTestHelper.generateTestData(tableName, numOfItems);
+
+    config = DynamoDBIOTestHelper.getDynamoDBConfig();
   }
 
+  @AfterClass
+  public static void destroy() throws Exception {
+    DynamoDBIOTestHelper.stopServerClient(tableName);
+  }
+
+  // Test case for Reader.
   @Test
   public void testLimit10AndSplit1() {
     final PCollection<Map<String, AttributeValue>> actual =
@@ -63,7 +79,7 @@ public class DynamoDBIOReaderTest implements Serializable {
                 .withTableName(tableName)
                 .withNumOfItemPerSegment(10)
                 .withNumOfSplits(1)
-                .withAWSClientsProvider(awsClientsProvider));
+                .withDynamoDBConfiguration(config));
 
     PAssert.that(actual).containsInAnyOrder(expected);
     pipeline.run().waitUntilFinish();
@@ -77,7 +93,7 @@ public class DynamoDBIOReaderTest implements Serializable {
                 .withTableName(tableName)
                 .withNumOfItemPerSegment(99)
                 .withNumOfSplits(1)
-                .withAWSClientsProvider(awsClientsProvider));
+                .withDynamoDBConfiguration(config));
 
     PAssert.that(actual).containsInAnyOrder(expected);
     pipeline.run().waitUntilFinish();
@@ -91,7 +107,7 @@ public class DynamoDBIOReaderTest implements Serializable {
                 .withTableName(tableName)
                 .withNumOfItemPerSegment(2)
                 .withNumOfSplits(1)
-                .withAWSClientsProvider(awsClientsProvider));
+                .withDynamoDBConfiguration(config));
 
     PAssert.thatSingleton(actual.apply(Count.globally())).isEqualTo(2L);
     pipeline.run().waitUntilFinish();
@@ -105,7 +121,7 @@ public class DynamoDBIOReaderTest implements Serializable {
                 .withTableName(tableName)
                 .withNumOfItemPerSegment(2)
                 .withNumOfSplits(2)
-                .withAWSClientsProvider(awsClientsProvider));
+                .withDynamoDBConfiguration(config));
 
     PAssert.thatSingleton(output.apply(Count.globally())).isEqualTo(4L);
     pipeline.run().waitUntilFinish();
@@ -119,7 +135,7 @@ public class DynamoDBIOReaderTest implements Serializable {
                 .withTableName(tableName)
                 .withNumOfItemPerSegment(2)
                 .withNumOfSplits(5)
-                .withAWSClientsProvider(awsClientsProvider));
+                .withDynamoDBConfiguration(config));
 
     PAssert.thatSingleton(actual.apply(Count.globally())).notEqualTo(10L);
     pipeline.run().waitUntilFinish();
@@ -134,7 +150,7 @@ public class DynamoDBIOReaderTest implements Serializable {
                 // Don't set a limit when num of split is calculated. One segment can select more
                 // item than your limit
                 .withNumOfSplits(5)
-                .withAWSClientsProvider(awsClientsProvider));
+                .withDynamoDBConfiguration(config));
 
     PAssert.thatSingleton(actual.apply(Count.globally())).isEqualTo(10L);
     PAssert.that(actual).containsInAnyOrder(expected);
@@ -148,7 +164,7 @@ public class DynamoDBIOReaderTest implements Serializable {
             DynamoDBIO.read()
                 .withTableName(tableName)
                 .withNumOfSplits(12)
-                .withAWSClientsProvider(awsClientsProvider));
+                .withDynamoDBConfiguration(config));
     PAssert.that(actual).containsInAnyOrder(expected);
     pipeline.run().waitUntilFinish();
   }
@@ -160,7 +176,7 @@ public class DynamoDBIOReaderTest implements Serializable {
             DynamoDBIO.read()
                 .withTableName(tableName)
                 .withNumOfSplits(3)
-                .withAWSClientsProvider(awsClientsProvider));
+                .withDynamoDBConfiguration(config));
 
     PAssert.that(actual).containsInAnyOrder(expected);
     pipeline.run().waitUntilFinish();
@@ -181,7 +197,7 @@ public class DynamoDBIOReaderTest implements Serializable {
                 .withFilterExpression(DynamoDBIOTestHelper.ATTR_NAME_2 + " < :number")
                 .withExpressionAttributeValues(filterExpressionValues)
                 .withNumOfSplits(2)
-                .withAWSClientsProvider(awsClientsProvider));
+                .withDynamoDBConfiguration(config));
 
     PAssert.thatSingleton(actual.apply(Count.globally())).isEqualTo(4L);
     pipeline.run().waitUntilFinish();
@@ -207,9 +223,66 @@ public class DynamoDBIOReaderTest implements Serializable {
                 .withExpressionAttributeValues(filterExpressionValues)
                 .withProjectionExpression(DynamoDBIOTestHelper.ATTR_NAME_2)
                 .withNumOfSplits(2)
-                .withAWSClientsProvider(awsClientsProvider));
+                .withDynamoDBConfiguration(config));
 
     PAssert.that(actual).containsInAnyOrder(expectedFilter);
     pipeline.run().waitUntilFinish();
+  }
+
+  @Test
+  public void testWriteDataToDynamo() {
+    final BatchWriteItemRequest batchWriteItemRequest =
+        DynamoDBIOTestHelper.generateBatchWriteItemRequest(tableName, numOfItems);
+
+    final TupleTag<BatchWriteItemResult> results = new TupleTag<>();
+
+    final PCollectionTuple output =
+        pipeline
+            .apply(Create.of(batchWriteItemRequest))
+            .apply(
+                DynamoDBIO.write()
+                    .withRetryConfiguration(
+                        DynamoDBIO.RetryConfiguration.create(5, Duration.standardMinutes(1)))
+                    .withDynamoDBConfiguration(config)
+                    .withResultOutputTag(results));
+
+    final PCollection<Long> publishedResultsSize = output.get(results).apply(Count.globally());
+    PAssert.that(publishedResultsSize).containsInAnyOrder(1L);
+
+    pipeline.run().waitUntilFinish();
+  }
+
+  // Test cases for Writer.
+  @Rule public ExpectedException thrown = ExpectedException.none();
+
+  @Test
+  public void testRetries() throws Throwable {
+    thrown.expectMessage("Error writing to DynamoDB");
+    final BatchWriteItemRequest batchWriteItemRequest =
+        DynamoDBIOTestHelper.generateBatchWriteItemRequest(tableName, numOfItems);
+
+    final TupleTag<BatchWriteItemResult> results = new TupleTag<>();
+    pipeline
+        .apply(Create.of(batchWriteItemRequest))
+        .apply(
+            DynamoDBIO.write()
+                .withRetryConfiguration(
+                    DynamoDBIO.RetryConfiguration.create(4, Duration.standardSeconds(10)))
+                .withDynamoDBConfiguration(new DynamoDBConfigMock())
+                .withResultOutputTag(results));
+
+    try {
+      pipeline.run();
+    } catch (final Pipeline.PipelineExecutionException e) {
+      // check 3 retries were initiated by inspecting the log before passing on the exception
+      expectedLogs.verifyWarn(
+          String.format(DynamoDBIO.Write.DynamoDbWriterFn.RETRY_ATTEMPT_LOG, 1));
+      expectedLogs.verifyWarn(
+          String.format(DynamoDBIO.Write.DynamoDbWriterFn.RETRY_ATTEMPT_LOG, 2));
+      expectedLogs.verifyWarn(
+          String.format(DynamoDBIO.Write.DynamoDbWriterFn.RETRY_ATTEMPT_LOG, 3));
+      throw e.getCause();
+    }
+    fail("Pipeline is expected to fail because we were unable to write to DynamoDB.");
   }
 }

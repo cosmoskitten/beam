@@ -48,18 +48,28 @@ class DynamoDBBoundedReader extends BoundedSource.BoundedReader<Map<String, Attr
 
   @Override
   public boolean start() throws IOException {
-    ScanRequest scanRequest =
-        new ScanRequest()
-            .withTableName(source.getRead().getTableName())
-            .withFilterExpression(source.getRead().getFilterExpression())
-            .withExpressionAttributeNames(source.getRead().getExpressionAttributeNames())
-            .withExpressionAttributeValues(source.getRead().getExpressionAttributeValues())
-            .withProjectionExpression(source.getRead().getProjectionExpression())
-            .withLimit(source.getRead().getNumOfItemPerSegment())
-            .withTotalSegments(source.getRead().getNumOfSplits())
-            .withSegment(source.getSegmentId());
+    ScanRequest scanRequest = new ScanRequest(source.getRead().getTableName());
 
-    ScanResult result = source.getRead().getAWSClientsProvider().createDynamoDB().scan(scanRequest);
+    if (source.getRead().getFilterExpression() != null
+        && source.getRead().getExpressionAttributeValues() != null) {
+      scanRequest.setFilterExpression(source.getRead().getFilterExpression());
+      scanRequest.setExpressionAttributeValues(source.getRead().getExpressionAttributeValues());
+    }
+
+    if (source.getRead().getProjectionExpression() != null) {
+      scanRequest.setProjectionExpression(source.getRead().getProjectionExpression());
+    }
+
+    if (source.getRead().getExpressionAttributeNames() != null) {
+      scanRequest.setExpressionAttributeNames(source.getRead().getExpressionAttributeNames());
+    }
+
+    // limit, totalSegments, and segmentId are all have default value
+    scanRequest.setLimit(source.getRead().getNumOfItemPerSegment());
+    scanRequest.setTotalSegments(source.getRead().getNumOfSplits());
+    scanRequest.setSegment(source.getSegmentId());
+
+    ScanResult result = source.getClient().scan(scanRequest);
     if (result == null) {
       return false;
     }

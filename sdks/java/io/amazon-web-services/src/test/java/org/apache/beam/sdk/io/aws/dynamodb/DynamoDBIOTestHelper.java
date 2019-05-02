@@ -17,7 +17,13 @@
  */
 package org.apache.beam.sdk.io.aws.dynamodb;
 
+import com.amazonaws.auth.AWSStaticCredentialsProvider;
+import com.amazonaws.auth.BasicAWSCredentials;
+import com.amazonaws.client.builder.AwsClientBuilder;
 import com.amazonaws.services.dynamodbv2.AmazonDynamoDB;
+import com.amazonaws.services.dynamodbv2.AmazonDynamoDBClientBuilder;
+import com.amazonaws.services.dynamodbv2.local.main.ServerRunner;
+import com.amazonaws.services.dynamodbv2.local.server.DynamoDBProxyServer;
 import com.amazonaws.services.dynamodbv2.model.AttributeDefinition;
 import com.amazonaws.services.dynamodbv2.model.AttributeValue;
 import com.amazonaws.services.dynamodbv2.model.BatchWriteItemRequest;
@@ -40,30 +46,68 @@ import java.util.Map;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableList;
 import org.junit.Assert;
 
-/**
- * A utility to generate test table and data for {@link DynamoDBIOWriterTest} and {@link
- * DynamoDBIOReaderTest}.
- */
-public class DynamoDBIOTestHelper implements Serializable {
+/** A utility to generate test table and data for {@link DynamoDBIOTest}. */
+class DynamoDBIOTestHelper implements Serializable {
 
-  public static final String ATTR_NAME_1 = "hashKey1";
-  public static final String ATTR_NAME_2 = "rangeKey2";
+  private static DynamoDBProxyServer server;
+  private static AmazonDynamoDB dynamoDBClient;
 
-  public static List<Map<String, AttributeValue>> generateTestData(
-      AmazonDynamoDB dynamoDB, String tableName, int numOfItems) {
+  private static final String port = "8001";
+  private static final String endpointUrl = "http://localhost:" + port;
+
+  private static final String region = "us-west-2";
+  private static final String accessKey = "foo";
+  private static final String secretKey = "bar";
+
+  static final String ATTR_NAME_1 = "hashKey1";
+  static final String ATTR_NAME_2 = "rangeKey2";
+
+  static void startServerClient() throws Exception {
+    if (server == null) {
+      server =
+          ServerRunner.createServerFromCommandLineArgs(new String[] {"-inMemory", "-port", port});
+      server.start();
+    }
+
+    if (dynamoDBClient == null) {
+      dynamoDBClient =
+          AmazonDynamoDBClientBuilder.standard()
+              .withEndpointConfiguration(
+                  new AwsClientBuilder.EndpointConfiguration(endpointUrl, region))
+              .withCredentials(
+                  new AWSStaticCredentialsProvider(new BasicAWSCredentials(accessKey, secretKey)))
+              .build();
+    }
+  }
+
+  static void stopServerClient(String tableName) throws Exception {
+    if (dynamoDBClient != null) {
+      dynamoDBClient.deleteTable(tableName);
+      dynamoDBClient.shutdown();
+    }
+
+    if (server != null) {
+      server.stop();
+    }
+  }
+
+  static DynamoDBIO.DynamoDBConfiguration getDynamoDBConfig() {
+    return DynamoDBIO.DynamoDBConfiguration.create(endpointUrl, region, accessKey, secretKey);
+  }
+
+  static List<Map<String, AttributeValue>> generateTestData(String tableName, int numOfItems) {
     BatchWriteItemRequest batchWriteItemRequest =
         generateBatchWriteItemRequest(tableName, numOfItems);
 
-    dynamoDB.batchWriteItem(batchWriteItemRequest);
-    ScanResult scanResult = dynamoDB.scan(new ScanRequest().withTableName(tableName));
+    dynamoDBClient.batchWriteItem(batchWriteItemRequest);
+    ScanResult scanResult = dynamoDBClient.scan(new ScanRequest().withTableName(tableName));
 
     List<Map<String, AttributeValue>> items = scanResult.getItems();
     Assert.assertEquals(numOfItems, items.size());
     return items;
   }
 
-  public static BatchWriteItemRequest generateBatchWriteItemRequest(
-      String tableName, int numOfItems) {
+  static BatchWriteItemRequest generateBatchWriteItemRequest(String tableName, int numOfItems) {
     BatchWriteItemRequest batchWriteItemRequest = new BatchWriteItemRequest();
     batchWriteItemRequest.addRequestItemsEntry(tableName, generateWriteRequests(numOfItems));
     return batchWriteItemRequest;
@@ -86,8 +130,8 @@ public class DynamoDBIOTestHelper implements Serializable {
     return putRequest;
   }
 
-  public static CreateTableResult createTestTable(AmazonDynamoDB dynamoClient, String tableName) {
-    CreateTableResult res = createDynamoTable(dynamoClient, tableName, ATTR_NAME_1, ATTR_NAME_2);
+  static void createTestTable(String tableName) {
+    CreateTableResult res = createDynamoTable(tableName);
 
     TableDescription tableDesc = res.getTableDescription();
 
@@ -103,23 +147,21 @@ public class DynamoDBIOTestHelper implements Serializable {
     Assert.assertEquals(
         "arn:aws:dynamodb:ddblocal:000000000000:table/" + tableName, tableDesc.getTableArn());
 
-    ListTablesResult tables = dynamoClient.listTables();
+    ListTablesResult tables = dynamoDBClient.listTables();
     Assert.assertEquals(1, tables.getTableNames().size());
-    return res;
   }
 
-  private static CreateTableResult createDynamoTable(
-      AmazonDynamoDB dynamoDB, String tableName, String hashKeyName, String rangeKeyName) {
+  private static CreateTableResult createDynamoTable(String tableName) {
 
     ImmutableList<AttributeDefinition> attributeDefinitions =
         ImmutableList.of(
-            new AttributeDefinition(hashKeyName, ScalarAttributeType.S),
-            new AttributeDefinition(rangeKeyName, ScalarAttributeType.N));
+            new AttributeDefinition(ATTR_NAME_1, ScalarAttributeType.S),
+            new AttributeDefinition(ATTR_NAME_2, ScalarAttributeType.N));
 
     ImmutableList<KeySchemaElement> ks =
         ImmutableList.of(
-            new KeySchemaElement(hashKeyName, KeyType.HASH),
-            new KeySchemaElement(rangeKeyName, KeyType.RANGE));
+            new KeySchemaElement(ATTR_NAME_1, KeyType.HASH),
+            new KeySchemaElement(ATTR_NAME_2, KeyType.RANGE));
 
     ProvisionedThroughput provisionedthroughput = new ProvisionedThroughput(1000L, 1000L);
     CreateTableRequest request =
@@ -129,6 +171,6 @@ public class DynamoDBIOTestHelper implements Serializable {
             .withKeySchema(ks)
             .withProvisionedThroughput(provisionedthroughput);
 
-    return dynamoDB.createTable(request);
+    return dynamoDBClient.createTable(request);
   }
 }
