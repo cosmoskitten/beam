@@ -18,7 +18,9 @@
 package org.apache.beam.runners.jet.metrics;
 
 import com.hazelcast.core.EntryEvent;
+import com.hazelcast.core.MapEvent;
 import com.hazelcast.map.listener.EntryAddedListener;
+import com.hazelcast.map.listener.MapClearedListener;
 import java.util.HashMap;
 import java.util.Map;
 import javax.annotation.Nullable;
@@ -39,7 +41,7 @@ import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.FluentIterab
 
 /** Jet specific {@link MetricResults}. */
 public class JetMetricResults extends MetricResults
-    implements EntryAddedListener<String, MetricUpdates> {
+    implements EntryAddedListener<String, MetricUpdates>, MapClearedListener {
 
   private final Map<MetricKey, Long> counters = new HashMap<>();
   private final Map<MetricKey, DistributionData> distributions = new HashMap<>();
@@ -53,6 +55,13 @@ public class JetMetricResults extends MetricResults
   @Override
   public void entryAdded(EntryEvent<String, MetricUpdates> event) {
     merge(event.getValue());
+  }
+
+  @Override
+  public void mapCleared(MapEvent mapEvent) {
+    counters.clear();
+    distributions.clear();
+    gauges.clear();
   }
 
   private void merge(MetricUpdates metricUpdates) {
@@ -122,8 +131,7 @@ public class JetMetricResults extends MetricResults
           .toList();
     }
 
-    private MetricResult<DistributionResult> distributionUpdateToResult(
-        Map.Entry<MetricKey, DistributionData> entry) {
+    private MetricResult<DistributionResult> distributionUpdateToResult(Map.Entry<MetricKey, DistributionData> entry) {
       MetricKey key = entry.getKey();
       DistributionResult distributionResult = entry.getValue().extractResult();
       return MetricResult.create(key, distributionResult, distributionResult);

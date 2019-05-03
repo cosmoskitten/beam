@@ -134,6 +134,7 @@ public class JetRunner extends PipelineRunner<PipelineResult> {
 
     IMapJet<String, MetricUpdates> metricsAccumulator =
         jet.getMap(JetMetricsContainer.METRICS_ACCUMULATOR_NAME);
+    metricsAccumulator.clear();
     Job job = jet.newJob(dag);
 
     JetPipelineResult result = new JetPipelineResult(metricsAccumulator);

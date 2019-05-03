@@ -119,7 +119,7 @@ class JetTransformTranslators {
 
       String outputEdgeId = Utils.getTupleTagId(output.getValue());
       dagBuilder.registerCollectionOfEdge(outputEdgeId, output.getKey().getId());
-      dagBuilder.registerEdgeStartPoint(outputEdgeId, vertex);
+      dagBuilder.registerEdgeStartPoint(outputEdgeId, vertex, outputCoder);
       return vertex;
     }
   }
@@ -229,7 +229,7 @@ class JetTransformTranslators {
         TupleTag<?> pCollId = entry.getKey();
         String edgeId = Utils.getTupleTagId(entry.getValue());
         dagBuilder.registerCollectionOfEdge(edgeId, pCollId.getId());
-        dagBuilder.registerEdgeStartPoint(edgeId, vertex);
+        dagBuilder.registerEdgeStartPoint(edgeId, vertex, outputCoders.get(pCollId));
       }
 
       return vertex;
@@ -254,36 +254,30 @@ class JetTransformTranslators {
 
       PCollection<KV<K, InputT>> input = Utils.getInput(appliedTransform);
       Coder inputCoder = Utils.getCoder(input);
+      Coder inputValueCoder = Utils.getInput(appliedTransform).getCoder();
       Map.Entry<TupleTag<?>, PValue> output = Utils.getOutput(appliedTransform);
       Coder outputCoder = Utils.getCoder((PCollection) output.getValue());
 
       WindowingStrategy<?, ?> windowingStrategy = input.getWindowingStrategy();
-      /*WindowingStrategy<InputT, ? extends BoundedWindow> outputWindowingStrategy =
-          (WindowingStrategy<InputT, ? extends BoundedWindow>)
-              ((PCollection) Utils.getOutput(appliedTransform).getValue()).getWindowingStrategy();
-      Trigger trigger = outputWindowingStrategy.getTrigger();
-      if (!trigger.isCompatible(DefaultTrigger.of()) && !trigger.isCompatible(Never.ever())) {
-        throw new UnsupportedOperationException(
-            "Only DefaultTrigger and Never.NeverTrigger supported, got " + trigger);
-      }
-      if (outputWindowingStrategy.getAllowedLateness().getMillis() != 0) {
-        throw new UnsupportedOperationException("Non-zero allowed lateness not supported");
-      }*/
-      // todo: this makes sense, but really doesn't help for now... we will need to implement
-      // triggers properly
 
       DAGBuilder dagBuilder = context.getDagBuilder();
       String vertexId = dagBuilder.newVertexId(transformName);
       Vertex vertex =
           dagBuilder.addVertex(
               vertexId,
-              WindowGroupP.supplier(inputCoder, outputCoder, windowingStrategy, vertexId));
+              WindowGroupP.supplier(
+                  context.getOptions(),
+                  inputValueCoder,
+                  inputCoder,
+                  outputCoder,
+                  windowingStrategy,
+                  vertexId));
 
       dagBuilder.registerEdgeEndPoint(Utils.getTupleTagId(input), vertex);
 
       String outputEdgeId = Utils.getTupleTagId(output.getValue());
       dagBuilder.registerCollectionOfEdge(outputEdgeId, output.getKey().getId());
-      dagBuilder.registerEdgeStartPoint(outputEdgeId, vertex);
+      dagBuilder.registerEdgeStartPoint(outputEdgeId, vertex, outputCoder);
       return vertex;
     }
   }
@@ -322,11 +316,11 @@ class JetTransformTranslators {
 
       String viewTag = Utils.getTupleTagId(view);
       dagBuilder.registerCollectionOfEdge(viewTag, view.getTagInternal().getId());
-      dagBuilder.registerEdgeStartPoint(viewTag, vertex);
+      dagBuilder.registerEdgeStartPoint(viewTag, vertex, outputCoder);
 
       String outputEdgeId = Utils.getTupleTagId(output.getValue());
       dagBuilder.registerCollectionOfEdge(outputEdgeId, output.getKey().getId());
-      dagBuilder.registerEdgeStartPoint(outputEdgeId, vertex);
+      dagBuilder.registerEdgeStartPoint(outputEdgeId, vertex, outputCoder);
       return vertex;
     }
   }
@@ -359,7 +353,7 @@ class JetTransformTranslators {
 
       String outputEdgeId = Utils.getTupleTagId(output.getValue());
       dagBuilder.registerCollectionOfEdge(outputEdgeId, output.getKey().getId());
-      dagBuilder.registerEdgeStartPoint(outputEdgeId, vertex);
+      dagBuilder.registerEdgeStartPoint(outputEdgeId, vertex, outputCoder);
       return vertex;
     }
   }
@@ -395,7 +389,7 @@ class JetTransformTranslators {
 
       String outputEdgeId = Utils.getTupleTagId(output.getValue());
       dagBuilder.registerCollectionOfEdge(outputEdgeId, output.getKey().getId());
-      dagBuilder.registerEdgeStartPoint(outputEdgeId, vertex);
+      dagBuilder.registerEdgeStartPoint(outputEdgeId, vertex, outputCoder);
       return vertex;
     }
   }
@@ -410,12 +404,13 @@ class JetTransformTranslators {
       DAGBuilder dagBuilder = context.getDagBuilder();
       String vertexId = dagBuilder.newVertexId(transformName);
 
+      Map.Entry<TupleTag<?>, PValue> output = Utils.getOutput(appliedTransform);
+      Coder outputCoder = Utils.getCoder((PCollection) output.getValue());
       Vertex vertex = dagBuilder.addVertex(vertexId, ImpulseP.supplier(vertexId));
 
-      Map.Entry<TupleTag<?>, PValue> output = Utils.getOutput(appliedTransform);
       String outputEdgeId = Utils.getTupleTagId(output.getValue());
       dagBuilder.registerCollectionOfEdge(outputEdgeId, output.getKey().getId());
-      dagBuilder.registerEdgeStartPoint(outputEdgeId, vertex);
+      dagBuilder.registerEdgeStartPoint(outputEdgeId, vertex, outputCoder);
       return vertex;
     }
   }
@@ -441,7 +436,7 @@ class JetTransformTranslators {
 
       String outputEdgeId = Utils.getTupleTagId(output.getValue());
       dagBuilder.registerCollectionOfEdge(outputEdgeId, output.getKey().getId());
-      dagBuilder.registerEdgeStartPoint(outputEdgeId, vertex);
+      dagBuilder.registerEdgeStartPoint(outputEdgeId, vertex, outputCoder);
       return vertex;
     }
   }

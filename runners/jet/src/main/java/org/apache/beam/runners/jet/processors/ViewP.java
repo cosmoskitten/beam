@@ -54,7 +54,6 @@ public class ViewP extends AbstractProcessor {
   private final String ownerId; // do not remove, useful for debugging
 
   private Map<BoundedWindow, TimestampAndValues> values = new HashMap<>();
-  private PaneInfo paneInfo = PaneInfo.NO_FIRING;
   private Traverser<byte[]> resultTraverser;
 
   private ViewP(
@@ -68,14 +67,6 @@ public class ViewP extends AbstractProcessor {
     // for debugging
   }
 
-  public static SupplierEx<Processor> supplier(
-      Coder inputCoder,
-      Coder outputCoder,
-      WindowingStrategy<?, ?> windowingStrategy,
-      String ownerId) {
-    return () -> new ViewP(inputCoder, outputCoder, windowingStrategy, ownerId);
-  }
-
   @Override
   protected boolean tryProcess(int ordinal, @Nonnull Object item) {
     // System.out.println(ViewP.class.getSimpleName() + " UPDATE ownerId = " + ownerId + ", item = "
@@ -84,13 +75,11 @@ public class ViewP extends AbstractProcessor {
     for (BoundedWindow window : windowedValue.getWindows()) {
       values.merge(
           window,
-          new TimestampAndValues(windowedValue.getTimestamp(), windowedValue.getValue()),
+          new TimestampAndValues(
+              windowedValue.getPane(), windowedValue.getTimestamp(), windowedValue.getValue()),
           (o, n) -> o.merge(timestampCombiner, n));
     }
 
-    if (!paneInfo.equals(windowedValue.getPane())) {
-      throw new RuntimeException("Oops!");
-    }
     return true;
   }
 
@@ -109,29 +98,40 @@ public class ViewP extends AbstractProcessor {
                                 e.getValue().values,
                                 e.getValue().timestamp,
                                 Collections.singleton(e.getKey()),
-                                paneInfo);
+                                e.getValue().pane);
                         return Utils.encodeWindowedValue(outputValue, outputCoder, baos);
                       }));
     }
     return emitFromTraverser(resultTraverser);
   }
 
+  public static SupplierEx<Processor> supplier(
+      Coder inputCoder,
+      Coder outputCoder,
+      WindowingStrategy<?, ?> windowingStrategy,
+      String ownerId) {
+    return () -> new ViewP(inputCoder, outputCoder, windowingStrategy, ownerId);
+  }
+
   private static class TimestampAndValues {
     private final List<Object> values = new ArrayList<>();
     private Instant timestamp;
+    private PaneInfo pane;
 
-    TimestampAndValues(Instant timestamp, Object value) {
+    TimestampAndValues(PaneInfo pane, Instant timestamp, Object value) {
+      this.pane = pane;
       this.timestamp = timestamp;
-      values.add(value);
+      this.values.add(value);
     }
 
     public Iterable<Object> getValues() {
       return values;
     }
 
-    TimestampAndValues merge(TimestampCombiner timestampCombiner, TimestampAndValues v2) {
-      timestamp = timestampCombiner.combine(timestamp, v2.timestamp);
-      values.addAll(v2.values);
+    TimestampAndValues merge(TimestampCombiner timestampCombiner, TimestampAndValues other) {
+      pane = other.pane;
+      timestamp = timestampCombiner.combine(timestamp, other.timestamp);
+      values.addAll(other.values);
       return this;
     }
   }
