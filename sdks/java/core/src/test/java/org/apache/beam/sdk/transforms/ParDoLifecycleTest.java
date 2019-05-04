@@ -37,6 +37,7 @@ import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollectionList;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TupleTagList;
+import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
@@ -264,6 +265,11 @@ public class ParDoLifecycleTest implements Serializable {
     }
   }
 
+  @Before
+  public void setup() {
+    ExceptionThrowingFn.teardownCalled.set(false);
+  }
+
   private static class ExceptionThrowingFn extends DoFn<Object, Object> {
     static AtomicBoolean teardownCalled = new AtomicBoolean(false);
 
@@ -276,21 +282,25 @@ public class ParDoLifecycleTest implements Serializable {
 
     @Setup
     public void before() throws Exception {
+      assertThat("teardown should not have been called", teardownCalled.get(), is(false));
       throwIfNecessary(MethodForException.SETUP);
     }
 
     @StartBundle
     public void preBundle() throws Exception {
+      assertThat("teardown should not have been called", teardownCalled.get(), is(false));
       throwIfNecessary(MethodForException.START_BUNDLE);
     }
 
     @ProcessElement
     public void perElement(ProcessContext c) throws Exception {
+      assertThat("teardown should not have been called", teardownCalled.get(), is(false));
       throwIfNecessary(MethodForException.PROCESS_ELEMENT);
     }
 
     @FinishBundle
     public void postBundle() throws Exception {
+      assertThat("teardown should not have been called", teardownCalled.get(), is(false));
       throwIfNecessary(MethodForException.FINISH_BUNDLE);
     }
 
