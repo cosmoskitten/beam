@@ -210,8 +210,7 @@ public class FlinkStatefulDoFnFunction<K, V, OutputT>
 
   @Override
   public void open(Configuration parameters) throws Exception {
-    doFnInvoker = DoFnInvokers.invokerFor(dofn);
-    doFnInvoker.invokeSetup();
+    doFnInvoker = DoFnInvokers.tryInvokeSetupFor(dofn);
   }
 
   @Override

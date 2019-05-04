@@ -139,8 +139,7 @@ public class FlinkDoFnFunction<InputT, OutputT>
 
   @Override
   public void open(Configuration parameters) throws Exception {
-    doFnInvoker = DoFnInvokers.invokerFor(doFn);
-    doFnInvoker.invokeSetup();
+    doFnInvoker = DoFnInvokers.tryInvokeSetupFor(doFn);
   }
 
   @Override
