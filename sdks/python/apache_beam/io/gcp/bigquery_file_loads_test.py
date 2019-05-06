@@ -411,6 +411,7 @@ class BigQueryFileLoadsIT(unittest.TestCase):
                table=lambda x: (output_table_1
                                 if 'language' in x
                                 else output_table_2),
+               schema=bigquery.SCHEMA_AUTODETECT,
                create_disposition=beam.io.BigQueryDisposition.CREATE_IF_NEEDED,
                write_disposition=beam.io.BigQueryDisposition.WRITE_EMPTY))
 
@@ -421,6 +422,7 @@ class BigQueryFileLoadsIT(unittest.TestCase):
                                 else output_table_4),
                create_disposition=beam.io.BigQueryDisposition.CREATE_IF_NEEDED,
                write_disposition=beam.io.BigQueryDisposition.WRITE_EMPTY,
+               schema=bigquery.SCHEMA_AUTODETECT,
                max_file_size=20,
                max_files_per_bundle=-1))
 
