@@ -4,7 +4,6 @@ title: "Beam SQL lexical structure for Calcite"
 section_menu: section-menu/sdks.html
 permalink: /documentation/dsls/sql/calcite/lexical/
 redirect_from: /documentation/dsls/sql/lexical/
-			   /documentation/dsls/sql/calcite/lexical-structure/
 ---
 <!--
 Licensed under the Apache License, Version 2.0 (the "License");
