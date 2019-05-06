@@ -49,6 +49,8 @@ import json
 import logging
 import unittest
 import uuid
+import sys
+import os
 
 from fastavro import parse_schema
 from nose.plugins.attrib import attr
@@ -84,8 +86,10 @@ def record(i):
   }
 
 
-@unittest.skip('Due to a known issue in avro-python3 package, this'
-               'test is skipped until BEAM-6522 is addressed. ')
+@unittest.skipIf(sys.version_info[0] >= 3 and
+                 os.environ.get('RUN_SKIPPED_PY3_TESTS') != '1',
+                 'Due to a known issue in avro-python3 package, this'
+                 'test is skipped until BEAM-6522 is addressed. ')
 class FastavroIT(unittest.TestCase):
 
   SCHEMA_STRING = '''
