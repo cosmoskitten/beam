@@ -51,7 +51,7 @@ job('beam_PerformanceTests_Python35'){
       benchmarks               : 'beam_integration_benchmark',
       bigquery_table           : 'beam_performance.wordcount_py35_pkb_results',
       beam_it_class            : 'apache_beam.examples.wordcount_it_test:WordCountIT.test_wordcount_it',
-      beam_it_module           : 'sdks/python/test-suites/dataflow/py3',
+      beam_it_module           : 'sdks/python/test-suites/dataflow/py35',
       beam_prebuilt            : 'true',  // skip beam prebuild
       beam_python_sdk_location : 'test-suites/dataflow/py3/build/apache-beam.tar.gz',
       beam_runner              : 'TestDataflowRunner',
