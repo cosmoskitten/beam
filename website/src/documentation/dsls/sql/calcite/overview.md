@@ -82,4 +82,4 @@ Read about built-in [scalar functions]({{ site.baseurl
 
 ## Aggregate functions 
 Read about built-in [aggregate functions]({{ site.baseurl
-}}/documentation/dsls/sql/calcite/aggregrate-functions) supported by Beam SQL when using Apache Calcite.
+}}/documentation/dsls/sql/calcite/aggregate-functions) supported by Beam SQL when using Apache Calcite.
