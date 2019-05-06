@@ -51,7 +51,7 @@ tableElement: columnName fieldType [ NOT NULL ]
     ignores the statement instead of returning an error.
 *   `tableName`: The case sensitive name of the table to create and register,
     specified as an
-    [Identifier]({{ site.baseurl }}/documentation/dsls/sql/calcite/lexical-structure/#identifiers).
+    [Identifier]({{ site.baseurl }}/documentation/dsls/sql/calcite/lexical#identifiers).
     The table name does not need to match the name in the underlying data
     storage system.
 *   `tableElement`: `columnName` `fieldType` `[ NOT NULL ]`
@@ -66,7 +66,7 @@ tableElement: columnName fieldType [ NOT NULL ]
         *   `ROW<tableElement [, tableElement ]*>`
     *   `NOT NULL`: Optional. Indicates that the column is not nullable.
 *   `type`: The I/O transform that backs the virtual table, specified as an
-    [Identifier]({{ site.baseurl }}/documentation/dsls/sql/calcite/lexical-structure/#identifiers)
+    [Identifier]({{ site.baseurl }}/documentation/dsls/sql/calcite/lexical/#identifiers)
     with one of the following values:
     *   `bigquery`
     *   `pubsub`
