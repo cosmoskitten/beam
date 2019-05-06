@@ -74,11 +74,11 @@ tableElement: columnName fieldType [ NOT NULL ]
     *   `text`
 *   `location`: The I/O specific location of the underlying table, specified as
     a [String
-    Literal]({{ site.baseurl }}/documentation/dsls/sql/calcite/lexical-structure/#string-literals).
+    Literal]({{ site.baseurl }}/documentation/dsls/sql/calcite/lexical/#string-literals).
     See the I/O specific sections for `location` format requirements.
 *   `tblProperties`: The I/O specific quoted key value JSON object with extra
     configuration, specified as a [String
-    Literal]({{ site.baseurl }}/documentation/dsls/sql/calcite/lexical-structure/#string-literals).
+    Literal]({{ site.baseurl }}/documentation/dsls/sql/calcite/lexical/#string-literals).
     See the I/O specific sections for `tblProperties` format requirements.
 
 ## BigQuery

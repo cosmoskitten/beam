@@ -74,7 +74,7 @@ Read about supported [data types]({{ site.baseurl
 ## Lexical structure 
 A Beam SQL statement comprises a series of tokens. 
 The [Lexical structure]({{ site.baseurl
-}}/documentation/dsls/sql/calcite/lexical-structure) page documents Beam SQL's lexical structure when using Apache Calcite. 
+}}/documentation/dsls/sql/calcite/lexical) page documents Beam SQL's lexical structure when using Apache Calcite. 
 
 ## Scalar functions
 Read about built-in [scalar functions]({{ site.baseurl
