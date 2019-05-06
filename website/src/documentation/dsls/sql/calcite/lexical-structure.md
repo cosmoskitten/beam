@@ -2,7 +2,7 @@
 layout: section
 title: "Beam SQL lexical structure for Calcite"
 section_menu: section-menu/sdks.html
-permalink: /documentation/dsls/sql/calcite/lexical/
+permalink: /documentation/dsls/sql/calcite/lexical-structure/
 redirect_from: /documentation/dsls/sql/lexical/
 ---
 <!--

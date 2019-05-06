@@ -35,9 +35,9 @@ SET option = value
 The SET command sets a Pipeline Option.
 
 *   `option`: The case sensitive name of the Pipeline Option, specified as an
-    [Identifier]({{ site.baseurl }}/documentation/dsls/sql/lexical/#identifiers).
+    [Identifier]({{ site.baseurl }}/documentation/dsls/sql/calcite/lexical-structure/#identifiers).
 *   `value`: The case sensitive value of the Pipeline Option, specified as an
-    [Identifier]({{ site.baseurl }}/documentation/dsls/sql/lexical/#identifiers).
+    [Identifier]({{ site.baseurl }}/documentation/dsls/sql/calcite/lexical-structure/#identifiers).
     For flag options that have no value on the command line, use `true`.
 
 ```
@@ -47,7 +47,7 @@ RESET option
 The RESET command resets a Pipeline Option to its default value.
 
 *   `option`: The case sensitive name of the Pipeline Option, specified as an
-    [Identifier]({{ site.baseurl }}/documentation/dsls/sql/lexical/#identifiers).
+    [Identifier]({{ site.baseurl }}/documentation/dsls/sql/calcite/lexical-structures/#identifiers).
 
 ## Common Options
 

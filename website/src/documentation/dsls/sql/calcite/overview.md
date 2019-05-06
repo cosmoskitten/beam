@@ -42,7 +42,7 @@ The following table summarizes Apache Calcite operators and functions supported 
 <tr><td><a href="http://calcite.apache.org/docs/reference.html#period-predicates">Period predicates</a></td><td>No</td></tr>
 <tr><td><a href="http://calcite.apache.org/docs/reference.html#jdbc-function-escape">JDBC function escape</a></td><td>No</td></tr>
 <tr><td><a href="http://calcite.apache.org/docs/reference.html#aggregate-functions">Aggregate functions</a></td>
-<td>Use Beam SQL <a href="https://beam.apache.org/documentation/dsls/sql/aggregate-functions/">aggregate functions</a></td></tr>
+<td>Use Beam SQL <a href="https://beam.apache.org/documentation/dsls/sql/calcite/aggregate-functions/">aggregate functions</a></td></tr>
 <tr><td><a href="http://calcite.apache.org/docs/reference.html#window-functions">Window functions</a></td><td>No</td></tr>
 <tr><td><a href="http://calcite.apache.org/docs/reference.html#grouping-functions">Grouping functions</a></td><td>No</td></tr>
 <tr><td><a href="http://calcite.apache.org/docs/reference.html#grouped-window-functions">Grouped window functions</a></td><td>Use Beam SQL <a href="https://beam.apache.org/documentation/dsls/sql/windowing-and-triggering/">windowing and triggering</a></td></tr>

@@ -29,7 +29,7 @@ Generally, the semantics of queries is standard. Please see the following
 sections to learn about extensions for supporting Beam's unified
 batch/streaming model:
 
- - [Joins]({{ site.baseurl}}/documentation/dsls/sql/joins)
+ - [Joins]({{ site.baseurl}}/documentation/dsls/sql/extensions/joins)
  - [Windowing & Triggering]({{ site.baseurl}}/documentation/dsls/sql/windowing-and-triggering/)
 
 The main functionality of Beam SQL is the `SELECT` statement. This is how you
@@ -195,7 +195,7 @@ The name (optionally qualified) of an existing table.
 
 #### join
 
-See [JOIN Types](#join-types) below and [Joins]({{ site.baseurl}}/documentation/dsls/sql/joins).
+See [JOIN Types](#join-types) below and [Joins]({{ site.baseurl}}/documentation/dsls/sql/extensions/joins).
 
 #### select {#select_1}
 
@@ -260,7 +260,7 @@ See [Aliases](#aliases_2) for information on syntax and visibility for
 
 ## JOIN types
 
-Also see [Joins]({{ site.baseurl}}/documentation/dsls/sql/joins).
+Also see [Joins]({{ site.baseurl}}/documentation/dsls/sql/extensions/joins).
 
 ### Syntax {#syntax_1}
 
@@ -310,7 +310,7 @@ if there's non-global window applied.
 row in the other `from_item`, the row will return with NULLs for all columns
 from the other `from_item`.
 
-Also see [Joins]({{ site.baseurl}}/documentation/dsls/sql/joins).
+Also see [Joins]({{ site.baseurl}}/documentation/dsls/sql/extensions/joins).
 
 ### LEFT \[OUTER\] JOIN
 
