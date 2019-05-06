@@ -30,6 +30,7 @@ import traceback
 import unittest
 
 import grpc
+from apache_beam.options.pipeline_options import DebugOptions
 
 import apache_beam as beam
 from apache_beam.options.pipeline_options import PipelineOptions
@@ -182,6 +183,14 @@ class PortableRunnerTest(fn_api_runner_test.FnApiRunnerTest):
     return beam.Pipeline(self.get_runner(), self.create_options())
 
   # Inherits all tests from fn_api_runner_test.FnApiRunnerTest
+
+
+class PortableRunnerOptimized(PortableRunnerTest):
+
+  def create_options(self):
+    options = super(PortableRunnerOptimized, self).create_options()
+    options.view_as(DebugOptions).add_experiment('pre_optimize=all')
+    return options
 
 
 class PortableRunnerTestWithExternalEnv(PortableRunnerTest):
