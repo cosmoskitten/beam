@@ -346,7 +346,8 @@ public final class KinesisIO {
     /**
      * Specifies the {@code WatermarkPolicyFactory} as ArrivalTimeWatermarkPolicyFactory.
      *
-     * {@param watermarkIdleDurationThreshold} Denotes the duration for which the watermark can be idle.
+     * <p>{@param watermarkIdleDurationThreshold} Denotes the duration for which the watermark can
+     * be idle.
      */
     public Read withArrivalTimeWatermarkPolicy(Duration watermarkIdleDurationThreshold) {
       return toBuilder()
@@ -367,12 +368,11 @@ public final class KinesisIO {
      * Specifies the {@code WatermarkPolicyFactory} as a custom watermarkPolicyFactory.
      *
      * @param watermarkPolicyFactory Custom Watermark policy factory.
-     * */
-    public Read withCustomKinesisWatermarkPolicy(KinesisWatermarkPolicyFactory watermarkPolicyFactory) {
+     */
+    public Read withCustomKinesisWatermarkPolicy(
+        KinesisWatermarkPolicyFactory watermarkPolicyFactory) {
       checkArgument(watermarkPolicyFactory != null, "watermarkPolicyFactory cannot be null");
-      return toBuilder()
-          .setKinesisWatermarkPolicyFactory(watermarkPolicyFactory)
-          .build();
+      return toBuilder().setKinesisWatermarkPolicyFactory(watermarkPolicyFactory).build();
     }
 
     @Override

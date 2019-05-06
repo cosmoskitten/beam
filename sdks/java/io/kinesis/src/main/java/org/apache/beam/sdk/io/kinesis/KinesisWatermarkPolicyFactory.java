@@ -40,7 +40,8 @@ interface KinesisWatermarkPolicyFactory extends Serializable {
    *
    * @param watermarkIdleDurationThreshold watermark idle duration threshold.
    */
-  static KinesisWatermarkPolicyFactory withArrivalTimePolicy(Duration watermarkIdleDurationThreshold) {
+  static KinesisWatermarkPolicyFactory withArrivalTimePolicy(
+      Duration watermarkIdleDurationThreshold) {
     return () -> new ArrivalTimeKinesisWatermarkPolicy(watermarkIdleDurationThreshold);
   }
 
@@ -52,7 +53,8 @@ interface KinesisWatermarkPolicyFactory extends Serializable {
   /**
    * Returns an custom KinesisWatermarkPolicyFactory.
    *
-   * @param watermarkParameters Watermark parameters (timestamp extractor, watermark lag) for the policy.
+   * @param watermarkParameters Watermark parameters (timestamp extractor, watermark lag) for the
+   *     policy.
    */
   static KinesisWatermarkPolicyFactory withCustomWatermarkPolicy(
       WatermarkParameters watermarkParameters) {
@@ -98,18 +100,17 @@ interface KinesisWatermarkPolicyFactory extends Serializable {
     @Override
     public Instant getWatermark() {
       Instant now = Instant.now();
-      Instant watermarkIdleThreshold = now.minus(watermarkParameters.getWatermarkIdleDurationThreshold());
+      Instant watermarkIdleThreshold =
+          now.minus(watermarkParameters.getWatermarkIdleDurationThreshold());
 
-      Instant newWatermark = watermarkParameters.getLastUpdateTime().isBefore(watermarkIdleThreshold)
-          ? watermarkIdleThreshold
-          : watermarkParameters.getEventTime();
+      Instant newWatermark =
+          watermarkParameters.getLastUpdateTime().isBefore(watermarkIdleThreshold)
+              ? watermarkIdleThreshold
+              : watermarkParameters.getEventTime();
 
       if (newWatermark.isAfter(watermarkParameters.getCurrentWatermark())) {
         watermarkParameters =
-            watermarkParameters
-                .toBuilder()
-                .setCurrentWatermark(newWatermark)
-                .build();
+            watermarkParameters.toBuilder().setCurrentWatermark(newWatermark).build();
       }
       return watermarkParameters.getCurrentWatermark();
     }
@@ -130,16 +131,14 @@ interface KinesisWatermarkPolicyFactory extends Serializable {
   }
 
   class ProcessingTimeKinesisWatermarkPolicy implements KinesisWatermarkPolicy {
-    private Instant currentWatermark = Instant.now();
-
     @Override
     public Instant getWatermark() {
-      return currentWatermark;
+      return Instant.now();
     }
 
     @Override
     public void update(KinesisRecord record) {
-      currentWatermark = Instant.now();
+      // do nothing
     }
   }
 }

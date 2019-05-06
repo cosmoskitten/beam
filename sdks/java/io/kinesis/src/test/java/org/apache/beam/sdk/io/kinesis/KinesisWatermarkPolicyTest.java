@@ -18,58 +18,23 @@
 package org.apache.beam.sdk.io.kinesis;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
+import static org.powermock.api.mockito.PowerMockito.mockStatic;
 
 import org.apache.beam.sdk.transforms.SerializableFunction;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableList;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
-import org.junit.After;
-import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
-import org.mockito.Mock;
-import org.mockito.Mockito;
-import org.mockito.runners.MockitoJUnitRunner;
+import org.powermock.core.classloader.annotations.PrepareForTest;
+import org.powermock.modules.junit4.PowerMockRunner;
 
 /** Tests {@link KinesisWatermarkPolicy}. */
-@RunWith(MockitoJUnitRunner.class)
+@RunWith(PowerMockRunner.class)
+@PrepareForTest(Instant.class)
 public class KinesisWatermarkPolicyTest {
-  private static final String SHARD_1 = "shard1";
-  private static final String SHARD_2 = "shard2";
   private static final Instant NOW = Instant.now();
-
-  @Mock private ShardRecordsIterator firstIterator, secondIterator;
-  @Mock private ShardCheckpoint firstCheckpoint, secondCheckpoint;
-  @Mock private SimplifiedKinesisClient kinesis;
-  @Mock private KinesisWatermarkPolicyFactory factory;
-
-  private ShardReadersPool shardReadersPool;
-
-  @Before
-  public void setUp() throws TransientKinesisException {
-    when(firstCheckpoint.getShardId()).thenReturn(SHARD_1);
-    when(secondCheckpoint.getShardId()).thenReturn(SHARD_2);
-
-    when(firstIterator.getShardId()).thenReturn(SHARD_1);
-    when(secondIterator.getShardId()).thenReturn(SHARD_2);
-    when(firstIterator.getCheckpoint()).thenReturn(firstCheckpoint);
-    when(secondIterator.getCheckpoint()).thenReturn(secondCheckpoint);
-    KinesisReaderCheckpoint checkpoint =
-        new KinesisReaderCheckpoint(ImmutableList.of(firstCheckpoint, secondCheckpoint));
-
-    shardReadersPool = Mockito.spy(new ShardReadersPool(kinesis, checkpoint, factory));
-
-    doReturn(firstIterator).when(shardReadersPool).createShardIterator(kinesis, firstCheckpoint);
-    doReturn(secondIterator).when(shardReadersPool).createShardIterator(kinesis, secondCheckpoint);
-  }
-
-  @After
-  public void clean() {
-    shardReadersPool.stop();
-  }
 
   @Test
   public void shouldAdvanceWatermarkWithTheArrivalTimeFromKinesisRecords() {
@@ -104,6 +69,7 @@ public class KinesisWatermarkPolicyTest {
     Instant time3 = NOW.minus(Duration.standardSeconds(40L));
     when(a.getApproximateArrivalTimestamp()).thenReturn(time1);
     when(b.getApproximateArrivalTimestamp()).thenReturn(time2);
+    // time3 is before time2
     when(c.getApproximateArrivalTimestamp()).thenReturn(time3);
 
     policy.update(a);
@@ -117,28 +83,33 @@ public class KinesisWatermarkPolicyTest {
 
   @Test
   public void shouldAdvanceWatermarkWhenThereAreNoIncomingRecords() {
+    WatermarkParameters standardWatermarkParams = WatermarkParameters.create();
     KinesisWatermarkPolicy policy =
-        KinesisWatermarkPolicyFactory.withArrivalTimePolicy().createKinesisWatermarkPolicy();
-
-    Instant time = NOW.minus(Duration.standardMinutes(2));
-
-    // the watermark should advance even if there are no records
-    // The expected watermark will be NOW - threshold (2 minutes by default)
-    assertThat(policy.getWatermark()).isBetween(time, time.plus(Duration.standardSeconds(10)));
-  }
-
-  @Test
-  public void shouldAdvanceWatermarkWithCustomWatermarkLagWhenThereAreNoIncomingRecords() {
-    KinesisWatermarkPolicy policy =
-        KinesisWatermarkPolicyFactory.withCustomWatermarkPolicy(
-                WatermarkParameters.create().withWatermarkLagThreshold(Duration.standardHours(1)))
+        KinesisWatermarkPolicyFactory.withCustomWatermarkPolicy(standardWatermarkParams)
             .createKinesisWatermarkPolicy();
 
-    Instant time = NOW.minus(Duration.standardHours(1));
+    mockStatic(Instant.class);
 
-    // the watermark should advance even if there are no records
-    // The expected watermark will be NOW - 1 hr custom threshold
-    assertThat(policy.getWatermark()).isBetween(time, time.plus(Duration.standardSeconds(10)));
+    Instant time1 = NOW.minus(Duration.standardSeconds(500)); // returned when update is called
+    Instant time2 =
+        NOW.minus(
+            Duration.standardSeconds(498)); // returned when getWatermark is called the first time
+    Instant time3 = NOW; // returned when getWatermark is called the second time
+    Instant arrivalTime = NOW.minus(Duration.standardSeconds(510));
+    Duration watermarkIdleTimeThreshold =
+        standardWatermarkParams.getWatermarkIdleDurationThreshold();
+
+    when(Instant.now()).thenReturn(time1).thenReturn(time2).thenReturn(time3);
+
+    KinesisRecord a = mock(KinesisRecord.class);
+    when(a.getApproximateArrivalTimestamp()).thenReturn(arrivalTime);
+
+    policy.update(a);
+
+    // returns the latest event time when the watermark
+    assertThat(policy.getWatermark()).isEqualTo(arrivalTime);
+    // advance the watermark to [NOW - watermark idle time threshold]
+    assertThat(policy.getWatermark()).isEqualTo(time3.minus(watermarkIdleTimeThreshold));
   }
 
   @Test
@@ -146,13 +117,15 @@ public class KinesisWatermarkPolicyTest {
     KinesisWatermarkPolicy policy =
         KinesisWatermarkPolicyFactory.withProcessingTimePolicy().createKinesisWatermarkPolicy();
 
-    KinesisRecord a = mock(KinesisRecord.class);
-    KinesisRecord b = mock(KinesisRecord.class);
+    mockStatic(Instant.class);
 
-    policy.update(a);
-    assertThat(policy.getWatermark()).isGreaterThan(NOW);
-    policy.update(b);
-    assertThat(policy.getWatermark()).isGreaterThan(NOW);
+    Instant time1 = NOW.minus(Duration.standardSeconds(5));
+    Instant time2 = NOW.minus(Duration.standardSeconds(4));
+
+    when(Instant.now()).thenReturn(time1).thenReturn(time2);
+
+    assertThat(policy.getWatermark()).isEqualTo(time1);
+    assertThat(policy.getWatermark()).isEqualTo(time2);
   }
 
   @Test

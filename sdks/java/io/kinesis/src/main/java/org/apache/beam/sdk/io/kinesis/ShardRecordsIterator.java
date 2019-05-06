@@ -69,7 +69,8 @@ class ShardRecordsIterator {
     this.streamName = initialCheckpoint.getStreamName();
     this.shardId = initialCheckpoint.getShardId();
     this.shardIterator = initialCheckpoint.getShardIterator(kinesis);
-    this.watermarkPolicy = new AtomicReference<>(watermarkPolicyFactory.createKinesisWatermarkPolicy());
+    this.watermarkPolicy =
+        new AtomicReference<>(watermarkPolicyFactory.createKinesisWatermarkPolicy());
     this.watermarkPolicyFactory = watermarkPolicyFactory;
   }
 
@@ -103,10 +104,6 @@ class ShardRecordsIterator {
 
   ShardCheckpoint getCheckpoint() {
     return checkpoint.get();
-  }
-
-  boolean isUpToDate() {
-    return millisBehindLatest.get() == 0L;
   }
 
   void ackRecord(KinesisRecord record) {

@@ -32,7 +32,8 @@ public abstract class WatermarkParameters implements Serializable {
 
   private static final SerializableFunction<KinesisRecord, Instant> ARRIVAL_TIME_FN =
       KinesisRecord::getApproximateArrivalTimestamp;
-  private static final Duration STANDARD_WATERMARK_IDLE_DURATION_THRESHOLD = Duration.standardMinutes(2);
+  private static final Duration STANDARD_WATERMARK_IDLE_DURATION_THRESHOLD =
+      Duration.standardMinutes(2);
 
   abstract Instant getCurrentWatermark();
 
@@ -75,8 +76,8 @@ public abstract class WatermarkParameters implements Serializable {
   }
 
   /**
-   * Specify the {@code SerializableFunction} to extract the event time from a {@code KinesisRecord}.
-   * The default event timestamp is the arrival timestamp of the record.
+   * Specify the {@code SerializableFunction} to extract the event time from a {@code
+   * KinesisRecord}. The default event timestamp is the arrival timestamp of the record.
    *
    * @param timestampFn Serializable function to extract the timestamp from a record.
    */
@@ -87,8 +88,8 @@ public abstract class WatermarkParameters implements Serializable {
   }
 
   /**
-   * Specify the watermark idle duration to consider before advancing the watermark. The default watermark idle
-   * duration threshold is 2 minutes.
+   * Specify the watermark idle duration to consider before advancing the watermark. The default
+   * watermark idle duration threshold is 2 minutes.
    */
   public WatermarkParameters withWatermarkIdleDurationThreshold(Duration idleDurationThreshold) {
     checkArgument(idleDurationThreshold != null, "watermark idle duration threshold is null");

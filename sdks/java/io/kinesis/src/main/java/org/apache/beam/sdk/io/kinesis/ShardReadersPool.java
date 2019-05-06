@@ -212,15 +212,6 @@ class ShardReadersPool {
     }
   }
 
-  boolean allShardsUpToDate() {
-    boolean shardsUpToDate = true;
-    ImmutableMap<String, ShardRecordsIterator> currentShardIterators = shardIteratorsMap.get();
-    for (ShardRecordsIterator shardRecordsIterator : currentShardIterators.values()) {
-      shardsUpToDate &= shardRecordsIterator.isUpToDate();
-    }
-    return shardsUpToDate;
-  }
-
   Instant getWatermark() {
     return shardIteratorsMap.get().values().stream()
         .map(ShardRecordsIterator::getShardWatermark)
@@ -244,8 +235,7 @@ class ShardReadersPool {
   ShardRecordsIterator createShardIterator(
       SimplifiedKinesisClient kinesis, ShardCheckpoint checkpoint)
       throws TransientKinesisException {
-    return new ShardRecordsIterator(
-        checkpoint, kinesis, watermarkPolicyFactory);
+    return new ShardRecordsIterator(checkpoint, kinesis, watermarkPolicyFactory);
   }
 
   /**

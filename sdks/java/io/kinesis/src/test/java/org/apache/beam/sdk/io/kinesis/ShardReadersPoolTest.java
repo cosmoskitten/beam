@@ -189,24 +189,6 @@ public class ShardReadersPoolTest {
   }
 
   @Test
-  public void shouldDetectThatNotAllShardsAreUpToDate() throws TransientKinesisException {
-    when(firstIterator.isUpToDate()).thenReturn(true);
-    when(secondIterator.isUpToDate()).thenReturn(false);
-    shardReadersPool.start();
-
-    assertThat(shardReadersPool.allShardsUpToDate()).isFalse();
-  }
-
-  @Test
-  public void shouldDetectThatAllShardsAreUpToDate() throws TransientKinesisException {
-    when(firstIterator.isUpToDate()).thenReturn(true);
-    when(secondIterator.isUpToDate()).thenReturn(true);
-    shardReadersPool.start();
-
-    assertThat(shardReadersPool.allShardsUpToDate()).isTrue();
-  }
-
-  @Test
   public void shouldStopReadingShardAfterReceivingShardClosedException() throws Exception {
     when(firstIterator.readNextBatch()).thenThrow(KinesisShardClosedException.class);
     when(firstIterator.findSuccessiveShardRecordIterators()).thenReturn(Collections.emptyList());
@@ -287,17 +269,16 @@ public class ShardReadersPoolTest {
 
   @Test
   public void shouldReturnTheLeastWatermarkOfAllShards() throws TransientKinesisException {
-    Instant oneMin = now.minus(Duration.standardMinutes(1));
-    Instant twoMin = now.minus(Duration.standardMinutes(2));
     Instant threeMin = now.minus(Duration.standardMinutes(3));
+    Instant twoMin = now.minus(Duration.standardMinutes(2));
 
-    when(firstIterator.getShardWatermark()).thenReturn(oneMin).thenReturn(threeMin);
+    when(firstIterator.getShardWatermark()).thenReturn(threeMin).thenReturn(now);
     when(secondIterator.getShardWatermark()).thenReturn(twoMin);
 
     shardReadersPool.start();
 
-    assertThat(shardReadersPool.getWatermark()).isEqualTo(twoMin);
     assertThat(shardReadersPool.getWatermark()).isEqualTo(threeMin);
+    assertThat(shardReadersPool.getWatermark()).isEqualTo(twoMin);
 
     verify(firstIterator, times(2)).getShardWatermark();
     verify(secondIterator, times(2)).getShardWatermark();
