@@ -128,13 +128,22 @@ public class ProducerRecordCoder<K, V> extends StructuredCoder<ProducerRecord<K,
     if (consistentWithEquals()) {
       return value;
     } else {
-      return new ProducerRecord<>(
-          value.topic(),
-          value.partition(),
-          value.timestamp(),
-          value.key(),
-          value.value(),
-          value.headers());
+      if (!ConsumerSpEL.hasHeaders) {
+        return new ProducerRecord<>(
+                value.topic(),
+                value.partition(),
+                value.timestamp(),
+                value.key(),
+                value.value());
+      } else {
+        return new ProducerRecord<>(
+                value.topic(),
+                value.partition(),
+                value.timestamp(),
+                value.key(),
+                value.value(),
+                value.headers());
+      }
     }
   }
 
