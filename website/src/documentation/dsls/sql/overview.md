@@ -1,4 +1,3 @@
-
 ---
 layout: section
 title: "Beam SQL: Overview"
