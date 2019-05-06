@@ -2,8 +2,8 @@
 layout: section
 title: "Beam SQL extensions: Joins"
 section_menu: section-menu/sdks.html
-permalink: /documentation/dsls/sql/joins/
-redirect-from: /documentation/dsls/sql/extensions/joins/
+permalink: /documentation/dsls/sql/extensions/joins/
+redirect-from: /documentation/dsls/sql/joins/
 ---
 <!--
 Licensed under the Apache License, Version 2.0 (the "License");

@@ -1,8 +1,9 @@
+
 ---
 layout: section
-title: "Beam SQL in Calcite: Overview"
+title: "Beam SQL: Overview"
 section_menu: section-menu/sdks.html
-permalink: /documentation/dsls/sql/calcite/overview/
+permalink: /documentation/dsls/sql/overview/
 ---
 <!--
 Licensed under the Apache License, Version 2.0 (the "License");
@@ -17,69 +18,40 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 -->
-# Beam SQL in Calcite: Overview
 
-[Apache Calcite](http://calcite.apache.org) is a widespread SQL dialect used in
+# Beam SQL: Overview
+
+Beam SQL allows a Beam user (currently only available in Beam Java) to query
+bounded and unbounded `PCollections` with SQL statements. Your SQL query
+is translated to a `PTransform`, an encapsulated segment of a Beam pipeline.
+You can freely mix SQL `PTransforms` and other `PTransforms` in your pipeline.
+
+[Apache Calcite](http://calcite.apache.org) a widespread SQL dialect used in
 big data processing with some streaming enhancements. Calcite provides the
-basic dialect underlying Beam SQL. 
+basic dialect underlying Beam SQL.
 
-The following table summarizes Apache Calcite operators and functions supported by Beam SQL.
+There are two additional concepts you need to know to use SQL in your pipeline:
 
-<table class="table-bordered table-striped">
-  <tr><th>Operators and functions</th><th>Beam SQL support status</th></tr>
-<tr><td><a href="http://calcite.apache.org/docs/reference.html#operator-precedence">Operator precedence</a></td><td>Yes</td></tr>
-<tr><td><a href="http://calcite.apache.org/docs/reference.html#comparison-operators">Comparison operators</a></td><td class="style1">Yes</td></tr>
-<tr><td><a href="http://calcite.apache.org/docs/reference.html#logical-operators">Logical operators</a></td><td>Yes</td></tr>
-<tr><td><a href="http://calcite.apache.org/docs/reference.html#arithmetic-operators-and-functions">Arithmetic operators and functions</a></td><td>Yes</td></tr>
-<tr><td><a href="http://calcite.apache.org/docs/reference.html#character-string-operators-and-functions">Character string operators and functions</a></td><td>Yes</td></tr>
-<tr><td><a href="http://calcite.apache.org/docs/reference.html#binary-string-operators-and-functions">Binary string operators and functions</a></td><td>No</td></tr>
-<tr><td><a href="http://calcite.apache.org/docs/reference.html#datetime-functions">Date/time functions</a></td><td>Yes</td></tr>
-<tr><td><a href="http://calcite.apache.org/docs/reference.html#system-functions">System functions</a></td><td>No</td></tr>
-<tr><td><a href="http://calcite.apache.org/docs/reference.html#conditional-functions-and-operators">Conditional functions and operators</a></td><td>Yes</td></tr>
-<tr><td><a href="http://calcite.apache.org/docs/reference.html#type-conversion">Type conversion</a></td><td>Yes</td></tr>
-<tr><td><a href="http://calcite.apache.org/docs/reference.html#value-constructors">Value constructors</a></td><td>No, except array</td></tr>
-<tr><td><a href="http://calcite.apache.org/docs/reference.html#collection-functions">Collection functions</a></td><td>No</td></tr>
-<tr><td><a href="http://calcite.apache.org/docs/reference.html#period-predicates">Period predicates</a></td><td>No</td></tr>
-<tr><td><a href="http://calcite.apache.org/docs/reference.html#jdbc-function-escape">JDBC function escape</a></td><td>No</td></tr>
-<tr><td><a href="http://calcite.apache.org/docs/reference.html#aggregate-functions">Aggregate functions</a></td>
-<td>Use Beam SQL <a href="https://beam.apache.org/documentation/dsls/sql/aggregate-functions/">aggregate functions</a></td></tr>
-<tr><td><a href="http://calcite.apache.org/docs/reference.html#window-functions">Window functions</a></td><td>No</td></tr>
-<tr><td><a href="http://calcite.apache.org/docs/reference.html#grouping-functions">Grouping functions</a></td><td>No</td></tr>
-<tr><td><a href="http://calcite.apache.org/docs/reference.html#grouped-window-functions">Grouped window functions</a></td><td>Use Beam SQL <a href="https://beam.apache.org/documentation/dsls/sql/windowing-and-triggering/">windowing and triggering</a></td></tr>
-<tr><td><a href="http://calcite.apache.org/docs/reference.html#grouped-auxiliary-functions">Grouped auxiliary functions</a></td><td>Yes, except SESSION_END</td></tr>
-<tr><td><a href="http://calcite.apache.org/docs/reference.html#spatial-functions">Spatial functions</a></td><td>No</td></tr>
-<tr><td><a href="http://calcite.apache.org/docs/reference.html#geometry-creation-functions-3d">Geometry creation functions (3D)</a></td><td>No</td></tr>
-<tr><td><a href="http://calcite.apache.org/docs/reference.html#geometry-predicates">Geometry predicates</a></td><td>No</td></tr>
-<tr><td><a href="http://calcite.apache.org/docs/reference.html#json-functions">JSON functions</a></td><td>No</td></tr>
-<tr><td><a href="http://calcite.apache.org/docs/reference.html#user-defined-functions">User-defined functions</a></td>
-<td>Use Beam SQL <a href="https://beam.apache.org/documentation/dsls/sql/user-defined-functions/">user-defined functions</a>. You cannot call functions with <a href="http://calcite.apache.org/docs/reference.html#calling-functions-with-named-and-optional-parameters">named and optional parameters</a>.</td></tr>
-<tr><td><a href="http://calcite.apache.org/docs/reference.html#match_recognize">MATCH_RECOGNIZE</a></td><td>No</td></tr>
-<tr><td><a href="http://calcite.apache.org/docs/reference.html#ddl-extensions">DDL Extensions</a></td><td>Use Beam SQL <a href="https://beam.apache.org/documentation/dsls/sql/create-external-table/">CREATE EXTERNAL TABLE</a></td></tr>
-</table>
+ - [SqlTransform](https://beam.apache.org/releases/javadoc/{{ site.release_latest }}/index.html?org/apache/beam/sdk/extensions/sql/SqlTransform.html): the interface for creating `PTransforms` from SQL queries.
+ - [Row](https://beam.apache.org/releases/javadoc/{{ site.release_latest }}/index.html?org/apache/beam/sdk/values/Row.html):
+   the type of elements that Beam SQL operates on. A `PCollection<Row>` plays the role of a table.
 
-We have added additional extensions to
+## Walkthrough
+The [SQL pipeline walkthrough]({{ site.baseurl
+}}/documentation/dsls/sql/walkthrough) works through how to use Beam SQL with example code.
+
+## Shell
+The Beam SQL shell allows you to write pipelines as SQL queries without using the Java SDK. 
+The [Shell page]({{ site.baseurl
+}}/documentation/dsls/sql/shell) describes how to work with the interactive Beam SQL shell. 
+
+## Apache Calcite dialect 
+The [Calcite overview]({{ site.baseurl
+}}/documentation/dsls/sql/calcite/overview) summarizes Apache Calcite operators,
+functions, syntax, and data types supported by Beam SQL.
+
+## Beam SQL extensions
+Beam SQL has additional [extensions]({{ site.baseurl
+}}/documentation/dsls/sql/extensions/create-external-table) to
 make it easy to leverage Beam's unified batch/streaming model and support
 for complex data types.
-
-## Query syntax
-Query statements scan one or more tables or expressions and return the computed result rows.
-The [Query syntax]({{ site.baseurl
-}}/documentation/dsls/sql/calcite/query-syntax) page describes Beam SQL's syntax for queries when using Apache Calcite.
-
-## Data types
-Beam SQL supports standard SQL scalar data types as well as extensions including arrays, maps, and nested rows.
-Read about supported [data types]({{ site.baseurl
-}}/documentation/dsls/sql/calcite/data-types) in Beam SQL when using Apache Calcite.
-
-## Lexical structure 
-A Beam SQL statement comprises a series of tokens. 
-The [Lexical structure]({{ site.baseurl
-}}/documentation/dsls/sql/calcite/lexical-structure) page documents Beam SQL's lexical structure when using Apache Calcite. 
-
-## Scalar functions
-Read about built-in [scalar functions]({{ site.baseurl
-}}/documentation/dsls/sql/calcite/scalar-functions) supported by Beam SQL when using Apache Calcite.
-
-## Aggregate functions 
-Read about built-in [aggregate functions]({{ site.baseurl
-}}/documentation/dsls/sql/calcite/aggregrate-functions) supported by Beam SQL when using Apache Calcite.
