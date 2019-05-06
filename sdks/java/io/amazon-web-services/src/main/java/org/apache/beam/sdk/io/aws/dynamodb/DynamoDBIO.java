@@ -66,22 +66,47 @@ import org.slf4j.LoggerFactory;
  * <p>Example usage:
  *
  * <pre>{@code
+ * DynamoDBIO.DynamoDBConfiguration config = DynamoDBIO.DynamoDBConfiguration.create(
+ *     "region", "accessKey", "secretKey");
  * PCollection<BatchWriteItemRequest> data = ...;
  *
  * data.apply(DynamoDBIO.write()
  *     .withRetryConfiguration(
  *        DynamoDBIO.RetryConfiguration.create(
  *          4, org.joda.time.Duration.standardSeconds(10)))
- *     .withAWSClientsProvider(new BasisDynamoDBProvider(accessKey, secretKey, region))
+ *     .withDynamoDBConfiguration(config)
  *     .withResultOutputTag(results));
  * }</pre>
  *
  * <p>As a client, you need to provide at least the following things:
  *
  * <ul>
- *   <li>retry configuration
- *   <li>need to specify AwsClientsProvider. You can pass on the default one BasisDynamoDBProvider
- *   <li>an output tag where you can get results. Example in DynamoDBIOTest
+ *   <li>Retry configuration
+ *   <li>DynamoDb configuration
+ *   <li>An output tag where you can get results. Example in DynamoDBIOTest
+ * </ul>
+ *
+ * <h3>Reading from DynamoDB</h3>
+ *
+ * <p>Example usage:
+ *
+ * <pre>{@code
+ * DynamoDBIO.DynamoDBConfiguration config = DynamoDBIO.DynamoDBConfiguration.create(
+ *     "endpointUrl", "region", "accessKey", "secretKey");
+ * PCollection<Map<String, AttributeValue>> actual =
+ *     pipeline.apply(
+ *         DynamoDBIO.read()
+ *         .withTableName(tableName)
+ *         .withNumOfSplits(5)
+ *         .withDynamoDBConfiguration(config));
+ * }</pre>
+ *
+ * <p>As a client, you need to provide at least the following things:
+ *
+ * <ul>
+ *   <li>DynamoDb configuration
+ *   <li>A table name to scan
+ *   <li>Number of splits to scan in parallel. This number should base on the number of your workers
  * </ul>
  */
 @Experimental(Experimental.Kind.SOURCE_SINK)
@@ -365,7 +390,7 @@ public final class DynamoDBIO {
     /**
      * An interface used to control if we retry the BatchWriteItemRequest call when a {@link
      * Throwable} occurs. If {@link RetryPredicate#test(Object)} returns true, {@link Write} tries
-     * to resend the requests to the Solr server if the {@link RetryConfiguration} permits it.
+     * to resend the requests to the dynamodb server if the {@link RetryConfiguration} permits it.
      */
     @FunctionalInterface
     interface RetryPredicate extends Predicate<Throwable>, Serializable {}
