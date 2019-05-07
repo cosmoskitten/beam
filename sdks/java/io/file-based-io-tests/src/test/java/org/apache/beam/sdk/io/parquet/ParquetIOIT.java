@@ -123,7 +123,6 @@ public class ParquetIOIT {
             .apply(
                 "Gather write start times",
                 ParDo.of(new TimeMonitor<>(PARQUET_NAMESPACE, "writeStart")))
-            .apply(ParDo.of(new ByteMonitor<>(PARQUET_NAMESPACE, "writeBytes")))
             .apply(
                 "Write Parquet files",
                 FileIO.<GenericRecord>write().via(ParquetIO.sink(SCHEMA)).to(filenamePrefix))
@@ -141,10 +140,10 @@ public class ParquetIOIT {
                 "Gather read start time",
                 ParDo.of(new TimeMonitor<>(PARQUET_NAMESPACE, "readStart")))
             .apply(
-                "Collect byte count", ParDo.of(new ByteMonitor<>(PARQUET_NAMESPACE, "readBytes")))
+                "Collect byte count", ParDo.of(new ByteMonitor<>(PARQUET_NAMESPACE, "byteCount")))
             .apply(
                 "Collect element count",
-                ParDo.of(new CountMonitor<>(PARQUET_NAMESPACE, "elementCount")))
+                ParDo.of(new CountMonitor<>(PARQUET_NAMESPACE, "itemCount")))
             .apply("Read parquet files", ParquetIO.readFiles(SCHEMA))
             .apply(
                 "Gather read end time", ParDo.of(new TimeMonitor<>(PARQUET_NAMESPACE, "readEnd")))
@@ -207,20 +206,14 @@ public class ParquetIOIT {
 
     metricSuppliers.add(
         reader -> {
-          double totalBytes = reader.getCounterMetric("readBytes");
-          return NamedTestResult.create(uuid, timestamp, "read_bytes", totalBytes);
+          double totalBytes = reader.getCounterMetric("byteCount");
+          return NamedTestResult.create(uuid, timestamp, "byte_count", totalBytes);
         });
 
     metricSuppliers.add(
         reader -> {
-          double totalBytes = reader.getCounterMetric("writeBytes");
-          return NamedTestResult.create(uuid, timestamp, "write_bytes", totalBytes);
-        });
-
-    metricSuppliers.add(
-        reader -> {
-          double totalBytes = reader.getCounterMetric("elementCount");
-          return NamedTestResult.create(uuid, timestamp, "element_count", totalBytes);
+          double totalBytes = reader.getCounterMetric("itemCount");
+          return NamedTestResult.create(uuid, timestamp, "item_count", totalBytes);
         });
 
     return metricSuppliers;

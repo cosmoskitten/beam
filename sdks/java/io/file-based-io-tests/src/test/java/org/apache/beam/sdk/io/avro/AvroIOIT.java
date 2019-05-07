@@ -194,7 +194,7 @@ public class AvroIOIT {
     suppliers.add(
         reader -> {
           double totalBytes = reader.getCounterMetric("byteCount");
-          return NamedTestResult.create(uuid, timestamp, "total_bytes", totalBytes);
+          return NamedTestResult.create(uuid, timestamp, "byte_count", totalBytes);
         });
 
     suppliers.add(

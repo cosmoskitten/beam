@@ -121,10 +121,10 @@ public class TextIOIT {
                 "Collect write start time",
                 ParDo.of(new TimeMonitor<>(FILEIOIT_NAMESPACE, "startTime")))
             .apply(
-                "Collect byte count", ParDo.of(new ByteMonitor<>(FILEIOIT_NAMESPACE, "totalBytes")))
+                "Collect byte count", ParDo.of(new ByteMonitor<>(FILEIOIT_NAMESPACE, "byteCount")))
             .apply(
                 "Collect element count",
-                ParDo.of(new CountMonitor<>(FILEIOIT_NAMESPACE, "elementCount")))
+                ParDo.of(new CountMonitor<>(FILEIOIT_NAMESPACE, "itemCount")))
             .apply("Write content to files", write)
             .getPerDestinationOutputFilenames()
             .apply(Values.create())
@@ -194,14 +194,14 @@ public class TextIOIT {
 
     metricSuppliers.add(
         (metricsReader -> {
-          double totalBytes = metricsReader.getCounterMetric("totalBytes");
-          return NamedTestResult.create(uuid, timestamp, "total_bytes", totalBytes);
+          double totalBytes = metricsReader.getCounterMetric("byteCount");
+          return NamedTestResult.create(uuid, timestamp, "byte_count", totalBytes);
         }));
 
     metricSuppliers.add(
         reader -> {
-          double totalBytes = reader.getCounterMetric("elementCount");
-          return NamedTestResult.create(uuid, timestamp, "element_count", totalBytes);
+          double totalBytes = reader.getCounterMetric("itemCount");
+          return NamedTestResult.create(uuid, timestamp, "item_count", totalBytes);
         });
 
     if (gatherGcsPerformanceMetrics) {
