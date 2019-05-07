@@ -23,6 +23,7 @@ import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.MapCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
@@ -43,13 +44,14 @@ class DynamoDBBoundedSource extends BoundedSource<Map<String, AttributeValue>> {
   private final int segmentId;
   private final Supplier<AmazonDynamoDB> client;
 
-  public DynamoDBBoundedSource(DynamoDBIO.Read read, int segmentId) {
+  DynamoDBBoundedSource(DynamoDBIO.Read read, int segmentId) {
     this.read = read;
     this.segmentId = segmentId;
     client =
         Suppliers.memoize(
             (Supplier<AmazonDynamoDB> & Serializable)
-                () -> read.getDynamoDBConfiguration().buildAmazonDynamoDB());
+                () ->
+                    Objects.requireNonNull(read.getDynamoDBConfiguration()).buildAmazonDynamoDB());
   }
 
   @Override
@@ -61,7 +63,9 @@ class DynamoDBBoundedSource extends BoundedSource<Map<String, AttributeValue>> {
   public List<? extends BoundedSource<Map<String, AttributeValue>>> split(
       long desiredBundleSizeBytes, PipelineOptions options) {
     List<DynamoDBBoundedSource> sources = new ArrayList<>();
-    for (int i = 0; i < read.getNumOfSplits(); i++) {
+    int numOfSplits =
+        Objects.requireNonNull(read.getScanRequestFn()).apply(null).getTotalSegments();
+    for (int i = 0; i < numOfSplits; i++) {
       sources.add(new DynamoDBBoundedSource(read, i));
     }
 
@@ -83,7 +87,7 @@ class DynamoDBBoundedSource extends BoundedSource<Map<String, AttributeValue>> {
     return read;
   }
 
-  public int getSegmentId() {
+  int getSegmentId() {
     return segmentId;
   }
 

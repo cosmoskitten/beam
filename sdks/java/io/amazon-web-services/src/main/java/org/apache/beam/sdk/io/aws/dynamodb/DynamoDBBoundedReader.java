@@ -20,10 +20,10 @@ package org.apache.beam.sdk.io.aws.dynamodb;
 import com.amazonaws.services.dynamodbv2.model.AttributeValue;
 import com.amazonaws.services.dynamodbv2.model.ScanRequest;
 import com.amazonaws.services.dynamodbv2.model.ScanResult;
-import java.io.IOException;
 import java.util.Iterator;
 import java.util.Map;
 import java.util.NoSuchElementException;
+import java.util.Objects;
 import org.apache.beam.sdk.io.BoundedSource;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -42,31 +42,14 @@ class DynamoDBBoundedReader extends BoundedSource.BoundedReader<Map<String, Attr
   private Map<String, AttributeValue> current;
   private long totalScannedItemCount;
 
-  public DynamoDBBoundedReader(DynamoDBBoundedSource source) {
+  DynamoDBBoundedReader(DynamoDBBoundedSource source) {
     this.source = source;
   }
 
   @Override
-  public boolean start() throws IOException {
-    ScanRequest scanRequest = new ScanRequest(source.getRead().getTableName());
-
-    if (source.getRead().getFilterExpression() != null
-        && source.getRead().getExpressionAttributeValues() != null) {
-      scanRequest.setFilterExpression(source.getRead().getFilterExpression());
-      scanRequest.setExpressionAttributeValues(source.getRead().getExpressionAttributeValues());
-    }
-
-    if (source.getRead().getProjectionExpression() != null) {
-      scanRequest.setProjectionExpression(source.getRead().getProjectionExpression());
-    }
-
-    if (source.getRead().getExpressionAttributeNames() != null) {
-      scanRequest.setExpressionAttributeNames(source.getRead().getExpressionAttributeNames());
-    }
-
-    // limit, totalSegments, and segmentId are all have default value
-    scanRequest.setLimit(source.getRead().getNumOfItemPerSegment());
-    scanRequest.setTotalSegments(source.getRead().getNumOfSplits());
+  public boolean start() {
+    ScanRequest scanRequest =
+        Objects.requireNonNull(source.getRead().getScanRequestFn()).apply(null);
     scanRequest.setSegment(source.getSegmentId());
 
     ScanResult result = source.getClient().scan(scanRequest);
@@ -79,7 +62,7 @@ class DynamoDBBoundedReader extends BoundedSource.BoundedReader<Map<String, Attr
   }
 
   @Override
-  public boolean advance() throws IOException {
+  public boolean advance() {
     if (iter != null && iter.hasNext()) {
       current = iter.next();
       totalScannedItemCount++;
@@ -94,7 +77,7 @@ class DynamoDBBoundedReader extends BoundedSource.BoundedReader<Map<String, Attr
   }
 
   @Override
-  public void close() throws IOException {
+  public void close() {
     LOG.debug(
         "Closing reader id {} after reading {} records.",
         source.getSegmentId(),

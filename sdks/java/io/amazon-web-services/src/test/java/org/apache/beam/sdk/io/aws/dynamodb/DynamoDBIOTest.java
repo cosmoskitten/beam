@@ -17,11 +17,13 @@
  */
 package org.apache.beam.sdk.io.aws.dynamodb;
 
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.fail;
 
 import com.amazonaws.services.dynamodbv2.model.AttributeValue;
 import com.amazonaws.services.dynamodbv2.model.BatchWriteItemRequest;
 import com.amazonaws.services.dynamodbv2.model.BatchWriteItemResult;
+import com.amazonaws.services.dynamodbv2.model.ScanRequest;
 import java.io.Serializable;
 import java.util.HashMap;
 import java.util.List;
@@ -70,15 +72,14 @@ public class DynamoDBIOTest implements Serializable {
     DynamoDBIOTestHelper.stopServerClient(tableName);
   }
 
-  // Test case for Reader.
+  // Test cases for Reader.
   @Test
   public void testLimit10AndSplit1() {
     final PCollection<Map<String, AttributeValue>> actual =
         pipeline.apply(
             DynamoDBIO.read()
-                .withTableName(tableName)
-                .withNumOfItemPerSegment(10)
-                .withNumOfSplits(1)
+                .withScanRequestFn(
+                    (v) -> new ScanRequest(tableName).withLimit(10).withTotalSegments(1))
                 .withDynamoDBConfiguration(config));
 
     PAssert.that(actual).containsInAnyOrder(expected);
@@ -90,9 +91,8 @@ public class DynamoDBIOTest implements Serializable {
     final PCollection<Map<String, AttributeValue>> actual =
         pipeline.apply(
             DynamoDBIO.read()
-                .withTableName(tableName)
-                .withNumOfItemPerSegment(99)
-                .withNumOfSplits(1)
+                .withScanRequestFn(
+                    (v) -> new ScanRequest(tableName).withLimit(99).withTotalSegments(1))
                 .withDynamoDBConfiguration(config));
 
     PAssert.that(actual).containsInAnyOrder(expected);
@@ -104,9 +104,8 @@ public class DynamoDBIOTest implements Serializable {
     final PCollection<Map<String, AttributeValue>> actual =
         pipeline.apply(
             DynamoDBIO.read()
-                .withTableName(tableName)
-                .withNumOfItemPerSegment(2)
-                .withNumOfSplits(1)
+                .withScanRequestFn(
+                    (v) -> new ScanRequest(tableName).withLimit(2).withTotalSegments(1))
                 .withDynamoDBConfiguration(config));
 
     PAssert.thatSingleton(actual.apply(Count.globally())).isEqualTo(2L);
@@ -118,9 +117,8 @@ public class DynamoDBIOTest implements Serializable {
     final PCollection<Map<String, AttributeValue>> output =
         pipeline.apply(
             DynamoDBIO.read()
-                .withTableName(tableName)
-                .withNumOfItemPerSegment(2)
-                .withNumOfSplits(2)
+                .withScanRequestFn(
+                    (v) -> new ScanRequest(tableName).withLimit(2).withTotalSegments(2))
                 .withDynamoDBConfiguration(config));
 
     PAssert.thatSingleton(output.apply(Count.globally())).isEqualTo(4L);
@@ -132,9 +130,8 @@ public class DynamoDBIOTest implements Serializable {
     final PCollection<Map<String, AttributeValue>> actual =
         pipeline.apply(
             DynamoDBIO.read()
-                .withTableName(tableName)
-                .withNumOfItemPerSegment(2)
-                .withNumOfSplits(5)
+                .withScanRequestFn(
+                    (v) -> new ScanRequest(tableName).withLimit(2).withTotalSegments(5))
                 .withDynamoDBConfiguration(config));
 
     PAssert.thatSingleton(actual.apply(Count.globally())).notEqualTo(10L);
@@ -146,10 +143,9 @@ public class DynamoDBIOTest implements Serializable {
     final PCollection<Map<String, AttributeValue>> actual =
         pipeline.apply(
             DynamoDBIO.read()
-                .withTableName(tableName)
+                .withScanRequestFn((v) -> new ScanRequest(tableName).withTotalSegments(5))
                 // Don't set a limit when num of split is calculated. One segment can select more
                 // item than your limit
-                .withNumOfSplits(5)
                 .withDynamoDBConfiguration(config));
 
     PAssert.thatSingleton(actual.apply(Count.globally())).isEqualTo(10L);
@@ -162,8 +158,7 @@ public class DynamoDBIOTest implements Serializable {
     final PCollection<Map<String, AttributeValue>> actual =
         pipeline.apply(
             DynamoDBIO.read()
-                .withTableName(tableName)
-                .withNumOfSplits(12)
+                .withScanRequestFn((v) -> new ScanRequest(tableName).withTotalSegments(12))
                 .withDynamoDBConfiguration(config));
     PAssert.that(actual).containsInAnyOrder(expected);
     pipeline.run().waitUntilFinish();
@@ -174,8 +169,7 @@ public class DynamoDBIOTest implements Serializable {
     final PCollection<Map<String, AttributeValue>> actual =
         pipeline.apply(
             DynamoDBIO.read()
-                .withTableName(tableName)
-                .withNumOfSplits(3)
+                .withScanRequestFn((v) -> new ScanRequest(tableName).withTotalSegments(3))
                 .withDynamoDBConfiguration(config));
 
     PAssert.that(actual).containsInAnyOrder(expected);
@@ -193,10 +187,12 @@ public class DynamoDBIOTest implements Serializable {
     final PCollection<Map<String, AttributeValue>> actual =
         pipeline.apply(
             DynamoDBIO.read()
-                .withTableName(tableName)
-                .withFilterExpression(DynamoDBIOTestHelper.ATTR_NAME_2 + " < :number")
-                .withExpressionAttributeValues(filterExpressionValues)
-                .withNumOfSplits(2)
+                .withScanRequestFn(
+                    (v) ->
+                        new ScanRequest(tableName)
+                            .withTotalSegments(2)
+                            .withFilterExpression(DynamoDBIOTestHelper.ATTR_NAME_2 + " < :number")
+                            .withExpressionAttributeValues(filterExpressionValues))
                 .withDynamoDBConfiguration(config));
 
     PAssert.thatSingleton(actual.apply(Count.globally())).isEqualTo(4L);
@@ -218,11 +214,13 @@ public class DynamoDBIOTest implements Serializable {
     final PCollection<Map<String, AttributeValue>> actual =
         pipeline.apply(
             DynamoDBIO.read()
-                .withTableName(tableName)
-                .withFilterExpression(DynamoDBIOTestHelper.ATTR_NAME_2 + " < :number")
-                .withExpressionAttributeValues(filterExpressionValues)
-                .withProjectionExpression(DynamoDBIOTestHelper.ATTR_NAME_2)
-                .withNumOfSplits(2)
+                .withScanRequestFn(
+                    (v) ->
+                        new ScanRequest(tableName)
+                            .withTotalSegments(2)
+                            .withFilterExpression(DynamoDBIOTestHelper.ATTR_NAME_2 + " < :number")
+                            .withExpressionAttributeValues(filterExpressionValues)
+                            .withProjectionExpression(DynamoDBIOTestHelper.ATTR_NAME_2))
                 .withDynamoDBConfiguration(config));
 
     PAssert.that(actual).containsInAnyOrder(expectedFilter);
@@ -252,9 +250,67 @@ public class DynamoDBIOTest implements Serializable {
     pipeline.run().waitUntilFinish();
   }
 
-  // Test cases for Writer.
   @Rule public ExpectedException thrown = ExpectedException.none();
 
+  // Test cases for Reader's arguments.
+  @Test
+  public void testMissingScanRequestFn() {
+    thrown.expectMessage("withScanRequestFn() is required");
+    pipeline.apply(DynamoDBIO.read().withDynamoDBConfiguration(config));
+    try {
+      pipeline.run().waitUntilFinish();
+      fail("withScanRequestFn() is required");
+    } catch (IllegalArgumentException ex) {
+      assertEquals("withScanRequestFn() is required", ex.getMessage());
+    }
+  }
+
+  @Test
+  public void testMissingDynamodbConfiguration() {
+    thrown.expectMessage("withDynamoDBConfiguration() is required");
+    pipeline.apply(
+        DynamoDBIO.read()
+            .withScanRequestFn((v) -> new ScanRequest(tableName).withTotalSegments(3)));
+    try {
+      pipeline.run().waitUntilFinish();
+      fail("withDynamoDBConfiguration() is required");
+    } catch (IllegalArgumentException ex) {
+      assertEquals("withDynamoDBConfiguration() is required", ex.getMessage());
+    }
+  }
+
+  @Test
+  public void testMissingTotalSegments() {
+    thrown.expectMessage("TotalSegments is required with withScanRequestFn()");
+    pipeline.apply(
+        DynamoDBIO.read()
+            .withScanRequestFn((v) -> new ScanRequest(tableName))
+            .withDynamoDBConfiguration(config));
+    try {
+      pipeline.run().waitUntilFinish();
+      fail("TotalSegments is required with withScanRequestFn()");
+    } catch (IllegalArgumentException ex) {
+      assertEquals("TotalSegments is required with withScanRequestFn()", ex.getMessage());
+    }
+  }
+
+  @Test
+  public void testNegativeTotalSegments() {
+    thrown.expectMessage("TotalSegments is required with withScanRequestFn() and greater zero");
+    pipeline.apply(
+        DynamoDBIO.read()
+            .withScanRequestFn((v) -> new ScanRequest(tableName).withTotalSegments(-1))
+            .withDynamoDBConfiguration(config));
+    try {
+      pipeline.run().waitUntilFinish();
+      fail("withTotalSegments() is expected and greater than zero");
+    } catch (IllegalArgumentException ex) {
+      assertEquals(
+          "TotalSegments is required with withScanRequestFn() and greater zero", ex.getMessage());
+    }
+  }
+
+  // Test cases for Writer.
   @Test
   public void testRetries() throws Throwable {
     thrown.expectMessage("Error writing to DynamoDB");

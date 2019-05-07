@@ -28,6 +28,7 @@ import com.amazonaws.services.dynamodbv2.model.AmazonDynamoDBException;
 import com.amazonaws.services.dynamodbv2.model.AttributeValue;
 import com.amazonaws.services.dynamodbv2.model.BatchWriteItemRequest;
 import com.amazonaws.services.dynamodbv2.model.BatchWriteItemResult;
+import com.amazonaws.services.dynamodbv2.model.ScanRequest;
 import com.google.auto.value.AutoValue;
 import java.io.IOException;
 import java.io.Serializable;
@@ -41,6 +42,7 @@ import org.apache.beam.sdk.options.ValueProvider;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
+import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.util.BackOff;
 import org.apache.beam.sdk.util.BackOffUtils;
@@ -94,10 +96,8 @@ import org.slf4j.LoggerFactory;
  * DynamoDBIO.DynamoDBConfiguration config = DynamoDBIO.DynamoDBConfiguration.create(
  *     "endpointUrl", "region", "accessKey", "secretKey");
  * PCollection<Map<String, AttributeValue>> actual =
- *     pipeline.apply(
- *         DynamoDBIO.read()
- *         .withTableName(tableName)
- *         .withNumOfSplits(5)
+ *     pipeline.apply(DynamoDBIO.read()
+ *         .withScanRequestFn((v) -> new ScanRequest(tableName).withTotalSegment(10))
  *         .withDynamoDBConfiguration(config));
  * }</pre>
  *
@@ -105,17 +105,14 @@ import org.slf4j.LoggerFactory;
  *
  * <ul>
  *   <li>DynamoDb configuration
- *   <li>A table name to scan
- *   <li>Number of splits to scan in parallel. This number should base on the number of your workers
+ *   <li>ScanRequestFn, which you build a ScanRequest object with at least table name and total
+ *       number of segment. Note This number should base on the number of your workers
  * </ul>
  */
 @Experimental(Experimental.Kind.SOURCE_SINK)
 public final class DynamoDBIO {
   public static Read read() {
-    return new AutoValue_DynamoDBIO_Read.Builder()
-        .setNumOfItemPerSegment(Integer.MAX_VALUE)
-        .setNumOfSplits(1)
-        .build();
+    return new AutoValue_DynamoDBIO_Read.Builder().build();
   }
 
   public static Write write() {
@@ -255,23 +252,7 @@ public final class DynamoDBIO {
     abstract DynamoDBConfiguration getDynamoDBConfiguration();
 
     @Nullable
-    abstract String getTableName();
-
-    @Nullable
-    abstract String getFilterExpression();
-
-    @Nullable
-    abstract Map<String, AttributeValue> getExpressionAttributeValues();
-
-    @Nullable
-    abstract Map<String, String> getExpressionAttributeNames();
-
-    @Nullable
-    abstract String getProjectionExpression();
-
-    abstract int getNumOfItemPerSegment();
-
-    abstract int getNumOfSplits();
+    abstract SerializableFunction<Void, ScanRequest> getScanRequestFn();
 
     abstract Builder toBuilder();
 
@@ -280,20 +261,7 @@ public final class DynamoDBIO {
 
       abstract Builder setDynamoDBConfiguration(DynamoDBConfiguration dynamoDBConfiguration);
 
-      abstract Builder setTableName(String tableName);
-
-      abstract Builder setFilterExpression(String filterExpression);
-
-      abstract Builder setExpressionAttributeValues(
-          Map<String, AttributeValue> filterExpressionMapValue);
-
-      abstract Builder setExpressionAttributeNames(Map<String, String> filterExpressionMapName);
-
-      abstract Builder setProjectionExpression(String projectionExpression);
-
-      abstract Builder setNumOfItemPerSegment(int numOfItemPerSegment);
-
-      abstract Builder setNumOfSplits(int numOfSplits);
+      abstract Builder setScanRequestFn(SerializableFunction<Void, ScanRequest> fn);
 
       abstract Read build();
     }
@@ -302,40 +270,19 @@ public final class DynamoDBIO {
       return toBuilder().setDynamoDBConfiguration(dynamoDBConfiguration).build();
     }
 
-    public Read withTableName(String tableName) {
-      return toBuilder().setTableName(tableName).build();
-    }
-
-    public Read withFilterExpression(String filterExpression) {
-      return toBuilder().setFilterExpression(filterExpression).build();
-    }
-
-    public Read withExpressionAttributeNames(Map<String, String> filterExpressionMapName) {
-      return toBuilder().setExpressionAttributeNames(filterExpressionMapName).build();
-    }
-
-    public Read withExpressionAttributeValues(
-        Map<String, AttributeValue> filterExpressionMapValue) {
-      return toBuilder().setExpressionAttributeValues(filterExpressionMapValue).build();
-    }
-
-    public Read withProjectionExpression(String projectionExpression) {
-      return toBuilder().setProjectionExpression(projectionExpression).build();
-    }
-
-    public Read withNumOfItemPerSegment(int numOfItemPerSegment) {
-      return toBuilder().setNumOfItemPerSegment(numOfItemPerSegment).build();
-    }
-
-    public Read withNumOfSplits(int numOfSplits) {
-      return toBuilder().setNumOfSplits(numOfSplits).build();
+    public Read withScanRequestFn(SerializableFunction<Void, ScanRequest> fn) {
+      return toBuilder().setScanRequestFn(fn).build();
     }
 
     @Override
     public PCollection<Map<String, AttributeValue>> expand(PBegin input) {
-      checkArgument(getTableName() != null, "withTableName() is required");
+      checkArgument((getScanRequestFn() != null), "withScanRequestFn() is required");
       checkArgument(
           (getDynamoDBConfiguration() != null), "withDynamoDBConfiguration() is required");
+      checkArgument(
+          (getScanRequestFn().apply(null).getTotalSegments() != null
+              && getScanRequestFn().apply(null).getTotalSegments() > 0),
+          "TotalSegments is required with withScanRequestFn() and greater zero");
 
       return input.apply(org.apache.beam.sdk.io.Read.from(new DynamoDBBoundedSource(this, 0)));
     }
