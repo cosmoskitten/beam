@@ -131,10 +131,10 @@ public class XmlIOIT {
                 "Gather write start time",
                 ParDo.of(new TimeMonitor<>(XMLIOIT_NAMESPACE, "writeStart")))
             .apply(
-                "Gather byte count", ParDo.of(new ByteMonitor<>(XMLIOIT_NAMESPACE, "totalBytes")))
+                "Gather byte count", ParDo.of(new ByteMonitor<>(XMLIOIT_NAMESPACE, "byte_count")))
             .apply(
                 "Gather element count",
-                ParDo.of(new CountMonitor<>(XMLIOIT_NAMESPACE, "elementCount")))
+                ParDo.of(new CountMonitor<>(XMLIOIT_NAMESPACE, "item_count")))
             .apply(
                 "Write xml files",
                 FileIO.<Bird>write()
@@ -221,14 +221,14 @@ public class XmlIOIT {
 
     suppliers.add(
         reader -> {
-          double totalBytes = reader.getCounterMetric("totalBytes");
-          return NamedTestResult.create(uuid, timestamp, "total_bytes", totalBytes);
+          double totalBytes = reader.getCounterMetric("byteCount");
+          return NamedTestResult.create(uuid, timestamp, "byte_count", totalBytes);
         });
 
     suppliers.add(
         reader -> {
-          double totalBytes = reader.getCounterMetric("elementCount");
-          return NamedTestResult.create(uuid, timestamp, "element_count", totalBytes);
+          double totalBytes = reader.getCounterMetric("itemCount");
+          return NamedTestResult.create(uuid, timestamp, "item_count", totalBytes);
         });
 
     return suppliers;

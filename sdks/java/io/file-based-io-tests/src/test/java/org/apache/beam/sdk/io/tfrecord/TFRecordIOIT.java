@@ -124,10 +124,9 @@ public class TFRecordIOIT {
         .apply(
             "Record time before writing",
             ParDo.of(new TimeMonitor<>(TFRECORD_NAMESPACE, "writeTime")))
-        .apply("Collect byte count", ParDo.of(new ByteMonitor<>(TFRECORD_NAMESPACE, "writeBytes")))
+        .apply("Collect byte count", ParDo.of(new ByteMonitor<>(TFRECORD_NAMESPACE, "byteCount")))
         .apply(
-            "Collect element count",
-            ParDo.of(new CountMonitor<>(TFRECORD_NAMESPACE, "writeElementCount")))
+            "Collect element count", ParDo.of(new CountMonitor<>(TFRECORD_NAMESPACE, "itemCount")))
         .apply("Write content to files", writeTransform);
 
     PipelineResult writeResult = writePipeline.run();
@@ -140,11 +139,6 @@ public class TFRecordIOIT {
             .apply(
                 "Record time after reading",
                 ParDo.of(new TimeMonitor<>(TFRECORD_NAMESPACE, "readTime")))
-            .apply(
-                "Collect byte count", ParDo.of(new ByteMonitor<>(TFRECORD_NAMESPACE, "readBytes")))
-            .apply(
-                "Collect element count",
-                ParDo.of(new CountMonitor<>(TFRECORD_NAMESPACE, "readElementCount")))
             .apply("Transform bytes to strings", MapElements.via(new ByteArrayToString()))
             .apply("Calculate hashcode", Combine.globally(new HashingFn()))
             .apply(Reshuffle.viaRandomKey());
@@ -191,14 +185,14 @@ public class TFRecordIOIT {
 
     suppliers.add(
         reader -> {
-          double totalBytes = reader.getCounterMetric("readBytes");
-          return NamedTestResult.create(uuid, timestamp, "read_bytes", totalBytes);
+          double totalBytes = reader.getCounterMetric("byteCount");
+          return NamedTestResult.create(uuid, timestamp, "byte_count", totalBytes);
         });
 
     suppliers.add(
         reader -> {
-          double totalBytes = reader.getCounterMetric("readElementCount");
-          return NamedTestResult.create(uuid, timestamp, "read_element_count", totalBytes);
+          double totalBytes = reader.getCounterMetric("itemCount");
+          return NamedTestResult.create(uuid, timestamp, "item_count", totalBytes);
         });
     return suppliers;
   }
@@ -212,18 +206,6 @@ public class TFRecordIOIT {
           long writeEnd = reader.getEndTimeMetric("writeTime");
           double writeTime = (writeEnd - writeStart) / 1e3;
           return NamedTestResult.create(uuid, timestamp, "write_time", writeTime);
-        });
-
-    suppliers.add(
-        reader -> {
-          double totalBytes = reader.getCounterMetric("writeBytes");
-          return NamedTestResult.create(uuid, timestamp, "write_bytes", totalBytes);
-        });
-
-    suppliers.add(
-        reader -> {
-          double totalBytes = reader.getCounterMetric("writeElementCount");
-          return NamedTestResult.create(uuid, timestamp, "write_element_count", totalBytes);
         });
 
     return suppliers;
