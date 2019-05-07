@@ -34,7 +34,7 @@ description = "Apache Beam :: Runners :: Reference :: Job Server"
 dependencies {
   compile project(path: ":beam-runners-direct-java", configuration: "shadow")
   compile project(path: ":beam-runners-java-fn-execution", configuration: "shadow")
-  compile library.java.slf4j_simple
+  runtimeOnly library.java.slf4j_simple
 }
 
 run {
