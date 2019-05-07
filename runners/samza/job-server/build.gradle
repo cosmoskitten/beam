@@ -24,18 +24,19 @@ apply plugin: 'application'
 mainClassName = "org.apache.beam.runners.samza.SamzaJobServerDriver"
 
 applyJavaNature(
-    validateShadowJar: false,
-    exportJavadoc: false,
-    shadowClosure: {
-      append "reference.conf"
-    },
+  validateShadowJar: false,
+  testShadowJar: true,
+  exportJavadoc: false,
+  shadowClosure: {
+    append "reference.conf"
+  },
 )
 
 dependencies {
   compile project(path: ":beam-runners-samza", configuration: "shadow")
   compile group: "org.slf4j", name: "jcl-over-slf4j", version: dependencies.create(project.library.java.slf4j_api).getVersion()
-  compile library.java.slf4j_simple
   shadow library.java.guava
+  shadowTestRuntimeClasspath library.java.slf4j_simple
 }
 
 runShadow {

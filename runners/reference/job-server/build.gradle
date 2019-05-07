@@ -23,8 +23,9 @@ plugins {
 mainClassName = "org.apache.beam.runners.direct.portable.job.ReferenceRunnerJobServer"
 
 applyJavaNature(
-  exportJavadoc: false,
   validateShadowJar: false,
+  testShadowJar: true,
+  exportJavadoc: false,
   shadowClosure: {
   }
 )
@@ -34,7 +35,7 @@ description = "Apache Beam :: Runners :: Reference :: Job Server"
 dependencies {
   compile project(path: ":beam-runners-direct-java", configuration: "shadow")
   compile project(path: ":beam-runners-java-fn-execution", configuration: "shadow")
-  compile library.java.slf4j_simple
+  shadowTestRuntimeClasspath library.java.slf4j_simple
 }
 
 run {
