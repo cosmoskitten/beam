@@ -19,6 +19,7 @@ from __future__ import absolute_import
 import base64
 import logging
 import unittest
+import random
 from builtins import object
 
 from apache_beam.coders import proto2_coder_test_messages_pb2 as test_message
@@ -83,29 +84,16 @@ class ProtoCoderTest(unittest.TestCase):
     self.assertEqual(real_coder.encode(ma), expected_coder.encode(ma))
     self.assertEqual(ma, real_coder.decode(real_coder.encode(ma)))
 
-
-class DeterministicProtoCoderTest(unittest.TestCase):
-
-  def test_deterministic_proto_coder(self):
-    ma = test_message.MessageA()
-    mb = ma.field2.add()
-    mb.field1 = True
-    ma.field1 = u'hello world'
-    expected_coder = coders.DeterministicProtoCoder(ma.__class__)
-    real_coder = (coders_registry.get_coder(ma.__class__).as_deterministic_coder(step_label='unused'))
-    self.assertTrue(real_coder.is_deterministic())
-    self.assertEqual(expected_coder, real_coder)
-    self.assertEqual(real_coder.encode(ma), expected_coder.encode(ma))
-    self.assertEqual(ma, real_coder.decode(real_coder.encode(ma)))
-
-  def test_deterministic_proto_coder_determinism(self):
-    mm = test_message.MessageWithMap()
-    for i in range(10):
-      mm.field1['key_%s' % i].field1 = 'Hello world %s' % i
-    coder = coders.DeterministicProtoCoder(mm.__class__)
-    expected_encoded = coder.encode(mm)
-    for _ in range(5):
-      self.assertEqual(expected_encoded, coder.encode(mm))
+  def test_proto_coder_determinism(self):
+    keys = range(500)
+    mm_forward = test_message.MessageWithMap()
+    for i in keys:
+      mm_forward.field1['key_%s' % i].field1 = 'Hello world %s' % i
+    mm_reverse = test_message.MessageWithMap()
+    for i in reversed(keys):
+      mm_reverse.field1['key_%s' % i].field1 = 'Hello world %s' % i
+    coder = coders.ProtoCoder(mm_forward.__class__)
+    self.assertEqual(coder.encode(mm_forward), coder.encode(mm_reverse))
 
 
 class DummyClass(object):

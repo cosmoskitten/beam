@@ -274,19 +274,12 @@ class ProtoCoderImpl(SimpleCoderImpl):
     self.proto_message_type = proto_message_type
 
   def encode(self, value):
-    return value.SerializeToString()
+    return value.SerializeToString(deterministic=True)
 
   def decode(self, encoded):
     proto_message = self.proto_message_type()
     proto_message.ParseFromString(encoded)
     return proto_message
-
-
-class DeterministicProtoCoderImpl(ProtoCoderImpl):
-  """For internal use only; no backwards-compatibility guarantees."""
-
-  def encode(self, value):
-    return value.SerializeToString(deterministic=True)
 
 
 UNKNOWN_TYPE = 0xFF
