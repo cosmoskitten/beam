@@ -60,6 +60,6 @@ dependencies {
   testCompile library.java.hamcrest_library
   testCompile library.java.junit
   testCompile library.java.mockito_core
-  testCompile library.java.slf4j_jdk14
   testCompile project(path: ":beam-sdks-java-core", configuration: "shadowTest")
+  testRuntimeOnly library.java.slf4j_jdk14
 }
