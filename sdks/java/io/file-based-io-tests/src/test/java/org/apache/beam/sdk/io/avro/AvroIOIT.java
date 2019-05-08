@@ -43,6 +43,7 @@ import org.apache.beam.sdk.testutils.NamedTestResult;
 import org.apache.beam.sdk.testutils.metrics.ByteMonitor;
 import org.apache.beam.sdk.testutils.metrics.CountMonitor;
 import org.apache.beam.sdk.testutils.metrics.IOITMetrics;
+import org.apache.beam.sdk.testutils.metrics.MetricNames;
 import org.apache.beam.sdk.testutils.metrics.MetricsReader;
 import org.apache.beam.sdk.testutils.metrics.TimeMonitor;
 import org.apache.beam.sdk.transforms.Combine;
@@ -119,9 +120,15 @@ public class AvroIOIT {
                 ParDo.of(new FileBasedIOITHelper.DeterministicallyConstructTestTextLineFn()))
             .apply("Produce Avro records", ParDo.of(new DeterministicallyConstructAvroRecordsFn()))
             .setCoder(AvroCoder.of(AVRO_SCHEMA))
-            .apply("Collect start time", ParDo.of(new TimeMonitor<>(AVRO_NAMESPACE, "writeStart")))
-            .apply("Collect byte count", ParDo.of(new ByteMonitor<>(AVRO_NAMESPACE, "byteCount")))
-            .apply("Collect item count", ParDo.of(new CountMonitor<>(AVRO_NAMESPACE, "itemCount")))
+            .apply(
+                "Collect start time",
+                ParDo.of(new TimeMonitor<>(AVRO_NAMESPACE, MetricNames.START_TIME.getName())))
+            .apply(
+                "Collect byte count",
+                ParDo.of(new ByteMonitor<>(AVRO_NAMESPACE, MetricNames.BYTE_COUNT.getName())))
+            .apply(
+                "Collect item count",
+                ParDo.of(new CountMonitor<>(AVRO_NAMESPACE, MetricNames.ITEM_COUNT.getName())))
             .apply(
                 "Write Avro records to files",
                 AvroIO.writeGenericRecords(AVRO_SCHEMA)
@@ -130,13 +137,16 @@ public class AvroIOIT {
                     .withSuffix(".avro"))
             .getPerDestinationOutputFilenames()
             .apply(
-                "Collect middle time", ParDo.of(new TimeMonitor<>(AVRO_NAMESPACE, "middlePoint")))
+                "Collect middle time",
+                ParDo.of(new TimeMonitor<>(AVRO_NAMESPACE, MetricNames.MID_POINT.getName())))
             .apply(Values.create());
 
     PCollection<String> consolidatedHashcode =
         testFilenames
             .apply("Read all files", AvroIO.readAllGenericRecords(AVRO_SCHEMA))
-            .apply("Collect end time", ParDo.of(new TimeMonitor<>(AVRO_NAMESPACE, "endPoint")))
+            .apply(
+                "Collect end time",
+                ParDo.of(new TimeMonitor<>(AVRO_NAMESPACE, MetricNames.END_TIME.getName())))
             .apply("Parse Avro records to Strings", ParDo.of(new ParseAvroRecordsFn()))
             .apply("Calculate hashcode", Combine.globally(new HashingFn()));
 
@@ -169,38 +179,41 @@ public class AvroIOIT {
 
     suppliers.add(
         (reader) -> {
-          long writeStart = reader.getStartTimeMetric("writeStart");
-          long writeEnd = reader.getEndTimeMetric("middlePoint");
+          long writeStart = reader.getStartTimeMetric(MetricNames.START_TIME.getName());
+          long writeEnd = reader.getEndTimeMetric(MetricNames.MID_POINT.getName());
           double writeTime = (writeEnd - writeStart) / 1e3;
-          return NamedTestResult.create(uuid, timestamp, "write_time", writeTime);
+          return NamedTestResult.create(
+              uuid, timestamp, MetricNames.WRITE_TIME.getName(), writeTime);
         });
 
     suppliers.add(
         (reader) -> {
-          long readEnd = reader.getEndTimeMetric("endPoint");
-          long readStart = reader.getStartTimeMetric("middlePoint");
+          long readEnd = reader.getEndTimeMetric(MetricNames.END_TIME.getName());
+          long readStart = reader.getStartTimeMetric(MetricNames.MID_POINT.getName());
           double readTime = (readEnd - readStart) / 1e3;
-          return NamedTestResult.create(uuid, timestamp, "read_time", readTime);
+          return NamedTestResult.create(uuid, timestamp, MetricNames.READ_TIME.getName(), readTime);
         });
 
     suppliers.add(
         (reader) -> {
-          long readEnd = reader.getEndTimeMetric("endPoint");
-          long writeStart = reader.getStartTimeMetric("writeStart");
+          long readEnd = reader.getEndTimeMetric(MetricNames.END_TIME.getName());
+          long writeStart = reader.getStartTimeMetric(MetricNames.START_TIME.getName());
           double runTime = (readEnd - writeStart) / 1e3;
-          return NamedTestResult.create(uuid, timestamp, "run_time", runTime);
+          return NamedTestResult.create(uuid, timestamp, MetricNames.RUN_TIME.getName(), runTime);
         });
 
     suppliers.add(
         reader -> {
-          double totalBytes = reader.getCounterMetric("byteCount");
-          return NamedTestResult.create(uuid, timestamp, "byte_count", totalBytes);
+          double totalBytes = reader.getCounterMetric(MetricNames.BYTE_COUNT.getName());
+          return NamedTestResult.create(
+              uuid, timestamp, MetricNames.BYTE_COUNT.getName(), totalBytes);
         });
 
     suppliers.add(
         reader -> {
-          double totalBytes = reader.getCounterMetric("itemCount");
-          return NamedTestResult.create(uuid, timestamp, "element_count", totalBytes);
+          double totalBytes = reader.getCounterMetric(MetricNames.ITEM_COUNT.getName());
+          return NamedTestResult.create(
+              uuid, timestamp, MetricNames.ITEM_COUNT.getName(), totalBytes);
         });
 
     return suppliers;

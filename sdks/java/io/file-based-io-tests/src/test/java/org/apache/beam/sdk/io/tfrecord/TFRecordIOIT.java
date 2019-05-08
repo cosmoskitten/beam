@@ -42,6 +42,7 @@ import org.apache.beam.sdk.testutils.NamedTestResult;
 import org.apache.beam.sdk.testutils.metrics.ByteMonitor;
 import org.apache.beam.sdk.testutils.metrics.CountMonitor;
 import org.apache.beam.sdk.testutils.metrics.IOITMetrics;
+import org.apache.beam.sdk.testutils.metrics.MetricNames;
 import org.apache.beam.sdk.testutils.metrics.MetricsReader;
 import org.apache.beam.sdk.testutils.metrics.TimeMonitor;
 import org.apache.beam.sdk.transforms.Combine;
@@ -123,10 +124,13 @@ public class TFRecordIOIT {
         .apply("Transform strings to bytes", MapElements.via(new StringToByteArray()))
         .apply(
             "Record time before writing",
-            ParDo.of(new TimeMonitor<>(TFRECORD_NAMESPACE, "writeTime")))
-        .apply("Collect byte count", ParDo.of(new ByteMonitor<>(TFRECORD_NAMESPACE, "byteCount")))
+            ParDo.of(new TimeMonitor<>(TFRECORD_NAMESPACE, MetricNames.WRITE_TIME.getName())))
         .apply(
-            "Collect element count", ParDo.of(new CountMonitor<>(TFRECORD_NAMESPACE, "itemCount")))
+            "Collect byte count",
+            ParDo.of(new ByteMonitor<>(TFRECORD_NAMESPACE, MetricNames.BYTE_COUNT.getName())))
+        .apply(
+            "Collect element count",
+            ParDo.of(new CountMonitor<>(TFRECORD_NAMESPACE, MetricNames.ITEM_COUNT.getName())))
         .apply("Write content to files", writeTransform);
 
     PipelineResult writeResult = writePipeline.run();
@@ -138,7 +142,7 @@ public class TFRecordIOIT {
             .apply(TFRecordIO.read().from(filenamePattern).withCompression(AUTO))
             .apply(
                 "Record time after reading",
-                ParDo.of(new TimeMonitor<>(TFRECORD_NAMESPACE, "readTime")))
+                ParDo.of(new TimeMonitor<>(TFRECORD_NAMESPACE, MetricNames.READ_TIME.getName())))
             .apply("Transform bytes to strings", MapElements.via(new ByteArrayToString()))
             .apply("Calculate hashcode", Combine.globally(new HashingFn()))
             .apply(Reshuffle.viaRandomKey());
@@ -177,22 +181,24 @@ public class TFRecordIOIT {
     Set<Function<MetricsReader, NamedTestResult>> suppliers = new HashSet<>();
     suppliers.add(
         reader -> {
-          long readStart = reader.getStartTimeMetric("readTime");
-          long readEnd = reader.getEndTimeMetric("readTime");
+          long readStart = reader.getStartTimeMetric(MetricNames.READ_TIME.getName());
+          long readEnd = reader.getEndTimeMetric(MetricNames.READ_TIME.getName());
           double readTime = (readEnd - readStart) / 1e3;
-          return NamedTestResult.create(uuid, timestamp, "read_time", readTime);
+          return NamedTestResult.create(uuid, timestamp, MetricNames.READ_TIME.getName(), readTime);
         });
 
     suppliers.add(
         reader -> {
-          double totalBytes = reader.getCounterMetric("byteCount");
-          return NamedTestResult.create(uuid, timestamp, "byte_count", totalBytes);
+          double totalBytes = reader.getCounterMetric(MetricNames.BYTE_COUNT.getName());
+          return NamedTestResult.create(
+              uuid, timestamp, MetricNames.BYTE_COUNT.getName(), totalBytes);
         });
 
     suppliers.add(
         reader -> {
-          double totalBytes = reader.getCounterMetric("itemCount");
-          return NamedTestResult.create(uuid, timestamp, "item_count", totalBytes);
+          double totalBytes = reader.getCounterMetric(MetricNames.ITEM_COUNT.getName());
+          return NamedTestResult.create(
+              uuid, timestamp, MetricNames.ITEM_COUNT.getName(), totalBytes);
         });
     return suppliers;
   }
@@ -202,10 +208,11 @@ public class TFRecordIOIT {
     Set<Function<MetricsReader, NamedTestResult>> suppliers = new HashSet<>();
     suppliers.add(
         reader -> {
-          long writeStart = reader.getStartTimeMetric("writeTime");
-          long writeEnd = reader.getEndTimeMetric("writeTime");
+          long writeStart = reader.getStartTimeMetric(MetricNames.WRITE_TIME.getName());
+          long writeEnd = reader.getEndTimeMetric(MetricNames.WRITE_TIME.getName());
           double writeTime = (writeEnd - writeStart) / 1e3;
-          return NamedTestResult.create(uuid, timestamp, "write_time", writeTime);
+          return NamedTestResult.create(
+              uuid, timestamp, MetricNames.WRITE_TIME.getName(), writeTime);
         });
 
     return suppliers;
