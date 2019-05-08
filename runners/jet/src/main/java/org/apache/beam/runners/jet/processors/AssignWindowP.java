@@ -21,7 +21,6 @@ import com.hazelcast.jet.core.AbstractProcessor;
 import com.hazelcast.jet.core.Processor;
 import com.hazelcast.jet.core.ResettableSingletonTraverser;
 import com.hazelcast.jet.function.SupplierEx;
-import java.io.ByteArrayOutputStream;
 import java.util.Collection;
 import javax.annotation.Nonnull;
 import org.apache.beam.runners.jet.Utils;
@@ -45,7 +44,6 @@ public class AssignWindowP<T> extends AbstractProcessor {
 
   private final ResettableSingletonTraverser<byte[]> traverser =
       new ResettableSingletonTraverser<>();
-  private final ByteArrayOutputStream baos = new ByteArrayOutputStream();
   private final FlatMapper<byte[], byte[]> flatMapper;
   private final WindowAssignContext<T> windowAssignContext;
 
@@ -75,7 +73,7 @@ public class AssignWindowP<T> extends AbstractProcessor {
                       inputValue.getTimestamp(),
                       windows,
                       inputValue.getPane());
-              traverser.accept(Utils.encodeWindowedValue(outputValue, outputCoder, baos));
+              traverser.accept(Utils.encodeWindowedValue(outputValue, outputCoder));
               return traverser;
             });
   }

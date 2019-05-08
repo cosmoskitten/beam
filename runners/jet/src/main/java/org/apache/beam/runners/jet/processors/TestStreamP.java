@@ -17,23 +17,22 @@
  */
 package org.apache.beam.runners.jet.processors;
 
-import static com.hazelcast.jet.Traversers.traverseIterable;
-import static java.util.stream.Collectors.toList;
-
 import com.hazelcast.jet.Traverser;
+import com.hazelcast.jet.Traversers;
 import com.hazelcast.jet.core.AbstractProcessor;
 import com.hazelcast.jet.core.ProcessorMetaSupplier;
 import com.hazelcast.jet.core.ProcessorSupplier;
 import com.hazelcast.jet.core.Watermark;
-import java.io.ByteArrayOutputStream;
-import java.io.Serializable;
+import com.hazelcast.jet.impl.util.ExceptionUtil;
 import java.util.List;
 import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
-import javax.annotation.Nullable;
 import org.apache.beam.runners.jet.Utils;
 import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.testing.TestStream;
+import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
+import org.apache.beam.sdk.util.CoderUtils;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.joda.time.Instant;
 
@@ -43,58 +42,47 @@ import org.joda.time.Instant;
  */
 public class TestStreamP extends AbstractProcessor {
 
-  private final ByteArrayOutputStream baos = new ByteArrayOutputStream();
   private final Traverser traverser;
 
   @SuppressWarnings("unchecked")
-  private TestStreamP(List events, Coder outputCoder) {
-    traverser =
-        traverseIterable(events)
-            .map(
+  private TestStreamP(byte[] payload, TestStream.TestStreamCoder payloadCoder, Coder outputCoder) {
+    List events = decodePayload(payload, payloadCoder).getEvents();
+    traverser = Traversers.traverseStream(
+        events.stream()
+            .flatMap(
                 event -> {
-                  if (event instanceof SerializableWatermarkEvent) {
-                    long ts = ((SerializableWatermarkEvent) event).getTimestamp();
-                    if (ts == Long.MAX_VALUE) {
+                  if (event instanceof TestStream.WatermarkEvent) {
+                    Instant watermark = ((TestStream.WatermarkEvent) event).getWatermark();
+                    if (BoundedWindow.TIMESTAMP_MAX_VALUE.equals(watermark)) {
                       // this is an element added by advanceWatermarkToInfinity(), we ignore it,
                       // it's always at the end
                       return null;
                     }
-                    return new Watermark(ts);
+                    return Stream.of(new Watermark(watermark.getMillis()));
+                  } else if (event instanceof TestStream.ElementEvent) {
+                    return StreamSupport.stream(((TestStream.ElementEvent<?>) event).getElements().spliterator(), false)
+                        .map(tv -> WindowedValue.timestampedValueInGlobalWindow(tv.getValue(), tv.getTimestamp()))
+                        .map(wV -> Utils.encodeWindowedValue(wV, outputCoder));
                   } else {
-                    assert event instanceof SerializableTimestampedValue;
-                    WindowedValue windowedValue =
-                        ((SerializableTimestampedValue) event).asWindowedValue();
-                    return Utils.encodeWindowedValue(windowedValue, outputCoder, baos);
+                    throw new UnsupportedOperationException("Event type not supported in TestStream: " + event.getClass() + ", event: " + event);
                   }
-                });
+                }
+            )
+    );
   }
 
-  public static <T> ProcessorMetaSupplier supplier(
-      List<TestStream.Event<T>> events, Coder outputCoder) {
-    List<Object> serializableEvents = getSerializableEvents(events);
+  public static <T> ProcessorMetaSupplier supplier(byte[] payload, TestStream.TestStreamCoder payloadCoder, Coder outputCoder) {
     return ProcessorMetaSupplier.forceTotalParallelismOne(
-        ProcessorSupplier.of(() -> new TestStreamP(serializableEvents, outputCoder)));
+        ProcessorSupplier.of(() -> new TestStreamP(payload, payloadCoder, outputCoder))
+    );
   }
 
-  private static <T> List<Object> getSerializableEvents(List<TestStream.Event<T>> events) {
-    return events.stream()
-        .flatMap(
-            e -> {
-              if (e instanceof TestStream.WatermarkEvent) {
-                return Stream.of(
-                    new SerializableWatermarkEvent(
-                        ((TestStream.WatermarkEvent<T>) e).getWatermark().getMillis()));
-              } else if (e instanceof TestStream.ElementEvent) {
-                return StreamSupport.stream(
-                        ((TestStream.ElementEvent<T>) e).getElements().spliterator(), false)
-                    .map(
-                        te -> new SerializableTimestampedValue<>(te.getValue(), te.getTimestamp()));
-              } else {
-                throw new UnsupportedOperationException(
-                    "Event type not supported in TestStream: " + e.getClass() + ", event: " + e);
-              }
-            })
-        .collect(toList());
+  private static TestStream decodePayload(byte[] payload, TestStream.TestStreamCoder coder) {
+    try {
+      return (TestStream) CoderUtils.decodeFromByteArray(coder, payload);
+    } catch (CoderException e) {
+      throw ExceptionUtil.rethrow(e);
+    }
   }
 
   @Override
@@ -102,31 +90,5 @@ public class TestStreamP extends AbstractProcessor {
     // todo: TestStream says it should cease emitting, but not stop after the items.
     //   But I don't know how they end the job otherwise...
     return emitFromTraverser(traverser);
-  }
-
-  private static class SerializableWatermarkEvent implements Serializable {
-    private final long timestamp;
-
-    SerializableWatermarkEvent(long timestamp) {
-      this.timestamp = timestamp;
-    }
-
-    public long getTimestamp() {
-      return timestamp;
-    }
-  }
-
-  private static class SerializableTimestampedValue<T> implements Serializable {
-    private final T value;
-    private final Instant timestamp;
-
-    SerializableTimestampedValue(@Nullable T value, Instant timestamp) {
-      this.value = value;
-      this.timestamp = timestamp;
-    }
-
-    WindowedValue<T> asWindowedValue() {
-      return WindowedValue.timestampedValueInGlobalWindow(value, timestamp);
-    }
   }
 }

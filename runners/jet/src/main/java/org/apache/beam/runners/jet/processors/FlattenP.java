@@ -21,7 +21,6 @@ import com.hazelcast.jet.core.AbstractProcessor;
 import com.hazelcast.jet.core.Edge;
 import com.hazelcast.jet.core.Processor;
 import com.hazelcast.jet.function.SupplierEx;
-import java.io.ByteArrayOutputStream;
 import java.util.HashMap;
 import java.util.Map;
 import javax.annotation.Nonnull;
@@ -33,7 +32,6 @@ import org.apache.beam.sdk.util.WindowedValue;
 /** Jet {@link com.hazelcast.jet.core.Processor} implementation for Beam's Flatten primitive. */
 public class FlattenP extends AbstractProcessor {
 
-  private final ByteArrayOutputStream baos = new ByteArrayOutputStream();
   private final Map<Integer, Coder> inputOrdinalCoders;
   private final Coder outputCoder;
 
@@ -44,17 +42,13 @@ public class FlattenP extends AbstractProcessor {
     this.inputOrdinalCoders = inputOrdinalCoders;
     this.outputCoder = outputCoder;
     this.ownerId = ownerId;
-    // System.out.println(FlattenP.class.getSimpleName() + " CREATE, ownerId = " + ownerId);
-    // //useful for debugging
   }
 
   @Override
   protected boolean tryProcess(int ordinal, @Nonnull Object item) {
     Coder inputCoder = inputOrdinalCoders.get(ordinal);
     WindowedValue<Object> windowedValue = Utils.decodeWindowedValue((byte[]) item, inputCoder);
-    // System.out.println(FlattenP.class.getSimpleName() + " UPDATE ownerId = " + ownerId + ",
-    // windowedValue = " + windowedValue); //useful for debugging
-    return tryEmit(Utils.encodeWindowedValue(windowedValue, outputCoder, baos));
+    return tryEmit(Utils.encodeWindowedValue(windowedValue, outputCoder));
   }
 
   /** Jet {@link Processor} supplier that will provide instances of {@link FlattenP}. */
@@ -73,7 +67,7 @@ public class FlattenP extends AbstractProcessor {
     }
 
     @Override
-    public Processor getEx() throws Exception {
+    public Processor getEx() {
       return new FlattenP(inputOrdinalCoders, outputCoder, ownerId);
     }
 

@@ -23,7 +23,6 @@ import com.hazelcast.jet.core.Processor;
 import com.hazelcast.jet.core.Watermark;
 import com.hazelcast.jet.function.SupplierEx;
 import com.hazelcast.jet.impl.util.ExceptionUtil;
-import java.io.ByteArrayOutputStream;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -68,9 +67,8 @@ import org.joda.time.Instant;
  */
 public class WindowGroupP<K, V> extends AbstractProcessor {
 
-  public static final byte[] EMPTY_BYTES = new byte[0];
+  private static final byte[] EMPTY_BYTES = new byte[0];
   private final SerializablePipelineOptions pipelineOptions;
-  private final ByteArrayOutputStream baos = new ByteArrayOutputStream();
   private final Coder<V> inputValueValueCoder;
   private final Coder outputCoder;
   private final WindowingStrategy<V, BoundedWindow> windowingStrategy;
@@ -116,9 +114,6 @@ public class WindowGroupP<K, V> extends AbstractProcessor {
               }
               return appendableTraverser;
             });
-
-    // System.err.println(WindowGroupP.class.getSimpleName() + " CREATE ownerId = " + ownerId);
-    // //useful for debugging
   }
 
   @SuppressWarnings("unchecked")
@@ -204,18 +199,7 @@ public class WindowGroupP<K, V> extends AbstractProcessor {
                     PaneInfo pane) {
                   WindowedValue<KV<K, Iterable<V>>> windowedValue =
                       WindowedValue.of(output, timestamp, windows, pane);
-                  if (ownerId.startsWith("3 ")) {
-                    new Throwable(
-                            WindowGroupP.class.getSimpleName()
-                                + " OUTPUT "
-                                + System.identityHashCode(WindowGroupP.this)
-                                + ", windowedValue = "
-                                + windowedValue)
-                        .printStackTrace();
-                  } // todo: remove
-                  // System.err.println(WindowGroupP.class.getSimpleName() + " OUTPUT ownerId = " +
-                  // ownerId + ", windowedValue = " + windowedValue); //useful for debugging
-                  byte[] encodedValue = Utils.encodeWindowedValue(windowedValue, outputCoder, baos);
+                  byte[] encodedValue = Utils.encodeWindowedValue(windowedValue, outputCoder);
                   //noinspection ResultOfMethodCallIgnored
                   appendableTraverser.append(encodedValue);
                 }

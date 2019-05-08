@@ -20,6 +20,7 @@ package org.apache.beam.runners.jet;
 import com.hazelcast.jet.core.DAG;
 import org.apache.beam.runners.core.construction.PTransformTranslation;
 import org.apache.beam.sdk.Pipeline;
+import org.apache.beam.sdk.runners.AppliedPTransform;
 import org.apache.beam.sdk.runners.TransformHierarchy;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.values.PValue;
@@ -87,6 +88,8 @@ class JetGraphVisitor extends Pipeline.PipelineVisitor.Defaults {
       TransformHierarchy.Node node, JetTransformTranslator<?> translator) {
     @SuppressWarnings("unchecked")
     JetTransformTranslator<T> typedTranslator = (JetTransformTranslator<T>) translator;
-    typedTranslator.translate(getPipeline(), node, translationContext);
+    Pipeline pipeline = getPipeline();
+    AppliedPTransform<?, ?, ?> appliedTransform = node.toAppliedPTransform(pipeline);
+    typedTranslator.translate(pipeline, appliedTransform, node, translationContext);
   }
 }

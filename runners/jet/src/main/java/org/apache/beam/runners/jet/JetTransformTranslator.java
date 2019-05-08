@@ -19,10 +19,11 @@ package org.apache.beam.runners.jet;
 
 import com.hazelcast.jet.core.Vertex;
 import org.apache.beam.sdk.Pipeline;
+import org.apache.beam.sdk.runners.AppliedPTransform;
 import org.apache.beam.sdk.runners.TransformHierarchy;
 import org.apache.beam.sdk.transforms.PTransform;
 
 interface JetTransformTranslator<T extends PTransform> {
 
-  Vertex translate(Pipeline pipeline, TransformHierarchy.Node node, JetTranslationContext context);
+  Vertex translate(Pipeline pipeline, AppliedPTransform<?, ?, ?> appliedTransform, TransformHierarchy.Node node, JetTranslationContext context);
 }

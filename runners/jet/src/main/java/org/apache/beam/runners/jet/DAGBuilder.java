@@ -24,7 +24,6 @@ import com.hazelcast.jet.core.ProcessorMetaSupplier;
 import com.hazelcast.jet.core.Vertex;
 import com.hazelcast.jet.function.FunctionEx;
 import com.hazelcast.jet.function.SupplierEx;
-import java.io.ByteArrayInputStream;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -34,6 +33,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.util.CoderUtils;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.KV;
 
@@ -102,8 +102,7 @@ public class DAGBuilder {
 
   Vertex addVertex(String id, SupplierEx<Processor> processor) {
     return dag.newVertex(id, processor)
-        .localParallelism(
-            localParallelism) // todo: quick and dirty hack for now, can't leave it like this
+        .localParallelism(localParallelism)
     ;
   }
 
@@ -209,7 +208,7 @@ public class DAGBuilder {
 
     @Override
     public Object applyEx(byte[] b) throws Exception {
-      Object t = coder.decode(new ByteArrayInputStream(b)); // todo: decoding twice....
+      Object t = CoderUtils.decodeFromByteArray(coder, b); //todo: decoding twice....
       Object key = null;
       if (t instanceof WindowedValue) {
         t = ((WindowedValue) t).getValue();
