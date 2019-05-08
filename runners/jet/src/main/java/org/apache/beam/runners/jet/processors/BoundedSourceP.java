@@ -27,7 +27,6 @@ import com.hazelcast.jet.core.Processor;
 import com.hazelcast.jet.core.ProcessorMetaSupplier;
 import com.hazelcast.jet.core.ProcessorSupplier;
 import com.hazelcast.nio.Address;
-import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -47,7 +46,6 @@ import org.apache.beam.sdk.util.WindowedValue;
  */
 public class BoundedSourceP<T> extends AbstractProcessor implements Traverser {
 
-  private final ByteArrayOutputStream baos = new ByteArrayOutputStream();
   private final Traverser<BoundedSource<T>> shardsTraverser;
   private final PipelineOptions options;
   private final Coder outputCoder;
@@ -92,10 +90,7 @@ public class BoundedSourceP<T> extends AbstractProcessor implements Traverser {
       }
       return outputCoder == null
           ? res
-          : Utils.encodeWindowedValue(
-              res,
-              outputCoder,
-              baos); // todo: this is not nice, have done this only as a quick fix for
+          : Utils.encodeWindowedValue(res, outputCoder); // todo: this is not nice, have done this only as a quick fix for
       // BoundedSourcePTest
     } catch (IOException e) {
       throw rethrow(e);

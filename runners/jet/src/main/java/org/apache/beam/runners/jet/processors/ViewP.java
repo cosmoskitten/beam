@@ -22,7 +22,6 @@ import com.hazelcast.jet.Traversers;
 import com.hazelcast.jet.core.AbstractProcessor;
 import com.hazelcast.jet.core.Processor;
 import com.hazelcast.jet.function.SupplierEx;
-import java.io.ByteArrayOutputStream;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
@@ -45,7 +44,6 @@ import org.joda.time.Instant;
  */
 public class ViewP extends AbstractProcessor {
 
-  private final ByteArrayOutputStream baos = new ByteArrayOutputStream();
   private final TimestampCombiner timestampCombiner;
   private final Coder inputCoder;
   private final Coder outputCoder;
@@ -63,14 +61,10 @@ public class ViewP extends AbstractProcessor {
     this.outputCoder =
         Utils.deriveIterableValueCoder((WindowedValue.FullWindowedValueCoder) outputCoder);
     this.ownerId = ownerId;
-    // System.out.println(ViewP.class.getSimpleName() + " CREATE ownerId = " + ownerId); //useful
-    // for debugging
   }
 
   @Override
   protected boolean tryProcess(int ordinal, @Nonnull Object item) {
-    // System.out.println(ViewP.class.getSimpleName() + " UPDATE ownerId = " + ownerId + ", item = "
-    // + item); //useful for debugging
     WindowedValue<?> windowedValue = Utils.decodeWindowedValue((byte[]) item, inputCoder);
     for (BoundedWindow window : windowedValue.getWindows()) {
       values.merge(
@@ -85,8 +79,6 @@ public class ViewP extends AbstractProcessor {
 
   @Override
   public boolean complete() {
-    // System.out.println(ViewP.class.getSimpleName() + " COMPLETE ownerId = " + ownerId); //useful
-    // for debugging
     if (resultTraverser == null) {
       resultTraverser =
           Traversers.traverseStream(
@@ -99,7 +91,7 @@ public class ViewP extends AbstractProcessor {
                                 e.getValue().timestamp,
                                 Collections.singleton(e.getKey()),
                                 e.getValue().pane);
-                        return Utils.encodeWindowedValue(outputValue, outputCoder, baos);
+                        return Utils.encodeWindowedValue(outputValue, outputCoder);
                       }));
     }
     return emitFromTraverser(resultTraverser);

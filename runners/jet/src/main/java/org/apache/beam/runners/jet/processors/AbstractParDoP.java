@@ -23,7 +23,6 @@ import com.hazelcast.jet.core.Outbox;
 import com.hazelcast.jet.core.Processor;
 import com.hazelcast.jet.core.Watermark;
 import com.hazelcast.jet.function.SupplierEx;
-import java.io.ByteArrayOutputStream;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -226,15 +225,11 @@ abstract class AbstractParDoP<InputT, OutputT> implements Processor {
   }
 
   protected void startRunnerBundle(DoFnRunner<InputT, OutputT> runner) {
-    // System.out.println(AbstractParDoP.class.getSimpleName() + " UPDATE ownerId = " + ownerId);
-    // //useful for debugging
     runner.startBundle();
   }
 
   protected void processElementWithRunner(
       DoFnRunner<InputT, OutputT> runner, WindowedValue<InputT> windowedValue) {
-    // System.out.println(AbstractParDoP.class.getSimpleName() + " UPDATE ownerId = " + ownerId + ",
-    // windowedValue = " + windowedValue); //useful for debugging
     runner.processElement(windowedValue);
   }
 
@@ -278,10 +273,6 @@ abstract class AbstractParDoP<InputT, OutputT> implements Processor {
 
   @Override
   public boolean complete() {
-    // System.out.println(ParDoP.class.getSimpleName() + " COMPLETE ownerId = " + ownerId); //useful
-    // for debugging
-    // if (ownerId.startsWith("8 ")) System.out.println(ParDoP.class.getSimpleName() + " COMPLETE
-    // ownerId = " + ownerId); //useful for debugging
     boolean successful = outputManager.tryFlush();
     if (successful) {
       metricsContainer.flush();
@@ -297,7 +288,6 @@ abstract class AbstractParDoP<InputT, OutputT> implements Processor {
    */
   static class JetOutputManager implements DoFnRunners.OutputManager {
 
-    private final ByteArrayOutputStream baos = new ByteArrayOutputStream();
     private final Outbox outbox;
     private final Map<TupleTag<?>, Coder<?>> outputCoders;
     private final Map<TupleTag<?>, int[]> outputCollToOrdinals;
@@ -325,7 +315,7 @@ abstract class AbstractParDoP<InputT, OutputT> implements Processor {
     public <T> void output(TupleTag<T> tag, WindowedValue<T> outputValue) {
       assert currentBucket == 0 && currentItem == 0 : "adding output while flushing";
       Coder<?> coder = outputCoders.get(tag);
-      byte[] output = Utils.encodeWindowedValue(outputValue, coder, baos);
+      byte[] output = Utils.encodeWindowedValue(outputValue, coder);
       for (int ordinal : outputCollToOrdinals.get(tag)) {
         outputBuckets[ordinal].add(output);
       }
@@ -355,7 +345,7 @@ abstract class AbstractParDoP<InputT, OutputT> implements Processor {
   abstract static class AbstractSupplier<InputT, OutputT>
       implements SupplierEx<Processor>, DAGBuilder.WiringListener {
 
-    protected final String ownerId;
+    final String ownerId;
     private final String stepId;
 
     private final SerializablePipelineOptions pipelineOptions;

@@ -120,10 +120,6 @@ public class JetRunner extends PipelineRunner<PipelineResult> {
   }
 
   private DAG translate(Pipeline pipeline) {
-    // Set<ExecutableStage> fusedStages =
-    // GreedyPipelineFuser.fuse(PipelineTranslation.toProto(pipeline)).getFusedStages();
-    // System.out.println("Pipeline fused into " + fusedStages.size() + " stages"); //todo: remove
-
     JetGraphVisitor graphVisitor = new JetGraphVisitor(options);
     pipeline.traverseTopologically(graphVisitor);
     return graphVisitor.getDAG();
