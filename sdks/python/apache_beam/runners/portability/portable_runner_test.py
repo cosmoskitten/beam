@@ -21,7 +21,6 @@ import inspect
 import logging
 import platform
 import signal
-import socket
 import subprocess
 import sys
 import threading
@@ -44,6 +43,7 @@ from apache_beam.runners.portability import portable_runner
 from apache_beam.runners.portability.local_job_service import LocalJobServicer
 from apache_beam.runners.portability.portable_runner import PortableRunner
 from apache_beam.runners.worker.channel_factory import GRPCChannelFactory
+from apache_beam.utils.ports import pick_unused_ports
 
 
 class PortableRunnerTest(fn_api_runner_test.FnApiRunnerTest):
@@ -74,35 +74,12 @@ class PortableRunnerTest(fn_api_runner_test.FnApiRunnerTest):
       signal.alarm(0)
 
   @classmethod
-  def _pick_unused_port(cls):
-    return cls._pick_unused_ports(num_ports=1)[0]
-
-  @staticmethod
-  def _pick_unused_ports(num_ports):
-    """Not perfect, but we have to provide a port to the subprocess."""
-    # TODO(robertwb): Consider letting the subprocess communicate a choice of
-    # port back.
-    sockets = []
-    ports = []
-    for _ in range(0, num_ports):
-      s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-      sockets.append(s)
-      s.bind(('localhost', 0))
-      _, port = s.getsockname()
-      ports.append(port)
-    try:
-      return ports
-    finally:
-      for s in sockets:
-        s.close()
-
-  @classmethod
   def _start_local_runner_subprocess_job_service(cls):
     cls._maybe_kill_subprocess()
-    # TODO(robertwb): Consider letting the subprocess pick one and
+    # TODO(robertwb): Consider letting the subprocess pick a port and
     # communicate it back...
     # pylint: disable=unbalanced-tuple-unpacking
-    job_port, expansion_port = cls._pick_unused_ports(num_ports=2)
+    job_port, expansion_port = pick_unused_ports(num_ports=2)
     logging.info('Starting server on port %d.', job_port)
     cls._subprocess = subprocess.Popen(
         cls._subprocess_command(job_port, expansion_port))
