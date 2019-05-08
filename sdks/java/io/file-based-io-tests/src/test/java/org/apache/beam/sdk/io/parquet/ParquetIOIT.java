@@ -43,6 +43,7 @@ import org.apache.beam.sdk.testutils.NamedTestResult;
 import org.apache.beam.sdk.testutils.metrics.ByteMonitor;
 import org.apache.beam.sdk.testutils.metrics.CountMonitor;
 import org.apache.beam.sdk.testutils.metrics.IOITMetrics;
+import org.apache.beam.sdk.testutils.metrics.MetricNames;
 import org.apache.beam.sdk.testutils.metrics.MetricsReader;
 import org.apache.beam.sdk.testutils.metrics.TimeMonitor;
 import org.apache.beam.sdk.transforms.Combine;
@@ -122,14 +123,14 @@ public class ParquetIOIT {
             .setCoder(AvroCoder.of(SCHEMA))
             .apply(
                 "Gather write start times",
-                ParDo.of(new TimeMonitor<>(PARQUET_NAMESPACE, "writeStart")))
+                ParDo.of(new TimeMonitor<>(PARQUET_NAMESPACE, MetricNames.WRITE_START.getName())))
             .apply(
                 "Write Parquet files",
                 FileIO.<GenericRecord>write().via(ParquetIO.sink(SCHEMA)).to(filenamePrefix))
             .getPerDestinationOutputFilenames()
             .apply(
                 "Gather write end times",
-                ParDo.of(new TimeMonitor<>(PARQUET_NAMESPACE, "writeEnd")))
+                ParDo.of(new TimeMonitor<>(PARQUET_NAMESPACE, MetricNames.WRITE_END.getName())))
             .apply("Get file names", Values.create());
 
     PCollection<String> consolidatedHashcode =
@@ -138,15 +139,17 @@ public class ParquetIOIT {
             .apply("Read matched files", FileIO.readMatches())
             .apply(
                 "Gather read start time",
-                ParDo.of(new TimeMonitor<>(PARQUET_NAMESPACE, "readStart")))
+                ParDo.of(new TimeMonitor<>(PARQUET_NAMESPACE, MetricNames.READ_START.getName())))
             .apply(
-                "Collect byte count", ParDo.of(new ByteMonitor<>(PARQUET_NAMESPACE, "byteCount")))
+                "Collect byte count",
+                ParDo.of(new ByteMonitor<>(PARQUET_NAMESPACE, MetricNames.BYTE_COUNT.getName())))
             .apply(
                 "Collect element count",
-                ParDo.of(new CountMonitor<>(PARQUET_NAMESPACE, "itemCount")))
+                ParDo.of(new CountMonitor<>(PARQUET_NAMESPACE, MetricNames.ITEM_COUNT.getName())))
             .apply("Read parquet files", ParquetIO.readFiles(SCHEMA))
             .apply(
-                "Gather read end time", ParDo.of(new TimeMonitor<>(PARQUET_NAMESPACE, "readEnd")))
+                "Gather read end time",
+                ParDo.of(new TimeMonitor<>(PARQUET_NAMESPACE, MetricNames.READ_END.getName())))
             .apply(
                 "Map records to strings",
                 MapElements.into(strings())
@@ -182,38 +185,41 @@ public class ParquetIOIT {
     Set<Function<MetricsReader, NamedTestResult>> metricSuppliers = new HashSet<>();
     metricSuppliers.add(
         reader -> {
-          long writeStart = reader.getStartTimeMetric("writeStart");
-          long writeEnd = reader.getEndTimeMetric("writeEnd");
+          long writeStart = reader.getStartTimeMetric(MetricNames.WRITE_START.getName());
+          long writeEnd = reader.getEndTimeMetric(MetricNames.END_TIME.getName());
           double writeTime = (writeEnd - writeStart) / 1e3;
-          return NamedTestResult.create(uuid, timestamp, "write_time", writeTime);
+          return NamedTestResult.create(
+              uuid, timestamp, MetricNames.WRITE_TIME.getName(), writeTime);
         });
 
     metricSuppliers.add(
         reader -> {
-          long readStart = reader.getStartTimeMetric("readStart");
-          long readEnd = reader.getEndTimeMetric("readEnd");
+          long readStart = reader.getStartTimeMetric(MetricNames.READ_START.getName());
+          long readEnd = reader.getEndTimeMetric(MetricNames.READ_END.getName());
           double readTime = (readEnd - readStart) / 1e3;
-          return NamedTestResult.create(uuid, timestamp, "read_time", readTime);
+          return NamedTestResult.create(uuid, timestamp, MetricNames.READ_TIME.getName(), readTime);
         });
 
     metricSuppliers.add(
         reader -> {
-          long writeStart = reader.getStartTimeMetric("writeStart");
-          long readEnd = reader.getEndTimeMetric("readEnd");
+          long writeStart = reader.getStartTimeMetric(MetricNames.WRITE_START.getName());
+          long readEnd = reader.getEndTimeMetric(MetricNames.READ_END.getName());
           double runTime = (readEnd - writeStart) / 1e3;
-          return NamedTestResult.create(uuid, timestamp, "run_time", runTime);
+          return NamedTestResult.create(uuid, timestamp, MetricNames.RUN_TIME.getName(), runTime);
         });
 
     metricSuppliers.add(
         reader -> {
-          double totalBytes = reader.getCounterMetric("byteCount");
-          return NamedTestResult.create(uuid, timestamp, "byte_count", totalBytes);
+          double totalBytes = reader.getCounterMetric(MetricNames.BYTE_COUNT.getName());
+          return NamedTestResult.create(
+              uuid, timestamp, MetricNames.BYTE_COUNT.getName(), totalBytes);
         });
 
     metricSuppliers.add(
         reader -> {
-          double totalBytes = reader.getCounterMetric("itemCount");
-          return NamedTestResult.create(uuid, timestamp, "item_count", totalBytes);
+          double totalBytes = reader.getCounterMetric(MetricNames.ITEM_COUNT.getName());
+          return NamedTestResult.create(
+              uuid, timestamp, MetricNames.ITEM_COUNT.getName(), totalBytes);
         });
 
     return metricSuppliers;
