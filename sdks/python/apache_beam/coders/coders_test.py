@@ -19,7 +19,6 @@ from __future__ import absolute_import
 import base64
 import logging
 import unittest
-import random
 from builtins import object
 
 from apache_beam.coders import proto2_coder_test_messages_pb2 as test_message
@@ -85,7 +84,7 @@ class ProtoCoderTest(unittest.TestCase):
     self.assertEqual(ma, real_coder.decode(real_coder.encode(ma)))
 
   def test_proto_coder_determinism(self):
-    keys = range(500)
+    keys = list(range(500))
     mm_forward = test_message.MessageWithMap()
     for i in keys:
       mm_forward.field1['key_%s' % i].field1 = 'Hello world %s' % i

@@ -739,15 +739,18 @@ class ProtoCoder(FastCoder):
   any protobuf Message object.
 
   """
-
-  def __init__(self, proto_message_type):
+  # TODO(yifanmai): Remove deterministic argument.
+  def __init__(self, proto_message_type, deterministic=True):
     self.proto_message_type = proto_message_type
+    self.deterministic = deterministic
 
   def _create_impl(self):
-    return coder_impl.ProtoCoderImpl(self.proto_message_type)
+    # TODO(yifanmai): Remove deterministic argument.
+    return coder_impl.ProtoCoderImpl(
+        self.proto_message_type, self.deterministic)
 
   def is_deterministic(self):
-    return True
+    return self.deterministic
 
   def __eq__(self, other):
     return (type(self) == type(other)

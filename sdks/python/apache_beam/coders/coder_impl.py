@@ -270,11 +270,14 @@ class DeterministicFastPrimitivesCoderImpl(CoderImpl):
 class ProtoCoderImpl(SimpleCoderImpl):
   """For internal use only; no backwards-compatibility guarantees."""
 
-  def __init__(self, proto_message_type):
+  # TODO(yifanmai): Remove deterministic argument.
+  def __init__(self, proto_message_type, deterministic=True):
     self.proto_message_type = proto_message_type
+    self.deterministic = deterministic
 
   def encode(self, value):
-    return value.SerializeToString(deterministic=True)
+    # TODO(yifanmai): Remove deterministic argument.
+    return value.SerializeToString(deterministic=self.deterministic)
 
   def decode(self, encoded):
     proto_message = self.proto_message_type()
