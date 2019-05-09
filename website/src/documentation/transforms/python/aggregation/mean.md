@@ -1,7 +1,7 @@
 ---
 layout: section
 title: "Mean"
-permalink: /documentation/transforms/python/aggregation/mean
+permalink: /documentation/transforms/python/aggregation/mean/
 section_menu: section-menu/documentation.html
 ---
 <!--

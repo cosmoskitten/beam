@@ -1,7 +1,7 @@
 ---
 layout: section
 title: "Window"
-permalink: /documentation/transforms/python/other/window
+permalink: /documentation/transforms/python/other/window/
 section_menu: section-menu/documentation.html
 ---
 <!--

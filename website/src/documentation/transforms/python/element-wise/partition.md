@@ -1,7 +1,7 @@
 ---
 layout: section
 title: "Partition"
-permalink: /documentation/transforms/python/elementwise/partition
+permalink: /documentation/transforms/python/elementwise/partition/
 section_menu: section-menu/documentation.html
 ---
 <!--

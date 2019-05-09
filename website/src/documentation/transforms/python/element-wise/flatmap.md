@@ -1,7 +1,7 @@
 ---
 layout: section
 title: "FlatMap"
-permalink: /documentation/transforms/python/elementwise/flatmap
+permalink: /documentation/transforms/python/elementwise/flatmap/
 section_menu: section-menu/documentation.html
 ---
 <!--

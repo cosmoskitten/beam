@@ -1,7 +1,7 @@
 ---
 layout: section
 title: "KvSwap"
-permalink: /documentation/transforms/python/elementwise/kvswap
+permalink: /documentation/transforms/python/elementwise/kvswap/
 section_menu: section-menu/documentation.html
 ---
 <!--

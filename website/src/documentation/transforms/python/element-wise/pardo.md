@@ -1,7 +1,7 @@
 ---
 layout: section
 title: "ParDo"
-permalink: /documentation/transforms/python/elementwise/pardo
+permalink: /documentation/transforms/python/elementwise/pardo/
 section_menu: section-menu/documentation.html
 ---
 <!--

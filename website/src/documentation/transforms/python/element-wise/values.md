@@ -1,7 +1,7 @@
 ---
 layout: section
 title: "Values"
-permalink: /documentation/transforms/python/elementwise/values
+permalink: /documentation/transforms/python/elementwise/values/
 section_menu: section-menu/documentation.html
 ---
 <!--

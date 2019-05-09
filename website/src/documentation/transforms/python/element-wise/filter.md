@@ -1,7 +1,7 @@
 ---
 layout: section
 title: "Filter"
-permalink: /documentation/transforms/python/elementwise/filter
+permalink: /documentation/transforms/python/elementwise/filter/
 section_menu: section-menu/documentation.html
 ---
 <!--

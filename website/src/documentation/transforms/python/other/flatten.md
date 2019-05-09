@@ -1,7 +1,7 @@
 ---
 layout: section
 title: "Flatten"
-permalink: /documentation/transforms/python/other/flatten
+permalink: /documentation/transforms/python/other/flatten/
 section_menu: section-menu/documentation.html
 ---
 <!--

@@ -1,7 +1,7 @@
 ---
 layout: section
 title: "Map"
-permalink: /documentation/transforms/python/elementwise/map
+permalink: /documentation/transforms/python/elementwise/map/
 section_menu: section-menu/documentation.html
 ---
 <!--

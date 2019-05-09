@@ -1,7 +1,7 @@
 ---
 layout: section
 title: "Python transform catalog overview"
-permalink: /documentation/transforms/python/overview
+permalink: /documentation/transforms/python/overview/
 section_menu: section-menu/documentation.html
 ---
 <!--

@@ -1,7 +1,7 @@
 ---
 layout: section
 title: "GroupByKey"
-permalink: /documentation/transforms/python/aggregation/groupbykey
+permalink: /documentation/transforms/python/aggregation/groupbykey/
 section_menu: section-menu/documentation.html
 ---
 <!--

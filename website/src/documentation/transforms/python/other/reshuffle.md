@@ -1,7 +1,7 @@
 ---
 layout: section
 title: "Reshuffle"
-permalink: /documentation/transforms/python/other/reshuffle
+permalink: /documentation/transforms/python/other/reshuffle/
 section_menu: section-menu/documentation.html
 ---
 <!--

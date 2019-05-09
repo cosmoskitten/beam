@@ -1,7 +1,7 @@
 ---
 layout: section
 title: "RemoveDuplicates"
-permalink: /documentation/transforms/python/aggregation/removeduplicates
+permalink: /documentation/transforms/python/aggregation/removeduplicates/
 section_menu: section-menu/documentation.html
 ---
 <!--

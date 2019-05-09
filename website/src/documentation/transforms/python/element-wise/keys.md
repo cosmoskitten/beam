@@ -1,7 +1,7 @@
 ---
 layout: section
 title: "Keys"
-permalink: /documentation/transforms/python/elementwise/keys
+permalink: /documentation/transforms/python/elementwise/keys/
 section_menu: section-menu/documentation.html
 ---
 <!--

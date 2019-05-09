@@ -1,7 +1,7 @@
 ---
 layout: section
 title: "Timestamp"
-permalink: /documentation/transforms/python/elementwise/timestamp
+permalink: /documentation/transforms/python/elementwise/timestamp/
 section_menu: section-menu/documentation.html
 ---
 <!--
