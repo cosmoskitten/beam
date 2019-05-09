@@ -40,7 +40,6 @@ import org.apache.beam.sdk.testutils.NamedTestResult;
 import org.apache.beam.sdk.testutils.metrics.ByteMonitor;
 import org.apache.beam.sdk.testutils.metrics.CountMonitor;
 import org.apache.beam.sdk.testutils.metrics.IOITMetrics;
-import org.apache.beam.sdk.testutils.metrics.MetricNames;
 import org.apache.beam.sdk.testutils.metrics.MetricsReader;
 import org.apache.beam.sdk.testutils.metrics.TimeMonitor;
 import org.apache.beam.sdk.transforms.Combine;
@@ -146,22 +145,20 @@ public class JdbcIOIT {
     Set<Function<MetricsReader, NamedTestResult>> suppliers = new HashSet<>();
     suppliers.add(
         reader -> {
-          long writeStart = reader.getStartTimeMetric(MetricNames.WRITE_TIME.getName());
-          long writeEnd = reader.getEndTimeMetric(MetricNames.WRITE_TIME.getName());
+          long writeStart = reader.getStartTimeMetric("write_time");
+          long writeEnd = reader.getEndTimeMetric("write_time");
           return NamedTestResult.create(
-              uuid, timestamp, MetricNames.WRITE_TIME.getName(), (writeEnd - writeStart) / 1e3);
+              uuid, timestamp, "write_time", (writeEnd - writeStart) / 1e3);
         });
     suppliers.add(
         reader -> {
-          double totalBytes = reader.getCounterMetric(MetricNames.BYTE_COUNT.getName());
-          return NamedTestResult.create(
-              uuid, timestamp, MetricNames.BYTE_COUNT.getName(), totalBytes);
+          double totalBytes = reader.getCounterMetric("write_bytes");
+          return NamedTestResult.create(uuid, timestamp, "write_bytes", totalBytes);
         });
     suppliers.add(
         reader -> {
-          double itemCount = reader.getCounterMetric(MetricNames.ITEM_COUNT.getName());
-          return NamedTestResult.create(
-              uuid, timestamp, MetricNames.ITEM_COUNT.getName(), itemCount);
+          double writeElements = reader.getCounterMetric("write_elements");
+          return NamedTestResult.create(uuid, timestamp, "write_elements", writeElements);
         });
     return suppliers;
   }
@@ -171,10 +168,20 @@ public class JdbcIOIT {
     Set<Function<MetricsReader, NamedTestResult>> suppliers = new HashSet<>();
     suppliers.add(
         reader -> {
-          long readStart = reader.getStartTimeMetric(MetricNames.READ_TIME.getName());
-          long readEnd = reader.getEndTimeMetric(MetricNames.READ_TIME.getName());
-          return NamedTestResult.create(
-              uuid, timestamp, MetricNames.READ_TIME.getName(), (readEnd - readStart) / 1e3);
+          long readStart = reader.getStartTimeMetric("read_time");
+          long readEnd = reader.getEndTimeMetric("read_time");
+          return NamedTestResult.create(uuid, timestamp, "read_time", (readEnd - readStart) / 1e3);
+        });
+
+    suppliers.add(
+        reader -> {
+          double totalBytes = reader.getCounterMetric("read_bytes");
+          return NamedTestResult.create(uuid, timestamp, "read_bytes", totalBytes);
+        });
+    suppliers.add(
+        reader -> {
+          double readElements = reader.getCounterMetric("read_elements");
+          return NamedTestResult.create(uuid, timestamp, "read_elements", readElements);
         });
     return suppliers;
   }
@@ -191,9 +198,9 @@ public class JdbcIOIT {
     pipelineWrite
         .apply(GenerateSequence.from(0).to(numberOfRows))
         .apply(ParDo.of(new TestRow.DeterministicallyConstructTestRowFn()))
-        .apply(ParDo.of(new TimeMonitor<>(NAMESPACE, MetricNames.WRITE_TIME.getName())))
-        .apply(ParDo.of(new ByteMonitor<>(NAMESPACE, MetricNames.BYTE_COUNT.getName())))
-        .apply(ParDo.of(new CountMonitor<>(NAMESPACE, MetricNames.ITEM_COUNT.getName())))
+        .apply(ParDo.of(new TimeMonitor<>(NAMESPACE, "write_time")))
+        .apply(ParDo.of(new ByteMonitor<>(NAMESPACE, "write_bytes")))
+        .apply(ParDo.of(new CountMonitor<>(NAMESPACE, "write_elements")))
         .apply(
             JdbcIO.<TestRow>write()
                 .withDataSourceConfiguration(JdbcIO.DataSourceConfiguration.create(dataSource))
@@ -227,7 +234,9 @@ public class JdbcIOIT {
                     .withQuery(String.format("select name,id from %s;", tableName))
                     .withRowMapper(new JdbcTestHelper.CreateTestRowOfNameAndId())
                     .withCoder(SerializableCoder.of(TestRow.class)))
-            .apply(ParDo.of(new TimeMonitor<>(NAMESPACE, MetricNames.READ_TIME.getName())));
+            .apply(ParDo.of(new TimeMonitor<>(NAMESPACE, "read_time")))
+            .apply(ParDo.of(new ByteMonitor<>(NAMESPACE, "read_bytes")))
+            .apply(ParDo.of(new CountMonitor<>(NAMESPACE, "read_elements")));
 
     PAssert.thatSingleton(namesAndIds.apply("Count All", Count.globally()))
         .isEqualTo((long) numberOfRows);

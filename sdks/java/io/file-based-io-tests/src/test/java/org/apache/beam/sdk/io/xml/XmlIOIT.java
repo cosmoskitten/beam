@@ -45,7 +45,6 @@ import org.apache.beam.sdk.testutils.NamedTestResult;
 import org.apache.beam.sdk.testutils.metrics.ByteMonitor;
 import org.apache.beam.sdk.testutils.metrics.CountMonitor;
 import org.apache.beam.sdk.testutils.metrics.IOITMetrics;
-import org.apache.beam.sdk.testutils.metrics.MetricNames;
 import org.apache.beam.sdk.testutils.metrics.MetricsReader;
 import org.apache.beam.sdk.testutils.metrics.TimeMonitor;
 import org.apache.beam.sdk.transforms.Combine;
@@ -130,13 +129,12 @@ public class XmlIOIT {
             .apply("Create xml records", MapElements.via(new LongToBird()))
             .apply(
                 "Gather write start time",
-                ParDo.of(new TimeMonitor<>(XMLIOIT_NAMESPACE, MetricNames.WRITE_START.getName())))
+                ParDo.of(new TimeMonitor<>(XMLIOIT_NAMESPACE, "writeStart")))
             .apply(
-                "Gather byte count",
-                ParDo.of(new ByteMonitor<>(XMLIOIT_NAMESPACE, MetricNames.BYTE_COUNT.getName())))
+                "Gather byte count", ParDo.of(new ByteMonitor<>(XMLIOIT_NAMESPACE, "byte_count")))
             .apply(
                 "Gather element count",
-                ParDo.of(new CountMonitor<>(XMLIOIT_NAMESPACE, MetricNames.ITEM_COUNT.getName())))
+                ParDo.of(new CountMonitor<>(XMLIOIT_NAMESPACE, "item_count")))
             .apply(
                 "Write xml files",
                 FileIO.<Bird>write()
@@ -146,8 +144,7 @@ public class XmlIOIT {
                     .withSuffix(".xml"))
             .getPerDestinationOutputFilenames()
             .apply(
-                "Gather write end time",
-                ParDo.of(new TimeMonitor<>(XMLIOIT_NAMESPACE, MetricNames.WRITE_END.getName())))
+                "Gather write end time", ParDo.of(new TimeMonitor<>(XMLIOIT_NAMESPACE, "writeEnd")))
             .apply("Get file names", Values.create());
 
     PCollection<Bird> birds =
@@ -156,7 +153,7 @@ public class XmlIOIT {
             .apply("Read matched files", FileIO.readMatches())
             .apply(
                 "Gather read start time",
-                ParDo.of(new TimeMonitor<>(XMLIOIT_NAMESPACE, MetricNames.READ_START.getName())))
+                ParDo.of(new TimeMonitor<>(XMLIOIT_NAMESPACE, "readStart")))
             .apply(
                 "Read xml files",
                 XmlIO.<Bird>readFiles()
@@ -165,8 +162,7 @@ public class XmlIOIT {
                     .withRecordElement("bird")
                     .withCharset(charset))
             .apply(
-                "Gather read end time",
-                ParDo.of(new TimeMonitor<>(XMLIOIT_NAMESPACE, MetricNames.READ_END.getName())));
+                "Gather read end time", ParDo.of(new TimeMonitor<>(XMLIOIT_NAMESPACE, "readEnd")));
 
     PCollection<String> consolidatedHashcode =
         birds
@@ -201,41 +197,38 @@ public class XmlIOIT {
     Set<Function<MetricsReader, NamedTestResult>> suppliers = new HashSet<>();
     suppliers.add(
         reader -> {
-          long writeStart = reader.getStartTimeMetric(MetricNames.WRITE_START.getName());
-          long writeEnd = reader.getEndTimeMetric(MetricNames.WRITE_END.getName());
+          long writeStart = reader.getStartTimeMetric("writeStart");
+          long writeEnd = reader.getEndTimeMetric("writeEnd");
           double writeTime = (writeEnd - writeStart) / 1e3;
-          return NamedTestResult.create(
-              uuid, timestamp, MetricNames.WRITE_TIME.getName(), writeTime);
+          return NamedTestResult.create(uuid, timestamp, "write_time", writeTime);
         });
 
     suppliers.add(
         reader -> {
-          long readStart = reader.getStartTimeMetric(MetricNames.READ_START.getName());
-          long readEnd = reader.getEndTimeMetric(MetricNames.READ_END.getName());
+          long readStart = reader.getStartTimeMetric("readStart");
+          long readEnd = reader.getEndTimeMetric("readEnd");
           double readTime = (readEnd - readStart) / 1e3;
-          return NamedTestResult.create(uuid, timestamp, MetricNames.READ_TIME.getName(), readTime);
+          return NamedTestResult.create(uuid, timestamp, "read_time", readTime);
         });
 
     suppliers.add(
         reader -> {
-          long writeStart = reader.getStartTimeMetric(MetricNames.WRITE_START.getName());
-          long readEnd = reader.getEndTimeMetric(MetricNames.READ_END.getName());
+          long writeStart = reader.getStartTimeMetric("writeStart");
+          long readEnd = reader.getEndTimeMetric("readEnd");
           double runTime = (readEnd - writeStart) / 1e3;
-          return NamedTestResult.create(uuid, timestamp, MetricNames.RUN_TIME.getName(), runTime);
+          return NamedTestResult.create(uuid, timestamp, "run_time", runTime);
         });
 
     suppliers.add(
         reader -> {
-          double totalBytes = reader.getCounterMetric(MetricNames.BYTE_COUNT.getName());
-          return NamedTestResult.create(
-              uuid, timestamp, MetricNames.BYTE_COUNT.getName(), totalBytes);
+          double totalBytes = reader.getCounterMetric("byteCount");
+          return NamedTestResult.create(uuid, timestamp, "byte_count", totalBytes);
         });
 
     suppliers.add(
         reader -> {
-          double totalBytes = reader.getCounterMetric(MetricNames.ITEM_COUNT.getName());
-          return NamedTestResult.create(
-              uuid, timestamp, MetricNames.ITEM_COUNT.getName(), totalBytes);
+          double totalBytes = reader.getCounterMetric("itemCount");
+          return NamedTestResult.create(uuid, timestamp, "item_count", totalBytes);
         });
 
     return suppliers;

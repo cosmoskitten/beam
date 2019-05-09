@@ -41,7 +41,6 @@ import org.apache.beam.sdk.testutils.NamedTestResult;
 import org.apache.beam.sdk.testutils.metrics.ByteMonitor;
 import org.apache.beam.sdk.testutils.metrics.CountMonitor;
 import org.apache.beam.sdk.testutils.metrics.IOITMetrics;
-import org.apache.beam.sdk.testutils.metrics.MetricNames;
 import org.apache.beam.sdk.testutils.metrics.MetricsReader;
 import org.apache.beam.sdk.testutils.metrics.TimeMonitor;
 import org.apache.beam.sdk.transforms.Combine;
@@ -120,26 +119,24 @@ public class TextIOIT {
                 ParDo.of(new FileBasedIOITHelper.DeterministicallyConstructTestTextLineFn()))
             .apply(
                 "Collect write start time",
-                ParDo.of(new TimeMonitor<>(FILEIOIT_NAMESPACE, MetricNames.START_TIME.getName())))
+                ParDo.of(new TimeMonitor<>(FILEIOIT_NAMESPACE, "startTime")))
             .apply(
-                "Collect byte count",
-                ParDo.of(new ByteMonitor<>(FILEIOIT_NAMESPACE, MetricNames.BYTE_COUNT.getName())))
+                "Collect byte count", ParDo.of(new ByteMonitor<>(FILEIOIT_NAMESPACE, "byteCount")))
             .apply(
                 "Collect element count",
-                ParDo.of(new CountMonitor<>(FILEIOIT_NAMESPACE, MetricNames.ITEM_COUNT.getName())))
+                ParDo.of(new CountMonitor<>(FILEIOIT_NAMESPACE, "itemCount")))
             .apply("Write content to files", write)
             .getPerDestinationOutputFilenames()
             .apply(Values.create())
             .apply(
                 "Collect write end time",
-                ParDo.of(new TimeMonitor<>(FILEIOIT_NAMESPACE, MetricNames.MID_POINT.getName())));
+                ParDo.of(new TimeMonitor<>(FILEIOIT_NAMESPACE, "middleTime")));
 
     PCollection<String> consolidatedHashcode =
         testFilenames
             .apply("Read all files", TextIO.readAll().withCompression(AUTO))
             .apply(
-                "Collect read end time",
-                ParDo.of(new TimeMonitor<>(FILEIOIT_NAMESPACE, MetricNames.END_TIME.getName())))
+                "Collect read end time", ParDo.of(new TimeMonitor<>(FILEIOIT_NAMESPACE, "endTime")))
             .apply("Calculate hashcode", Combine.globally(new HashingFn()));
 
     String expectedHash = getExpectedHashForLineCount(numberOfTextLines);
@@ -173,41 +170,38 @@ public class TextIOIT {
 
     metricSuppliers.add(
         (reader) -> {
-          long writeStartTime = reader.getStartTimeMetric(MetricNames.START_TIME.getName());
-          long writeEndTime = reader.getEndTimeMetric(MetricNames.MID_POINT.getName());
+          long writeStartTime = reader.getStartTimeMetric("startTime");
+          long writeEndTime = reader.getEndTimeMetric("middleTime");
           double writeTime = (writeEndTime - writeStartTime) / 1e3;
-          return NamedTestResult.create(
-              uuid, timestamp, MetricNames.WRITE_TIME.getName(), writeTime);
+          return NamedTestResult.create(uuid, timestamp, "write_time", writeTime);
         });
 
     metricSuppliers.add(
         (reader) -> {
-          long readStartTime = reader.getStartTimeMetric(MetricNames.MID_POINT.getName());
-          long readEndTime = reader.getEndTimeMetric(MetricNames.END_TIME.getName());
+          long readStartTime = reader.getStartTimeMetric("middleTime");
+          long readEndTime = reader.getEndTimeMetric("endTime");
           double readTime = (readEndTime - readStartTime) / 1e3;
-          return NamedTestResult.create(uuid, timestamp, MetricNames.READ_TIME.getName(), readTime);
+          return NamedTestResult.create(uuid, timestamp, "read_time", readTime);
         });
 
     metricSuppliers.add(
         (reader) -> {
-          long writeStartTime = reader.getStartTimeMetric(MetricNames.START_TIME.getName());
-          long readEndTime = reader.getEndTimeMetric(MetricNames.END_TIME.getName());
+          long writeStartTime = reader.getStartTimeMetric("startTime");
+          long readEndTime = reader.getEndTimeMetric("endTime");
           double runTime = (readEndTime - writeStartTime) / 1e3;
-          return NamedTestResult.create(uuid, timestamp, MetricNames.RUN_TIME.getName(), runTime);
+          return NamedTestResult.create(uuid, timestamp, "run_time", runTime);
         });
 
     metricSuppliers.add(
         (metricsReader -> {
-          double totalBytes = metricsReader.getCounterMetric(MetricNames.BYTE_COUNT.getName());
-          return NamedTestResult.create(
-              uuid, timestamp, MetricNames.BYTE_COUNT.getName(), totalBytes);
+          double totalBytes = metricsReader.getCounterMetric("byteCount");
+          return NamedTestResult.create(uuid, timestamp, "byte_count", totalBytes);
         }));
 
     metricSuppliers.add(
         reader -> {
-          double totalBytes = reader.getCounterMetric(MetricNames.ITEM_COUNT.getName());
-          return NamedTestResult.create(
-              uuid, timestamp, MetricNames.ITEM_COUNT.getName(), totalBytes);
+          double totalBytes = reader.getCounterMetric("itemCount");
+          return NamedTestResult.create(uuid, timestamp, "item_count", totalBytes);
         });
 
     if (gatherGcsPerformanceMetrics) {
