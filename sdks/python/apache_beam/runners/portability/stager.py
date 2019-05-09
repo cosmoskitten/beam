@@ -49,6 +49,7 @@ from __future__ import absolute_import
 import glob
 import logging
 import os
+import platform
 import shutil
 import sys
 import tempfile
@@ -200,10 +201,11 @@ class Stager(object):
     # Handle jar packages that should be staged for Java SDK Harness.
     jar_packages = options.view_as(
         DebugOptions).lookup_experiment('jar_packages')
+    classpath_separator = ':' if platform.system() != 'Windows' else ';'
     if jar_packages is not None:
       resources.extend(
           self._stage_jar_packages(
-              jar_packages.split(':'), staging_location,
+              jar_packages.split(classpath_separator), staging_location,
               temp_dir=temp_dir))
 
     # Pickle the main session if requested.
