@@ -20,6 +20,7 @@ from __future__ import absolute_import
 
 import logging
 import os
+import platform
 import shutil
 import sys
 import tempfile
@@ -586,13 +587,14 @@ class StagerTest(unittest.TestCase):
 
     options = PipelineOptions()
     self.update_options(options)
+    classpath_separator = ':' if platform.system() != 'Windows' else ';'
     options.view_as(DebugOptions).experiments = [
-        'jar_packages=%s:%s:%s:%s' % (
+        'jar_packages=%s' % classpath_separator.join([
             os.path.join(source_dir, 'abc.jar'),
             os.path.join(source_dir, 'xyz.jar'),
             os.path.join(source_dir, 'ijk.jar'),
             '/tmp/remote/remote.jar'
-        )
+        ])
     ]
 
     self.remote_copied_files = []
