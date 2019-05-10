@@ -103,7 +103,7 @@ public class ParDoLoadTest extends LoadTest<ParDoLoadTest.Options> {
     new ParDoLoadTest(args).run();
   }
 
-  private class CounterOperation<T> extends DoFn<T, T> {
+  private static class CounterOperation<T> extends DoFn<T, T> {
     private Integer numberOfOperations;
     private List<Counter> counters = new ArrayList<>();
 
