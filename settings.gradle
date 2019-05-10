@@ -87,8 +87,8 @@ include "beam-runners-samza"
 project(":beam-runners-samza").dir = file("runners/samza")
 include "beam-runners-samza-job-server"
 project(":beam-runners-samza-job-server").dir = file("runners/samza/job-server")
-include "beam-runners-jet"
-project(":beam-runners-jet").dir = file("runners/jet")
+include "experimental-runners-jet"
+project(":experimental-runners-jet").dir = file("runners/jet")
 include "beam-sdks-go"
 project(":beam-sdks-go").dir = file("sdks/go")
 include "beam-sdks-go-container"
