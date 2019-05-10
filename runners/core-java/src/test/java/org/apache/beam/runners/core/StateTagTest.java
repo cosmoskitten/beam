@@ -45,7 +45,7 @@ public class StateTagTest {
     StateTag<?> barVarInt = StateTags.value("bar", VarIntCoder.of());
 
     assertEquals(fooVarInt1, fooVarInt2);
-    assertNotEquals(fooVarInt1, fooBigEndian);
+    assertEquals(fooVarInt1, fooBigEndian);
     assertNotEquals(fooVarInt1, barVarInt);
   }
 
