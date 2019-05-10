@@ -25,7 +25,7 @@ bounded and unbounded `PCollections` with SQL statements. Your SQL query
 is translated to a `PTransform`, an encapsulated segment of a Beam pipeline.
 You can freely mix SQL `PTransforms` and other `PTransforms` in your pipeline.
 
-[Apache Calcite](http://calcite.apache.org) a widespread SQL dialect used in
+[Apache Calcite](http://calcite.apache.org) is a widespread SQL dialect used in
 big data processing with some streaming enhancements. Calcite provides the
 basic dialect underlying Beam SQL.
 
