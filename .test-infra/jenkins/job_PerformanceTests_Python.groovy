@@ -28,25 +28,23 @@ class PerformanceTestConfigurations {
   String jobTriggerPhrase
   // Frequency of the job build, default to every 6 hours
   String buildSchedule = 'H */6 * * *'
-  // A benchmark flag, will pass to "--benchmarkName"
+  // A benchmark defined flag, will pass to benchmark as "--benchmarkName"
   String benchmarkName = 'beam_integration_benchmark'
-  // A benchmark flag, will pass to "--beam_sdk"
-  String sdk = 'python'
-  // A benchmark flag, will pass to "--bigqueryTable"
+  // A benchmark defined flag, will pass to benchmark as "--bigqueryTable"
   String resultTable
-  // A benchmark flag, will pass to "--beam_it_class"
+  // A benchmark defined flag, will pass to benchmark as "--beam_it_class"
   String itClass
-  // A benchmark flag, will pass to "--beam_it_module"
+  // A benchmark defined flag, will pass to benchmark as "--beam_it_module"
   String itModule
-  // A benchmark flag, will pass to "--beam_prebuilt"
-  Boolean prebuilt = false
-  // A benchmark flag, will pass to "--beam_python_sdk_location"
+  // A benchmark defined flag, will pass to benchmark as "--beam_python_sdk_location"
+  // If not provided, benchmark will search through the project recursively
+  // or fails immediately.
   String pythonSdkLocation = ''
-  // A benchmark flag, will pass to "--beam_runner"
+  // A benchmark defined flag, will pass to benchmark as "--beam_runner"
   String runner = 'TestDataflowRunner'
-  // A benchmark flag, will pass to "--beam_it_timeout"
+  // A benchmark defined flag, will pass to benchmark as "--beam_it_timeout"
   Integer itTimeoutSec = 1200
-  // A benchmark flag, will pass to "--beam_it_args"
+  // A benchmark defined flag, will pass to benchmark as "--beam_it_args"
   Map extraPipelineArgs
 }
 
@@ -65,7 +63,6 @@ def testConfigurations = [
         jobDescription    : 'Python SDK Performance Test',
         jobTriggerPhrase  : 'Run Python Performance Test',
         resultTable       : 'beam_performance.wordcount_py_pkb_results',
-        prebuilt          : true,
         itClass           : 'apache_beam.examples.wordcount_it_test:WordCountIT.test_wordcount_it',
         itModule          : 'sdks/python',
         extraPipelineArgs : dataflowPipelineArgs + [
@@ -77,7 +74,6 @@ def testConfigurations = [
         jobDescription    : 'Python35 SDK Performance Test',
         jobTriggerPhrase  : 'Run Python35 Performance Test',
         resultTable       : 'beam_performance.wordcount_py35_pkb_results',
-        prebuilt          : true,
         itClass           : 'apache_beam.examples.wordcount_it_test:WordCountIT.test_wordcount_it',
         itModule          : 'sdks/python/test-suites/dataflow/py35',
         extraPipelineArgs : dataflowPipelineArgs + [
@@ -110,12 +106,12 @@ private void createPythonPerformanceTestJob(PerformanceTestConfigurations testCo
         testConfig.jobTriggerPhrase)
 
     def argMap = [
-        beam_sdk                : testConfig.sdk,
+        beam_sdk                : 'python',
         benchmarks              : testConfig.benchmarkName,
         bigquery_table          : testConfig.resultTable,
         beam_it_class           : testConfig.itClass,
         beam_it_module          : testConfig.itModule,
-        beam_prebuilt           : testConfig.prebuilt.toString(),
+        beam_prebuilt           : 'true',
         beam_python_sdk_location: getSDKLocationFromModule(testConfig.pythonSdkLocation,
                                                            testConfig.itModule),
         beam_runner             : testConfig.runner,
