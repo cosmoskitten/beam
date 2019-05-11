@@ -59,7 +59,7 @@ import org.joda.time.base.AbstractInstant;
 public abstract class Row implements Serializable {
   private final Schema schema;
 
-  Row(Schema schema) {
+  protected Row(Schema schema) {
     this.schema = schema;
   }
 
