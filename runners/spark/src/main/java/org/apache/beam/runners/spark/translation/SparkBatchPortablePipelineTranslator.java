@@ -224,6 +224,11 @@ public class SparkBatchPortablePipelineTranslator {
             MetricsAccumulator.getInstance());
     JavaRDD<RawUnionValue> staged = inputRdd.mapPartitions(function);
 
+    // Prevent potentially expensive re-computation of executable stage
+    if (outputs.size() > 1) {
+      staged.cache();
+    }
+
     for (String outputId : outputs.values()) {
       JavaRDD<WindowedValue<OutputT>> outputRdd =
           staged.flatMap(new SparkExecutableStageExtractionFunction<>(outputMap.get(outputId)));
