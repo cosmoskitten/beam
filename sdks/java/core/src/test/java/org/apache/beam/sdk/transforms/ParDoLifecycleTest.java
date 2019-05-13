@@ -18,14 +18,19 @@
 package org.apache.beam.sdk.transforms;
 
 import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.anEmptyMap;
 import static org.hamcrest.Matchers.anyOf;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.greaterThan;
 import static org.hamcrest.Matchers.is;
+import static org.hamcrest.Matchers.not;
+import static org.hamcrest.Matchers.notNullValue;
+import static org.hamcrest.Matchers.nullValue;
 import static org.junit.Assert.fail;
 
 import java.io.Serializable;
-import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 import org.apache.beam.sdk.state.StateSpec;
 import org.apache.beam.sdk.state.StateSpecs;
 import org.apache.beam.sdk.state.ValueState;
@@ -162,10 +167,18 @@ public class ParDoLifecycleTest implements Serializable {
       p.run();
       fail("Pipeline should have failed with an exception");
     } catch (Exception e) {
-      assertThat(
-          "Function should have been torn down after exception",
-          ExceptionThrowingFn.teardownCalled.get(),
-          is(true));
+      assertThat(ExceptionThrowingFn.callStateMap, is(not(anEmptyMap())));
+      // assert that callStateMap contains only TEARDOWN as a value. Note: We do not expect
+      // teardown to be called on fn itself, but on any deserialized instance on which any other
+      // lifecycle method was called
+      ExceptionThrowingFn.callStateMap
+          .values()
+          .forEach(
+              value ->
+                  assertThat(
+                      "Function should have been torn down after exception",
+                      value,
+                      is(CallState.TEARDOWN)));
     }
   }
 
@@ -178,10 +191,18 @@ public class ParDoLifecycleTest implements Serializable {
       p.run();
       fail("Pipeline should have failed with an exception");
     } catch (Exception e) {
-      assertThat(
-          "Function should have been torn down after exception",
-          ExceptionThrowingFn.teardownCalled.get(),
-          is(true));
+      assertThat(ExceptionThrowingFn.callStateMap, is(not(anEmptyMap())));
+      // assert that callStateMap contains only TEARDOWN as a value. Note: We do not expect
+      // teardown to be called on fn itself, but on any deserialized instance on which any other
+      // lifecycle method was called
+      ExceptionThrowingFn.callStateMap
+          .values()
+          .forEach(
+              value ->
+                  assertThat(
+                      "Function should have been torn down after exception",
+                      value,
+                      is(CallState.TEARDOWN)));
     }
   }
 
@@ -194,10 +215,18 @@ public class ParDoLifecycleTest implements Serializable {
       p.run();
       fail("Pipeline should have failed with an exception");
     } catch (Exception e) {
-      assertThat(
-          "Function should have been torn down after exception",
-          ExceptionThrowingFn.teardownCalled.get(),
-          is(true));
+      assertThat(ExceptionThrowingFn.callStateMap, is(not(anEmptyMap())));
+      // assert that callStateMap contains only TEARDOWN as a value. Note: We do not expect
+      // teardown to be called on fn itself, but on any deserialized instance on which any other
+      // lifecycle method was called
+      ExceptionThrowingFn.callStateMap
+          .values()
+          .forEach(
+              value ->
+                  assertThat(
+                      "Function should have been torn down after exception",
+                      value,
+                      is(CallState.TEARDOWN)));
     }
   }
 
@@ -210,10 +239,18 @@ public class ParDoLifecycleTest implements Serializable {
       p.run();
       fail("Pipeline should have failed with an exception");
     } catch (Exception e) {
-      assertThat(
-          "Function should have been torn down after exception",
-          ExceptionThrowingFn.teardownCalled.get(),
-          is(true));
+      assertThat(ExceptionThrowingFn.callStateMap, is(not(anEmptyMap())));
+      // assert that callStateMap contains only TEARDOWN as a value. Note: We do not expect
+      // teardown to be called on fn itself, but on any deserialized instance on which any other
+      // lifecycle method was called
+      ExceptionThrowingFn.callStateMap
+          .values()
+          .forEach(
+              value ->
+                  assertThat(
+                      "Function should have been torn down after exception",
+                      value,
+                      is(CallState.TEARDOWN)));
     }
   }
 
@@ -226,10 +263,18 @@ public class ParDoLifecycleTest implements Serializable {
       p.run();
       fail("Pipeline should have failed with an exception");
     } catch (Exception e) {
-      assertThat(
-          "Function should have been torn down after exception",
-          ExceptionThrowingFn.teardownCalled.get(),
-          is(true));
+      assertThat(ExceptionThrowingFn.callStateMap, is(not(anEmptyMap())));
+      // assert that callStateMap contains only TEARDOWN as a value. Note: We do not expect
+      // teardown to be called on fn itself, but on any deserialized instance on which any other
+      // lifecycle method was called
+      ExceptionThrowingFn.callStateMap
+          .values()
+          .forEach(
+              value ->
+                  assertThat(
+                      "Function should have been torn down after exception",
+                      value,
+                      is(CallState.TEARDOWN)));
     }
   }
 
@@ -242,10 +287,18 @@ public class ParDoLifecycleTest implements Serializable {
       p.run();
       fail("Pipeline should have failed with an exception");
     } catch (Exception e) {
-      assertThat(
-          "Function should have been torn down after exception",
-          ExceptionThrowingFn.teardownCalled.get(),
-          is(true));
+      assertThat(ExceptionThrowingFn.callStateMap, is(not(anEmptyMap())));
+      // assert that callStateMap contains only TEARDOWN as a value. Note: We do not expect
+      // teardown to be called on fn itself, but on any deserialized instance on which any other
+      // lifecycle method was called
+      ExceptionThrowingFn.callStateMap
+          .values()
+          .forEach(
+              value ->
+                  assertThat(
+                      "Function should have been torn down after exception",
+                      value,
+                      is(CallState.TEARDOWN)));
     }
   }
 
@@ -258,10 +311,18 @@ public class ParDoLifecycleTest implements Serializable {
       p.run();
       fail("Pipeline should have failed with an exception");
     } catch (Exception e) {
-      assertThat(
-          "Function should have been torn down after exception",
-          ExceptionThrowingFn.teardownCalled.get(),
-          is(true));
+      assertThat(ExceptionThrowingFn.callStateMap, is(not(anEmptyMap())));
+      // assert that callStateMap contains only TEARDOWN as a value. Note: We do not expect
+      // teardown to be called on fn itself, but on any deserialized instance on which any other
+      // lifecycle method was called
+      ExceptionThrowingFn.callStateMap
+          .values()
+          .forEach(
+              value ->
+                  assertThat(
+                      "Function should have been torn down after exception",
+                      value,
+                      is(CallState.TEARDOWN)));
     }
   }
 
@@ -274,20 +335,28 @@ public class ParDoLifecycleTest implements Serializable {
       p.run();
       fail("Pipeline should have failed with an exception");
     } catch (Exception e) {
-      assertThat(
-          "Function should have been torn down after exception",
-          ExceptionThrowingFn.teardownCalled.get(),
-          is(true));
+      assertThat(ExceptionThrowingFn.callStateMap, is(not(anEmptyMap())));
+      // assert that callStateMap contains only TEARDOWN as a value. Note: We do not expect
+      // teardown to be called on fn itself, but on any deserialized instance on which any other
+      // lifecycle method was called
+      ExceptionThrowingFn.callStateMap
+          .values()
+          .forEach(
+              value ->
+                  assertThat(
+                      "Function should have been torn down after exception",
+                      value,
+                      is(CallState.TEARDOWN)));
     }
   }
 
   @Before
   public void setup() {
-    ExceptionThrowingFn.teardownCalled.set(false);
+    ExceptionThrowingFn.callStateMap = new ConcurrentHashMap<>();
   }
 
   private static class ExceptionThrowingFn<T> extends DoFn<T, T> {
-    static AtomicBoolean teardownCalled = new AtomicBoolean(false);
+    static Map<Integer, CallState> callStateMap = new ConcurrentHashMap<>();
 
     private final MethodForException toThrow;
     private boolean thrown;
@@ -298,25 +367,43 @@ public class ParDoLifecycleTest implements Serializable {
 
     @Setup
     public void before() throws Exception {
-      assertThat("teardown should not have been called", teardownCalled.get(), is(false));
+      assertThat(
+          "lifecycle methods should not have been called", callStateMap.get(id()), is(nullValue()));
+      callStateMap.put(id(), CallState.SETUP);
       throwIfNecessary(MethodForException.SETUP);
+    }
+
+    private int id() {
+      return System.identityHashCode(this);
     }
 
     @StartBundle
     public void preBundle() throws Exception {
-      assertThat("teardown should not have been called", teardownCalled.get(), is(false));
+      assertThat(
+          "lifecycle method should have been called before start bundle",
+          callStateMap.get(id()),
+          anyOf(equalTo(CallState.SETUP), equalTo(CallState.FINISH_BUNDLE)));
+      callStateMap.put(id(), CallState.START_BUNDLE);
       throwIfNecessary(MethodForException.START_BUNDLE);
     }
 
     @ProcessElement
     public void perElement(ProcessContext c) throws Exception {
-      assertThat("teardown should not have been called", teardownCalled.get(), is(false));
+      assertThat(
+          "lifecycle method should have been called before processing bundle",
+          callStateMap.get(id()),
+          anyOf(equalTo(CallState.START_BUNDLE), equalTo(CallState.PROCESS_ELEMENT)));
+      callStateMap.put(id(), CallState.PROCESS_ELEMENT);
       throwIfNecessary(MethodForException.PROCESS_ELEMENT);
     }
 
     @FinishBundle
     public void postBundle() throws Exception {
-      assertThat("teardown should not have been called", teardownCalled.get(), is(false));
+      assertThat(
+          "processing bundle should have been called before finish bundle",
+          callStateMap.get(id()),
+          is(CallState.PROCESS_ELEMENT));
+      callStateMap.put(id(), CallState.FINISH_BUNDLE);
       throwIfNecessary(MethodForException.FINISH_BUNDLE);
     }
 
@@ -332,7 +419,11 @@ public class ParDoLifecycleTest implements Serializable {
       if (!thrown) {
         fail("Excepted to have a processing method throw an exception");
       }
-      teardownCalled.set(true);
+      assertThat(
+          "some lifecycle method should have been called",
+          callStateMap.get(id()),
+          is(notNullValue()));
+      callStateMap.put(id(), CallState.TEARDOWN);
     }
   }
 
@@ -345,6 +436,14 @@ public class ParDoLifecycleTest implements Serializable {
     private ExceptionThrowingStatefulFn(MethodForException toThrow) {
       super(toThrow);
     }
+  }
+
+  private enum CallState {
+    SETUP,
+    START_BUNDLE,
+    PROCESS_ELEMENT,
+    FINISH_BUNDLE,
+    TEARDOWN
   }
 
   private enum MethodForException {
