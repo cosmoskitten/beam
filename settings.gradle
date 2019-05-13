@@ -222,10 +222,14 @@ include "beam-sdks-python-test-suites-dataflow-py35"
 project(":beam-sdks-python-test-suites-dataflow-py35").dir = file("sdks/python/test-suites/dataflow/py35")
 include "beam-sdks-python-test-suites-dataflow-py36"
 project(":beam-sdks-python-test-suites-dataflow-py36").dir = file("sdks/python/test-suites/dataflow/py36")
+include "beam-sdks-python-test-suites-dataflow-py37"
+project(":beam-sdks-python-test-suites-dataflow-py37").dir = file("sdks/python/test-suites/dataflow/py36")
 include "beam-sdks-python-test-suites-direct-py35"
 project(":beam-sdks-python-test-suites-direct-py35").dir = file("sdks/python/test-suites/direct/py35")
 include "beam-sdks-python-test-suites-direct-py36"
 project(":beam-sdks-python-test-suites-direct-py36").dir = file("sdks/python/test-suites/direct/py36")
+include "beam-sdks-python-test-suites-direct-py37"
+project(":beam-sdks-python-test-suites-direct-py37").dir = file("sdks/python/test-suites/direct/py36")
 include "beam-sdks-python-test-suites-tox-py35"
 project(":beam-sdks-python-test-suites-tox-py35").dir = file("sdks/python/test-suites/tox/py35")
 include "beam-sdks-python-test-suites-tox-py36"
