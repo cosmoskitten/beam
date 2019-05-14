@@ -243,6 +243,62 @@ public class RedisIOTest {
   }
 
   @Test
+  public void testWriteUsingINCR() throws Exception {
+    String key = "key";
+
+    Jedis jedis =
+        RedisConnectionConfiguration.create(REDIS_HOST, embeddedRedis.getPort()).connect();
+
+    PCollection<KV<String, String>> write =
+        writePipeline.apply(
+            Create.of(
+                KV.of(key, "0"),
+                KV.of(key, "1"),
+                KV.of(key, "2"),
+                KV.of(key, "-3"),
+                KV.of(key, "2"),
+                KV.of(key, "4"),
+                KV.of(key, "0"),
+                KV.of(key, "5")));
+
+    write.apply(
+        RedisIO.write().withEndpoint(REDIS_HOST, embeddedRedis.getPort()).withMethod(Method.INCR));
+
+    writePipeline.run();
+
+    long count = Long.parseLong(jedis.get(key));
+    Assert.assertEquals(11, count);
+  }
+
+  @Test
+  public void testWriteUsingDECR() throws Exception {
+    String key = "key";
+
+    Jedis jedis =
+        RedisConnectionConfiguration.create(REDIS_HOST, embeddedRedis.getPort()).connect();
+
+    PCollection<KV<String, String>> write =
+        writePipeline.apply(
+            Create.of(
+                KV.of(key, "-10"),
+                KV.of(key, "1"),
+                KV.of(key, "2"),
+                KV.of(key, "-3"),
+                KV.of(key, "2"),
+                KV.of(key, "4"),
+                KV.of(key, "0"),
+                KV.of(key, "5")));
+
+    write.apply(
+        RedisIO.write().withEndpoint(REDIS_HOST, embeddedRedis.getPort()).withMethod(Method.DECR));
+
+    writePipeline.run();
+
+    long count = Long.parseLong(jedis.get(key));
+    Assert.assertEquals(-1, count);
+  }
+
+  @Test
   public void testReadBuildsCorrectly() {
     RedisIO.Read read = RedisIO.read().withEndpoint("test", 111).withAuth("pass").withTimeout(5);
     Assert.assertEquals("test", read.connectionConfiguration().host());
