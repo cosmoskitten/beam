@@ -38,7 +38,7 @@ import org.apache.beam.sdk.values.PCollection;
  * <p>To run it manually, use the following command:
  *
  * <pre>
- *    ./gradlew :beam-sdks-java-load-tests:run -PloadTest.args='
+ *    ./gradlew :sdks:java:testing:load-tests:run -PloadTest.args='
  *      --numberOfCounterOperations=1
  *      --sourceOptions={"numRecords":1000,...}
  *      --stepOptions={"outputRecordsPerInputRecord":2...}'
@@ -74,7 +74,7 @@ public class ParDoLoadTest extends LoadTest<ParDoLoadTest.Options> {
         pipeline
             .apply("Read input", readFromSource(sourceOptions))
             .apply(ParDo.of(runtimeMonitor))
-            .apply(ParDo.of(new ByteMonitor(METRICS_NAMESPACE, "totalBytes.count")));
+            .apply(ParDo.of(new ByteMonitor<>(METRICS_NAMESPACE, "totalBytes.count")));
 
     for (int i = 0; i < options.getNumberOfCounterOperations(); i++) {
       input = input.apply(String.format("Step: %d", i), ParDo.of(new SyntheticStep(stepOptions)));

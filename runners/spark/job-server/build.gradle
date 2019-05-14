@@ -35,7 +35,7 @@ applyJavaNature(
   },
 )
 
-def sparkRunnerProject = ":${project.name.replace("-job-server", "")}"
+def sparkRunnerProject = project.parent.path
 
 description = project(sparkRunnerProject).description + " :: Job Server"
 
@@ -52,10 +52,10 @@ dependencies {
   compile project(path: sparkRunnerProject, configuration: "provided")
   validatesPortableRunner project(path: sparkRunnerProject, configuration: "shadowTest")
   validatesPortableRunner project(path: sparkRunnerProject, configuration: "provided")
-  validatesPortableRunner project(path: ":beam-sdks-java-core", configuration: "shadowTest")
-  validatesPortableRunner project(path: ":beam-runners-core-java", configuration: "shadowTest")
-  validatesPortableRunner project(path: ":beam-runners-reference-java", configuration: "shadowTest")
-  compile project(path: ":beam-sdks-java-extensions-google-cloud-platform-core", configuration: "shadow")
+  validatesPortableRunner project(path: ":sdks:java:core", configuration: "shadowTest")
+  validatesPortableRunner project(path: ":runners:core-java", configuration: "shadowTest")
+  validatesPortableRunner project(path: ":runners:reference:java", configuration: "shadowTest")
+  compile project(path: ":sdks:java:extensions:google-cloud-platform-core", configuration: "shadow")
 //  TODO: Enable AWS and HDFS file system.
 }
 
@@ -70,6 +70,10 @@ runShadow {
     args += ["--artifacts-dir=${project.property('artifactsDir')}"]
   if (project.hasProperty('cleanArtifactsPerJob'))
     args += ["--clean-artifacts-per-job=${project.property('cleanArtifactsPerJob')}"]
+  if (project.hasProperty('sparkMasterUrl'))
+    args += ["--spark-master-url=${project.property('sparkMasterUrl')}"]
+
+  systemProperties System.properties
 
   // Enable remote debugging.
   jvmArgs = ["-Xdebug", "-Xrunjdwp:transport=dt_socket,server=y,suspend=n,address=5005"]
@@ -86,7 +90,7 @@ def portableValidatesRunnerTask(String name) {
     numParallelTests: 1,
     environment: BeamModulePlugin.PortableValidatesRunnerConfiguration.Environment.EMBEDDED,
     systemProperties: [
-      "beam.spark.test.reuseSparkContext": "true",
+      "beam.spark.test.reuseSparkContext": "false",
       "spark.ui.enabled": "false",
       "spark.ui.showConsoleProgress": "false",
     ],
