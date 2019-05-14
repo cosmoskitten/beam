@@ -59,7 +59,7 @@ public class DynamoDBIOTest implements Serializable {
   private static List<Map<String, AttributeValue>> expected;
 
   @BeforeClass
-  public static void setup() throws Exception {
+  public static void setup() {
     DynamoDBIOTestHelper.startServerClient();
     DynamoDBIOTestHelper.createTestTable(tableName);
     expected = DynamoDBIOTestHelper.generateTestData(tableName, numOfItems);
@@ -68,7 +68,7 @@ public class DynamoDBIOTest implements Serializable {
   }
 
   @AfterClass
-  public static void destroy() throws Exception {
+  public static void destroy() {
     DynamoDBIOTestHelper.stopServerClient(tableName);
   }
 

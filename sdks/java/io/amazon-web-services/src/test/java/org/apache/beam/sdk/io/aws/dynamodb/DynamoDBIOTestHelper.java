@@ -17,13 +17,8 @@
  */
 package org.apache.beam.sdk.io.aws.dynamodb;
 
-import com.amazonaws.auth.AWSStaticCredentialsProvider;
-import com.amazonaws.auth.BasicAWSCredentials;
-import com.amazonaws.client.builder.AwsClientBuilder;
 import com.amazonaws.services.dynamodbv2.AmazonDynamoDB;
 import com.amazonaws.services.dynamodbv2.AmazonDynamoDBClientBuilder;
-import com.amazonaws.services.dynamodbv2.local.main.ServerRunner;
-import com.amazonaws.services.dynamodbv2.local.server.DynamoDBProxyServer;
 import com.amazonaws.services.dynamodbv2.model.AttributeDefinition;
 import com.amazonaws.services.dynamodbv2.model.AttributeValue;
 import com.amazonaws.services.dynamodbv2.model.BatchWriteItemRequest;
@@ -45,50 +40,48 @@ import java.util.List;
 import java.util.Map;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableList;
 import org.junit.Assert;
+import org.junit.Rule;
+import org.testcontainers.containers.localstack.LocalStackContainer;
 
 /** A utility to generate test table and data for {@link DynamoDBIOTest}. */
 class DynamoDBIOTestHelper implements Serializable {
 
-  private static DynamoDBProxyServer server;
+  @Rule
+  private static LocalStackContainer localStackContainer =
+      new LocalStackContainer().withServices(LocalStackContainer.Service.DYNAMODB);
+
   private static AmazonDynamoDB dynamoDBClient;
+  private static String endpointUrl = "http://localhost:";
 
-  private static final String port = "8001";
-  private static final String endpointUrl = "http://localhost:" + port;
-
-  private static final String region = "us-west-2";
+  private static final String region = "us-east-1";
   private static final String accessKey = "foo";
   private static final String secretKey = "bar";
 
   static final String ATTR_NAME_1 = "hashKey1";
   static final String ATTR_NAME_2 = "rangeKey2";
 
-  static void startServerClient() throws Exception {
-    if (server == null) {
-      server =
-          ServerRunner.createServerFromCommandLineArgs(new String[] {"-inMemory", "-port", port});
-      server.start();
-    }
+  static void startServerClient() {
+    localStackContainer.start();
+    Integer firstMappedPort = localStackContainer.getFirstMappedPort();
+    endpointUrl = endpointUrl + firstMappedPort;
 
     if (dynamoDBClient == null) {
       dynamoDBClient =
           AmazonDynamoDBClientBuilder.standard()
               .withEndpointConfiguration(
-                  new AwsClientBuilder.EndpointConfiguration(endpointUrl, region))
-              .withCredentials(
-                  new AWSStaticCredentialsProvider(new BasicAWSCredentials(accessKey, secretKey)))
+                  localStackContainer.getEndpointConfiguration(
+                      LocalStackContainer.Service.DYNAMODB))
+              .withCredentials(localStackContainer.getDefaultCredentialsProvider())
               .build();
     }
   }
 
-  static void stopServerClient(String tableName) throws Exception {
+  static void stopServerClient(String tableName) {
     if (dynamoDBClient != null) {
       dynamoDBClient.deleteTable(tableName);
       dynamoDBClient.shutdown();
     }
-
-    if (server != null) {
-      server.stop();
-    }
+    localStackContainer.stop();
   }
 
   static DynamoDBIO.DynamoDBConfiguration getDynamoDBConfig() {
@@ -145,7 +138,7 @@ class DynamoDBIOTestHelper implements Serializable {
         tableDesc.getProvisionedThroughput().getWriteCapacityUnits(), Long.valueOf(1000));
     Assert.assertEquals("ACTIVE", tableDesc.getTableStatus());
     Assert.assertEquals(
-        "arn:aws:dynamodb:ddblocal:000000000000:table/" + tableName, tableDesc.getTableArn());
+        "arn:aws:dynamodb:us-east-1:000000000000:table/" + tableName, tableDesc.getTableArn());
 
     ListTablesResult tables = dynamoDBClient.listTables();
     Assert.assertEquals(1, tables.getTableNames().size());

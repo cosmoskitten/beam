@@ -43,7 +43,6 @@ import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.SerializableFunction;
-import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.util.BackOff;
 import org.apache.beam.sdk.util.BackOffUtils;
 import org.apache.beam.sdk.util.FluentBackoff;
@@ -218,12 +217,6 @@ public final class DynamoDBIO {
 
     public DynamoDBConfiguration withAwsSecretKey(ValueProvider<String> secretKey) {
       return builder().setAwsSecretKey(secretKey).build();
-    }
-
-    private void populateDisplayData(DisplayData.Builder builder) {
-      builder.addIfNotNull(DisplayData.item("region", getRegion()));
-      builder.addIfNotNull(DisplayData.item("accessKey", getAwsAccessKey()));
-      builder.addIfNotNull(DisplayData.item("secretKey", getAwsSecretKey()));
     }
 
     AmazonDynamoDB buildAmazonDynamoDB() {
