@@ -18,23 +18,18 @@
 
 import groovy.json.JsonOutput
 
-project.ext {
-    jet_version = '3.0'
-    hazelcast_version = '3.12'
-    // Look for the source code in the current module
-    main_source_dirs = ['./src/main/java']
-    test_source_dirs = ['./src/test/java']
-    main_resources_dirs = ['./src/main/resources']
-    test_resources_dirs = ['./src/test/resources']
-}
-
-apply plugin: 'org.apache.beam.module'
+plugins { id 'org.apache.beam.module' }
 applyJavaNature()
 
-description = "Apache Beam :: Runners :: Hazelcast Jet $jet_version"
+description = "Apache Beam :: Runners :: Hazelcast Jet"
 
 evaluationDependsOn(":sdks:java:core")
 evaluationDependsOn(":runners:core-java")
+
+project.ext {
+    jet_version = '3.0'
+    hazelcast_version = '3.12'
+}
 
 configurations {
     validatesRunner
