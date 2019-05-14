@@ -20,55 +20,33 @@ rootProject.name = "beam"
 
 include ":release"
 
-include "beam-examples-kotlin"
-project(":beam-examples-kotlin").dir = file("examples/kotlin")
-include "beam-examples-java"
-project(":beam-examples-java").dir = file("examples/java")
-include "beam-model-fn-execution"
-project(":beam-model-fn-execution").dir = file("model/fn-execution")
-include "beam-model-job-management"
-project(":beam-model-job-management").dir = file("model/job-management")
-include "beam-model-pipeline"
-project(":beam-model-pipeline").dir = file("model/pipeline")
-include "beam-runners-apex"
-project(":beam-runners-apex").dir = file("runners/apex")
-include "beam-runners-core-construction-java"
-project(":beam-runners-core-construction-java").dir = file("runners/core-construction-java")
-include "beam-runners-core-java"
-project(":beam-runners-core-java").dir = file("runners/core-java")
-include "beam-runners-direct-java"
-project(":beam-runners-direct-java").dir = file("runners/direct-java")
-include "beam-runners-extensions-java-metrics"
-project(":beam-runners-extensions-java-metrics").dir = file("runners/extensions-java/metrics")
+include ":examples:java"
+include ":examples:kotlin"
+include ":model:fn-execution"
+include ":model:job-management"
+include ":model:pipeline"
+include ":runners:apex"
+include ":runners:core-construction-java"
+include ":runners:core-java"
+include ":runners:direct-java"
+include ":runners:extensions-java:metrics"
 /* Begin Flink Runner related settings */
 // Flink 1.5 (with Scala 2.11 suffix)
-include "beam-runners-flink_2.11"
-project(":beam-runners-flink_2.11").dir = file("runners/flink/1.5")
-include "beam-runners-flink_2.11-job-server"
-project(":beam-runners-flink_2.11-job-server").dir = file("runners/flink/1.5/job-server")
-include "beam-runners-flink_2.11-job-server-container"
-project(":beam-runners-flink_2.11-job-server-container").dir = file("runners/flink/1.5/job-server-container")
+include ":runners:flink:1.5"
+include ":runners:flink:1.5:job-server"
+include ":runners:flink:1.5:job-server-container"
 // Flink 1.6
-include "beam-runners-flink-1.6"
-project(":beam-runners-flink-1.6").dir = file("runners/flink/1.6")
-include "beam-runners-flink-1.6-job-server"
-project(":beam-runners-flink-1.6-job-server").dir = file("runners/flink/1.6/job-server")
-include "beam-runners-flink-1.6-job-server-container"
-project(":beam-runners-flink-1.6-job-server-container").dir = file("runners/flink/1.6/job-server-container")
+include ":runners:flink:1.6"
+include ":runners:flink:1.6:job-server"
+include ":runners:flink:1.6:job-server-container"
 // Flink 1.7
-include "beam-runners-flink-1.7"
-project(":beam-runners-flink-1.7").dir = file("runners/flink/1.7")
-include "beam-runners-flink-1.7-job-server"
-project(":beam-runners-flink-1.7-job-server").dir = file("runners/flink/1.7/job-server")
-include "beam-runners-flink-1.7-job-server-container"
-project(":beam-runners-flink-1.7-job-server-container").dir = file("runners/flink/1.7/job-server-container")
+include ":runners:flink:1.7"
+include ":runners:flink:1.7:job-server"
+include ":runners:flink:1.7:job-server-container"
 // Flink 1.8
-include "beam-runners-flink-1.8"
-project(":beam-runners-flink-1.8").dir = file("runners/flink/1.8")
-include "beam-runners-flink-1.8-job-server"
-project(":beam-runners-flink-1.8-job-server").dir = file("runners/flink/1.8/job-server")
-include "beam-runners-flink-1.8-job-server-container"
-project(":beam-runners-flink-1.8-job-server-container").dir = file("runners/flink/1.8/job-server-container")
+include ":runners:flink:1.8"
+include ":runners:flink:1.8:job-server"
+include ":runners:flink:1.8:job-server-container"
 /* End Flink Runner related settings */
 include "beam-runners-gearpump"
 project(":beam-runners-gearpump").dir = file("runners/gearpump")
@@ -256,7 +234,5 @@ include "beam-runners-google-cloud-dataflow-java-windmill"
 project(":beam-runners-google-cloud-dataflow-java-windmill").dir = file("runners/google-cloud-dataflow-java/worker/windmill")
 include "beam-test-infra-metrics"
 project(":beam-test-infra-metrics").dir = file(".test-infra/metrics")
-include "beam-sdks-java-bom"
-project(":beam-sdks-java-bom").dir = file("sdks/java/bom")
 include "beam-test-tools"
 project(":beam-test-tools").dir = file(".test-infra/tools")
