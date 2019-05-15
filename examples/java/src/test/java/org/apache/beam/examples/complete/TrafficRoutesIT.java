@@ -70,9 +70,7 @@ public class TrafficRoutesIT {
     this.options.setBigQueryTable(this.outputTable);
     TrafficRoutes.runTrafficRoutes(options);
     FluentBackoff backoffFactory =
-        FluentBackoff.DEFAULT
-            .withMaxRetries(4)
-            .withInitialBackoff(Duration.standardSeconds(1L));
+        FluentBackoff.DEFAULT.withMaxRetries(4).withInitialBackoff(Duration.standardSeconds(1L));
     Sleeper sleeper = Sleeper.DEFAULT;
     BackOff backoff = BackOffAdapter.toGcpBackOff(backoffFactory.backoff());
     String res = "empty_result";
