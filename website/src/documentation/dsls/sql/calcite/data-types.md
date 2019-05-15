@@ -19,7 +19,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 -->
 
-# Beam SQL data types for Calcite
+# Beam SQL data types (Calcite)
 
 Beam SQL supports standard SQL scalar data types as well as extensions
 including arrays, maps, and nested rows. This page documents supported

@@ -22,7 +22,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 -->
 
-# CREATE EXTERNAL TABLE
+# Beam SQL extensions: CREATE EXTERNAL TABLE
 
 Beam SQL's `CREATE EXTERNAL TABLE` statement registers a virtual table that maps to an
 [external storage system]({{ site.baseurl }}/documentation/io/built-in/).

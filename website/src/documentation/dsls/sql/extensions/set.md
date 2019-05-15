@@ -19,7 +19,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 -->
 
-# SET and RESET Pipeline Options
+# Beam SQL extensions: SET and RESET Pipeline Options
 
 Beam SQL's `SET` and `RESET` statements allow the user to [configure Pipeline
 Options]({{ site.baseurl }}/documentation/programming-guide/#configuring-pipeline-options)
