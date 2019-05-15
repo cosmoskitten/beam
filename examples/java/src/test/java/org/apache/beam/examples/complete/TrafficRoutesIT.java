@@ -19,13 +19,19 @@ package org.apache.beam.examples.complete;
 
 import static org.junit.Assert.assertEquals;
 
+import com.google.api.client.util.BackOff;
+import com.google.api.client.util.BackOffUtils;
+import com.google.api.client.util.Sleeper;
 import com.google.api.services.bigquery.model.QueryResponse;
 import org.apache.beam.examples.complete.TrafficRoutes.FormatStatsFn;
 import org.apache.beam.examples.complete.TrafficRoutes.TrafficRoutesOptions;
 import org.apache.beam.sdk.extensions.gcp.options.GcpOptions;
+import org.apache.beam.sdk.extensions.gcp.util.BackOffAdapter;
 import org.apache.beam.sdk.io.gcp.testing.BigqueryClient;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.testing.TestPipeline;
+import org.apache.beam.sdk.util.FluentBackoff;
+import org.joda.time.Duration;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
@@ -63,14 +69,24 @@ public class TrafficRoutesIT {
     this.options.setBigQueryDataset(this.outputDatasetId);
     this.options.setBigQueryTable(this.outputTable);
     TrafficRoutes.runTrafficRoutes(options);
-
-    QueryResponse response =
-        this.bqClient.queryWithRetries(
-            String.format(
-                "SELECT count(*) as total FROM [%s:%s.%s]",
-                this.projectId, this.outputDatasetId, this.outputTable),
-            this.projectId);
-    String res = response.getRows().get(0).getF().get(0).getV().toString();
+    FluentBackoff backoffFactory =
+        FluentBackoff.DEFAULT
+            .withMaxRetries(4)
+            .withInitialBackoff(Duration.standardSeconds(1L));
+    Sleeper sleeper = Sleeper.DEFAULT;
+    BackOff backoff = BackOffAdapter.toGcpBackOff(backoffFactory.backoff());
+    String res = "empty_result";
+    do {
+      QueryResponse response =
+          this.bqClient.queryWithRetries(
+              String.format(
+                  "SELECT count(*) as total FROM [%s:%s.%s]",
+                  this.projectId, this.outputDatasetId, this.outputTable),
+              this.projectId);
+      if (response.getRows() != null && response.getRows().get(0).getF() != null) {
+        res = response.getRows().get(0).getF().get(0).getV().toString();
+      }
+    } while (BackOffUtils.next(sleeper, backoff));
     assertEquals("27", res);
   }
 }
