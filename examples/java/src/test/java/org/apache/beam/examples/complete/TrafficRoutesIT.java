@@ -37,10 +37,13 @@ import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /** End-to-end tests of TrafficRoutes. */
 @RunWith(JUnit4.class)
 public class TrafficRoutesIT {
+  private static final Logger LOG = LoggerFactory.getLogger(TrafficRoutesIT.class);
   private TrafficRoutesOptions options;
   private final String timestamp = Long.toString(System.currentTimeMillis());
   private final String outputDatasetId = "traffic_routes_" + timestamp;
@@ -74,6 +77,7 @@ public class TrafficRoutesIT {
     Sleeper sleeper = Sleeper.DEFAULT;
     BackOff backoff = BackOffAdapter.toGcpBackOff(backoffFactory.backoff());
     String res = "empty_result";
+    int attemptNum = 1;
     do {
       QueryResponse response =
           this.bqClient.queryWithRetries(
@@ -81,10 +85,16 @@ public class TrafficRoutesIT {
                   "SELECT count(*) as total FROM [%s:%s.%s]",
                   this.projectId, this.outputDatasetId, this.outputTable),
               this.projectId);
-      if (response.getRows() != null && response.getRows().get(0).getF() != null) {
+      try {
         res = response.getRows().get(0).getF().get(0).getV().toString();
+        break;
+      } catch (Exception e) {
+        LOG.info("Failed to get data from BigQuery with {} attempt.", attemptNum);
+        attemptNum += 1;
+        continue;
       }
     } while (BackOffUtils.next(sleeper, backoff));
+
     assertEquals("27", res);
   }
 }
