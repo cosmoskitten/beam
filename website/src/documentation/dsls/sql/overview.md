@@ -18,7 +18,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 -->
 
-# Beam SQL: Overview
+# Beam SQL overview
 
 Beam SQL allows a Beam user (currently only available in Beam Java) to query
 bounded and unbounded `PCollections` with SQL statements. Your SQL query

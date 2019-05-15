@@ -20,7 +20,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 -->
 
-# Beam SQL query syntax for Calcite
+# Beam SQL query syntax (Calcite)
 
 Query statements scan one or more tables or expressions and return the computed
 result rows. This page documents Beam SQL's syntax for queries when using Apache Calcite.

@@ -19,7 +19,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 -->
 
-# Beam SQL scalar functions in Calcite
+# Beam SQL scalar functions (Calcite)
 
 This page documents built-in functions supported by Beam SQL when using Apache Calcite.
 
