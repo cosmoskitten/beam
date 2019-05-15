@@ -48,11 +48,8 @@ public class ElementCountFnDataReceiver<T> implements FnDataReceiver<WindowedVal
   private final MetricsContainer unboundMetricContainer;
 
   private ElementByteSizeObserver observer;
-  private static final int SAMPLING_TOKEN_UPPER_BOUND = 1000000;
-  private int samplingToken = 0;
-  private static final int SAMPLING_CUTOFF = 10;
-  private Random randomGenerator = new Random();
-  org.apache.beam.sdk.coders.Coder<T> elementCoder;
+  private ShouldSample<T> shouldSample;
+  private org.apache.beam.sdk.coders.Coder<T> elementCoder;
 
   public ElementCountFnDataReceiver(
       FnDataReceiver<WindowedValue<T>> original,
@@ -82,6 +79,8 @@ public class ElementCountFnDataReceiver<T> implements FnDataReceiver<WindowedVal
           }
         };
     this.elementCoder = (org.apache.beam.sdk.coders.Coder<T>) pColl.getCoder();
+
+    this.shouldSample = new ShouldSample(this.elementCoder);
   }
 
   @Override
@@ -90,13 +89,11 @@ public class ElementCountFnDataReceiver<T> implements FnDataReceiver<WindowedVal
       // Increment the counter for each window the element occurs in.
       this.elementCounter.inc(input.getWindows().size());
 
-      boolean sample =
-          this.elementCoder.isRegisterByteSizeObserverCheap(input.getValue())
-              || shouldSampleElement();
+      boolean sample = this.shouldSample.shouldSampleElement(input.getValue());
+
       if (sample) {
         this.elementCoder.registerByteSizeObserver(input.getValue(), this.observer);
       }
-
       this.original.accept(input);
 
       // Calling advance triggers the call to reportElementSize immediately.
@@ -105,18 +102,5 @@ public class ElementCountFnDataReceiver<T> implements FnDataReceiver<WindowedVal
         this.observer.advance();
       }
     }
-  }
-
-  protected boolean shouldSampleElement() {
-    // Sampling probability decreases as the element count is increasing.
-    // We unconditionally sample the first samplingCutoff elements. For the
-    // next samplingCutoff elements, the sampling probability drops from 100%
-    // to 50%. The probability of sampling the Nth element is:
-    // min(1, samplingCutoff / N), with an additional lower bound of
-    // samplingCutoff / samplingTokenUpperBound. This algorithm may be refined
-    // later.
-    samplingToken = Math.min(samplingToken + 1, SAMPLING_TOKEN_UPPER_BOUND);
-    int randomInt = randomGenerator.nextInt(samplingToken);
-    return randomInt < SAMPLING_CUTOFF;
   }
 }
