@@ -20,7 +20,7 @@ package org.apache.beam.sdk.io.kinesis;
 import java.io.Serializable;
 import org.joda.time.Instant;
 
-interface KinesisWatermarkPolicy extends Serializable {
+public interface WatermarkPolicy extends Serializable {
 
   Instant getWatermark();
 

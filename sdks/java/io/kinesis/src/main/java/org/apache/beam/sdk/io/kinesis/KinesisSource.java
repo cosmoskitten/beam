@@ -37,7 +37,7 @@ class KinesisSource extends UnboundedSource<KinesisRecord, KinesisReaderCheckpoi
   private final AWSClientsProvider awsClientsProvider;
   private final String streamName;
   private final Duration upToDateThreshold;
-  private final KinesisWatermarkPolicyFactory watermarkPolicyFactory;
+  private final WatermarkPolicyFactory watermarkPolicyFactory;
   private CheckpointGenerator initialCheckpointGenerator;
   private final Integer limit;
 
@@ -46,7 +46,7 @@ class KinesisSource extends UnboundedSource<KinesisRecord, KinesisReaderCheckpoi
       String streamName,
       StartingPoint startingPoint,
       Duration upToDateThreshold,
-      KinesisWatermarkPolicyFactory watermarkPolicyFactory,
+      WatermarkPolicyFactory watermarkPolicyFactory,
       Integer limit) {
     this(
         awsClientsProvider,
@@ -62,7 +62,7 @@ class KinesisSource extends UnboundedSource<KinesisRecord, KinesisReaderCheckpoi
       CheckpointGenerator initialCheckpoint,
       String streamName,
       Duration upToDateThreshold,
-      KinesisWatermarkPolicyFactory watermarkPolicyFactory,
+      WatermarkPolicyFactory watermarkPolicyFactory,
       Integer limit) {
     this.awsClientsProvider = awsClientsProvider;
     this.initialCheckpointGenerator = initialCheckpoint;

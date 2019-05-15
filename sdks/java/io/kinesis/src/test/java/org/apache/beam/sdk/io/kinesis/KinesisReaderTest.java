@@ -66,7 +66,7 @@ public class KinesisReaderTest {
         kinesis,
         generator,
         kinesisSource,
-        KinesisWatermarkPolicyFactory.withArrivalTimePolicy(),
+        WatermarkPolicyFactory.withArrivalTimePolicy(),
         Duration.ZERO,
         backlogBytesCheckThreshold) {
       @Override

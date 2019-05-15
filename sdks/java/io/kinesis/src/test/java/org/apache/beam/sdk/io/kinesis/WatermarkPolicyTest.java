@@ -30,16 +30,16 @@ import org.junit.runner.RunWith;
 import org.powermock.core.classloader.annotations.PrepareForTest;
 import org.powermock.modules.junit4.PowerMockRunner;
 
-/** Tests {@link KinesisWatermarkPolicy}. */
+/** Tests {@link WatermarkPolicy}. */
 @RunWith(PowerMockRunner.class)
 @PrepareForTest(Instant.class)
-public class KinesisWatermarkPolicyTest {
+public class WatermarkPolicyTest {
   private static final Instant NOW = Instant.now();
 
   @Test
   public void shouldAdvanceWatermarkWithTheArrivalTimeFromKinesisRecords() {
-    KinesisWatermarkPolicy policy =
-        KinesisWatermarkPolicyFactory.withArrivalTimePolicy().createKinesisWatermarkPolicy();
+    WatermarkPolicy policy =
+        WatermarkPolicyFactory.withArrivalTimePolicy().createWatermarkPolicy();
 
     KinesisRecord a = mock(KinesisRecord.class);
     KinesisRecord b = mock(KinesisRecord.class);
@@ -57,8 +57,8 @@ public class KinesisWatermarkPolicyTest {
 
   @Test
   public void shouldOnlyAdvanceTheWatermark() {
-    KinesisWatermarkPolicy policy =
-        KinesisWatermarkPolicyFactory.withArrivalTimePolicy().createKinesisWatermarkPolicy();
+    WatermarkPolicy policy =
+        WatermarkPolicyFactory.withArrivalTimePolicy().createWatermarkPolicy();
 
     KinesisRecord a = mock(KinesisRecord.class);
     KinesisRecord b = mock(KinesisRecord.class);
@@ -84,9 +84,9 @@ public class KinesisWatermarkPolicyTest {
   @Test
   public void shouldAdvanceWatermarkWhenThereAreNoIncomingRecords() {
     WatermarkParameters standardWatermarkParams = WatermarkParameters.create();
-    KinesisWatermarkPolicy policy =
-        KinesisWatermarkPolicyFactory.withCustomWatermarkPolicy(standardWatermarkParams)
-            .createKinesisWatermarkPolicy();
+    WatermarkPolicy policy =
+        WatermarkPolicyFactory.withCustomWatermarkPolicy(standardWatermarkParams)
+            .createWatermarkPolicy();
 
     mockStatic(Instant.class);
 
@@ -114,8 +114,8 @@ public class KinesisWatermarkPolicyTest {
 
   @Test
   public void shouldAdvanceWatermarkToNowWithProcessingTimePolicy() {
-    KinesisWatermarkPolicy policy =
-        KinesisWatermarkPolicyFactory.withProcessingTimePolicy().createKinesisWatermarkPolicy();
+    WatermarkPolicy policy =
+        WatermarkPolicyFactory.withProcessingTimePolicy().createWatermarkPolicy();
 
     mockStatic(Instant.class);
 
@@ -133,10 +133,10 @@ public class KinesisWatermarkPolicyTest {
     SerializableFunction<KinesisRecord, Instant> timestampFn =
         (record) -> record.getApproximateArrivalTimestamp().plus(Duration.standardMinutes(1));
 
-    KinesisWatermarkPolicy policy =
-        KinesisWatermarkPolicyFactory.withCustomWatermarkPolicy(
+    WatermarkPolicy policy =
+        WatermarkPolicyFactory.withCustomWatermarkPolicy(
                 WatermarkParameters.create().withTimestampFn(timestampFn))
-            .createKinesisWatermarkPolicy();
+            .createWatermarkPolicy();
 
     KinesisRecord a = mock(KinesisRecord.class);
     KinesisRecord b = mock(KinesisRecord.class);

@@ -46,13 +46,13 @@ class ShardRecordsIterator {
   private AtomicReference<ShardCheckpoint> checkpoint;
   private String shardIterator;
   private AtomicLong millisBehindLatest = new AtomicLong(Long.MAX_VALUE);
-  private AtomicReference<KinesisWatermarkPolicy> watermarkPolicy;
-  private KinesisWatermarkPolicyFactory watermarkPolicyFactory;
+  private AtomicReference<WatermarkPolicy> watermarkPolicy;
+  private WatermarkPolicyFactory watermarkPolicyFactory;
 
   ShardRecordsIterator(
       final ShardCheckpoint initialCheckpoint,
       SimplifiedKinesisClient simplifiedKinesisClient,
-      KinesisWatermarkPolicyFactory watermarkPolicyFactory)
+      WatermarkPolicyFactory watermarkPolicyFactory)
       throws TransientKinesisException {
     this(initialCheckpoint, simplifiedKinesisClient, watermarkPolicyFactory, new RecordFilter());
   }
@@ -60,7 +60,7 @@ class ShardRecordsIterator {
   ShardRecordsIterator(
       final ShardCheckpoint initialCheckpoint,
       SimplifiedKinesisClient simplifiedKinesisClient,
-      KinesisWatermarkPolicyFactory watermarkPolicyFactory,
+      WatermarkPolicyFactory watermarkPolicyFactory,
       RecordFilter filter)
       throws TransientKinesisException {
     this.checkpoint = new AtomicReference<>(checkNotNull(initialCheckpoint, "initialCheckpoint"));
@@ -70,7 +70,7 @@ class ShardRecordsIterator {
     this.shardId = initialCheckpoint.getShardId();
     this.shardIterator = initialCheckpoint.getShardIterator(kinesis);
     this.watermarkPolicy =
-        new AtomicReference<>(watermarkPolicyFactory.createKinesisWatermarkPolicy());
+        new AtomicReference<>(watermarkPolicyFactory.createWatermarkPolicy());
     this.watermarkPolicyFactory = watermarkPolicyFactory;
   }
 

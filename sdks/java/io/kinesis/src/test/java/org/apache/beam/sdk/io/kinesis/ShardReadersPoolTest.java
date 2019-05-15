@@ -54,7 +54,7 @@ public class ShardReadersPoolTest {
   @Mock private ShardCheckpoint firstCheckpoint, secondCheckpoint;
   @Mock private SimplifiedKinesisClient kinesis;
   @Mock private KinesisRecord a, b, c, d;
-  @Mock private KinesisWatermarkPolicyFactory factory;
+  @Mock private WatermarkPolicyFactory factory;
 
   private KinesisReaderCheckpoint checkpoint;
   private ShardReadersPool shardReadersPool;
@@ -75,13 +75,13 @@ public class ShardReadersPoolTest {
     when(thirdIterator.getShardId()).thenReturn("shard3");
     when(fourthIterator.getShardId()).thenReturn("shard4");
 
-    KinesisWatermarkPolicy policy =
-        KinesisWatermarkPolicyFactory.withArrivalTimePolicy().createKinesisWatermarkPolicy();
+    WatermarkPolicy policy =
+        WatermarkPolicyFactory.withArrivalTimePolicy().createWatermarkPolicy();
 
     checkpoint = new KinesisReaderCheckpoint(ImmutableList.of(firstCheckpoint, secondCheckpoint));
     shardReadersPool = Mockito.spy(new ShardReadersPool(kinesis, checkpoint, factory));
 
-    when(factory.createKinesisWatermarkPolicy()).thenReturn(policy);
+    when(factory.createWatermarkPolicy()).thenReturn(policy);
 
     doReturn(firstIterator).when(shardReadersPool).createShardIterator(kinesis, firstCheckpoint);
     doReturn(secondIterator).when(shardReadersPool).createShardIterator(kinesis, secondCheckpoint);
@@ -177,8 +177,8 @@ public class ShardReadersPoolTest {
     KinesisReaderCheckpoint checkpoint =
         new KinesisReaderCheckpoint(ImmutableList.of(firstCheckpoint, secondCheckpoint));
 
-    KinesisWatermarkPolicyFactory watermarkPolicyFactory =
-        KinesisWatermarkPolicyFactory.withArrivalTimePolicy();
+    WatermarkPolicyFactory watermarkPolicyFactory =
+        WatermarkPolicyFactory.withArrivalTimePolicy();
     ShardReadersPool shardReadersPool =
         new ShardReadersPool(kinesis, checkpoint, watermarkPolicyFactory, 2);
     shardReadersPool.start();
@@ -237,8 +237,8 @@ public class ShardReadersPoolTest {
   @Test
   public void shouldReturnAbsentOptionalWhenStartedWithNoIterators() throws Exception {
     KinesisReaderCheckpoint checkpoint = new KinesisReaderCheckpoint(Collections.emptyList());
-    KinesisWatermarkPolicyFactory watermarkPolicyFactory =
-        KinesisWatermarkPolicyFactory.withArrivalTimePolicy();
+    WatermarkPolicyFactory watermarkPolicyFactory =
+        WatermarkPolicyFactory.withArrivalTimePolicy();
     shardReadersPool =
         Mockito.spy(new ShardReadersPool(kinesis, checkpoint, watermarkPolicyFactory));
     doReturn(firstIterator)

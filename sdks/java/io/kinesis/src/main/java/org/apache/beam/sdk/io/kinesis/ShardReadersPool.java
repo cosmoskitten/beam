@@ -73,7 +73,7 @@ class ShardReadersPool {
   private final ConcurrentMap<String, AtomicInteger> numberOfRecordsInAQueueByShard;
 
   private final SimplifiedKinesisClient kinesis;
-  private final KinesisWatermarkPolicyFactory watermarkPolicyFactory;
+  private final WatermarkPolicyFactory watermarkPolicyFactory;
   private final KinesisReaderCheckpoint initialCheckpoint;
   private final int queueCapacityPerShard;
   private final AtomicBoolean poolOpened = new AtomicBoolean(true);
@@ -81,14 +81,14 @@ class ShardReadersPool {
   ShardReadersPool(
       SimplifiedKinesisClient kinesis,
       KinesisReaderCheckpoint initialCheckpoint,
-      KinesisWatermarkPolicyFactory watermarkPolicyFactory) {
+      WatermarkPolicyFactory watermarkPolicyFactory) {
     this(kinesis, initialCheckpoint, watermarkPolicyFactory, DEFAULT_CAPACITY_PER_SHARD);
   }
 
   ShardReadersPool(
       SimplifiedKinesisClient kinesis,
       KinesisReaderCheckpoint initialCheckpoint,
-      KinesisWatermarkPolicyFactory watermarkPolicyFactory,
+      WatermarkPolicyFactory watermarkPolicyFactory,
       int queueCapacityPerShard) {
     this.kinesis = kinesis;
     this.initialCheckpoint = initialCheckpoint;

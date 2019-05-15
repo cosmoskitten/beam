@@ -91,8 +91,8 @@ public class ShardRecordsIteratorTest {
     when(recordFilter.apply(anyListOf(KinesisRecord.class), any(ShardCheckpoint.class)))
         .thenAnswer(new IdentityAnswer());
 
-    KinesisWatermarkPolicyFactory watermarkPolicyFactory =
-        KinesisWatermarkPolicyFactory.withArrivalTimePolicy();
+    WatermarkPolicyFactory watermarkPolicyFactory =
+        WatermarkPolicyFactory.withArrivalTimePolicy();
     iterator =
         new ShardRecordsIterator(
             firstCheckpoint, kinesisClient, watermarkPolicyFactory, recordFilter);

@@ -125,6 +125,52 @@ import org.slf4j.LoggerFactory;
  *  .apply( ... ) // other transformations
  * }</pre>
  *
+ * <p> Kinesis IO uses ArrivalTimeWatermarkPolicy by default. To use Processing time as event time: </p>
+ *
+ * <pre>{@code
+ * p.apply(KinesisIO.read()
+ *    .withStreamName("streamName")
+ *    .withInitialPositionInStream(InitialPositionInStream.LATEST)
+ *    .withProcessingTimeWatermarkPolicy())
+ * }</pre>
+ *
+ * <p> It is also possible to specify a custom watermark policy to control watermark computation. Below is
+ * an example</p>
+ *
+ * <pre> {@code
+ * // custom policy
+ * class MyCustomPolicy implements WatermarkPolicy {
+ *     private WatermarkPolicyFactory.CustomWatermarkPolicy customWatermarkPolicy;
+ *
+ *     MyCustomPolicy() {
+ *       this.customWatermarkPolicy = new WatermarkPolicyFactory.CustomWatermarkPolicy(WatermarkParameters.create());
+ *     }
+ *
+ *     @Override
+ *     public Instant getWatermark() {
+ *       return customWatermarkPolicy.getWatermark();
+ *     }
+ *
+ *     @Override
+ *     public void update(KinesisRecord record) {
+ *       customWatermarkPolicy.update(record);
+ *     }
+ *   }
+ *
+ * // custom factory
+ * class MyCustomPolicyFactory implements WatermarkPolicyFactory {
+ *     @Override
+ *     public WatermarkPolicy createWatermarkPolicy() {
+ *       return new MyCustomPolicy();
+ *     }
+ * }
+ *
+ * p.apply(KinesisIO.read()
+ *    .withStreamName("streamName")
+ *    .withInitialPositionInStream(InitialPositionInStream.LATEST)
+ *    .withCustomWatermarkPolicy(new MyCustomPolicyFactory())
+ * }</pre>
+ *
  * <h3>Writing to Kinesis</h3>
  *
  * <p>Example usage:
@@ -190,7 +236,7 @@ public final class KinesisIO {
     return new AutoValue_KinesisIO_Read.Builder()
         .setMaxNumRecords(Long.MAX_VALUE)
         .setUpToDateThreshold(Duration.ZERO)
-        .setKinesisWatermarkPolicyFactory(KinesisWatermarkPolicyFactory.withArrivalTimePolicy())
+        .setWatermarkPolicyFactory(WatermarkPolicyFactory.withArrivalTimePolicy())
         .build();
   }
 
@@ -222,7 +268,7 @@ public final class KinesisIO {
     @Nullable
     abstract Integer getRequestRecordsLimit();
 
-    abstract KinesisWatermarkPolicyFactory getKinesisWatermarkPolicyFactory();
+    abstract WatermarkPolicyFactory getWatermarkPolicyFactory();
 
     abstract Builder toBuilder();
 
@@ -243,8 +289,7 @@ public final class KinesisIO {
 
       abstract Builder setRequestRecordsLimit(Integer limit);
 
-      abstract Builder setKinesisWatermarkPolicyFactory(
-          KinesisWatermarkPolicyFactory kinesisWatermarkPolicyFactory);
+      abstract Builder setWatermarkPolicyFactory(WatermarkPolicyFactory watermarkPolicyFactory);
 
       abstract Read build();
     }
@@ -339,7 +384,7 @@ public final class KinesisIO {
     /** Specifies the {@code WatermarkPolicyFactory} as ArrivalTimeWatermarkPolicyFactory. */
     public Read withArrivalTimeWatermarkPolicy() {
       return toBuilder()
-          .setKinesisWatermarkPolicyFactory(KinesisWatermarkPolicyFactory.withArrivalTimePolicy())
+          .setWatermarkPolicyFactory(WatermarkPolicyFactory.withArrivalTimePolicy())
           .build();
     }
 
@@ -351,16 +396,15 @@ public final class KinesisIO {
      */
     public Read withArrivalTimeWatermarkPolicy(Duration watermarkIdleDurationThreshold) {
       return toBuilder()
-          .setKinesisWatermarkPolicyFactory(
-              KinesisWatermarkPolicyFactory.withArrivalTimePolicy(watermarkIdleDurationThreshold))
+          .setWatermarkPolicyFactory(
+              WatermarkPolicyFactory.withArrivalTimePolicy(watermarkIdleDurationThreshold))
           .build();
     }
 
     /** Specifies the {@code WatermarkPolicyFactory} as ProcessingTimeWatermarkPolicyFactory. */
     public Read withProcessingTimeWatermarkPolicy() {
       return toBuilder()
-          .setKinesisWatermarkPolicyFactory(
-              KinesisWatermarkPolicyFactory.withProcessingTimePolicy())
+          .setWatermarkPolicyFactory(WatermarkPolicyFactory.withProcessingTimePolicy())
           .build();
     }
 
@@ -369,10 +413,9 @@ public final class KinesisIO {
      *
      * @param watermarkPolicyFactory Custom Watermark policy factory.
      */
-    public Read withCustomKinesisWatermarkPolicy(
-        KinesisWatermarkPolicyFactory watermarkPolicyFactory) {
+    public Read withCustomWatermarkPolicy(WatermarkPolicyFactory watermarkPolicyFactory) {
       checkArgument(watermarkPolicyFactory != null, "watermarkPolicyFactory cannot be null");
-      return toBuilder().setKinesisWatermarkPolicyFactory(watermarkPolicyFactory).build();
+      return toBuilder().setWatermarkPolicyFactory(watermarkPolicyFactory).build();
     }
 
     @Override
@@ -384,7 +427,7 @@ public final class KinesisIO {
                   getStreamName(),
                   getInitialPosition(),
                   getUpToDateThreshold(),
-                  getKinesisWatermarkPolicyFactory(),
+                  getWatermarkPolicyFactory(),
                   getRequestRecordsLimit()));
 
       PTransform<PBegin, PCollection<KinesisRecord>> transform = unbounded;

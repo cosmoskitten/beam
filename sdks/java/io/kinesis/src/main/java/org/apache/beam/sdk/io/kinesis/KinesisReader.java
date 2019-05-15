@@ -38,7 +38,7 @@ class KinesisReader extends UnboundedSource.UnboundedReader<KinesisRecord> {
   private final SimplifiedKinesisClient kinesis;
   private final KinesisSource source;
   private final CheckpointGenerator initialCheckpointGenerator;
-  private final KinesisWatermarkPolicyFactory watermarkPolicyFactory;
+  private final WatermarkPolicyFactory watermarkPolicyFactory;
   private final Duration upToDateThreshold;
   private final Duration backlogBytesCheckThreshold;
   private CustomOptional<KinesisRecord> currentRecord = CustomOptional.absent();
@@ -50,7 +50,7 @@ class KinesisReader extends UnboundedSource.UnboundedReader<KinesisRecord> {
       SimplifiedKinesisClient kinesis,
       CheckpointGenerator initialCheckpointGenerator,
       KinesisSource source,
-      KinesisWatermarkPolicyFactory watermarkPolicyFactory,
+      WatermarkPolicyFactory watermarkPolicyFactory,
       Duration upToDateThreshold) {
     this(
         kinesis,
@@ -65,7 +65,7 @@ class KinesisReader extends UnboundedSource.UnboundedReader<KinesisRecord> {
       SimplifiedKinesisClient kinesis,
       CheckpointGenerator initialCheckpointGenerator,
       KinesisSource source,
-      KinesisWatermarkPolicyFactory watermarkPolicyFactory,
+      WatermarkPolicyFactory watermarkPolicyFactory,
       Duration upToDateThreshold,
       Duration backlogBytesCheckThreshold) {
     this.kinesis = checkNotNull(kinesis, "kinesis");

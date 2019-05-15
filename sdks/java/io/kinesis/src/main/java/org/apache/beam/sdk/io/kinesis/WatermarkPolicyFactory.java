@@ -23,55 +23,53 @@ import org.joda.time.Duration;
 import org.joda.time.Instant;
 
 /**
- * Implement this interface to create a {@code KinesisWatermarkPolicy}. Used by the {@code
+ * Implement this interface to create a {@code WatermarkPolicy}. Used by the {@code
  * ShardRecordsIterator} to create a watermark policy for every shard.
  */
-interface KinesisWatermarkPolicyFactory extends Serializable {
+public interface WatermarkPolicyFactory extends Serializable {
 
-  KinesisWatermarkPolicy createKinesisWatermarkPolicy();
+  WatermarkPolicy createWatermarkPolicy();
 
-  /** Returns an ArrivalTimeKinesisWatermarkPolicy. */
-  static KinesisWatermarkPolicyFactory withArrivalTimePolicy() {
-    return ArrivalTimeKinesisWatermarkPolicy::new;
+  /** Returns an ArrivalTimeWatermarkPolicy. */
+  static WatermarkPolicyFactory withArrivalTimePolicy() {
+    return ArrivalTimeWatermarkPolicy::new;
   }
 
   /**
-   * Returns an ArrivalTimeKinesisWatermarkPolicy.
+   * Returns an ArrivalTimeWatermarkPolicy.
    *
    * @param watermarkIdleDurationThreshold watermark idle duration threshold.
    */
-  static KinesisWatermarkPolicyFactory withArrivalTimePolicy(
-      Duration watermarkIdleDurationThreshold) {
-    return () -> new ArrivalTimeKinesisWatermarkPolicy(watermarkIdleDurationThreshold);
+  static WatermarkPolicyFactory withArrivalTimePolicy(Duration watermarkIdleDurationThreshold) {
+    return () -> new ArrivalTimeWatermarkPolicy(watermarkIdleDurationThreshold);
   }
 
-  /** Returns an ProcessingTimeKinesisWatermarkPolicy. */
-  static KinesisWatermarkPolicyFactory withProcessingTimePolicy() {
-    return ProcessingTimeKinesisWatermarkPolicy::new;
+  /** Returns an ProcessingTimeWatermarkPolicy. */
+  static WatermarkPolicyFactory withProcessingTimePolicy() {
+    return ProcessingTimeWatermarkPolicy::new;
   }
 
   /**
-   * Returns an custom KinesisWatermarkPolicyFactory.
+   * Returns an custom WatermarkPolicyFactory.
    *
    * @param watermarkParameters Watermark parameters (timestamp extractor, watermark lag) for the
    *     policy.
    */
-  static KinesisWatermarkPolicyFactory withCustomWatermarkPolicy(
-      WatermarkParameters watermarkParameters) {
+  static WatermarkPolicyFactory withCustomWatermarkPolicy(WatermarkParameters watermarkParameters) {
     return () -> new CustomWatermarkPolicy(watermarkParameters);
   }
 
-  class ArrivalTimeKinesisWatermarkPolicy implements KinesisWatermarkPolicy {
+  class ArrivalTimeWatermarkPolicy implements WatermarkPolicy {
     private final CustomWatermarkPolicy watermarkPolicy;
 
-    ArrivalTimeKinesisWatermarkPolicy() {
+    ArrivalTimeWatermarkPolicy() {
       this.watermarkPolicy =
           new CustomWatermarkPolicy(
               WatermarkParameters.create()
                   .withTimestampFn(KinesisRecord::getApproximateArrivalTimestamp));
     }
 
-    ArrivalTimeKinesisWatermarkPolicy(Duration idleDurationThreshold) {
+    ArrivalTimeWatermarkPolicy(Duration idleDurationThreshold) {
       WatermarkParameters watermarkParameters =
           WatermarkParameters.create()
               .withTimestampFn(KinesisRecord::getApproximateArrivalTimestamp)
@@ -90,7 +88,7 @@ interface KinesisWatermarkPolicyFactory extends Serializable {
     }
   }
 
-  class CustomWatermarkPolicy implements KinesisWatermarkPolicy {
+  class CustomWatermarkPolicy implements WatermarkPolicy {
     private WatermarkParameters watermarkParameters;
 
     CustomWatermarkPolicy(WatermarkParameters watermarkParameters) {
@@ -130,7 +128,7 @@ interface KinesisWatermarkPolicyFactory extends Serializable {
     }
   }
 
-  class ProcessingTimeKinesisWatermarkPolicy implements KinesisWatermarkPolicy {
+  class ProcessingTimeWatermarkPolicy implements WatermarkPolicy {
     @Override
     public Instant getWatermark() {
       return Instant.now();
