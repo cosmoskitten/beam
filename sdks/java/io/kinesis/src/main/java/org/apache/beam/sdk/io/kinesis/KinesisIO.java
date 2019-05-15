@@ -125,7 +125,7 @@ import org.slf4j.LoggerFactory;
  *  .apply( ... ) // other transformations
  * }</pre>
  *
- * <p> Kinesis IO uses ArrivalTimeWatermarkPolicy by default. To use Processing time as event time: </p>
+ * <p>Kinesis IO uses ArrivalTimeWatermarkPolicy by default. To use Processing time as event time:
  *
  * <pre>{@code
  * p.apply(KinesisIO.read()
@@ -134,10 +134,10 @@ import org.slf4j.LoggerFactory;
  *    .withProcessingTimeWatermarkPolicy())
  * }</pre>
  *
- * <p> It is also possible to specify a custom watermark policy to control watermark computation. Below is
- * an example</p>
+ * <p>It is also possible to specify a custom watermark policy to control watermark computation.
+ * Below is an example
  *
- * <pre> {@code
+ * <pre>{@code
  * // custom policy
  * class MyCustomPolicy implements WatermarkPolicy {
  *     private WatermarkPolicyFactory.CustomWatermarkPolicy customWatermarkPolicy;

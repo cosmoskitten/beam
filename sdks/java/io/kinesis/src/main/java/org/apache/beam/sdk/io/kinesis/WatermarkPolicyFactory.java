@@ -59,6 +59,10 @@ public interface WatermarkPolicyFactory extends Serializable {
     return () -> new CustomWatermarkPolicy(watermarkParameters);
   }
 
+  /**
+   * ArrivalTimeWatermarkPolicy uses {@link CustomWatermarkPolicy} for watermark computation. It
+   * uses the arrival time of the record as the event time for watermark calculations.
+   */
   class ArrivalTimeWatermarkPolicy implements WatermarkPolicy {
     private final CustomWatermarkPolicy watermarkPolicy;
 
@@ -88,6 +92,11 @@ public interface WatermarkPolicyFactory extends Serializable {
     }
   }
 
+  /**
+   * CustomWatermarkPolicy uses parameters defined in {@link WatermarkParameters} to compute
+   * watermarks. This can be used as a standard heuristic to compute watermarks. Used by {@link
+   * ArrivalTimeWatermarkPolicy}.
+   */
   class CustomWatermarkPolicy implements WatermarkPolicy {
     private WatermarkParameters watermarkParameters;
 
@@ -128,6 +137,7 @@ public interface WatermarkPolicyFactory extends Serializable {
     }
   }
 
+  /** Watermark policy where the processing time is used as the event time. */
   class ProcessingTimeWatermarkPolicy implements WatermarkPolicy {
     @Override
     public Instant getWatermark() {

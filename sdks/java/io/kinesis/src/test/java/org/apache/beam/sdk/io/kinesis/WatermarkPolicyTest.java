@@ -38,8 +38,7 @@ public class WatermarkPolicyTest {
 
   @Test
   public void shouldAdvanceWatermarkWithTheArrivalTimeFromKinesisRecords() {
-    WatermarkPolicy policy =
-        WatermarkPolicyFactory.withArrivalTimePolicy().createWatermarkPolicy();
+    WatermarkPolicy policy = WatermarkPolicyFactory.withArrivalTimePolicy().createWatermarkPolicy();
 
     KinesisRecord a = mock(KinesisRecord.class);
     KinesisRecord b = mock(KinesisRecord.class);
@@ -57,8 +56,7 @@ public class WatermarkPolicyTest {
 
   @Test
   public void shouldOnlyAdvanceTheWatermark() {
-    WatermarkPolicy policy =
-        WatermarkPolicyFactory.withArrivalTimePolicy().createWatermarkPolicy();
+    WatermarkPolicy policy = WatermarkPolicyFactory.withArrivalTimePolicy().createWatermarkPolicy();
 
     KinesisRecord a = mock(KinesisRecord.class);
     KinesisRecord b = mock(KinesisRecord.class);

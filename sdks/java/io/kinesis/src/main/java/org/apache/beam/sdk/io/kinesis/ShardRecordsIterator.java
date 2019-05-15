@@ -69,8 +69,7 @@ class ShardRecordsIterator {
     this.streamName = initialCheckpoint.getStreamName();
     this.shardId = initialCheckpoint.getShardId();
     this.shardIterator = initialCheckpoint.getShardIterator(kinesis);
-    this.watermarkPolicy =
-        new AtomicReference<>(watermarkPolicyFactory.createWatermarkPolicy());
+    this.watermarkPolicy = new AtomicReference<>(watermarkPolicyFactory.createWatermarkPolicy());
     this.watermarkPolicyFactory = watermarkPolicyFactory;
   }
 

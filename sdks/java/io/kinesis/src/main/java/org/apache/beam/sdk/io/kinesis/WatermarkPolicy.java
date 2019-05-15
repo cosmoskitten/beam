@@ -20,6 +20,7 @@ package org.apache.beam.sdk.io.kinesis;
 import java.io.Serializable;
 import org.joda.time.Instant;
 
+/** Implement this interface to define a custom watermark calculation heuristic. */
 public interface WatermarkPolicy extends Serializable {
 
   Instant getWatermark();
