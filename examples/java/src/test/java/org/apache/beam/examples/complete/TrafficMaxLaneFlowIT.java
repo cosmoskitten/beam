@@ -19,22 +19,31 @@ package org.apache.beam.examples.complete;
 
 import static org.junit.Assert.assertEquals;
 
+import com.google.api.client.util.BackOff;
+import com.google.api.client.util.BackOffUtils;
+import com.google.api.client.util.Sleeper;
 import com.google.api.services.bigquery.model.QueryResponse;
 import org.apache.beam.examples.complete.TrafficMaxLaneFlow.FormatMaxesFn;
 import org.apache.beam.examples.complete.TrafficMaxLaneFlow.TrafficMaxLaneFlowOptions;
 import org.apache.beam.sdk.extensions.gcp.options.GcpOptions;
+import org.apache.beam.sdk.extensions.gcp.util.BackOffAdapter;
 import org.apache.beam.sdk.io.gcp.testing.BigqueryClient;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.testing.TestPipeline;
+import org.apache.beam.sdk.util.FluentBackoff;
+import org.joda.time.Duration;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /** End-to-end tests of TrafficMaxLaneFlowIT. */
 @RunWith(JUnit4.class)
 public class TrafficMaxLaneFlowIT {
+  private static final Logger LOG = LoggerFactory.getLogger(TrafficMaxLaneFlowIT.class);
   private TrafficMaxLaneFlowOptions options;
   private final String timestamp = Long.toString(System.currentTimeMillis());
   private final String outputDatasetId = "traffic_max_lane_flow_" + timestamp;
@@ -63,14 +72,28 @@ public class TrafficMaxLaneFlowIT {
     this.options.setBigQueryDataset(this.outputDatasetId);
     this.options.setBigQueryTable(this.outputTable);
     TrafficMaxLaneFlow.runTrafficMaxLaneFlow(this.options);
+    FluentBackoff backoffFactory =
+        FluentBackoff.DEFAULT.withMaxRetries(4).withInitialBackoff(Duration.standardSeconds(1L));
+    Sleeper sleeper = Sleeper.DEFAULT;
+    BackOff backoff = BackOffAdapter.toGcpBackOff(backoffFactory.backoff());
+    String res = "empty_result";
+    int attemptNum = 1;
+    do {
+      QueryResponse response =
+          this.bqClient.queryWithRetries(
+              String.format(
+                  "SELECT count(*) as total FROM [%s:%s.%s]",
+                  this.projectId, this.outputDatasetId, this.outputTable),
+              this.projectId);
 
-    QueryResponse response =
-        this.bqClient.queryWithRetries(
-            String.format(
-                "SELECT count(*) as total FROM [%s:%s.%s]",
-                this.projectId, this.outputDatasetId, this.outputTable),
-            this.projectId);
-    String res = response.getRows().get(0).getF().get(0).getV().toString();
+      try {
+        res = response.getRows().get(0).getF().get(0).getV().toString();
+        break;
+      } catch (Exception e) {
+        LOG.info("Failed to get data from BigQuery with {} attempt.", attemptNum);
+        attemptNum += 1;
+      }
+    } while (BackOffUtils.next(sleeper, backoff));
     assertEquals("9763", res);
   }
 }
