@@ -23,7 +23,9 @@ import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.empty;
 import static org.hamcrest.core.IsEqual.equalTo;
 import static org.junit.Assert.assertThat;
+import static org.mockito.Matchers.any;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 import java.util.ArrayDeque;
 import java.util.Arrays;
@@ -39,6 +41,7 @@ import org.apache.beam.runners.core.metrics.ExecutionStateTracker;
 import org.apache.beam.runners.core.metrics.MetricsContainerStepMap;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.BigEndianIntegerCoder;
+import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.fn.data.FnDataReceiver;
@@ -126,6 +129,12 @@ public class CombineRunnersTest {
     // Create a map of consumers and an output target to check output values.
     MetricsContainerStepMap metricsContainerRegistry = new MetricsContainerStepMap();
     RehydratedComponents rehydratedComponents = mock(RehydratedComponents.class);
+    org.apache.beam.sdk.values.PCollection pColl =
+        mock(org.apache.beam.sdk.values.PCollection.class);
+    Coder elementCoder = mock(Coder.class);
+    when(pColl.getCoder()).thenReturn(elementCoder);
+    when(rehydratedComponents.getPCollection(any())).thenReturn(pColl);
+
     PCollectionConsumerRegistry consumers =
         new PCollectionConsumerRegistry(
             metricsContainerRegistry, mock(ExecutionStateTracker.class), rehydratedComponents);
@@ -202,6 +211,12 @@ public class CombineRunnersTest {
     // Create a map of consumers and an output target to check output values.
     MetricsContainerStepMap metricsContainerRegistry = new MetricsContainerStepMap();
     RehydratedComponents rehydratedComponents = mock(RehydratedComponents.class);
+    org.apache.beam.sdk.values.PCollection pColl =
+        mock(org.apache.beam.sdk.values.PCollection.class);
+    Coder elementCoder = mock(Coder.class);
+    when(pColl.getCoder()).thenReturn(elementCoder);
+    when(rehydratedComponents.getPCollection(any())).thenReturn(pColl);
+
     PCollectionConsumerRegistry consumers =
         new PCollectionConsumerRegistry(
             metricsContainerRegistry, mock(ExecutionStateTracker.class), rehydratedComponents);
@@ -266,9 +281,15 @@ public class CombineRunnersTest {
     // Create a map of consumers and an output target to check output values.
     MetricsContainerStepMap metricsContainerRegistry = new MetricsContainerStepMap();
     RehydratedComponents rehydratedComponents = mock(RehydratedComponents.class);
+
+    PCollection pColl = mock(PCollection.class);
+    Coder elementCoder = mock(Coder.class);
+    when(pColl.getCoder()).thenReturn(elementCoder);
+    when(rehydratedComponents.getPCollection(any())).thenReturn(pColl);
     PCollectionConsumerRegistry consumers =
         new PCollectionConsumerRegistry(
             metricsContainerRegistry, mock(ExecutionStateTracker.class), rehydratedComponents);
+
     Deque<WindowedValue<KV<String, Integer>>> mainOutputValues = new ArrayDeque<>();
     consumers.register(
         Iterables.getOnlyElement(pTransform.getOutputsMap().values()),
@@ -330,9 +351,15 @@ public class CombineRunnersTest {
     // Create a map of consumers and an output target to check output values.
     MetricsContainerStepMap metricsContainerRegistry = new MetricsContainerStepMap();
     RehydratedComponents rehydratedComponents = mock(RehydratedComponents.class);
+    org.apache.beam.sdk.values.PCollection pColl =
+        mock(org.apache.beam.sdk.values.PCollection.class);
+    Coder elementCoder = mock(Coder.class);
+    when(pColl.getCoder()).thenReturn(elementCoder);
+    when(rehydratedComponents.getPCollection(any())).thenReturn(pColl);
     PCollectionConsumerRegistry consumers =
         new PCollectionConsumerRegistry(
             metricsContainerRegistry, mock(ExecutionStateTracker.class), rehydratedComponents);
+
     Deque<WindowedValue<KV<String, Integer>>> mainOutputValues = new ArrayDeque<>();
     consumers.register(
         Iterables.getOnlyElement(pTransform.getOutputsMap().values()),

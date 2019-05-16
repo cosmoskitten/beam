@@ -23,7 +23,9 @@ import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.empty;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThat;
+import static org.mockito.Matchers.any;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -64,7 +66,14 @@ public class MapFnRunnersTest {
   public void testValueOnlyMapping() throws Exception {
     List<WindowedValue<?>> outputConsumer = new ArrayList<>();
     MetricsContainerStepMap metricsContainerRegistry = new MetricsContainerStepMap();
+
     RehydratedComponents rehydratedComponents = mock(RehydratedComponents.class);
+    org.apache.beam.sdk.values.PCollection pColl =
+        mock(org.apache.beam.sdk.values.PCollection.class);
+    org.apache.beam.sdk.coders.Coder elementCoder = mock(org.apache.beam.sdk.coders.Coder.class);
+    when(pColl.getCoder()).thenReturn(elementCoder);
+    when(rehydratedComponents.getPCollection(any())).thenReturn(pColl);
+
     PCollectionConsumerRegistry consumers =
         new PCollectionConsumerRegistry(
             metricsContainerRegistry,
@@ -112,6 +121,12 @@ public class MapFnRunnersTest {
     List<WindowedValue<?>> outputConsumer = new ArrayList<>();
     MetricsContainerStepMap metricsContainerRegistry = new MetricsContainerStepMap();
     RehydratedComponents rehydratedComponents = mock(RehydratedComponents.class);
+    org.apache.beam.sdk.values.PCollection pColl =
+        mock(org.apache.beam.sdk.values.PCollection.class);
+    org.apache.beam.sdk.coders.Coder elementCoder = mock(org.apache.beam.sdk.coders.Coder.class);
+    when(pColl.getCoder()).thenReturn(elementCoder);
+    when(rehydratedComponents.getPCollection(any())).thenReturn(pColl);
+
     PCollectionConsumerRegistry consumers =
         new PCollectionConsumerRegistry(
             metricsContainerRegistry, mock(ExecutionStateTracker.class), rehydratedComponents);
@@ -155,6 +170,12 @@ public class MapFnRunnersTest {
   public void testFullWindowedValueMappingWithCompressedWindow() throws Exception {
     List<WindowedValue<?>> outputConsumer = new ArrayList<>();
     RehydratedComponents rehydratedComponents = mock(RehydratedComponents.class);
+    org.apache.beam.sdk.values.PCollection pColl =
+        mock(org.apache.beam.sdk.values.PCollection.class);
+    org.apache.beam.sdk.coders.Coder elementCoder = mock(org.apache.beam.sdk.coders.Coder.class);
+    when(pColl.getCoder()).thenReturn(elementCoder);
+    when(rehydratedComponents.getPCollection(any())).thenReturn(pColl);
+
     PCollectionConsumerRegistry consumers =
         new PCollectionConsumerRegistry(
             mock(MetricsContainerStepMap.class),

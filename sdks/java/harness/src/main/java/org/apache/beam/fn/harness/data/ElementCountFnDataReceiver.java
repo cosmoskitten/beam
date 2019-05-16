@@ -19,12 +19,12 @@ package org.apache.beam.fn.harness.data;
 
 import java.io.Closeable;
 import java.util.HashMap;
-import java.util.Random;
 import org.apache.beam.runners.core.metrics.LabeledMetrics;
 import org.apache.beam.runners.core.metrics.MetricsContainerStepMap;
 import org.apache.beam.runners.core.metrics.MonitoringInfoConstants;
 import org.apache.beam.runners.core.metrics.MonitoringInfoConstants.Labels;
 import org.apache.beam.runners.core.metrics.MonitoringInfoMetricName;
+import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.fn.data.FnDataReceiver;
 import org.apache.beam.sdk.metrics.Counter;
 import org.apache.beam.sdk.metrics.Distribution;
@@ -43,6 +43,7 @@ import org.apache.beam.sdk.values.PCollection;
 public class ElementCountFnDataReceiver<T> implements FnDataReceiver<WindowedValue<T>> {
 
   private FnDataReceiver<WindowedValue<T>> original;
+
   private Counter elementCounter;
   private final Distribution sampledByteSizeDistribution;
   private final MetricsContainer unboundMetricContainer;
@@ -78,7 +79,7 @@ public class ElementCountFnDataReceiver<T> implements FnDataReceiver<WindowedVal
             sampledByteSizeDistribution.update(elementByteSize);
           }
         };
-    this.elementCoder = (org.apache.beam.sdk.coders.Coder<T>) pColl.getCoder();
+    this.elementCoder = (Coder<T>) pColl.getCoder(); // TODO why does this cause nullptr in tests?
 
     this.shouldSample = new ShouldSample(this.elementCoder);
   }

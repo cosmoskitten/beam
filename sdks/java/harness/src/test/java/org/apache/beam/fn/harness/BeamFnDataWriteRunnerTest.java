@@ -118,6 +118,12 @@ public class BeamFnDataWriteRunnerTest {
   public void testCreatingAndProcessingBeamFnDataWriteRunner() throws Exception {
     String bundleId = "57L";
     RehydratedComponents rehydratedComponents = mock(RehydratedComponents.class);
+    org.apache.beam.sdk.values.PCollection pColl =
+        mock(org.apache.beam.sdk.values.PCollection.class);
+    Coder elementCoder = mock(Coder.class);
+    when(pColl.getCoder()).thenReturn(elementCoder);
+    when(rehydratedComponents.getPCollection(any())).thenReturn(pColl);
+
     PCollectionConsumerRegistry consumers =
         new PCollectionConsumerRegistry(
             mock(MetricsContainerStepMap.class),

@@ -132,6 +132,12 @@ public class BeamFnDataReadRunnerTest {
 
     MetricsContainerStepMap metricsContainerRegistry = new MetricsContainerStepMap();
     RehydratedComponents rehydratedComponents = mock(RehydratedComponents.class);
+    org.apache.beam.sdk.values.PCollection pColl =
+        mock(org.apache.beam.sdk.values.PCollection.class);
+    Coder elementCoder = mock(Coder.class);
+    when(pColl.getCoder()).thenReturn(elementCoder);
+    when(rehydratedComponents.getPCollection(any())).thenReturn(pColl);
+
     PCollectionConsumerRegistry consumers =
         new PCollectionConsumerRegistry(
             metricsContainerRegistry, mock(ExecutionStateTracker.class), rehydratedComponents);

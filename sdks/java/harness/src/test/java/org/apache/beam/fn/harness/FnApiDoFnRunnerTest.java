@@ -372,9 +372,9 @@ public class FnApiDoFnRunnerTest implements Serializable {
     List<WindowedValue<String>> mainOutputValues = new ArrayList<>();
     List<WindowedValue<String>> additionalOutputValues = new ArrayList<>();
     MetricsContainerStepMap metricsContainerRegistry = new MetricsContainerStepMap();
+    // TODO consider this approach everywhere?
     RehydratedComponents rehydratedComponents =
         RehydratedComponents.forPipelineProto(pProto).withPipeline(Pipeline.create());
-    ;
 
     PCollectionConsumerRegistry consumers =
         new PCollectionConsumerRegistry(

@@ -23,7 +23,9 @@ import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.collection.IsEmptyCollection.empty;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.fail;
+import static org.mockito.Matchers.any;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 import java.util.ArrayList;
 import java.util.Collection;
@@ -129,10 +131,16 @@ public class BoundedSourceRunnerTest {
     List<WindowedValue<String>> outputValues = new ArrayList<>();
 
     MetricsContainerStepMap metricsContainerRegistry = new MetricsContainerStepMap();
-    RehydratedComponents rehydradedComponents = mock(RehydratedComponents.class);
+    RehydratedComponents rehydratedComponents = mock(RehydratedComponents.class);
+    org.apache.beam.sdk.values.PCollection pColl =
+        mock(org.apache.beam.sdk.values.PCollection.class);
+    org.apache.beam.sdk.coders.Coder elementCoder = mock(org.apache.beam.sdk.coders.Coder.class);
+    when(pColl.getCoder()).thenReturn(elementCoder);
+    when(rehydratedComponents.getPCollection(any())).thenReturn(pColl);
+
     PCollectionConsumerRegistry consumers =
         new PCollectionConsumerRegistry(
-            metricsContainerRegistry, mock(ExecutionStateTracker.class), rehydradedComponents);
+            metricsContainerRegistry, mock(ExecutionStateTracker.class), rehydratedComponents);
     consumers.register(
         "outputPC",
         "pTransformId",
@@ -166,7 +174,7 @@ public class BoundedSourceRunnerTest {
             "pTransformId",
             pTransform,
             Suppliers.ofInstance("57L")::get,
-            rehydradedComponents,
+            rehydratedComponents,
             Collections.emptyMap(),
             Collections.emptyMap(),
             Collections.emptyMap(),
