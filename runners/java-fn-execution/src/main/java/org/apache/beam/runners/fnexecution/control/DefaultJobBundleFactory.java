@@ -433,7 +433,7 @@ public class DefaultJobBundleFactory implements JobBundleFactory {
       int count = bundleRefCount.decrementAndGet();
       if (count == 0) {
         // Close environment after it was removed from cache and all bundles finished.
-        LOG.info("Closing environment {}", environment.getEnvironment().getUrn());
+        LOG.info("Closing environment {}", environment.getEnvironment());
         try {
           close();
         } catch (Exception e) {
