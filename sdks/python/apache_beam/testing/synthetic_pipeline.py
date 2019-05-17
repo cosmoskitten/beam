@@ -552,6 +552,9 @@ def _parse_steps(json_str):
         for each input element to a step.
     (4) output_filter_ratio - the probability at which a step may filter out a
         given element by not producing any output for that element.
+    (5) splittable - if the step should be splittable.
+    (6) initial_splitting_num_bundles - number of bundles initiall split if step
+        is splittable.
   """
   all_steps = []
   json_data = json.loads(json_str)
@@ -569,6 +572,12 @@ def _parse_steps(json_str):
     steps['output_filter_ratio'] = (
         float(val['output_filter_ratio'])
         if 'output_filter_ratio' in val else 0)
+    steps['splittable'] = (
+        bool(val['splittable'])
+        if 'splittable' in val else False)
+    steps['initial_splitting_num_bundles'] = (
+        int(val['initial_splitting_num_bundles'])
+        if 'initial_splitting_num_bundles' in val else 2)
     all_steps.append(steps)
 
   return all_steps
@@ -598,7 +607,9 @@ def parse_args(args):
            '    Defaults to 0.'
            '(3) An integer "output_records_per_input_record". Defaults to 1.'
            '(4) A float "output_filter_ratio" in the range [0, 1] . '
-           '    Defaults to 0.')
+           '    Defaults to 0.'
+           '(5) A bool "splittable" that defaults to false.'
+           '(6) A integer "initial_splitting_num_bundles". Defaults to 2.')
 
   parser.add_argument(
       '--input',
@@ -697,14 +708,25 @@ def run(argv=None):
 
       new_pc_list = []
       for pc_no, pc in enumerate(pc_list):
-        new_pc = pc | 'SyntheticStep %d.%d' % (step_no, pc_no) >> beam.ParDo(
-            SyntheticStep(
-                per_element_delay_sec=steps['per_element_delay'],
+        if steps['splittable']:
+          step = getSyntheticSDFStep(
+              per_element_delay_sec=steps['per_element_delay'],
+              per_bundle_delay_sec=steps['per_bundle_delay'],
+              output_records_per_input_record=
+              steps['output_records_per_input_record'],
+              output_filter_ratio=steps['output_filter_ratio'],
+              initial_splitting_num_bundles=
+              steps['initial_splitting_num_bundles'])
+        else:
+          step = SyntheticStep(
+              per_element_delay_sec=steps['per_element_delay'],
                 per_bundle_delay_sec=steps['per_bundle_delay'],
                 output_records_per_input_record=
                 steps['output_records_per_input_record'],
                 output_filter_ratio=
-                steps['output_filter_ratio']))
+                steps['output_filter_ratio'])
+        new_pc = pc | 'SyntheticStep %d.%d' % (
+              step_no, pc_no) >> beam.ParDo(step)
         new_pc_list.append(new_pc)
       pc_list = new_pc_list
 
