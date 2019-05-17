@@ -33,6 +33,7 @@ import java.io.IOException;
 import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.ServiceLoader;
 import org.apache.beam.fn.harness.data.PCollectionConsumerRegistry;
 import org.apache.beam.fn.harness.data.PTransformFunctionRegistry;
@@ -819,8 +820,31 @@ public class FnApiDoFnRunnerTest implements Serializable {
     List<WindowedValue<KV<String, Timer>>> processingTimerOutputValues = new ArrayList<>();
     MetricsContainerStepMap metricsContainerRegistry = new MetricsContainerStepMap();
 
-    RehydratedComponents rehydratedComponents =
-        RehydratedComponents.forPipelineProto(pProto).withPipeline(Pipeline.create());
+
+    Map<String, RunnerApi.PCollection> pCollections =
+            ImmutableMap.<String, RunnerApi.PCollection>builder()
+        .putAll(pProto.getComponents().getPcollectionsMap())
+        // We need to insert the "output" PCollections that a runner would have inserted
+        // on the way to a output sink.
+        .put(
+                eventTimerOutputPCollectionId,
+                pProto.getComponents().getPcollectionsOrThrow(eventTimerInputPCollectionId))
+        .put(
+                processingTimerOutputPCollectionId,
+                pProto
+                        .getComponents()
+                        .getPcollectionsOrThrow(processingTimerInputPCollectionId))
+        .build();
+    Map<String, RunnerApi.Coder> coders = pProto.getComponents().getCodersMap();
+    Map<String, RunnerApi.WindowingStrategy> windowingStrategies =
+        pProto.getComponents().getWindowingStrategiesMap();
+    RehydratedComponents rehydratedComponents = RehydratedComponents.forComponents(
+        RunnerApi.Components.newBuilder()
+            .putAllCoders(coders)
+            .putAllPcollections(pCollections)
+            .putAllWindowingStrategies(windowingStrategies)
+            .build())
+        .withPipeline((p));
 
     PCollectionConsumerRegistry consumers =
         new PCollectionConsumerRegistry(
@@ -856,21 +880,9 @@ public class FnApiDoFnRunnerTest implements Serializable {
             pTransform,
             Suppliers.ofInstance("57L")::get,
             rehydratedComponents,
-            ImmutableMap.<String, RunnerApi.PCollection>builder()
-                .putAll(pProto.getComponents().getPcollectionsMap())
-                // We need to insert the "output" PCollections that a runner would have inserted
-                // on the way to a output sink.
-                .put(
-                    eventTimerOutputPCollectionId,
-                    pProto.getComponents().getPcollectionsOrThrow(eventTimerInputPCollectionId))
-                .put(
-                    processingTimerOutputPCollectionId,
-                    pProto
-                        .getComponents()
-                        .getPcollectionsOrThrow(processingTimerInputPCollectionId))
-                .build(),
-            pProto.getComponents().getCodersMap(),
-            pProto.getComponents().getWindowingStrategiesMap(),
+            pCollections,
+            coders,
+            windowingStrategies,
             consumers,
             startFunctionRegistry,
             finishFunctionRegistry,
