@@ -31,6 +31,19 @@ public interface JetPipelineOptions extends PipelineOptions {
 
   void setJetGroupName(String jetGroupName);
 
+  @Description("Specifies the addresses of the Jet cluster; needed only with external clusters")
+  @Validation.Required
+  String getJetClusterAddresses();
+
+  void setJetClusterAddresses(String jetClusterAddresses);
+
+  @Description(
+      "Specifies where the fat-jar containing all the code is located; needed only with external clusters")
+  @Validation.Required
+  String getCodeJarLocation();
+
+  void setCodeJarLocation(String codeJarLocation);
+
   @Description("Local parallelism of Jet nodes")
   @Validation.Required
   @Default.Integer(-1)

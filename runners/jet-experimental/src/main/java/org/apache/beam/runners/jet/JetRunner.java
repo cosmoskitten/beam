@@ -22,9 +22,10 @@ import com.hazelcast.jet.IMapJet;
 import com.hazelcast.jet.Jet;
 import com.hazelcast.jet.JetInstance;
 import com.hazelcast.jet.Job;
+import com.hazelcast.jet.config.JobConfig;
 import com.hazelcast.jet.core.DAG;
-import com.hazelcast.jet.server.JetBootstrap;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
@@ -48,11 +49,7 @@ public class JetRunner extends PipelineRunner<PipelineResult> {
   private static final Logger LOG = LoggerFactory.getLogger(JetRunner.class);
 
   public static JetRunner fromOptions(PipelineOptions options) {
-    return fromOptions(
-        options,
-        options.as(JetPipelineOptions.class).getJetStartOwnCluster()
-            ? Jet::newJetClient
-            : config -> JetBootstrap.getInstance());
+    return fromOptions(options, Jet::newJetClient);
   }
 
   public static JetRunner fromOptions(
@@ -117,7 +114,7 @@ public class JetRunner extends PipelineRunner<PipelineResult> {
             options); // todo: we use single client for each job, it might be better to have a
     // shared client with refcount
 
-    Job job = jet.newJob(dag);
+    Job job = jet.newJob(dag, getJobConfig(options));
     IMapJet<String, MetricUpdates> metricsAccumulator =
         jet.getMap(JetMetricsContainer.getMetricsMapName(job.getId()));
     JetPipelineResult pipelineResult = new JetPipelineResult(job, metricsAccumulator);
@@ -154,11 +151,24 @@ public class JetRunner extends PipelineRunner<PipelineResult> {
     }
   }
 
+  private JobConfig getJobConfig(JetPipelineOptions options) {
+    JobConfig jobConfig = new JobConfig();
+    if (!options.getJetStartOwnCluster()) {
+      jobConfig.addJar(options.getCodeJarLocation());
+    }
+    return jobConfig;
+  }
+
   private JetInstance getJetInstance(JetPipelineOptions options) {
     String jetGroupName = options.getJetGroupName();
 
     ClientConfig clientConfig = new ClientConfig();
     clientConfig.getGroupConfig().setName(jetGroupName);
+    if (!options.getJetStartOwnCluster()) {
+      clientConfig
+          .getNetworkConfig()
+          .setAddresses(Arrays.asList(options.getJetClusterAddresses().split(",")));
+    }
     return jetClientSupplier.apply(clientConfig);
   }
 
@@ -183,6 +193,16 @@ public class JetRunner extends PipelineRunner<PipelineResult> {
       Integer jetClusterMemberCount = options.getJetClusterMemberCount();
       if (jetClusterMemberCount == null || jetClusterMemberCount < 1) {
         throw new IllegalArgumentException("Can't start a cluster without members!");
+      }
+    } else {
+      String jetClusterAddresses = options.getJetClusterAddresses();
+      if (jetClusterAddresses == null || jetClusterAddresses.isEmpty()) {
+        throw new IllegalArgumentException("Address of remote cluster must be specified!");
+      }
+
+      String codeJarLocation = options.getCodeJarLocation();
+      if (codeJarLocation == null || codeJarLocation.isEmpty()) {
+        throw new IllegalArgumentException("Location of code jar must be specified!");
       }
     }
 
