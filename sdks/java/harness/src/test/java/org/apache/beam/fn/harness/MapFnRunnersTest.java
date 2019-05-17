@@ -76,9 +76,7 @@ public class MapFnRunnersTest {
 
     PCollectionConsumerRegistry consumers =
         new PCollectionConsumerRegistry(
-            metricsContainerRegistry,
-            mock(ExecutionStateTracker.class),
-            rehydratedComponents);
+            metricsContainerRegistry, mock(ExecutionStateTracker.class), rehydratedComponents);
     consumers.register("outputPC", EXPECTED_ID, outputConsumer::add);
 
     PTransformFunctionRegistry startFunctionRegistry =

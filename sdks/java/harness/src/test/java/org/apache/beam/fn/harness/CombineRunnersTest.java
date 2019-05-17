@@ -130,8 +130,7 @@ public class CombineRunnersTest {
     MetricsContainerStepMap metricsContainerRegistry = new MetricsContainerStepMap();
 
     RehydratedComponents rehydratedComponents =
-        RehydratedComponents.forPipelineProto(pProto)
-            .withPipeline(Pipeline.create());
+        RehydratedComponents.forPipelineProto(pProto).withPipeline(Pipeline.create());
 
     PCollectionConsumerRegistry consumers =
         new PCollectionConsumerRegistry(

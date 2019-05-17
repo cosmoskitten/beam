@@ -33,7 +33,6 @@ import static org.mockito.Mockito.when;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
 import java.util.ServiceLoader;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
@@ -52,7 +51,6 @@ import org.apache.beam.runners.core.construction.CoderTranslation;
 import org.apache.beam.runners.core.construction.RehydratedComponents;
 import org.apache.beam.runners.core.metrics.ExecutionStateTracker;
 import org.apache.beam.runners.core.metrics.MetricsContainerStepMap;
-import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.fn.data.CompletableFutureInboundDataClient;
@@ -136,7 +134,7 @@ public class BeamFnDataReadRunnerTest {
 
     RehydratedComponents rehydratedComponents = mock(RehydratedComponents.class);
     org.apache.beam.sdk.values.PCollection pColl =
-            mock(org.apache.beam.sdk.values.PCollection.class);
+        mock(org.apache.beam.sdk.values.PCollection.class);
     Coder elementCoder = mock(Coder.class);
     when(pColl.getCoder()).thenReturn(elementCoder);
     when(rehydratedComponents.getPCollection(any())).thenReturn(pColl);
