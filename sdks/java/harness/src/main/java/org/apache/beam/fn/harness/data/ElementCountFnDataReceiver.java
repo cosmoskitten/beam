@@ -79,7 +79,7 @@ public class ElementCountFnDataReceiver<T> implements FnDataReceiver<WindowedVal
             sampledByteSizeDistribution.update(elementByteSize);
           }
         };
-    this.elementCoder = (Coder<T>) pColl.getCoder(); // TODO why does this cause nullptr in tests?
+    this.elementCoder = (Coder<T>) pColl.getCoder();
 
     this.shouldSample = new ShouldSample(this.elementCoder);
   }

@@ -143,7 +143,7 @@ public class CombineRunners {
       } else {
         inputCoder = (KvCoder<KeyT, InputT>) rehydratedComponents.getCoder(mainInput.getCoderId());
       }
-      Coder<KeyT> keyCoder = inputCoder.getKeyCoder(); // TODO why does this nullptr now?
+      Coder<KeyT> keyCoder = inputCoder.getKeyCoder();
 
       CombinePayload combinePayload = CombinePayload.parseFrom(pTransform.getSpec().getPayload());
       CombineFn<InputT, AccumT, ?> combineFn =

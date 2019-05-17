@@ -128,12 +128,10 @@ public class CombineRunnersTest {
   public void testPrecombine() throws Exception {
     // Create a map of consumers and an output target to check output values.
     MetricsContainerStepMap metricsContainerRegistry = new MetricsContainerStepMap();
-    RehydratedComponents rehydratedComponents = mock(RehydratedComponents.class);
-    org.apache.beam.sdk.values.PCollection pColl =
-        mock(org.apache.beam.sdk.values.PCollection.class);
-    Coder elementCoder = mock(Coder.class);
-    when(pColl.getCoder()).thenReturn(elementCoder);
-    when(rehydratedComponents.getPCollection(any())).thenReturn(pColl);
+
+    RehydratedComponents rehydratedComponents =
+        RehydratedComponents.forPipelineProto(pProto)
+            .withPipeline(Pipeline.create());
 
     PCollectionConsumerRegistry consumers =
         new PCollectionConsumerRegistry(

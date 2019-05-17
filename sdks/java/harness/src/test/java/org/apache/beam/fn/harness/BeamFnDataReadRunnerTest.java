@@ -33,6 +33,7 @@ import static org.mockito.Mockito.when;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.ServiceLoader;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
@@ -51,6 +52,7 @@ import org.apache.beam.runners.core.construction.CoderTranslation;
 import org.apache.beam.runners.core.construction.RehydratedComponents;
 import org.apache.beam.runners.core.metrics.ExecutionStateTracker;
 import org.apache.beam.runners.core.metrics.MetricsContainerStepMap;
+import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.fn.data.CompletableFutureInboundDataClient;
@@ -131,17 +133,25 @@ public class BeamFnDataReadRunnerTest {
     List<WindowedValue<String>> outputValues = new ArrayList<>();
 
     MetricsContainerStepMap metricsContainerRegistry = new MetricsContainerStepMap();
-    RehydratedComponents rehydratedComponents = mock(RehydratedComponents.class);
-    org.apache.beam.sdk.values.PCollection pColl =
-        mock(org.apache.beam.sdk.values.PCollection.class);
-    Coder elementCoder = mock(Coder.class);
-    when(pColl.getCoder()).thenReturn(elementCoder);
-    when(rehydratedComponents.getPCollection(any())).thenReturn(pColl);
+
+    String localOutputId = "outputPC";
+    Map<String, RunnerApi.PCollection> pCollections = ImmutableMap.of(
+        localOutputId,
+        RunnerApi.PCollection.newBuilder().setCoderId(ELEMENT_CODER_SPEC_ID).build());
+    Map<String, RunnerApi.Coder> coders = COMPONENTS.getCodersMap();
+    Map<String, RunnerApi.WindowingStrategy> windowingStrategies = COMPONENTS.getWindowingStrategiesMap();
+    RehydratedComponents rehydratedComponents = RehydratedComponents.forComponents(
+            RunnerApi.Components.newBuilder()
+                    .putAllCoders(coders)
+                    .putAllPcollections(pCollections)
+                    .putAllWindowingStrategies(windowingStrategies)
+                    .build())
+            .withPipeline(Pipeline.create());
 
     PCollectionConsumerRegistry consumers =
         new PCollectionConsumerRegistry(
             metricsContainerRegistry, mock(ExecutionStateTracker.class), rehydratedComponents);
-    String localOutputId = "outputPC";
+
     String pTransformId = "pTransformId";
     consumers.register(
         localOutputId,
@@ -166,11 +176,9 @@ public class BeamFnDataReadRunnerTest {
             pTransform,
             Suppliers.ofInstance(bundleId)::get,
             rehydratedComponents,
-            ImmutableMap.of(
-                localOutputId,
-                RunnerApi.PCollection.newBuilder().setCoderId(ELEMENT_CODER_SPEC_ID).build()),
-            COMPONENTS.getCodersMap(),
-            COMPONENTS.getWindowingStrategiesMap(),
+            pCollections,
+            coders,
+            windowingStrategies,
             consumers,
             startFunctionRegistry,
             finishFunctionRegistry,

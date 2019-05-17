@@ -67,7 +67,7 @@ public class PCollectionConsumerRegistry {
    * Register the specified consumer to handle the elements in the pCollection associated with
    * pCollectionId. All consumers must be registered before extracting the combined consumer by
    * calling getMultiplexingConsumer(), or an exception will be thrown.
-   *
+
    * <p>This will cause both Element Count and Process Bundle Execution time metrics to be
    * collected.
    *
