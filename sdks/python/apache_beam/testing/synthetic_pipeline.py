@@ -60,7 +60,7 @@ except ImportError:
 def parse_byte_size(s):
   suffixes = 'BKMGTP'
   if s[-1] in suffixes:
-    return int(float(s[:-1]) * 1024**suffixes.index(s[-1]))
+    return int(float(s[:-1]) * 1024 ** suffixes.index(s[-1]))
 
   return int(s)
 
@@ -135,23 +135,26 @@ class SyntheticSource(iobase.BoundedSource):
 
     self._num_records = input_spec['numRecords']
     self._key_size = maybe_parse_byte_size(input_spec.get('keySizeBytes', 1))
+    self._hot_key_fraction = input_spec.get('hotKeyFraction', 0)
+    self._num_hot_keys = input_spec.get('numHotKeys', 0)
+
     self._value_size = maybe_parse_byte_size(
         input_spec.get('valueSizeBytes', 1))
     self._total_size = self.element_size * self._num_records
     self._initial_splitting = (
-        input_spec['bundleSizeDistribution']['type']
-        if 'bundleSizeDistribution' in input_spec else 'const')
+      input_spec['bundleSizeDistribution']['type']
+      if 'bundleSizeDistribution' in input_spec else 'const')
     if self._initial_splitting != 'const' and self._initial_splitting != 'zipf':
       raise ValueError(
           'Only const and zipf distributions are supported for determining '
           'sizes of bundles produced by initial splitting. Received: %s',
           self._initial_splitting)
     self._initial_splitting_num_bundles = (
-        input_spec['forceNumInitialBundles']
-        if 'forceNumInitialBundles' in input_spec else 0)
+      input_spec['forceNumInitialBundles']
+      if 'forceNumInitialBundles' in input_spec else 0)
     if self._initial_splitting == 'zipf':
       self._initial_splitting_distribution_parameter = (
-          input_spec['bundleSizeDistribution']['param'])
+        input_spec['bundleSizeDistribution']['param'])
       if self._initial_splitting_distribution_parameter < 1:
         raise ValueError(
             'Parameter for a Zipf distribution must be larger than 1. '
@@ -159,10 +162,10 @@ class SyntheticSource(iobase.BoundedSource):
     else:
       self._initial_splitting_distribution_parameter = 0
     self._dynamic_splitting = (
-        'none' if (
-            'splitPointFrequencyRecords' in input_spec
-            and input_spec['splitPointFrequencyRecords'] == 0)
-        else 'perfect')
+      'none' if (
+          'splitPointFrequencyRecords' in input_spec
+          and input_spec['splitPointFrequencyRecords'] == 0)
+      else 'perfect')
     if 'delayDistribution' in input_spec:
       if input_spec['delayDistribution']['type'] != 'const':
         raise ValueError('SyntheticSource currently only supports delay '
@@ -238,18 +241,32 @@ class SyntheticSource(iobase.BoundedSource):
       tracker = range_trackers.UnsplittableRangeTracker(tracker)
     return tracker
 
+  def _gen_kv_pair(self, index):
+    r = np.random.RandomState(index)
+    rand =  r.random_sample()
+
+    # Determines whether to generate hot key or not.
+    if rand < self._hot_key_fraction:
+      # Generate hot key.
+      # An integer is randomly selected from the range [0, numHotKeys-1]
+      # with equal probability.
+      r_hot = np.random.RandomState(self._num_hot_keys)
+      return r_hot.bytes(self._key_size), r.bytes(self._value_size)
+    else:
+      return r.bytes(self._key_size), r.bytes(self._value_size)
+
   def read(self, range_tracker):
     index = range_tracker.start_position()
     while range_tracker.try_claim(index):
-      r = np.random.RandomState(index)
-
       time.sleep(self._sleep_per_input_record_sec)
-      yield r.bytes(self._key_size), r.bytes(self._value_size)
+      yield self._gen_kv_pair(index)
       index += 1
 
   def default_output_coder(self):
     return beam.coders.TupleCoder(
         [beam.coders.BytesCoder(), beam.coders.BytesCoder()])
+
+
 
 
 class SyntheticSDFSourceRestrictionProvider(RestrictionProvider):
@@ -375,7 +392,7 @@ class ShuffleBarrier(beam.PTransform):
             | beam.Map(rotate_key)
             | beam.GroupByKey()
             | 'Ungroup' >> beam.FlatMap(
-                lambda elm: [(elm[0], v) for v in elm[1]]))
+            lambda elm: [(elm[0], v) for v in elm[1]]))
 
 
 class SideInputBarrier(beam.PTransform):
@@ -384,8 +401,8 @@ class SideInputBarrier(beam.PTransform):
     return (pc
             | beam.Map(rotate_key)
             | beam.Map(
-                lambda elem, ignored: elem,
-                beam.pvalue.AsIter(pc | beam.FlatMap(lambda elem: None))))
+            lambda elem, ignored: elem,
+            beam.pvalue.AsIter(pc | beam.FlatMap(lambda elem: None))))
 
 
 def merge_using_gbk(name, pc1, pc2):
@@ -456,17 +473,17 @@ def _parse_steps(json_str):
   for val in json_data:
     steps = {}
     steps['per_element_delay'] = (
-        (float(val['per_element_delay_msec']) / 1000)
-        if 'per_element_delay_msec' in val else 0)
+      (float(val['per_element_delay_msec']) / 1000)
+      if 'per_element_delay_msec' in val else 0)
     steps['per_bundle_delay'] = (
-        float(val['per_bundle_delay_sec'])
-        if 'per_bundle_delay_sec' in val else 0)
+      float(val['per_bundle_delay_sec'])
+      if 'per_bundle_delay_sec' in val else 0)
     steps['output_records_per_input_record'] = (
-        int(val['output_records_per_input_record'])
-        if 'output_records_per_input_record' in val else 1)
+      int(val['output_records_per_input_record'])
+      if 'output_records_per_input_record' in val else 1)
     steps['output_filter_ratio'] = (
-        float(val['output_filter_ratio'])
-        if 'output_filter_ratio' in val else 0)
+      float(val['output_filter_ratio'])
+      if 'output_filter_ratio' in val else 0)
     all_steps.append(steps)
 
   return all_steps
