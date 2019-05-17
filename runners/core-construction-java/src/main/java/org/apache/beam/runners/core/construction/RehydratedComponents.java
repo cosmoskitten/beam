@@ -141,8 +141,7 @@ public class RehydratedComponents {
    */
   public PCollection<?> getPCollection(String pCollectionId) throws IOException {
     try {
-      PCollection<?>  ret = pCollections.get(pCollectionId);
-      return ret;
+      return pCollections.get(pCollectionId);
     } catch (ExecutionException exc) {
       throw new RuntimeException(exc);
     }

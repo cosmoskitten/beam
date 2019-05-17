@@ -134,24 +134,18 @@ public class BeamFnDataReadRunnerTest {
 
     MetricsContainerStepMap metricsContainerRegistry = new MetricsContainerStepMap();
 
-    String localOutputId = "outputPC";
-    Map<String, RunnerApi.PCollection> pCollections = ImmutableMap.of(
-        localOutputId,
-        RunnerApi.PCollection.newBuilder().setCoderId(ELEMENT_CODER_SPEC_ID).build());
-    Map<String, RunnerApi.Coder> coders = COMPONENTS.getCodersMap();
-    Map<String, RunnerApi.WindowingStrategy> windowingStrategies = COMPONENTS.getWindowingStrategiesMap();
-    RehydratedComponents rehydratedComponents = RehydratedComponents.forComponents(
-            RunnerApi.Components.newBuilder()
-                    .putAllCoders(coders)
-                    .putAllPcollections(pCollections)
-                    .putAllWindowingStrategies(windowingStrategies)
-                    .build())
-            .withPipeline(Pipeline.create());
+    RehydratedComponents rehydratedComponents = mock(RehydratedComponents.class);
+    org.apache.beam.sdk.values.PCollection pColl =
+            mock(org.apache.beam.sdk.values.PCollection.class);
+    Coder elementCoder = mock(Coder.class);
+    when(pColl.getCoder()).thenReturn(elementCoder);
+    when(rehydratedComponents.getPCollection(any())).thenReturn(pColl);
 
     PCollectionConsumerRegistry consumers =
         new PCollectionConsumerRegistry(
             metricsContainerRegistry, mock(ExecutionStateTracker.class), rehydratedComponents);
 
+    String localOutputId = "outputPC";
     String pTransformId = "pTransformId";
     consumers.register(
         localOutputId,
@@ -176,9 +170,11 @@ public class BeamFnDataReadRunnerTest {
             pTransform,
             Suppliers.ofInstance(bundleId)::get,
             rehydratedComponents,
-            pCollections,
-            coders,
-            windowingStrategies,
+            ImmutableMap.of(
+                localOutputId,
+                RunnerApi.PCollection.newBuilder().setCoderId(ELEMENT_CODER_SPEC_ID).build()),
+            COMPONENTS.getCodersMap(),
+            COMPONENTS.getWindowingStrategiesMap(),
             consumers,
             startFunctionRegistry,
             finishFunctionRegistry,

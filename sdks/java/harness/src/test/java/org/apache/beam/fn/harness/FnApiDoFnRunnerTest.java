@@ -50,6 +50,7 @@ import org.apache.beam.runners.core.metrics.MetricUpdates.MetricUpdate;
 import org.apache.beam.runners.core.metrics.MetricsContainerImpl;
 import org.apache.beam.runners.core.metrics.MetricsContainerStepMap;
 import org.apache.beam.runners.core.metrics.MonitoringInfoConstants;
+import org.apache.beam.runners.core.metrics.MonitoringInfoMatchers;
 import org.apache.beam.runners.core.metrics.SimpleMonitoringInfoBuilder;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
@@ -94,6 +95,8 @@ import org.apache.beam.vendor.grpc.v1p13p1.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Suppliers;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Iterables;
+import org.hamcrest.Matcher;
+import org.hamcrest.Matchers;
 import org.hamcrest.collection.IsMapContaining;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
@@ -678,12 +681,13 @@ public class FnApiDoFnRunnerTest implements Serializable {
 
     MetricsContainer mc = MetricsEnvironment.getCurrentContainer();
 
-    List<MonitoringInfo> expected = new ArrayList<MonitoringInfo>();
+    List<Matcher<MonitoringInfo>> matchers = new ArrayList<Matcher<MonitoringInfo>>();
+
     SimpleMonitoringInfoBuilder builder = new SimpleMonitoringInfoBuilder();
     builder.setUrn(MonitoringInfoConstants.Urns.ELEMENT_COUNT);
     builder.setLabel(MonitoringInfoConstants.Labels.PCOLLECTION, "Window.Into()/Window.Assign.out");
     builder.setInt64Value(2);
-    expected.add(builder.build());
+    matchers.add(MonitoringInfoMatchers.matchSetFields(builder.build()));
 
     builder = new SimpleMonitoringInfoBuilder();
     builder.setUrn(MonitoringInfoConstants.Urns.ELEMENT_COUNT);
@@ -691,7 +695,7 @@ public class FnApiDoFnRunnerTest implements Serializable {
         MonitoringInfoConstants.Labels.PCOLLECTION,
         "pTransformId/ParMultiDo(TestSideInputIsAccessibleForDownstreamCallers).output");
     builder.setInt64Value(2);
-    expected.add(builder.build());
+    matchers.add(MonitoringInfoMatchers.matchSetFields(builder.build()));
 
     builder = new SimpleMonitoringInfoBuilder();
     builder
@@ -704,15 +708,17 @@ public class FnApiDoFnRunnerTest implements Serializable {
             TestSideInputIsAccessibleForDownstreamCallersDoFn.USER_COUNTER_NAME);
     builder.setLabel(MonitoringInfoConstants.Labels.PTRANSFORM, TEST_PTRANSFORM_ID);
     builder.setInt64Value(2);
-    expected.add(builder.build());
+    matchers.add(MonitoringInfoMatchers.matchSetFields(builder.build()));
 
     closeable.close();
     List<MonitoringInfo> result = new ArrayList<MonitoringInfo>();
     for (MonitoringInfo mi : metricsContainerRegistry.getMonitoringInfos()) {
       result.add(SimpleMonitoringInfoBuilder.copyAndClearTimestamp(mi));
     }
-    // TODO fix this test.
-    assertThat(result, containsInAnyOrder(expected.toArray()));
+
+    for (Matcher<MonitoringInfo> matcher : matchers) {
+      assertThat(metricsContainerRegistry.getMonitoringInfos(), Matchers.hasItem(matcher));
+    }
   }
 
   private static class TestTimerfulDoFn extends DoFn<KV<String, String>, String> {
@@ -815,6 +821,7 @@ public class FnApiDoFnRunnerTest implements Serializable {
 
     RehydratedComponents rehydratedComponents =
         RehydratedComponents.forPipelineProto(pProto).withPipeline(Pipeline.create());
+
     PCollectionConsumerRegistry consumers =
         new PCollectionConsumerRegistry(
             metricsContainerRegistry, mock(ExecutionStateTracker.class), rehydratedComponents);
