@@ -17,7 +17,7 @@
 
 """A set of utilities to write pipelines for performance tests.
 
-xThis module offers a way to create pipelines using synthetic sources and steps.
+xxThis module offers a way to create pipelines using synthetic sources and steps.
 Exact shape of the pipeline and the behaviour of sources and steps can be
 controlled through arguments. Please see function 'parse_args()' for more
 details about the arguments.
@@ -115,6 +115,108 @@ class SyntheticStep(beam.DoFn):
       for _ in range(self._output_records_per_input_record):
         yield element
 
+class SyntheticSDFStepRestrictionProvider(RestrictionProvider):
+  """A `RestrictionProvider` for SyntheticSDFStep.
+
+  In initial_restriction and split that operates on num_records and ignores
+  source description (element).
+
+  """
+
+  def __init__(self, num_records, initial_splitting_num_bundles):
+    self._num_records = num_records
+    self._initial_splitting_num_bundles = initial_splitting_num_bundles
+
+  def initial_restriction(self, element):
+    return (0, self._num_records)
+
+  def create_tracker(self, restriction):
+    return restriction_trackers.OffsetRestrictionTracker(
+        restriction[0], restriction[1])
+
+  def split(self, element, restriction):
+    bundle_ranges = []
+    start_position, stop_position = restriction
+    if self._initial_splitting_num_bundles < 2:
+      bundle_ranges.append((start_position, stop_position))
+      return bundle_ranges
+    num_bundles = self._initial_splitting_num_bundles
+    num_records_per_bundle = (stop_position - start_position) // num_bundles
+
+    for i in range(0, num_bundles):
+      final_position = start_position + num_records_per_bundle
+      if i == num_bundles - 1:
+        final_position = stop_position  # Final bundle goes to end
+      bundle_ranges.append((start_position, final_position))
+      start_position = final_position
+    return bundle_ranges
+
+  def restriction_size(self, element, restriction):
+    (start, stop) = restriction
+    element_size = len(element) if isinstance(element, str) else 1
+    return (stop - start) * element_size
+
+""" A function which returns a SyntheticSDFStep with given parameters. """
+def getSyntheticSDFStep(per_element_delay_sec=0,
+                        per_bundle_delay_sec=0,
+                        output_records_per_input_record=1,
+                        output_filter_ratio=0,
+                        initial_splitting_num_bundles=2):
+
+  class SyntheticSDFStep(beam.DoFn):
+    """A SplittableDoFn of which behavior can be controlled through prespecified
+       parameters.
+    """
+
+    def __init__(self, per_element_delay_sec_arg, per_bundle_delay_sec_arg,
+                 output_filter_ratio_arg):
+      if per_element_delay_sec_arg and per_element_delay_sec_arg < 1e-3:
+        raise ValueError(
+            'Per element sleep time must be at least 1e-3. '
+            'Received: %r', per_element_delay_sec_arg)
+      self._per_element_delay_sec = per_element_delay_sec_arg
+      self._per_bundle_delay_sec = per_bundle_delay_sec_arg
+      self._output_filter_ratio = output_filter_ratio_arg
+
+    def start_bundle(self):
+      self._start_time = time.time()
+
+    def finish_bundle(self):
+      # The target is for the enclosing stage to take as close to as possible
+      # the given number of seconds, so we only sleep enough to make up for
+      # overheads not incurred elsewhere.
+      to_sleep = self._per_bundle_delay_sec - (time.time() - self._start_time)
+
+      # Ignoring sub-millisecond sleep times.
+      if to_sleep >= 1e-3:
+        time.sleep(to_sleep)
+
+    def process(self,
+                element,
+                restriction_tracker=beam.DoFn.RestrictionParam(
+                    SyntheticSDFStepRestrictionProvider(
+                        output_records_per_input_record,
+                        initial_splitting_num_bundles))):
+      if self._per_element_delay_sec >= 1e-3:
+        time.sleep(self._per_element_delay_sec)
+
+      filter_element = False
+      if self._output_filter_ratio > 0:
+        if np.random.random() < self._output_filter_ratio:
+          filter_element = True
+
+      for k in range(*restriction_tracker.current_restriction()):
+        if not restriction_tracker.try_claim(k):
+          return
+
+        if self._per_element_delay_sec >= 1e-3:
+          time.sleep(self._per_element_delay_sec)
+
+        if not filter_element:
+          yield element
+
+  return SyntheticSDFStep(per_element_delay_sec, per_bundle_delay_sec,
+                          output_filter_ratio)
 
 class SyntheticSource(iobase.BoundedSource):
   """A custom source of a specified size.
