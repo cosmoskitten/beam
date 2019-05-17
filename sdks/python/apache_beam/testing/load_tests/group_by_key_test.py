@@ -171,10 +171,10 @@ class GroupByKeyTest(LoadTest):
       (input
        | 'GroupByKey %i' % branch >> beam.GroupByKey()
        | 'Ungroup %i' % branch >> beam.ParDo(
-           self._UngroupAndReiterate(), self.iterations)
+              self._UngroupAndReiterate(), self.iterations)
        | 'Measure time: End %i' % branch >> beam.ParDo(
-           MeasureTime(self.metrics_namespace))
-      )
+              MeasureTime(self.metrics_namespace))
+       )
 
 
 if __name__ == '__main__':
