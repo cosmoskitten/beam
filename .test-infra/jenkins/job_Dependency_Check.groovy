@@ -58,6 +58,7 @@ job('beam_Dependency_Check') {
     extendedEmail {
       triggers {
         always {
+          //recipientList('dev@beam.apache.org')
           recipientList('dev@beam.apache.org')
           contentType('text/html')
           subject("Beam Dependency Check Report (${date})")
