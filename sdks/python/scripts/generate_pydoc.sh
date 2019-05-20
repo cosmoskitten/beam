@@ -58,6 +58,7 @@ excluded_patterns=(
     # TODO(BEAM-4543): Remove datastore paths once they no longer exist.
     apache_beam/io/gcp/datastore/v1/
     apache_beam/io/gcp/datastore_write_it_*
+    apache_beam/io/gcp/bigquery_io_*
     apache_beam/io/gcp/tests/
     apache_beam/metrics/execution.*
     apache_beam/runners/common.*
