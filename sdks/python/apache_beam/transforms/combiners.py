@@ -53,6 +53,7 @@ __all__ = [
     'Top',
     'ToDict',
     'ToList',
+    'ToString',
     ]
 
 # Type variables
@@ -858,3 +859,54 @@ class PhasedCombineFnExecutor(object):
 
   def extract_only(self, accumulator):
     return self.combine_fn.extract_output(accumulator)
+
+
+class ToString(object):
+
+  class Kvs(ptransform.PTransform):
+
+    def __init__(self, delimiter = None, **kwargs):
+      self.delimiter = delimiter or ","
+
+    def expand(self, pcoll):
+      input_type = KV[Any, Any]
+      output_type = List[str]
+      return (
+              pcoll
+              | ('%s:KeyVaueToString' % self.label >> (core.Map(lambda x: "{}{}{}".format(x[0], self.delimiter, x[1]) ))
+                 .with_input_types(input_type)
+                 .with_output_types(output_type)
+                 )
+      )
+
+  class Element(ptransform.PTransform):
+
+    def __init__(self, delimiter = None, **kwargs):
+      self.delimiter = delimiter or ","
+
+    def expand(self, pcoll):
+      input_type = T
+      output_type = List[str]
+      return (
+              pcoll
+              | ('%s:ElementToString' % self.label >> (core.Map(lambda x: str(x) ))
+                 .with_input_types(input_type)
+                 .with_output_types(output_type)
+                 )
+      )
+
+  class Iterables(ptransform.PTransform):
+
+    def __init__(self, delimiter = None, **kwargs):
+      self.delimiter = delimiter or ","
+
+    def expand(self, pcoll):
+      input_type = Iterable[Any]
+      output_type = List[str]
+      return (
+              pcoll
+              | ('%s:IterablesToString' % self.label >> (core.Map(lambda x: self.delimiter.join(str(_x) for _x in x) ))
+                 .with_input_types(input_type)
+                 .with_output_types(output_type)
+                 )
+      )
