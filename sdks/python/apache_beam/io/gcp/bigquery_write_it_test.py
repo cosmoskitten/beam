@@ -129,6 +129,35 @@ class BigQueryWriteIntegrationTests(unittest.TestCase):
            write_disposition=beam.io.BigQueryDisposition.WRITE_EMPTY))
 
   @attr('IT')
+  def test_big_query_write_schema_autodetect(self):
+    output_table = 'python_write_table'
+    output_table = self.output_table.format(output_table)
+
+    input_data = [
+        {'number': 1, 'str': 'abc'},
+        {'number': 2, 'str': 'def'},
+    ]
+
+    pipeline_verifiers = [
+        BigqueryFullResultMatcher(
+            project=self.project,
+            query="SELECT number, str FROM %s" % output_table,
+            data=[(1, 'abc',), (2, 'def',)])]
+
+    args = self.test_pipeline.get_full_options_as_args(
+        on_success_matcher=hc.all_of(*pipeline_verifiers))
+
+    with beam.Pipeline(argv=args) as p:
+      # pylint: disable=expression-not-assigned
+      (p | 'create' >> beam.Create(input_data)
+       | 'write' >> beam.io.WriteToBigQuery(
+           output_table,
+           schema=beam.io.gcp.bigquery.SCHEMA_AUTODETECT,
+           create_disposition=beam.io.BigQueryDisposition.CREATE_IF_NEEDED,
+           write_disposition=beam.io.BigQueryDisposition.WRITE_EMPTY))
+
+
+  @attr('IT')
   def test_big_query_write_new_types(self):
     output_table = 'python_new_types_table'
     output_table = self.output_table.format(output_table)

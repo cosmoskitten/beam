@@ -654,12 +654,17 @@ class DataflowRunner(PipelineRunner):
       return self.apply_PTransform(transform, pcoll, options)
     else:
       from apache_beam.io.gcp.bigquery_tools import parse_table_schema_from_json
+      if (transform.schema == beam.io.gcp.bigquery.SCHEMA_AUTODETECT
+          or not transform.schema):
+        schema = transform.schema
+      else:
+        schema = parse_table_schema_from_json(json.dumps(transform.schema))
       return pcoll  | 'WriteToBigQuery' >> beam.io.Write(
           beam.io.BigQuerySink(
               transform.table_reference.tableId,
               transform.table_reference.datasetId,
               transform.table_reference.projectId,
-              parse_table_schema_from_json(json.dumps(transform.schema)),
+              schema,
               transform.create_disposition,
               transform.write_disposition,
               kms_key=transform.kms_key))
