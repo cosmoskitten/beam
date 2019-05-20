@@ -1011,7 +1011,7 @@ bigquery_v2_messages.TableSchema`. or a `ValueProvider` that has a JSON string,
         create_disposition)
     self.write_disposition = BigQueryDisposition.validate_write(
         write_disposition)
-    if schema == SCHEMA_AUTODETECT:
+    if schema == SCHEMA_AUTODETECT or not schema:
       self.schema = schema
     else:
       self.schema = WriteToBigQuery.get_dict_table_schema(schema)
