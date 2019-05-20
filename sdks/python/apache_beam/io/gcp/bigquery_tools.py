@@ -925,6 +925,7 @@ class BigQueryReader(dataflow_io.NativeSourceReader):
       if self.schema is None:
         self.schema = schema
       for row in rows:
+        print(row)
         if self.row_as_dict:
           yield self.client.convert_row_to_dict(row, schema)
         else:
