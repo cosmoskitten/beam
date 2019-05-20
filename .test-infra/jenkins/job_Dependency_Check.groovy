@@ -54,11 +54,12 @@ job('beam_Dependency_Check') {
   }
     
   def date = new Date().format('yyyy-MM-dd')
-  publishers {
+  publishers {v
     extendedEmail {
       triggers {
         always {
-          recipientList('dev@beam.apache.org')
+          //recipientList('dev@beam.apache.org')
+          recipientList('yifanzou@google.com')
           contentType('text/html')
           subject("Beam Dependency Check Report (${date})")
           content('''${FILE, path="src/build/dependencyUpdates/beam-dependency-check-report.html"}''')
