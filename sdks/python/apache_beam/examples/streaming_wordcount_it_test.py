@@ -80,10 +80,6 @@ class StreamingWordCountIT(unittest.TestCase):
     test_utils.cleanup_topics(self.pub_client,
                               [self.input_topic, self.output_topic])
 
-  @unittest.skipIf(sys.version[0:3] == '3.6' and
-                   os.environ.get('RUN_SKIPPED_PY3_TESTS') != '1',
-                   'This test still needs to be fixed on Python 3.6 '
-                   'TODO: BEAM-7181')
   @attr('IT')
   def test_streaming_wordcount_it(self):
     # Build expected dataset.
