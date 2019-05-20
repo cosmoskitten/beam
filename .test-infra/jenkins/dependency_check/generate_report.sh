@@ -39,7 +39,7 @@ REPORT_DESCRIPTION="
 
 
 # Virtualenv for the rest of the script to run setup
-/usr/bin/virtualenv dependency/check
+virtualenv dependency/check
 . dependency/check/bin/activate
 pip install --upgrade google-cloud-bigquery
 pip install --upgrade google-cloud-bigtable
