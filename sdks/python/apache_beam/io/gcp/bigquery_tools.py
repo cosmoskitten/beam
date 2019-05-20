@@ -998,6 +998,7 @@ class RowAsDictJsonCoder(coders.Coder):
     # This code will catch this error to emit an error that explains
     # to the programmer that they have used NAN/INF values.
     try:
+      logging.warning(table_row)
       return json.dumps(
           table_row, allow_nan=False, default=default_encoder).encode('utf-8')
     except ValueError as e:
