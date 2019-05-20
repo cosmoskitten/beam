@@ -42,7 +42,7 @@ except ImportError:
 # pylint: enable=wrong-import-order, wrong-import-position
 
 
-class BigQueryReadTests(unittest.TestCase):
+class BigQueryReadIntegrationTests(unittest.TestCase):
   BIG_QUERY_DATASET_ID = 'python_read_table_'
 
   def setUp(self):

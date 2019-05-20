@@ -40,6 +40,7 @@ from apache_beam import error
 from apache_beam import pvalue
 from apache_beam.internal import pickler
 from apache_beam.internal.gcp import json_value
+from apache_beam.io.gcp.bigquery import SCHEMA_AUTODETECT
 from apache_beam.options.pipeline_options import DebugOptions
 from apache_beam.options.pipeline_options import GoogleCloudOptions
 from apache_beam.options.pipeline_options import SetupOptions
@@ -654,12 +655,16 @@ class DataflowRunner(PipelineRunner):
       return self.apply_PTransform(transform, pcoll, options)
     else:
       from apache_beam.io.gcp.bigquery_tools import parse_table_schema_from_json
+      if transform.schema == SCHEMA_AUTODETECT or transform.schema is None:
+        schema = transform.schema
+      else:
+        schema = parse_table_schema_from_json(json.dumps(transform.schema))
       return pcoll  | 'WriteToBigQuery' >> beam.io.Write(
           beam.io.BigQuerySink(
               transform.table_reference.tableId,
               transform.table_reference.datasetId,
               transform.table_reference.projectId,
-              parse_table_schema_from_json(json.dumps(transform.schema)),
+              schema,
               transform.create_disposition,
               transform.write_disposition,
               kms_key=transform.kms_key))
@@ -1090,7 +1095,8 @@ class DataflowRunner(PipelineRunner):
                         transform.sink.create_disposition)
       step.add_property(PropertyNames.BIGQUERY_WRITE_DISPOSITION,
                         transform.sink.write_disposition)
-      if transform.sink.table_schema is not None:
+      if (transform.sink.table_schema != SCHEMA_AUTODETECT and
+          transform.sink.table_schema is not None):
         step.add_property(
             PropertyNames.BIGQUERY_SCHEMA, transform.sink.schema_as_json())
       if transform.sink.kms_key is not None:
