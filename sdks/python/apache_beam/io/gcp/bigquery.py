@@ -580,6 +580,9 @@ bigquery_v2_messages.TableSchema` object.
     self.table_reference = bigquery_tools.parse_table_reference(
         table, dataset, project)
     # Transform the table schema into a bigquery.TableSchema instance.
+    if schema is None or schema == SCHEMA_AUTODETECT:
+      # TODO(silviuc): Should check that table exists if no schema specified.
+      self.table_schema = schema
     if isinstance(schema, (str, unicode)):
       # TODO(silviuc): Should add a regex-based validation of the format.
       table_schema = bigquery.TableSchema()
@@ -592,9 +595,6 @@ bigquery_v2_messages.TableSchema` object.
         field_schema.mode = 'NULLABLE'
         table_schema.fields.append(field_schema)
       self.table_schema = table_schema
-    elif schema is None:
-      # TODO(silviuc): Should check that table exists if no schema specified.
-      self.table_schema = schema
     elif isinstance(schema, bigquery.TableSchema):
       self.table_schema = schema
     else:
@@ -1011,7 +1011,7 @@ bigquery_v2_messages.TableSchema`. or a `ValueProvider` that has a JSON string,
         create_disposition)
     self.write_disposition = BigQueryDisposition.validate_write(
         write_disposition)
-    if schema == SCHEMA_AUTODETECT:
+    if schema == SCHEMA_AUTODETECT or schema is None:
       self.schema = schema
     else:
       self.schema = WriteToBigQuery.get_dict_table_schema(schema)
