@@ -55,6 +55,7 @@ __all__ = [
     'Top',
     'ToDict',
     'ToList',
+    'ToString',
     'Latest'
     ]
 
@@ -924,3 +925,74 @@ class LatestCombineFn(core.CombineFn):
 
   def extract_output(self, accumulator):
     return accumulator[0]
+
+
+class ToString(object):
+  """PTransform for converting a PCollection element, KV or PCollection Iterable to string."""
+
+  class Kvs(ptransform.PTransform):
+    """
+    Transforms each element of the PCollection to a string on the key followed by the specific
+    delimiter and the value.
+
+    Args:
+      delimiter: Delimiter used to separate the key and the value to string. Default is the comma ","
+    """
+
+    def __init__(self, delimiter = None, **kwargs):
+      self.delimiter = delimiter or ","
+
+    def expand(self, pcoll):
+      input_type = KV[Any, Any]
+      output_type = List[str]
+      return (
+          pcoll
+          | ('%s:KeyVaueToString' % self.label >> (core.Map(lambda x: "{}{}{}".format(x[0], self.delimiter, x[1])))
+             .with_input_types(input_type)
+             .with_output_types(output_type)
+             )
+      )
+
+  class Element(ptransform.PTransform):
+    """
+    Transforms each element of the PCollection to a string.
+
+    Args:
+      delimiter: Delimiter used to separate the elements to string. Default is the comma ","
+    """
+
+    def __init__(self, delimiter = None, **kwargs):
+      self.delimiter = delimiter or ","
+
+    def expand(self, pcoll):
+      input_type = T
+      output_type = List[str]
+      return (
+          pcoll
+          | ('%s:ElementToString' % self.label >> (core.Map(lambda x: str(x) ))
+             .with_input_types(input_type)
+             .with_output_types(output_type)
+             )
+      )
+
+  class Iterables(ptransform.PTransform):
+    """
+    Transforms each item in the iterable of the input of PCollection to a string. There is no trailing delimiter.
+
+    Args:
+      delimiter: Delimiter used to separate the iterable elements to string. Default is the comma ","
+    """
+
+    def __init__(self, delimiter = None, **kwargs):
+      self.delimiter = delimiter or ","
+
+    def expand(self, pcoll):
+      input_type = Iterable[Any]
+      output_type = List[str]
+      return (
+          pcoll
+          | ('%s:IterablesToString' % self.label >> (core.Map(lambda x: self.delimiter.join(str(_x) for _x in x)))
+             .with_input_types(input_type)
+             .with_output_types(output_type)
+             )
+      )

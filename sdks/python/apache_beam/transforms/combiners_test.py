@@ -393,6 +393,43 @@ class CombineTest(unittest.TestCase):
           | beam.CombineGlobally(combine.MeanCombineFn()).with_fanout(11))
       assert_that(result, equal_to([49.5]))
 
+  def test_tostring_elements(self):
+    with TestPipeline() as p:
+      result = (
+        p
+        | Create([1, 1, 2, 3])
+        | combine.ToString.Element()
+      )
+      assert_that(result, equal_to(["1", "1", "2", "3"]))
+
+  def test_tostring_iterables(self):
+    with TestPipeline() as p:
+      result = (
+        p
+        | Create([("one", "two", "three"), ("four", "five", "six")])
+        | combine.ToString.Iterables()
+      )
+      assert_that(result, equal_to(["one,two,three", "four,five,six"]))
+
+  def test_tostring_iterables_with_delimeter(self):
+    with TestPipeline() as p:
+      result = (
+        p
+        | Create([("one", "two", "three"), ("four", "five", "six")])
+        | combine.ToString.Iterables("\t")
+      )
+      assert_that(result, equal_to(["one\ttwo\tthree", "four\tfive\tsix"]))
+
+  def test_tostring_kvs(self):
+    with TestPipeline() as p:
+      result = (p | Create([("one", 1), ("tow", 2)]) | combine.ToString.Kvs() )
+      assert_that( result, equal_to(["one,1", "tow,2"]) )
+
+  def test_tostring_kvs_delimeter(self):
+    with TestPipeline() as p:
+      result = (p | Create([("one", 1), ("tow", 2)]) | combine.ToString.Kvs("\t"))
+      assert_that(result, equal_to(["one\t1", "tow\t2"]))
+
 
 class LatestTest(unittest.TestCase):
 
