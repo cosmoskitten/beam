@@ -37,6 +37,8 @@ class TestingFramework {
       }
       shell("echo \" Tagging Harness' image\"...")
       shell("docker tag ${image} ${imageTag}")
+      shell("echo \" Authenticate to Container Registry\"...")
+      shell("gcloud auth configure-docker --quiet")
       shell("echo \" Pushing Harness' image\"...")
       shell("docker push ${imageTag}")
     }
@@ -59,6 +61,8 @@ class TestingFramework {
 
       shell("echo \" Tagging Flink Job Server's image\"...")
       shell("docker tag ${image} ${imageTag}")
+      shell("echo \" Authenticate to Container Registry\"...")
+      shell("gcloud auth configure-docker --quiet")
       shell("echo \" Pushing Flink Job Server's image\"...")
       shell("docker push ${imageTag}")
     }
