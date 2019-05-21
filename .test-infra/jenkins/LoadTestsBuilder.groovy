@@ -24,7 +24,12 @@ import CommonTestProperties.TriggeringContext
 class LoadTestsBuilder {
   static void loadTest(context, String title, Runner runner, SDK sdk, Map<String, ?> options, String mainClass, TriggeringContext triggeringContext) {
 
-    options.put('runner', runner.option)
+    // TODO(lgajowy): This logic should be removed from here (it's hidden and it shouldn't be)
+    if (sdk == SDK.JAVA) {
+      options.put('runner', runner.option)
+    } else if (sdk == SDK.PYTHON) {
+      options.put('runner', runner.getDepenedencyBySDK(sdk))
+    }
 
     String datasetKey = 'bigQueryDataset'
     String datasetValue = options.get(datasetKey)
