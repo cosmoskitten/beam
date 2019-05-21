@@ -1809,6 +1809,37 @@ class BeamModulePlugin implements Plugin<Project> {
             }
           }
         }
+
+        // Method to create the ValidatesRunnerTasks.
+        project.ext.enablePythonDataflowValidatesRunner = {
+
+          def basicTestOpts = [
+            "--nocapture",  // print stdout instantly
+            "--processes=8",  // run tests in parallel
+            "--process-timeout=4500", // timeout of whole command execution
+          ]
+
+          project.task('validatesRunnerBatchTests') {
+            dependsOn 'installGcpTest'
+            dependsOn 'sdist'
+            dependsOn ':runners:google-cloud-dataflow-java:worker:shadowJar'
+
+            def dataflowWorkerJar = project(":runners:google-cloud-dataflow-java:worker").shadowJar.archivePath
+
+            doLast {
+              def testOpts = basicTestOpts + ["--attr=ValidatesRunner"]
+              def cmdArgs = project.mapToArgString([
+                "test_opts": testOpts,
+                "sdk_location": "${project.buildDir}/apache-beam.tar.gz",
+                "worker_jar": dataflowWorkerJar
+              ])
+              exec {
+                executable 'sh'
+                args '-c', ". ${project.ext.envdir}/bin/activate && ${runScriptsDir}/run_integration_test.sh $cmdArgs"
+              }
+            }
+          }
+        }
       }
     }
   }
