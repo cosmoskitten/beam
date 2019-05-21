@@ -28,7 +28,7 @@ def testConfiguration =
         [
                 title        : 'Load test: 2GB of 10B records',
                 itClass      : 'apache_beam.testing.load_tests.group_by_key_test:GroupByKeyTest.testGroupByKey',
-                runner       : CommonTestProperties.Runner.FLINK,
+                runner       : CommonTestProperties.Runner.PORTABLE,
                 sdk          : CommonTestProperties.SDK.PYTHON,
                 jobProperties: [
                         job_name            : "load_tests_Python_Flink_Batch_GBK_1_${now}",

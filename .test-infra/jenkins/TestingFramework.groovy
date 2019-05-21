@@ -88,7 +88,7 @@ class TestingFramework {
       }
 
       shell('echo Setting up flink cluster')
-      shell("cd ${common.absolutePath('src/.test-infra/dataproc/')}; ./create_flink_cluster.sh")
+      shell("cd ${common.makePathAbsolute('src/.test-infra/dataproc/')}; ./create_flink_cluster.sh")
     }
   }
 
