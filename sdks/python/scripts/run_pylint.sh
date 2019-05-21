@@ -60,9 +60,10 @@ EXCLUDED_GENERATED_FILES=(
 apache_beam/portability/api/*pb2*.py
 )
 
+# TODO(BEAM-7372): Remove this list once Python 2 is no longer supported and drop _py3_only_test suffix.
 # Following files contain python 3 syntax and are excluded from pylint in python 2
 EXCLUDED_PYTHON3_FILES=(
-"apache_beam/transforms/transforms_keyword_only_args_py3_test.py"
+.*_py3_only_test.py
 )
 
 EXCLUDED_FILES=( "${EXCLUDED_GENERATED_FILES[@]}" "${EXCLUDED_PYTHON3_FILES[@]}" )
