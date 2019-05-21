@@ -845,6 +845,15 @@ class Read(ptransform.PTransform):
     super(Read, self).__init__()
     self.source = source
 
+  def _get_desired_chunk_size(self):
+    total_size = self.source.estimate_size()
+    if total_size:
+      # 1MB = 1 shard, 1GB = 32 shards, 1TB = 1000 shards, 1PB = 32k shards
+      chunk_size = max(1 << 20, 1000 * int(math.sqrt(total_size)))
+    else:
+      chunk_size = 64 << 20  # 64mb
+    return chunk_size
+
   def expand(self, pbegin):
     from apache_beam.options.pipeline_options import DebugOptions
     from apache_beam.transforms import util
@@ -855,24 +864,44 @@ class Read(ptransform.PTransform):
     debug_options = self.pipeline._options.view_as(DebugOptions)
     if debug_options.experiments and 'beam_fn_api' in debug_options.experiments:
       source = self.source
+      # My original design was to have a SDFBoundedSourceWrapper PTransform, which will
+      # replace Read() when constructing  a pipeline. We can also choose to expand Read
+      # direcly using SDF, which is simpler from my point of view.
+      if 'sdf_bounded_source' in debug_options.experiments:
+        from apache_beam.io.sdf_restriction_provider import SDFBoundedSourceRestrictionProvider
 
-      def split_source(unused_impulse):
-        total_size = source.estimate_size()
-        if total_size:
-          # 1MB = 1 shard, 1GB = 32 shards, 1TB = 1000 shards, 1PB = 32k shards
-          chunk_size = max(1 << 20, 1000 * int(math.sqrt(total_size)))
-        else:
-          chunk_size = 64 << 20  # 64mb
-        return source.split(chunk_size)
+        def create_sdf_bounded_source_dofn():
+          chunk_size = self._get_desired_chunk_size()
 
-      return (
-          pbegin
-          | core.Impulse()
-          | 'Split' >> core.FlatMap(split_source)
-          | util.Reshuffle()
-          | 'ReadSplits' >> core.FlatMap(lambda split: split.source.read(
-              split.source.get_range_tracker(
-                  split.start_position, split.stop_position))))
+          class SDFBoundedSourceDoFn(core.DoFn):
+            def __init__(self, read_source):
+              self.source = read_source
+            def process(
+                self,
+                element,
+                restriction_tracker=core.DoFn.RestrictionParam(
+                    SDFBoundedSourceRestrictionProvider(source, chunk_size))):
+              start_pos, end_pos = restriction_tracker.current_restriction()
+              range_tracker = self.source.get_range_tracker(start_pos, end_pos)
+              return self.source.read(range_tracker)
+
+          return SDFBoundedSourceDoFn(self.source)
+
+        return (pbegin
+                | core.Impulse()
+                | core.ParDo(create_sdf_bounded_source_dofn()))
+      else:
+        def split_source(unused_impulse):
+          return source.split(self._get_desired_chunk_size())
+
+        return (
+            pbegin
+            | core.Impulse()
+            | 'Split' >> core.FlatMap(split_source)
+            | util.Reshuffle()
+            | 'ReadSplits' >> core.FlatMap(lambda split: split.source.read(
+                split.source.get_range_tracker(
+                    split.start_position, split.stop_position))))
     else:
       # Treat Read itself as a primitive.
       return pvalue.PCollection(self.pipeline)
