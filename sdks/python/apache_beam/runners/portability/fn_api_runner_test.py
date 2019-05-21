@@ -53,6 +53,7 @@ from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
 from apache_beam.transforms import userstate
 from apache_beam.transforms import window
+from apache_beam.io.concat_source_test import RangeSource
 
 if statesampler.FAST_SAMPLER:
   DEFAULT_SAMPLING_PERIOD_MS = statesampler.DEFAULT_SAMPLING_PERIOD_MS
@@ -477,6 +478,23 @@ class FnApiRunnerTest(unittest.TestCase):
       counters = res.metrics().query(beam.metrics.MetricsFilter())['counters']
       self.assertEqual(1, len(counters))
       self.assertEqual(counters[0].committed, len(''.join(data)))
+
+  def test_sdf_wrap_range_source(self):
+    with self.create_pipeline() as p:
+      from apache_beam.options.pipeline_options import DebugOptions
+      experiments = (p._options.view_as(DebugOptions).experiments or [])
+
+      # Setup experiment option to enable using SDFBoundedSourceWrapper
+      if not 'use_sdf_bounded_source' in experiments:
+        experiments.append('use_sdf_bounded_source')
+
+      p._options.view_as(DebugOptions).experiments = experiments
+
+      actual = (
+          p | beam.io.Read(RangeSource(0, 4))
+      )
+      assert_that(actual, equal_to([0, 1, 2, 3]))
+
 
   def test_group_by_key(self):
     with self.create_pipeline() as p:

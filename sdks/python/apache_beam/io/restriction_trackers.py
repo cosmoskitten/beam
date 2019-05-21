@@ -148,7 +148,7 @@ class OffsetRestrictionTracker(RestrictionTracker):
 
       return False
 
-  def try_split(self, fraction):
+  def try_split(self, fraction_of_remainder):
     with self._lock:
       if not self._checkpointed:
         if self._current_position is None:
@@ -183,3 +183,41 @@ class OffsetRestrictionTracker(RestrictionTracker):
   def deferred_status(self):
     if self._deferred_residual:
       return (self._deferred_residual, self._deferred_watermark)
+
+
+class SDFBoundedSourceRestrictionTracker(RestrictionTracker):
+  """An `iobase.RestrictionTracker` implementations for wrapping BoundedSource with SDF
+  Delegated RangeTracker guarantees synchronization safety.
+  """
+  def __init__(self, range_tracker):
+    self._delegate_range_tracker = range_tracker
+
+  def current_restriction(self):
+    return (self._delegate_range_tracker.start_position(),
+            self._delegate_range_tracker.stop_position())
+
+  def start_pos(self):
+    return self._delegate_range_tracker.start_position()
+
+  def stop_pos(self):
+    return self._delegate_range_tracker.stop_position()
+
+  def try_claim(self, position):
+    return self._delegate_range_tracker.try_claim()
+
+  def try_split(self, fraction_of_remainder):
+    consumed_fraction = self._delegate_range_tracker.fraction_consumed()
+    fraction = consumed_fraction + (1 - consumed_fraction) * fraction_of_remainder
+    position = self._delegate_range_tracker.position_at_position(fraction)
+    # need to stash current stop_pos before splitting since
+    # range_tracker.split will update its stop_pos if splits
+    # successfully.
+    stop_pos = self.stop_pos()
+    split_pos, _ = self._delegate_range_tracker.try_split(position)
+    if split_pos:
+      return ((self._delegate_range_tracker.start_position(), split_pos),
+              (split_pos, stop_pos))
+
+  def deferred_status(self):
+    return None
+
