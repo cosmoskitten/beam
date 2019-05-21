@@ -19,11 +19,12 @@
 
 from __future__ import absolute_import
 
-import logging
 import unittest
 
+from apache_beam.io.range_trackers import OffsetRangeTracker
 from apache_beam.io.restriction_trackers import OffsetRange
 from apache_beam.io.restriction_trackers import OffsetRestrictionTracker
+from apache_beam.io.restriction_trackers import SDFBoundedSourceRestrictionTracker
 
 
 class OffsetRangeTest(unittest.TestCase):
@@ -154,6 +155,41 @@ class OffsetRestrictionTrackerTest(unittest.TestCase):
 
     with self.assertRaises(ValueError):
       tracker.check_done()
+
+
+class SDFBoundedSourceRestrictionTrackerTest(unittest.TestCase):
+
+  def setUp(self):
+    self.initial_start_pos = 0
+    self.initial_stop_pos = 4
+    self.range_tracker = OffsetRangeTracker(self.initial_start_pos,
+                                            self.initial_stop_pos)
+    self.sdf_restriction_tracker = SDFBoundedSourceRestrictionTracker(
+        self.range_tracker)
+
+  def test_current_restriction_before_split(self):
+    actual_start, actual_stop = (
+        self.sdf_restriction_tracker.current_restriction())
+    self.assertEqual(self.initial_start_pos, actual_start)
+    self.assertEqual(self.initial_stop_pos, actual_stop)
+
+  def test_current_restriction_after_split(self):
+    fraction_of_remainder = 0.5
+    self.sdf_restriction_tracker.try_claim(1)
+    expected_restriction, _ = (
+        self.sdf_restriction_tracker.try_split(fraction_of_remainder))
+    self.assertEqual(expected_restriction,
+                     self.sdf_restriction_tracker.current_restriction())
+
+  def test_try_split_at_remainder(self):
+    fraction_of_remainder = 0.5
+    expected_primary = (0, 3)
+    expected_residual = (3, 4)
+    self.sdf_restriction_tracker.try_claim(1)
+    actual_primary, actual_residual = (
+        self.sdf_restriction_tracker.try_split(fraction_of_remainder))
+    self.assertEqual(expected_primary, actual_primary)
+    self.assertEqual(expected_residual, actual_residual)
 
 
 if __name__ == '__main__':

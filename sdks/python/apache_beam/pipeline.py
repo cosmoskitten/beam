@@ -194,9 +194,7 @@ class Pipeline(object):
         self._remove_labels_recursively(part)
 
   def _replace(self, override):
-
     assert isinstance(override, PTransformOverride)
-
     output_map = {}
     output_replacements = {}
     input_replacements = {}
