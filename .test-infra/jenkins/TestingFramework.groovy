@@ -63,4 +63,42 @@ class TestingFramework {
       shell("docker push ${imageTag}")
     }
   }
+
+  static void setupFlinkCluster(def context, String clusterNamePrefix, Integer workerCount, String imagesToPull, String jobServerImage) {
+    String gcsBucket = 'gs://beam-flink-cluster'
+    String artifactsDir="${gcsBucket}/artifacts-for-build-id-\$BUILD_ID"
+
+    context.steps {
+      environmentVariables {
+        env("GCLOUD_ZONE", "us-central1-a")
+        env("CLUSTER_NAME", getClusterName(clusterNamePrefix))
+        env("GCS_BUCKET", gcsBucket)
+        env("FLINK_DOWNLOAD_URL", 'http://archive.apache.org/dist/flink/flink-1.5.6/flink-1.5.6-bin-hadoop28-scala_2.11.tgz')
+        env("FLINK_NUM_WORKERS", workerCount)
+        env("DETACHED_MODE", 'true')
+
+        if(imagesToPull) {
+          env("HARNESS_IMAGES_TO_PULL", imagesToPull)
+        }
+
+        if(jobServerImage) {
+          env("JOB_SERVER_IMAGE", jobServerImage)
+          env("ARTIFACTS_DIR", artifactsDir)
+        }
+      }
+
+      shell('echo Setting up flink cluster')
+      shell("cd ${common.absolutePath('src/.test-infra/dataproc/')}; ./create_flink_cluster.sh")
+    }
+  }
+
+  static void teardownDataproc(def context, String jobName) {
+    context.steps {
+      shell("gcloud dataproc clusters delete ${getClusterName(jobName)}")
+    }
+  }
+
+  private static GString getClusterName(String jobName) {
+    return "${jobName.toLowerCase().replace("_", "-")}-\$BUILD_ID"
+  }
 }
