@@ -21,7 +21,7 @@ import PostcommitJobBuilder
 
 // This job runs the suite of Python ValidatesRunner tests against the
 // Dataflow runner.
-PostcommitJobBuilder.postCommitJob('beam_PostCommit_Py_VR_Dataflow', 'Run Python Dataflow ValidatesRunner',
+PostcommitJobBuilder.postCommitJob('beam_PostCommit_Py_VR_Dataflow', 'Run Python Dataflow ValidatesRunnerChangeTest',
   'Google Cloud Dataflow Runner Python ValidatesRunner Tests', this) {
   description('Runs Python ValidatesRunner suite on the Dataflow runner.')
 
@@ -32,14 +32,14 @@ PostcommitJobBuilder.postCommitJob('beam_PostCommit_Py_VR_Dataflow', 'Run Python
   steps {
     gradle {
       rootBuildScriptDir(commonJobProperties.checkoutDir)
-      tasks(':beam-sdks-python:validatesRunnerBatchTests')
-      tasks(':beam-sdks-python:test-suites:dataflow:py35:validatesRunnerBatchTests')
-      tasks(':beam-sdks-python:test-suites:dataflow:py36:validatesRunnerBatchTests')
-      tasks(':beam-sdks-python:test-suites:dataflow:py37:validatesRunnerBatchTests')
-      tasks(':beam-sdks-python:validatesRunnerStreamingTests')
-      tasks(':beam-sdks-python:test-suites:dataflow:py35:validatesRunnerStreamingTests')
-      tasks(':beam-sdks-python:test-suites:dataflow:py36:validatesRunnerStreamingTests')
-      tasks(':beam-sdks-python:test-suites:dataflow:py37:validatesRunnerStreamingTests')
+      // tasks(':sdks:python:validatesRunnerBatchTests')
+      tasks(':sdks:python:test-suites:dataflow:py35:validatesRunnerBatchTests')
+      tasks(':sdks:python:test-suites:dataflow:py36:validatesRunnerBatchTests')
+      tasks(':sdks:python:test-suites:dataflow:py37:validatesRunnerBatchTests')
+      // tasks(':sdks:python:validatesRunnerStreamingTests')
+      tasks(':sdks:python:test-suites:dataflow:py35:validatesRunnerStreamingTests')
+      tasks(':sdks:python:test-suites:dataflow:py36:validatesRunnerStreamingTests')
+      tasks(':sdks:python:test-suites:dataflow:py37:validatesRunnerStreamingTests')
       commonJobProperties.setGradleSwitches(delegate)
     }
   }
