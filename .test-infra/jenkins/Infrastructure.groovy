@@ -19,7 +19,7 @@
 import CommonJobProperties as common
 import CommonTestProperties.SDK
 
-class TestingFramework {
+class Infrastructure {
 
   static void prepareSDKHarness(def context, SDK sdk, String repositoryRoot, String dockerTag) {
     context.steps {
@@ -37,6 +37,8 @@ class TestingFramework {
       }
       shell("echo \" Tagging Harness' image\"...")
       shell("docker tag ${image} ${imageTag}")
+      shell("echo \" Configure docker credentials\"...")
+      shell("docker-credential-gcr configure-docker")
       shell("echo \" Pushing Harness' image\"...")
       shell("docker push ${imageTag}")
     }
@@ -59,6 +61,8 @@ class TestingFramework {
 
       shell("echo \" Tagging Flink Job Server's image\"...")
       shell("docker tag ${image} ${imageTag}")
+      shell("echo \" Configure docker credentials\"...")
+      shell("docker-credential-gcr configure-docker")
       shell("echo \" Pushing Flink Job Server's image\"...")
       shell("docker push ${imageTag}")
     }
@@ -66,12 +70,13 @@ class TestingFramework {
 
   static void setupFlinkCluster(def context, String clusterNamePrefix, Integer workerCount, String imagesToPull, String jobServerImage) {
     String gcsBucket = 'gs://beam-flink-cluster'
-    String artifactsDir="${gcsBucket}/artifacts-for-build-id-\$BUILD_ID"
+    String clusterName = getClusterName(clusterNamePrefix)
+    String artifactsDir="${gcsBucket}/${clusterName}"
 
     context.steps {
       environmentVariables {
         env("GCLOUD_ZONE", "us-central1-a")
-        env("CLUSTER_NAME", getClusterName(clusterNamePrefix))
+        env("CLUSTER_NAME", clusterName)
         env("GCS_BUCKET", gcsBucket)
         env("FLINK_DOWNLOAD_URL", 'http://archive.apache.org/dist/flink/flink-1.5.6/flink-1.5.6-bin-hadoop28-scala_2.11.tgz')
         env("FLINK_NUM_WORKERS", workerCount)
@@ -88,13 +93,13 @@ class TestingFramework {
       }
 
       shell('echo Setting up flink cluster')
-      shell("cd ${common.absolutePath('src/.test-infra/dataproc/')}; ./create_flink_cluster.sh")
+      shell("cd ${common.makePathAbsolute('src/.test-infra/dataproc/')}; ./create_flink_cluster.sh")
     }
   }
 
   static void teardownDataproc(def context, String jobName) {
     context.steps {
-      shell("gcloud dataproc clusters delete ${getClusterName(jobName)}")
+      shell("gcloud dataproc clusters delete ${getClusterName(jobName)} --quiet")
     }
   }
 
