@@ -51,7 +51,7 @@ PhraseTriggeringPostCommitBuilder.postCommitJob(
         this
 ) {
   description('Runs Java GBK load tests on Flink runner in batch mode')
-  commonJobProperties.setTopLevelMainJobProperties(delegate, 'master', 240)
+  commonJobProperties.setTopLevelMainJobProperties(delegate, 'master', 240, true, 'beam-test')
 
   String repositoryRoot = 'gcr.io/apache-beam-testing/beam_portability'
   String tag = 'latest'
