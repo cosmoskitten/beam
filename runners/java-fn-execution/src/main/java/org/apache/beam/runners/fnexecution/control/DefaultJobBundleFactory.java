@@ -18,7 +18,6 @@
 package org.apache.beam.runners.fnexecution.control;
 
 import com.google.auto.value.AutoValue;
-import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.io.IOException;
 import java.util.Map;
 import java.util.concurrent.ExecutorService;
@@ -195,24 +194,7 @@ public class DefaultJobBundleFactory implements JobBundleFactory {
 
   @Override
   public StageBundleFactory forStage(ExecutableStage executableStage) {
-    if (true) {
-      return new SmarterStageBundleFactory(executableStage);
-    }
-    WrappedSdkHarnessClient wrappedClient =
-        environmentCache.getUnchecked(executableStage.getEnvironment());
-    ExecutableProcessBundleDescriptor processBundleDescriptor;
-    try {
-      processBundleDescriptor =
-          ProcessBundleDescriptors.fromExecutableStage(
-              stageIdGenerator.getId(),
-              executableStage,
-              wrappedClient.getServerInfo().getDataServer().getApiServiceDescriptor(),
-              wrappedClient.getServerInfo().getStateServer().getApiServiceDescriptor());
-    } catch (IOException e) {
-      throw new RuntimeException(e);
-    }
-    return SimpleStageBundleFactory.create(
-        wrappedClient, processBundleDescriptor, wrappedClient.getServerInfo().getStateServer());
+    return new SimpleStageBundleFactory(executableStage);
   }
 
   @Override
@@ -225,37 +207,42 @@ public class DefaultJobBundleFactory implements JobBundleFactory {
     executor.shutdown();
   }
 
-  /** A simple stage bundle factory for remotely processing bundles. */
-  protected static class SimpleStageBundleFactory implements StageBundleFactory {
+  /**
+   * A {@link StageBundleFactory} for remotely processing bundles that supports environment
+   * expiration.
+   */
+  private class SimpleStageBundleFactory implements StageBundleFactory {
 
-    private final BundleProcessor processor;
-    private final ExecutableProcessBundleDescriptor processBundleDescriptor;
+    private final ExecutableStage executableStage;
+    private BundleProcessor processor;
+    private ExecutableProcessBundleDescriptor processBundleDescriptor;
+    private WrappedSdkHarnessClient wrappedClient;
 
-    // Store the wrapped client in order to keep a live reference into the cache.
-    @SuppressFBWarnings private WrappedSdkHarnessClient wrappedClient;
+    private SimpleStageBundleFactory(ExecutableStage executableStage) {
+      this.executableStage = executableStage;
+      prepare(environmentCache.getUnchecked(executableStage.getEnvironment()));
+    }
 
-    static SimpleStageBundleFactory create(
-        WrappedSdkHarnessClient wrappedClient,
-        ExecutableProcessBundleDescriptor processBundleDescriptor,
-        GrpcFnServer<GrpcStateService> stateServer) {
-      @SuppressWarnings("unchecked")
-      BundleProcessor processor =
+    private void prepare(WrappedSdkHarnessClient wrappedClient) {
+      try {
+        this.wrappedClient = wrappedClient;
+        this.processBundleDescriptor =
+            ProcessBundleDescriptors.fromExecutableStage(
+                stageIdGenerator.getId(),
+                executableStage,
+                wrappedClient.getServerInfo().getDataServer().getApiServiceDescriptor(),
+                wrappedClient.getServerInfo().getStateServer().getApiServiceDescriptor());
+      } catch (IOException e) {
+        throw new RuntimeException(e);
+      }
+
+      this.processor =
           wrappedClient
               .getClient()
               .getProcessor(
                   processBundleDescriptor.getProcessBundleDescriptor(),
                   processBundleDescriptor.getRemoteInputDestinations(),
-                  stateServer.getService());
-      return new SimpleStageBundleFactory(processBundleDescriptor, processor, wrappedClient);
-    }
-
-    SimpleStageBundleFactory(
-        ExecutableProcessBundleDescriptor processBundleDescriptor,
-        BundleProcessor processor,
-        WrappedSdkHarnessClient wrappedClient) {
-      this.processBundleDescriptor = processBundleDescriptor;
-      this.processor = processor;
-      this.wrappedClient = wrappedClient;
+                  wrappedClient.getServerInfo().getStateServer().getService());
     }
 
     @Override
@@ -283,69 +270,21 @@ public class DefaultJobBundleFactory implements JobBundleFactory {
             outputReceiverFactory.create(bundleOutputPCollection);
         outputReceivers.put(target, RemoteOutputReceiver.of(coder, outputReceiver));
       }
-      return processor.newBundle(outputReceivers.build(), stateRequestHandler, progressHandler);
-    }
 
-    @Override
-    public ExecutableProcessBundleDescriptor getProcessBundleDescriptor() {
-      return processBundleDescriptor;
-    }
-
-    @Override
-    public void close() throws Exception {
-      // Clear reference to encourage cache eviction. Values are weakly referenced.
-      wrappedClient = null;
-    }
-  }
-
-  /** A {@link StageBundleFactory} that supports environment expiration. */
-  private class SmarterStageBundleFactory implements StageBundleFactory {
-
-    private final ExecutableStage executableStage;
-    private SimpleStageBundleFactory currentFactory;
-
-    private SmarterStageBundleFactory(ExecutableStage executableStage) {
-      this.executableStage = executableStage;
-      WrappedSdkHarnessClient wrappedClient =
-          environmentCache.getUnchecked(executableStage.getEnvironment());
-      currentFactory = createBundleFactory(wrappedClient);
-    }
-
-    private SimpleStageBundleFactory createBundleFactory(WrappedSdkHarnessClient wrappedClient) {
-      ExecutableProcessBundleDescriptor processBundleDescriptor;
-      try {
-        processBundleDescriptor =
-            ProcessBundleDescriptors.fromExecutableStage(
-                stageIdGenerator.getId(),
-                executableStage,
-                wrappedClient.getServerInfo().getDataServer().getApiServiceDescriptor(),
-                wrappedClient.getServerInfo().getStateServer().getApiServiceDescriptor());
-      } catch (IOException e) {
-        throw new RuntimeException(e);
-      }
-      return SimpleStageBundleFactory.create(
-          wrappedClient, processBundleDescriptor, wrappedClient.getServerInfo().getStateServer());
-    }
-
-    @Override
-    public RemoteBundle getBundle(
-        OutputReceiverFactory outputReceiverFactory,
-        StateRequestHandler stateRequestHandler,
-        BundleProgressHandler progressHandler)
-        throws Exception {
-
+      final WrappedSdkHarnessClient client;
       if (environmentExpirationMillis > 0) {
-        WrappedSdkHarnessClient wrappedClient =
-            environmentCache.getUnchecked(executableStage.getEnvironment());
-        if (currentFactory.wrappedClient != wrappedClient) {
-          // environment expired
-          currentFactory = createBundleFactory(wrappedClient);
+        client = environmentCache.getUnchecked(executableStage.getEnvironment());
+        if (client != wrappedClient) {
+          // reset when environment expired
+          prepare(client);
         }
+      } else {
+        client = this.wrappedClient;
       }
-      currentFactory.wrappedClient.ref();
 
+      client.ref();
       RemoteBundle bundle =
-          currentFactory.getBundle(outputReceiverFactory, stateRequestHandler, progressHandler);
+          processor.newBundle(outputReceivers.build(), stateRequestHandler, progressHandler);
       return new RemoteBundle() {
         @Override
         public String getId() {
@@ -360,19 +299,20 @@ public class DefaultJobBundleFactory implements JobBundleFactory {
         @Override
         public void close() throws Exception {
           bundle.close();
-          currentFactory.wrappedClient.unref();
+          client.unref();
         }
       };
     }
 
     @Override
     public ExecutableProcessBundleDescriptor getProcessBundleDescriptor() {
-      return currentFactory.getProcessBundleDescriptor();
+      return processBundleDescriptor;
     }
 
     @Override
     public void close() throws Exception {
-      currentFactory.close();
+      // Clear reference to encourage cache eviction. Values are weakly referenced.
+      wrappedClient = null;
     }
   }
 
