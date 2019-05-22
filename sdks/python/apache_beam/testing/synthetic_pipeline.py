@@ -553,7 +553,7 @@ def _parse_steps(json_str):
     (4) output_filter_ratio - the probability at which a step may filter out a
         given element by not producing any output for that element.
     (5) splittable - if the step should be splittable.
-    (6) initial_splitting_num_bundles - number of bundles initiall split if step
+    (6) initial_splitting_num_bundles - number of bundles initial split if step
         is splittable.
   """
   all_steps = []
