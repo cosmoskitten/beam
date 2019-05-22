@@ -233,7 +233,7 @@ public class DefaultJobBundleFactory implements JobBundleFactory {
                 wrappedClient.getServerInfo().getDataServer().getApiServiceDescriptor(),
                 wrappedClient.getServerInfo().getStateServer().getApiServiceDescriptor());
       } catch (IOException e) {
-        throw new RuntimeException(e);
+        throw new RuntimeException("Failed to create ProcessBundleDescriptor.", e);
       }
 
       this.processor =
