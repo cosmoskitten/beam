@@ -153,6 +153,23 @@ public class DefaultJobBundleFactory implements JobBundleFactory {
     this.environmentCache = createEnvironmentCache(serverFactory -> serverInfo);
   }
 
+  @VisibleForTesting
+  DefaultJobBundleFactory(
+      JobInfo jobInfo,
+      Map<String, EnvironmentFactory.Provider> environmentFactoryMap,
+      IdGenerator stageIdGenerator,
+      ServerInfo serverInfo) {
+    this.environmentFactoryProviderMap = environmentFactoryMap;
+    this.executor = Executors.newCachedThreadPool();
+    this.clientPool = MapControlClientPool.create();
+    this.stageIdGenerator = stageIdGenerator;
+    PipelineOptions pipelineOptions =
+        PipelineOptionsTranslation.fromProto(jobInfo.pipelineOptions());
+    this.environmentExpirationMillis =
+        pipelineOptions.as(PortablePipelineOptions.class).getEnvironmentExpirationMillis();
+    this.environmentCache = createEnvironmentCache(serverFactory -> serverInfo);
+  }
+
   private LoadingCache<Environment, WrappedSdkHarnessClient> createEnvironmentCache(
       ThrowingFunction<ServerFactory, ServerInfo> serverInfoCreator) {
     CacheBuilder builder =
@@ -271,19 +288,19 @@ public class DefaultJobBundleFactory implements JobBundleFactory {
         outputReceivers.put(target, RemoteOutputReceiver.of(coder, outputReceiver));
       }
 
-      final WrappedSdkHarnessClient client;
-      if (environmentExpirationMillis > 0) {
-        client = environmentCache.getUnchecked(executableStage.getEnvironment());
-        if (client != wrappedClient) {
-          // reset when environment expired
-          prepare(client);
-        }
-      } else {
-        client = this.wrappedClient;
+      if (environmentExpirationMillis == 0) {
+        return processor.newBundle(outputReceivers.build(), stateRequestHandler, progressHandler);
+      }
+
+      final WrappedSdkHarnessClient client =
+          environmentCache.getUnchecked(executableStage.getEnvironment());
+      if (client != wrappedClient) {
+        // reset after environment expired
+        prepare(client);
       }
 
       client.ref();
-      RemoteBundle bundle =
+      final RemoteBundle bundle =
           processor.newBundle(outputReceivers.build(), stateRequestHandler, progressHandler);
       return new RemoteBundle() {
         @Override
