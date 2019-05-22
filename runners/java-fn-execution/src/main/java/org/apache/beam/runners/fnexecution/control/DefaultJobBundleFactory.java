@@ -128,33 +128,6 @@ public class DefaultJobBundleFactory implements JobBundleFactory {
 
   @VisibleForTesting
   DefaultJobBundleFactory(
-      Map<String, EnvironmentFactory.Provider> environmentFactoryMap,
-      IdGenerator stageIdGenerator,
-      GrpcFnServer<FnApiControlClientPoolService> controlServer,
-      GrpcFnServer<GrpcLoggingService> loggingServer,
-      GrpcFnServer<ArtifactRetrievalService> retrievalServer,
-      GrpcFnServer<StaticGrpcProvisionService> provisioningServer,
-      GrpcFnServer<GrpcDataService> dataServer,
-      GrpcFnServer<GrpcStateService> stateServer) {
-    this.environmentFactoryProviderMap = environmentFactoryMap;
-    this.executor = Executors.newCachedThreadPool();
-    this.clientPool = MapControlClientPool.create();
-    this.stageIdGenerator = stageIdGenerator;
-    ServerInfo serverInfo =
-        new AutoValue_DefaultJobBundleFactory_ServerInfo.Builder()
-            .setControlServer(controlServer)
-            .setLoggingServer(loggingServer)
-            .setRetrievalServer(retrievalServer)
-            .setProvisioningServer(provisioningServer)
-            .setDataServer(dataServer)
-            .setStateServer(stateServer)
-            .build();
-    this.environmentExpirationMillis = 0;
-    this.environmentCache = createEnvironmentCache(serverFactory -> serverInfo);
-  }
-
-  @VisibleForTesting
-  DefaultJobBundleFactory(
       JobInfo jobInfo,
       Map<String, EnvironmentFactory.Provider> environmentFactoryMap,
       IdGenerator stageIdGenerator,
