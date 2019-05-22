@@ -1135,11 +1135,16 @@ def is_consistent_with(sub, base):
   return issubclass(sub, base)
 
 
-def coerce_to_kv_type(element_type, label=None):
+def coerce_to_kv_type(element_type, label=None, side_input=False,
+                      side_input_producer=None):
   """Attempts to coerce element_type to a compatible kv type.
 
   Raises an error on failure.
   """
+  consumer = '%r' % label
+  if side_input:
+    consumer = 'side-input of %s (producer: %r)' % (consumer,
+                                                    side_input_producer)
   # If element_type is not specified, then treat it as `Any`.
   if not element_type:
     return KV[Any, Any]
@@ -1148,8 +1153,8 @@ def coerce_to_kv_type(element_type, label=None):
       return element_type
     else:
       raise ValueError(
-          "Tuple input to %r must be have two components. "
-          "Found %s." % (label, element_type))
+          "Tuple input to %s must have two components. "
+          "Found %s." % (consumer, element_type))
   elif isinstance(element_type, AnyTypeConstraint):
     # `Any` type needs to be replaced with a KV[Any, Any] to
     # satisfy the KV form.
@@ -1163,5 +1168,5 @@ def coerce_to_kv_type(element_type, label=None):
   else:
     # TODO: Possibly handle other valid types.
     raise ValueError(
-        "Input to %r must be compatible with KV[Any, Any]. "
-        "Found %s." % (label, element_type))
+        "Input to %s must be compatible with KV[Any, Any]. "
+        "Found %s." % (consumer, element_type))
