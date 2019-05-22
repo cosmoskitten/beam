@@ -15,10 +15,11 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.runners.samza.util;
+package org.apache.beam.runners.core.construction.renderer;
 
 import java.util.HashMap;
 import java.util.Map;
+import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.runners.TransformHierarchy;
 import org.apache.beam.sdk.values.PValue;
@@ -31,6 +32,10 @@ public class PipelineDotRenderer implements Pipeline.PipelineVisitor {
     pipeline.traverseTopologically(visitor);
     visitor.end();
     return visitor.dotBuilder.toString();
+  }
+
+  public static String toDotString(RunnerApi.Pipeline pipeline) {
+    return PortablePipelineDotRenderer.toDotString(pipeline);
   }
 
   private final StringBuilder dotBuilder = new StringBuilder();
@@ -67,12 +72,7 @@ public class PipelineDotRenderer implements Pipeline.PipelineVisitor {
     final int nodeId = nextNodeId++;
     writeLine("%d [label=\"%s\"]", nodeId, escapeString(node.getTransform().getName()));
 
-    node.getOutputs()
-        .values()
-        .forEach(
-            x -> {
-              valueToProducerNodeId.put(x, nodeId);
-            });
+    node.getOutputs().values().forEach(x -> valueToProducerNodeId.put(x, nodeId));
 
     node.getInputs()
         .forEach(
