@@ -130,15 +130,7 @@ public class DefaultJobBundleFactoryTest {
   @Test
   public void createsCorrectEnvironment() throws Exception {
     try (DefaultJobBundleFactory bundleFactory =
-        new DefaultJobBundleFactory(
-            envFactoryProviderMap,
-            stageIdGenerator,
-            controlServer,
-            loggingServer,
-            retrievalServer,
-            provisioningServer,
-            dataServer,
-            stateServer)) {
+        createDefaultJobBundleFactory(envFactoryProviderMap)) {
       bundleFactory.forStage(getExecutableStage(environment));
       verify(envFactory).createEnvironment(environment);
     }
@@ -183,9 +175,7 @@ public class DefaultJobBundleFactoryTest {
             environmentA.getUrn(), environmentProviderFactoryA,
             environmentB.getUrn(), environmentProviderFactoryB);
     try (DefaultJobBundleFactory bundleFactory =
-        DefaultJobBundleFactory.create(
-            JobInfo.create("testJob", "testJob", "token", Struct.getDefaultInstance()),
-            environmentFactoryProviderMap)) {
+        createDefaultJobBundleFactory(environmentFactoryProviderMap)) {
       bundleFactory.forStage(getExecutableStage(environmentA));
       verify(environmentProviderFactoryA, Mockito.times(1))
           .createEnvironmentFactory(any(), any(), any(), any(), any(), any());
@@ -283,17 +273,8 @@ public class DefaultJobBundleFactoryTest {
 
   @Test
   public void closesEnvironmentOnCleanup() throws Exception {
-    DefaultJobBundleFactory bundleFactory =
-        new DefaultJobBundleFactory(
-            envFactoryProviderMap,
-            stageIdGenerator,
-            controlServer,
-            loggingServer,
-            retrievalServer,
-            provisioningServer,
-            dataServer,
-            stateServer);
-    try (AutoCloseable unused = bundleFactory) {
+    try (DefaultJobBundleFactory bundleFactory =
+        createDefaultJobBundleFactory(envFactoryProviderMap)) {
       bundleFactory.forStage(getExecutableStage(environment));
     }
     verify(remoteEnvironment).close();
@@ -302,15 +283,7 @@ public class DefaultJobBundleFactoryTest {
   @Test
   public void cachesEnvironment() throws Exception {
     try (DefaultJobBundleFactory bundleFactory =
-        new DefaultJobBundleFactory(
-            envFactoryProviderMap,
-            stageIdGenerator,
-            controlServer,
-            loggingServer,
-            retrievalServer,
-            provisioningServer,
-            dataServer,
-            stateServer)) {
+        createDefaultJobBundleFactory(envFactoryProviderMap)) {
       StageBundleFactory bf1 = bundleFactory.forStage(getExecutableStage(environment));
       StageBundleFactory bf2 = bundleFactory.forStage(getExecutableStage(environment));
       // NOTE: We hang on to stage bundle references to ensure their underlying environments are not
@@ -338,21 +311,22 @@ public class DefaultJobBundleFactoryTest {
         .thenReturn(CompletableFuture.completedFuture(instructionResponse));
 
     try (DefaultJobBundleFactory bundleFactory =
-        new DefaultJobBundleFactory(
-            envFactoryProviderMapFoo,
-            stageIdGenerator,
-            controlServer,
-            loggingServer,
-            retrievalServer,
-            provisioningServer,
-            dataServer,
-            stateServer)) {
+        createDefaultJobBundleFactory(envFactoryProviderMapFoo)) {
       bundleFactory.forStage(getExecutableStage(environment));
       bundleFactory.forStage(getExecutableStage(envFoo));
       verify(envFactory).createEnvironment(environment);
       verify(envFactory).createEnvironment(envFoo);
       verifyNoMoreInteractions(envFactory);
     }
+  }
+
+  private DefaultJobBundleFactory createDefaultJobBundleFactory(
+      Map<String, EnvironmentFactory.Provider> envFactoryProviderMap) {
+    return new DefaultJobBundleFactory(
+        JobInfo.create("testJob", "testJob", "token", Struct.getDefaultInstance()),
+        envFactoryProviderMap,
+        stageIdGenerator,
+        serverInfo);
   }
 
   private static ExecutableStage getExecutableStage(Environment environment) {
