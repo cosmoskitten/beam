@@ -20,9 +20,15 @@ import CommonJobProperties as commonJobProperties
 import CommonTestProperties
 import LoadTestsBuilder as loadTestsBuilder
 import PhraseTriggeringPostCommitBuilder
-import TestingFramework as infrastructure
+import Infrastructure as infra
 
-def now = new Date().format("MMddHHmmss", TimeZone.getTimeZone('UTC'))
+String jenkinsJobName = 'beam_LoadTests_Python_GBK_Flink_Batch'
+String now = new Date().format("MMddHHmmss", TimeZone.getTimeZone('UTC'))
+String dockerRegistryRoot = 'gcr.io/apache-beam-testing/beam_portability'
+String dockerTag = 'latest'
+String jobServerImageTag = "${dockerRegistryRoot}/flink-job-server:${dockerTag}"
+String pythonHarnessImageTag = "${dockerRegistryRoot}/python:${dockerTag}"
+int numWorkers = 3
 
 def testConfiguration =
         [
@@ -32,17 +38,20 @@ def testConfiguration =
                 sdk          : CommonTestProperties.SDK.PYTHON,
                 jobProperties: [
                         job_name            : "load_tests_Python_Flink_Batch_GBK_1_${now}",
-                        publish_to_big_query: true,
+                        publish_to_big_query: false,
                         project             : 'apache-beam-testing',
                         metrics_dataset     : 'load_test',
                         metrics_table       : "python_flink_batch_GBK_1",
-                        input_options       : '\'{"num_records": 200000000,"key_size": 1,"value_size":9}\'',
+                        input_options       : '\'{"num_records": 200,"key_size": 1,"value_size":9}\'',
                         iterations          : 1,
-                        fanout              : 1
+                        fanout              : 1,
+                        parallelism         : 5,
+                        job_endpoint: 'localhost:8099',
+                        environment_config : pythonHarnessImageTag,
+                        environment_type: 'DOCKER'
+
                 ]
         ]
-
-def jobName = 'beam_LoadTests_Python_GBK_Flink_Batch'
 
 PhraseTriggeringPostCommitBuilder.postCommitJob(
         'beam_LoadTests_Python_GBK_Flink_Batch',
@@ -51,23 +60,13 @@ PhraseTriggeringPostCommitBuilder.postCommitJob(
         this
 ) {
   description('Runs Java GBK load tests on Flink runner in batch mode')
-  commonJobProperties.setTopLevelMainJobProperties(delegate, 'master', 240, true, 'beam-test')
+  commonJobProperties.setTopLevelMainJobProperties(delegate, 'master', 240)
 
-  String repositoryRoot = 'gcr.io/apache-beam-testing/beam_portability'
-  String tag = 'latest'
-  String jobServerImageTag = "${repositoryRoot}/flink-job-server:${tag}"
-  String pythonHarnessImageTag = "${repositoryRoot}/python:${tag}"
-  Integer workerCount = 5
-
-  testConfiguration.jobProperties.environmentType = 'DOCKER'
-  testConfiguration.jobProperties.environmentConfig = pythonHarnessImageTag
-  testConfiguration.jobProperties.jobEndpoint = 'localhost:8099'
-
-  infrastructure.prepareSDKHarness(delegate, testConfiguration.sdk, repositoryRoot, 'latest')
-  infrastructure.prepareFlinkJobServer(delegate, repositoryRoot, 'latest')
-  infrastructure.setupFlinkCluster(delegate, jobName, workerCount, pythonHarnessImageTag, jobServerImageTag)
+  infra.prepareSDKHarness(delegate, testConfiguration.sdk, dockerRegistryRoot, 'latest')
+  infra.prepareFlinkJobServer(delegate, dockerRegistryRoot, 'latest')
+  infra.setupFlinkCluster(delegate, jenkinsJobName, numWorkers, pythonHarnessImageTag, jobServerImageTag)
 
   loadTestsBuilder.loadTest(delegate, testConfiguration.title, testConfiguration.runner, testConfiguration.sdk, testConfiguration.jobProperties, testConfiguration.itClass, CommonTestProperties.TriggeringContext.PR)
 
-  infrastructure.teardownDataproc(delegate, jobName)
+  infra.teardownDataproc(delegate, jenkinsJobName)
 }
