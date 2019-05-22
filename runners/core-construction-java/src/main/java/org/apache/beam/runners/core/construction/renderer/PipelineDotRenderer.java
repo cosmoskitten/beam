@@ -15,77 +15,81 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.runners.samza.util;
+package org.apache.beam.runners.core.construction.renderer;
 
 import java.util.HashMap;
 import java.util.Map;
-import org.apache.beam.model.pipeline.v1.RunnerApi;
-import org.apache.beam.runners.core.construction.graph.PipelineNode;
-import org.apache.beam.runners.core.construction.graph.QueryablePipeline;
+import org.apache.beam.sdk.Pipeline;
+import org.apache.beam.sdk.runners.TransformHierarchy;
+import org.apache.beam.sdk.values.PValue;
 
-/**
- * A DOT renderer for BEAM portable {@link org.apache.beam.model.pipeline.v1.RunnerApi.Pipeline}.
- */
-public class PortablePipelineDotRenderer {
+/** A DOT renderer for BEAM {@link Pipeline} DAG. */
+public class PipelineDotRenderer implements Pipeline.PipelineVisitor {
+  public static String toDotString(Pipeline pipeline) {
+    final PipelineDotRenderer visitor = new PipelineDotRenderer();
+    visitor.begin();
+    pipeline.traverseTopologically(visitor);
+    visitor.end();
+    return visitor.dotBuilder.toString();
+  }
+
   private final StringBuilder dotBuilder = new StringBuilder();
-  private final Map<String, Integer> valueToProducerNodeId = new HashMap<>();
+  private final Map<TransformHierarchy.Node, Integer> nodeToId = new HashMap<>();
+  private final Map<PValue, Integer> valueToProducerNodeId = new HashMap<>();
+
   private int indent;
   private int nextNodeId;
 
-  public static String toDotString(RunnerApi.Pipeline pipeline) {
-    final PortablePipelineDotRenderer renderer = new PortablePipelineDotRenderer();
-    return renderer.toDot(pipeline);
+  private PipelineDotRenderer() {}
+
+  @Override
+  public void enterPipeline(Pipeline p) {}
+
+  @Override
+  public void leavePipeline(Pipeline pipeline) {}
+
+  @Override
+  public CompositeBehavior enterCompositeTransform(TransformHierarchy.Node node) {
+    writeLine("subgraph cluster_%d {", nextNodeId++);
+    enterBlock();
+    writeLine("label = \"%s\"", escapeString(node.getFullName()));
+    return CompositeBehavior.ENTER_TRANSFORM;
   }
 
-  private PortablePipelineDotRenderer() {}
-
-  private String toDot(RunnerApi.Pipeline pipeline) {
-    final QueryablePipeline p =
-        QueryablePipeline.forTransforms(
-            pipeline.getRootTransformIdsList(), pipeline.getComponents());
-
-    begin();
-
-    for (PipelineNode.PTransformNode transform : p.getTopologicallyOrderedTransforms()) {
-      visitTransform(transform);
-    }
-
-    end();
-
-    return dotBuilder.toString();
+  @Override
+  public void leaveCompositeTransform(TransformHierarchy.Node node) {
+    exitBlock();
+    writeLine("}");
   }
 
-  private void visitTransform(PipelineNode.PTransformNode node) {
+  @Override
+  public void visitPrimitiveTransform(TransformHierarchy.Node node) {
     final int nodeId = nextNodeId++;
-    final RunnerApi.PTransform transform = node.getTransform();
-    writeLine(
-        "%d [label=\"%s\\n%s\"]",
-        nodeId,
-        escapeString(transform.getUniqueName()),
-        escapeString(transform.getSpec().getUrn()));
+    writeLine("%d [label=\"%s\"]", nodeId, escapeString(node.getTransform().getName()));
 
-    transform
-        .getOutputs()
+    node.getOutputs()
         .values()
         .forEach(
             x -> {
               valueToProducerNodeId.put(x, nodeId);
             });
 
-    transform
-        .getInputs()
+    node.getInputs()
         .forEach(
             (key, value) -> {
               final int producerId = valueToProducerNodeId.get(value);
               String style = "solid";
+              if (node.getTransform().getAdditionalInputs().containsKey(key)) {
+                style = "dashed";
+              }
               writeLine(
                   "%d -> %d [style=%s label=\"%s\"]",
-                  producerId,
-                  nodeId,
-                  style,
-                  escapeString(value.substring(value.lastIndexOf('_') + 1)));
+                  producerId, nodeId, style, escapeString(shortenTag(key.getId())));
             });
   }
+
+  @Override
+  public void visitValue(PValue value, TransformHierarchy.Node producer) {}
 
   private void begin() {
     writeLine("digraph {");
