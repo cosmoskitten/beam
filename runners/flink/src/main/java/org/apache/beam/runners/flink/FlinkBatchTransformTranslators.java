@@ -77,8 +77,10 @@ import org.apache.beam.sdk.values.WindowingStrategy;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Lists;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Maps;
 import org.apache.flink.api.common.functions.RichGroupReduceFunction;
+import org.apache.flink.api.common.operators.Order;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.DataSet;
+import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.operators.DataSource;
 import org.apache.flink.api.java.operators.FlatMapOperator;
 import org.apache.flink.api.java.operators.GroupCombineOperator;
@@ -86,6 +88,7 @@ import org.apache.flink.api.java.operators.GroupReduceOperator;
 import org.apache.flink.api.java.operators.Grouping;
 import org.apache.flink.api.java.operators.MapPartitionOperator;
 import org.apache.flink.api.java.operators.SingleInputUdfOperator;
+import org.joda.time.Instant;
 
 /**
  * Translators for transforming {@link PTransform PTransforms} to Flink {@link DataSet DataSets}.
@@ -594,8 +597,11 @@ class FlinkBatchTransformTranslators {
 
         // Based on the fact that the signature is stateful, DoFnSignatures ensures
         // that it is also keyed.
+        Coder<Object> keyCoder = (Coder) inputCoder.getKeyCoder();
         Grouping<WindowedValue<InputT>> grouping =
-            inputDataSet.groupBy(new KvKeySelector(inputCoder.getKeyCoder()));
+            inputDataSet
+                .groupBy((KeySelector) new KvKeySelector<>(keyCoder))
+                .sortGroup(new KeyWithValueTimestampSelector<>(), Order.ASCENDING);
 
         outputDataSet = new GroupReduceOperator(grouping, typeInformation, doFnWrapper, fullName);
 
@@ -643,6 +649,16 @@ class FlinkBatchTransformTranslators {
 
       context.setOutputDataSet(collection, pruningOperator);
     }
+  }
+
+  private static class KeyWithValueTimestampSelector<K, V>
+      implements KeySelector<WindowedValue<KV<K, V>>, Instant> {
+
+    @Override
+    public Instant getKey(WindowedValue<KV<K, V>> in) throws Exception {
+      return in.getTimestamp();
+    }
+
   }
 
   private static class FlattenPCollectionTranslatorBatch<T>
@@ -743,4 +759,5 @@ class FlinkBatchTransformTranslators {
   }
 
   private FlinkBatchTransformTranslators() {}
+
 }
