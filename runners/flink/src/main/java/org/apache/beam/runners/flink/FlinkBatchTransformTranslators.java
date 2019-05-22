@@ -60,6 +60,7 @@ import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.Reshuffle;
 import org.apache.beam.sdk.transforms.join.RawUnionValue;
 import org.apache.beam.sdk.transforms.join.UnionCoder;
+import org.apache.beam.sdk.transforms.reflect.DoFnSignature;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignatures;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
@@ -77,8 +78,10 @@ import org.apache.beam.sdk.values.WindowingStrategy;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Maps;
 import org.apache.flink.api.common.functions.RichGroupReduceFunction;
+import org.apache.flink.api.common.operators.Order;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.DataSet;
+import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.operators.DataSource;
 import org.apache.flink.api.java.operators.FlatMapOperator;
 import org.apache.flink.api.java.operators.GroupCombineOperator;
@@ -86,6 +89,7 @@ import org.apache.flink.api.java.operators.GroupReduceOperator;
 import org.apache.flink.api.java.operators.Grouping;
 import org.apache.flink.api.java.operators.MapPartitionOperator;
 import org.apache.flink.api.java.operators.SingleInputUdfOperator;
+import org.joda.time.Instant;
 
 /**
  * Translators for transforming {@link PTransform PTransforms} to Flink {@link DataSet DataSets}.
@@ -491,8 +495,9 @@ class FlinkBatchTransformTranslators {
       } catch (IOException e) {
         throw new RuntimeException(e);
       }
+      DoFnSignature signature = DoFnSignatures.signatureForDoFn(doFn);
       checkState(
-          !DoFnSignatures.signatureForDoFn(doFn).processElement().isSplittable(),
+          !signature.processElement().isSplittable(),
           "Not expected to directly translate splittable DoFn, should have been overridden: %s",
           doFn);
       DataSet<WindowedValue<InputT>> inputDataSet =
@@ -594,8 +599,16 @@ class FlinkBatchTransformTranslators {
 
         // Based on the fact that the signature is stateful, DoFnSignatures ensures
         // that it is also keyed.
-        Grouping<WindowedValue<InputT>> grouping =
-            inputDataSet.groupBy(new KvKeySelector(inputCoder.getKeyCoder()));
+        Coder<Object> keyCoder = (Coder) inputCoder.getKeyCoder();
+        final Grouping<WindowedValue<InputT>> grouping;
+        if (signature.processElement().requiresTimeSortedInput()) {
+          grouping =
+              inputDataSet
+                  .groupBy((KeySelector) new KvKeySelector<>(keyCoder))
+                  .sortGroup(new KeyWithValueTimestampSelector<>(), Order.ASCENDING);
+        } else {
+          grouping = inputDataSet.groupBy((KeySelector) new KvKeySelector<>(keyCoder));
+        }
 
         outputDataSet = new GroupReduceOperator(grouping, typeInformation, doFnWrapper, fullName);
 
@@ -642,6 +655,15 @@ class FlinkBatchTransformTranslators {
           new FlatMapOperator<>(taggedDataSet, outputType, pruningFunction, collection.getName());
 
       context.setOutputDataSet(collection, pruningOperator);
+    }
+  }
+
+  private static class KeyWithValueTimestampSelector<K, V>
+      implements KeySelector<WindowedValue<KV<K, V>>, Instant> {
+
+    @Override
+    public Instant getKey(WindowedValue<KV<K, V>> in) throws Exception {
+      return in.getTimestamp();
     }
   }
 
