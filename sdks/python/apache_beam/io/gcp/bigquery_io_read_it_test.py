@@ -14,8 +14,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
-
-
 """A Dataflow job that counts the number of rows in a BQ table.
 
    Can be configured to simulate slow reading for a given number of rows.
@@ -26,11 +24,9 @@ from __future__ import absolute_import
 import logging
 import unittest
 
-from hamcrest.core.core.allof import all_of
 from nose.plugins.attrib import attr
 
-from apache_beam.io.gcp import bigquery_io_read_pipeline
-from apache_beam.testing.pipeline_verifiers import PipelineStateMatcher
+from apache_beam.io.gcp.bigquery_io_read_pipeline import run_pipeline
 from apache_beam.testing.test_pipeline import TestPipeline
 
 
@@ -45,13 +41,10 @@ class BigqueryIOReadIT(unittest.TestCase):
 
   def run_bigquery_io_read_pipeline(self, input_size):
     test_pipeline = TestPipeline(is_integration_test=True)
-    pipeline_verifiers = [PipelineStateMatcher(),]
-    extra_opts = {'input_table': self.DEFAULT_DATASET + "." +
-                                 self.DEFAULT_TABLE_PREFIX + input_size,
-                  'num_records': self.NUM_RECORDS[input_size],
-                  'on_success_matcher': all_of(*pipeline_verifiers)}
-    bigquery_io_read_pipeline.run(test_pipeline.get_full_options_as_args(
-        **extra_opts))
+    input_table = self.DEFAULT_TABLE_PREFIX + input_size
+    num_records = self.NUM_RECORDS[input_size]
+    run_pipeline(test_pipeline, self.DEFAULT_DATASET, input_table,
+                 test_pipeline.get_option('num_slow'), num_records)
 
   @attr('IT')
   def test_bigquery_read_1M_python(self):
