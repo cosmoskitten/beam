@@ -1145,7 +1145,7 @@ def coerce_to_kv_type(element_type, label=None, side_input_producer=None):
                                                     side_input_producer)
   else:
     consumer = '%r' % label
-  if side_input:
+
   # If element_type is not specified, then treat it as `Any`.
   if not element_type:
     return KV[Any, Any]
