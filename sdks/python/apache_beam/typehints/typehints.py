@@ -1135,16 +1135,17 @@ def is_consistent_with(sub, base):
   return issubclass(sub, base)
 
 
-def coerce_to_kv_type(element_type, label=None, side_input=False,
-                      side_input_producer=None):
+def coerce_to_kv_type(element_type, label=None, side_input_producer=None):
   """Attempts to coerce element_type to a compatible kv type.
 
   Raises an error on failure.
   """
-  consumer = '%r' % label
-  if side_input:
-    consumer = 'side-input of %s (producer: %r)' % (consumer,
+  if side_input_producer:
+    consumer = 'side-input of %r (producer: %r)' % (label,
                                                     side_input_producer)
+  else:
+    consumer = '%r' % label
+  if side_input:
   # If element_type is not specified, then treat it as `Any`.
   if not element_type:
     return KV[Any, Any]
