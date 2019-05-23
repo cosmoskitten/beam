@@ -54,6 +54,7 @@ excluded_patterns=(
     apache_beam/coders/coder_impl.*
     apache_beam/examples/
     apache_beam/internal/clients/
+    apache_beam/io/gcp/bigquery_io_read_pipeline.py
     apache_beam/io/gcp/internal/
     # TODO(BEAM-4543): Remove datastore paths once they no longer exist.
     apache_beam/io/gcp/datastore/v1/

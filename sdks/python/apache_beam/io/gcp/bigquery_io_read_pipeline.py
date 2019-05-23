@@ -14,66 +14,131 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
+"""
+A pipeline that reads data from a BigQuery table and counts the number of
+rows.
 
-"""A Dataflow job that counts the number of rows in a BQ table.
+Besides of the standard options, there are options with special meaning:
+* input_data - BQ source in the following format: 'dataset_id.table_id'.
+The table will be created and populated with data from Synthetic Source if it
+does not exist.
+* input_options - options for Synthetic Source:
+num_records - number of rows to be inserted,
+value_size - the length of a single row,
+key_size - required option, but its value has no meaning,
+* num_slow - an integer in range [0,100] used to customize slow reading
+simulation.
 
-   Can be configured to simulate slow reading for a given number of rows.
+Example test run on DataflowRunner:
+
+python setup.py nosetests \
+    --test-pipeline-options="
+    --runner=TestDataflowRunner
+    --project=...
+    --staging_location=gs://...
+    --temp_location=gs://...
+    --sdk_location=.../dist/apache-beam-x.x.x.dev0.tar.gz
+    --input_data=...
+    --input_options='{
+    \"num_records\": 1024,
+    \"key_size\": 1,
+    \"value_size\": 1024,
+    }'" \
+    --tests apache_beam.io.gcp.tests.bigquery_io_read_pipeline
 """
 
 from __future__ import absolute_import
 
-import argparse
+import base64
 import logging
 import random
 import time
+import unittest
 
-import apache_beam as beam
-from apache_beam.options.pipeline_options import PipelineOptions
+from apache_beam import DoFn
+from apache_beam import Map
+from apache_beam import ParDo
+from apache_beam.io import BigQueryDisposition
+from apache_beam.io import BigQuerySource
+from apache_beam.io import Read
+from apache_beam.io import WriteToBigQuery
+from apache_beam.io.gcp.bigquery_tools import parse_table_schema_from_json
+from apache_beam.io.gcp.bigquery_tools import BigQueryWrapper
+from apache_beam.io.gcp.bigquery_tools import parse_table_reference
+from apache_beam.io.gcp.bigquery_tools import HttpError
+from apache_beam.testing.synthetic_pipeline import SyntheticSource
+from apache_beam.testing.load_tests.load_test import LoadTest
+from apache_beam.testing.util import assert_that, equal_to
 from apache_beam.testing.test_pipeline import TestPipeline
-from apache_beam.testing.util import assert_that
-from apache_beam.testing.util import equal_to
+from apache_beam.transforms.combiners import Count
 
 
-class RowToStringWithSlowDown(beam.DoFn):
+class BigQueryIOReadTest(LoadTest):
+  def setUp(self):
+    super(BigQueryIOReadTest, self).setUp()
+    self.num_slow = self.pipeline.get_option('num_slow') or 0
+    self.input = self.pipeline.get_option('input_data')
+    self._check_for_input_data()
 
-  def process(self, element, num_slow=0, *args, **kwargs):
+  def _check_for_input_data(self):
+    """Checks if a BQ table with input data exists and creates it if not."""
+    wrapper = BigQueryWrapper()
+    table_ref = parse_table_reference(self.input, project=self.project_id)
+    try:
+      wrapper.get_table(self.project_id, table_ref.datasetId, table_ref.tableId)
+    except HttpError:
+      self._create_input_data()
 
-    if num_slow == 0:
-      yield ['row']
-    else:
-      rand = random.random() * 100
-      if rand < num_slow:
-        time.sleep(0.01)
-        yield ['slow_row']
-      else:
+  def _create_input_data(self):
+    """
+    Runs an additional pipeline which creates test data and waits for its
+    completion.
+    """
+    SCHEMA = parse_table_schema_from_json(
+        '{"fields": [{"name": "data", "type": "BYTES"}]}')
+
+    def format_record(record):
+      return {'data': base64.b64encode(record[1])}
+
+    p = TestPipeline()
+    # pylint: disable=expression-not-assigned
+    (p
+     | 'ProduceRows' >> Read(SyntheticSource(self.parseTestPipelineOptions()))
+     | 'Format' >> Map(format_record)
+     | 'WriteToBigQuery' >> WriteToBigQuery(
+         self.input,
+         schema=SCHEMA,
+         create_disposition=BigQueryDisposition.CREATE_IF_NEEDED,
+         write_disposition=BigQueryDisposition.WRITE_EMPTY))
+    p.run().wait_until_finish()
+
+  class RowToStringWithSlowDown(DoFn):
+    def process(self, element, num_slow=0, *args, **kwargs):
+      if num_slow == 0:
         yield ['row']
+      else:
+        rand = random.random() * 100
+        if rand < num_slow:
+          time.sleep(0.01)
+          yield ['slow_row']
+        else:
+          yield ['row']
+
+  def test(self):
+    run_pipeline(self.pipeline, self.input, self.num_slow,
+                 self.input_options['num_records'])
 
 
-def run(argv=None):
-  parser = argparse.ArgumentParser()
-  parser.add_argument('--input_table', required=True,
-                      help='Input table to process.')
-  parser.add_argument('--num_records', required=True,
-                      help='The expected number of records', type=int)
-  parser.add_argument('--num_slow', default=0,
-                      help=('Percentage of rows that will be slow. '
-                            'Must be in the range [0, 100)'))
-  known_args, pipeline_args = parser.parse_known_args(argv)
+def run_pipeline(pipeline, input_table, num_slow, num_records):
+  pc = (pipeline
+        | 'ReadFromBigQuery' >> Read(BigQuerySource(input_table))
+        | 'RowToString' >> ParDo(BigQueryIOReadTest.RowToStringWithSlowDown(),
+                                 num_slow=num_slow)
+        | 'Count' >> Count.Globally())
 
-  p = TestPipeline(options=PipelineOptions(pipeline_args))
-
-  # pylint: disable=expression-not-assigned
-  count = (p | 'read' >> beam.io.Read(beam.io.BigQuerySource(
-      known_args.input_table))
-           | 'row to string' >> beam.ParDo(RowToStringWithSlowDown(),
-                                           num_slow=known_args.num_slow)
-           | 'count' >> beam.combiners.Count.Globally())
-
-  assert_that(count, equal_to([known_args.num_records]))
-
-  p.run()
+  assert_that(pc, equal_to([num_records]))
 
 
 if __name__ == '__main__':
   logging.getLogger().setLevel(logging.INFO)
-  run()
+  unittest.main()
