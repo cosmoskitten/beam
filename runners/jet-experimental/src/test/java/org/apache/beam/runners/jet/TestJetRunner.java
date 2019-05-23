@@ -58,11 +58,6 @@ public class TestJetRunner extends PipelineRunner<PipelineResult> {
   private final JetRunner delegate;
 
   private TestJetRunner(PipelineOptions options) {
-    JetPipelineOptions jetPipelineOptions = options.as(JetPipelineOptions.class);
-    jetPipelineOptions.setJetStartOwnCluster(false);
-    jetPipelineOptions.setJetClusterAddresses("127.0.0.1:5701");
-    jetPipelineOptions.setCodeJarLocation(".");
-
     this.factory = new JetTestInstanceFactory();
 
     this.delegate = JetRunner.fromOptions(options, factory::newClient);

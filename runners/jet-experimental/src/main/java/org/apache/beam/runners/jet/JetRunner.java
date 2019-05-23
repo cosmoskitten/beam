@@ -134,10 +134,10 @@ public class JetRunner extends PipelineRunner<PipelineResult> {
   }
 
   private void startClusterIfNeeded(JetPipelineOptions options) {
-    if (options.getJetStartOwnCluster()) {
+    Integer noOfLocalMembers = options.getJetLocalMode();
+    if (noOfLocalMembers > 0) {
       Collection<JetInstance> jetInstances = new ArrayList<>();
-      Integer noOfMembers = options.getJetClusterMemberCount();
-      for (int i = 0; i < noOfMembers; i++) {
+      for (int i = 0; i < noOfLocalMembers; i++) {
         jetInstances.add(Jet.newJetInstance());
       }
       LOG.info("Started " + jetInstances.size() + " Jet cluster members");
@@ -145,7 +145,8 @@ public class JetRunner extends PipelineRunner<PipelineResult> {
   }
 
   private void stopClusterIfNeeded(JetPipelineOptions options) {
-    if (options.getJetStartOwnCluster()) {
+    Integer noOfLocalMembers = options.getJetLocalMode();
+    if (noOfLocalMembers > 0) {
       Jet.shutdownAll();
       LOG.info("Stopped all Jet cluster members");
     }
@@ -153,8 +154,12 @@ public class JetRunner extends PipelineRunner<PipelineResult> {
 
   private JobConfig getJobConfig(JetPipelineOptions options) {
     JobConfig jobConfig = new JobConfig();
-    if (!options.getJetStartOwnCluster()) {
-      jobConfig.addJar(options.getCodeJarLocation());
+    boolean hasNoLocalMembers = options.getJetLocalMode() <= 0;
+    if (hasNoLocalMembers) {
+      String codeJarPathname = options.getCodeJarPathname();
+      if (codeJarPathname != null && !codeJarPathname.isEmpty()) {
+        jobConfig.addJar(codeJarPathname);
+      }
     }
     return jobConfig;
   }
@@ -164,10 +169,11 @@ public class JetRunner extends PipelineRunner<PipelineResult> {
 
     ClientConfig clientConfig = new ClientConfig();
     clientConfig.getGroupConfig().setName(jetGroupName);
-    if (!options.getJetStartOwnCluster()) {
+    boolean hasNoLocalMembers = options.getJetLocalMode() <= 0;
+    if (hasNoLocalMembers) {
       clientConfig
           .getNetworkConfig()
-          .setAddresses(Arrays.asList(options.getJetClusterAddresses().split(",")));
+          .setAddresses(Arrays.asList(options.getJetServers().split(",")));
     }
     return jetClientSupplier.apply(clientConfig);
   }
@@ -187,23 +193,6 @@ public class JetRunner extends PipelineRunner<PipelineResult> {
     }
     if (localParallelism != -1 && localParallelism < 1) {
       throw new IllegalArgumentException("Jet node local parallelism must be >1 or -1");
-    }
-
-    if (options.getJetStartOwnCluster()) {
-      Integer jetClusterMemberCount = options.getJetClusterMemberCount();
-      if (jetClusterMemberCount == null || jetClusterMemberCount < 1) {
-        throw new IllegalArgumentException("Can't start a cluster without members!");
-      }
-    } else {
-      String jetClusterAddresses = options.getJetClusterAddresses();
-      if (jetClusterAddresses == null || jetClusterAddresses.isEmpty()) {
-        throw new IllegalArgumentException("Address of remote cluster must be specified!");
-      }
-
-      String codeJarLocation = options.getCodeJarLocation();
-      if (codeJarLocation == null || codeJarLocation.isEmpty()) {
-        throw new IllegalArgumentException("Location of code jar must be specified!");
-      }
     }
 
     return options;

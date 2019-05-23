@@ -126,8 +126,7 @@ Issue following command in the Beam examples project to start new Jet cluster an
         -Dexec.args="\
             --runner=JetRunner \
             --jetGroupName=jet \
-            --jetStartOwnCluster=true
-            --jetClusterMemberCount=3
+            --jetLocalMode=3
             --inputFile=pom.xml \
             --output=counts" \
         -Pjet-runner
@@ -176,9 +175,8 @@ cluster runs. The word count job won't be able to read the data otherwise.
         -Dexec.args="\
             --runner=JetRunner \
             --jetGroupName=jet \
-            --jetStartOwnCluster=false \
-            --jetClusterAddresses=192.168.0.117:5701,192.168.0.117:5702 \
-            --codeJarLocation=target/word-count-beam-bundled-0.1.jar \
+            --jetServers=192.168.0.117:5701,192.168.0.117:5702 \
+            --codeJarPathname=target/word-count-beam-bundled-0.1.jar \
             --inputFile=~/hazelcast-jet-3.0/license/apache-v2-license.txt \
             --output=/tmp/counts" \
         -Pjet-runner
