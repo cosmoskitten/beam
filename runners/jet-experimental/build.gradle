@@ -19,7 +19,6 @@
 import groovy.json.JsonOutput
 
 plugins { id 'org.apache.beam.module' }
-plugins { id 'maven-publish' }
 applyJavaNature()
 
 description = "Apache Beam :: Runners :: Hazelcast Jet"

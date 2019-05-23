@@ -41,45 +41,6 @@ supported capabilities of the Jet Runner.
 
 # Running WordCount with the Hazelcast Jet Runner
 
-## Generating the Beam examples project from SOURCES ##
-
-Get the [Beam module](https://github.com/apache/beam.git): 
-```
-    $ git fetch https://github.com/apache/beam.git
-```
-
-Make sure it builds:
-```
-    $ cd beam
-    $ gradle build -x test
-```
-    
-Generate a JAR containing the Runner and publish it into the local Maven repository:
-```
-    $ cd runners/jet-experimental/
-    $ gradle publishToMavenLocal
-```
-    
-Generate a JAR containing the Examples Maven Archetype and publish it into the local Maven repository:
-```
-    $ cd ../../sdks/java/maven-archetypes/examples
-    $ gradle publishToMavenLocal
-```
-
-Generate the Examples Maven Project:
-```
-    $ cd ../../../../..
-    $ mvn archetype:generate \
-        -DarchetypeGroupId=org.apache.beam \
-        -DarchetypeArtifactId=beam-sdks-java-maven-archetypes-examples \
-        -DarchetypeVersion=2.14.0-SNAPSHOT \
-        -DgroupId=org.example \
-        -DartifactId=word-count-beam \
-        -Dversion="0.1" \
-        -Dpackage=org.apache.beam.examples \
-        -DinteractiveMode=false
-```
-
 ## Generating the Beam examples project from SNAPSHOT versions of Beam ##
 Make sure that your maven config (~/.m2/settings.xml) is set up to have access to the Apache Snapshot Repository. It 
 should contain this:

@@ -17,7 +17,6 @@
  */
 
 plugins { id 'org.apache.beam.module' }
-plugins { id 'maven-publish' }
 applyJavaNature(exportJavadoc: false)
 
 description = "Apache Beam :: SDKs :: Java :: Maven Archetypes :: Examples"
