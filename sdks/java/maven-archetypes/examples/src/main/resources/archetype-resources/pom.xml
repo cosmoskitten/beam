@@ -312,7 +312,6 @@
         </dependency>
       </dependencies>
     </profile>
-
     <profile>
       <id>gearpump-runner</id>
       <dependencies>
@@ -324,7 +323,6 @@
         </dependency>
       </dependencies>
     </profile>
-
     <profile>
       <id>samza-runner</id>
       <dependencies>
@@ -336,7 +334,6 @@
         </dependency>
       </dependencies>
     </profile>
-
     <profile>
       <id>nemo-runner</id>
       <dependencies>
@@ -374,6 +371,7 @@
         </dependency>
       </dependencies>
     </profile>
+
   </profiles>
 
   <dependencies>
