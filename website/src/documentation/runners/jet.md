@@ -33,7 +33,7 @@ The Jet Runner and Jet are suitable for large scale continuous jobs and provide:
 It's important to note that the Jet Runner is currently in an *EXPERIMENTAL* state and can not make use of many of
 the capabilities present in Jet:
 * Jet has full Fault Tolerance support, the Jet Runner does not; if a job fails it must be restarted
-* Internal performance of Jet is extremely high (see [benchmarks](https://jet.hazelcast.org/performance/)). 
+* Internal performance of Jet is extremely high. 
 The Runner can't match it as of now because Beam pipeline optimization/surgery has not been fully implemented.
 
 The [Beam Capability Matrix]({{ site.baseurl }}/documentation/runners/capability-matrix/) documents the
