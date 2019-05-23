@@ -480,8 +480,8 @@ class FnApiRunnerTest(unittest.TestCase):
       self.assertEqual(counters[0].committed, len(''.join(data)))
 
   def test_sdf_wrap_range_source(self):
-    from apache_beam.options.pipeline_options import DebugOptions
     with self.create_pipeline() as p:
+      from apache_beam.options.pipeline_options import DebugOptions
       experiments = (p._options.view_as(DebugOptions).experiments or [])
       if not 'sdf_bounded_source' in experiments:
         experiments.append('sdf_bounded_source')
@@ -492,7 +492,7 @@ class FnApiRunnerTest(unittest.TestCase):
       p._options.view_as(DebugOptions).experiments = experiments
 
       actual = (
-          p | beam.io.Read(RangeSource(0, 4))
+          p | beam.io.iobase.SDFBoundedSourceWrapper(RangeSource(0, 4))
       )
       assert_that(actual, equal_to([0, 1, 2, 3]))
 
