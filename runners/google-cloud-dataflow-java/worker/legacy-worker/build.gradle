@@ -104,6 +104,10 @@ applyJavaNature(
     // that the shaded jar is correctly built.
 
     dependencies {
+      include(dependency(library.java.slf4j_jdk14))
+    }
+
+    dependencies {
         include(project(path: ":model:fn-execution", configuration: "shadow"))
     }
     relocate("org.apache.beam.model.fnexecution.v1", getWorkerRelocatedPath("org.apache.beam.model.fnexecution.v1"))
