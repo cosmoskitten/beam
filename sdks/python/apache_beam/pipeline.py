@@ -195,6 +195,7 @@ class Pipeline(object):
 
   def _replace(self, override):
 
+
     assert isinstance(override, PTransformOverride)
     output_map = {}
     output_replacements = {}

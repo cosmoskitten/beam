@@ -285,9 +285,6 @@ class FnApiRunner(runner.PipelineRunner):
     if experiments and 'use_sdf_bounded_source' in experiments:
       pipeline.replace_all(DataflowRunner.SDF_PTRANSFORM_OVERRIDES)
 
-    # logging.error('[BOYUANZ LOG]')
-    # logging.error('%s', pipeline.to_runner_api(
-    #     default_environment=self._default_environment))
     self._latest_run_result = self.run_via_runner_api(pipeline.to_runner_api(
         default_environment=self._default_environment))
     return self._latest_run_result
