@@ -158,16 +158,10 @@ class GroupByKeyTest(LoadTest):
           if i == iterations - 1:
             return (key, v)
 
-  class _Check(beam.DoFn):
-    def process(self, element):
-      key, value = element
-      return element
-
   def testGroupByKey(self):
     input = (self.pipeline
              | beam.io.Read(synthetic_pipeline.SyntheticSource(
             self.parseTestPipelineOptions()))
-             # | beam.ParDo(self._Check())
              | 'Measure time: Start' >> beam.ParDo(
             MeasureTime(self.metrics_namespace))
              )
