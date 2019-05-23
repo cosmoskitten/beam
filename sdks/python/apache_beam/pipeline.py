@@ -647,7 +647,6 @@ class Pipeline(object):
           if side_input.requires_keyed_input():
             side_input.pvalue.element_type = typehints.coerce_to_kv_type(
                 side_input.pvalue.element_type, transform_node.full_label,
-                side_input=True,
                 side_input_producer=side_input.pvalue.producer.full_label)
 
     self.visit(ForceKvInputTypes())
