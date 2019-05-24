@@ -206,12 +206,12 @@ class SDFBoundedSourceRestrictionTracker(RestrictionTracker):
     return self._delegate_range_tracker.stop_position()
 
   def try_claim(self, position):
-    return self._delegate_range_tracker.try_claim()
+    return self._delegate_range_tracker.try_claim(position)
 
   def try_split(self, fraction_of_remainder):
     consumed_fraction = self._delegate_range_tracker.fraction_consumed()
     fraction = consumed_fraction + (1 - consumed_fraction) * fraction_of_remainder
-    position = self._delegate_range_tracker.position_at_position(fraction)
+    position = self._delegate_range_tracker.position_at_fraction(fraction)
     # need to stash current stop_pos before splitting since
     # range_tracker.split will update its stop_pos if splits
     # successfully.
