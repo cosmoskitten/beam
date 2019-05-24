@@ -1,7 +1,7 @@
 ---
 layout: section
-title: "Reshuffle"
-permalink: /documentation/transforms/python/other/reshuffle/
+title: "Create"
+permalink: /documentation/transforms/python/other/create/
 section_menu: section-menu/documentation.html
 ---
 <!--
@@ -17,21 +17,19 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 -->
-
-# Reshuffle
+# Create
 <table align="left">
     <a target="_blank" class="button"
-        href="https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.util.html?highlight=reshuffle#apache_beam.transforms.util.Reshuffle">
+        href="https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.core.html#apache_beam.transforms.core.Create">
       <img src="https://beam.apache.org/images/logos/sdks/python.png" width="20px" height="20px" />
       Pydoc
     </a>
 </table>
 <br>
- Adds a temporary random key to each element in a collection, reshuffles
- these keys, and removes the temporary key. This redistributes the
- elements between workers and returns a collection equivalent to its
- input collection.  This is most useful for adjusting paralellism or
- preventing coupled failures.
+Creates a collection containing a specified set of elements. This is
+useful for testing, as well as creating an initial input to process
+in parallel. For example, a single element to execute a one-time
+`ParDo` or a list of filenames to be read.
 
 ## Examples
 See [BEAM-7391](https://issues.apache.org/jira/browse/BEAM-7391) for updates. 

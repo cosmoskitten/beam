@@ -1,7 +1,7 @@
 ---
 layout: section
-title: "Reshuffle"
-permalink: /documentation/transforms/python/other/reshuffle/
+title: "Distinct"
+permalink: /documentation/transforms/python/aggregation/distinct/
 section_menu: section-menu/documentation.html
 ---
 <!--
@@ -18,22 +18,19 @@ See the License for the specific language governing permissions and
 limitations under the License.
 -->
 
-# Reshuffle
+# Distinct
 <table align="left">
     <a target="_blank" class="button"
-        href="https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.util.html?highlight=reshuffle#apache_beam.transforms.util.Reshuffle">
+        href="https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.util.html#apache_beam.transforms.util.Distinct">
       <img src="https://beam.apache.org/images/logos/sdks/python.png" width="20px" height="20px" />
       Pydoc
     </a>
 </table>
 <br>
- Adds a temporary random key to each element in a collection, reshuffles
- these keys, and removes the temporary key. This redistributes the
- elements between workers and returns a collection equivalent to its
- input collection.  This is most useful for adjusting paralellism or
- preventing coupled failures.
+Produces a collection containing distinct elements of the input collection.
 
 ## Examples
-See [BEAM-7391](https://issues.apache.org/jira/browse/BEAM-7391) for updates. 
+See [BEAM-7390](https://issues.apache.org/jira/browse/BEAM-7390) for updates. 
 
 ## Related transforms
+* [Count]({{ site.baseurl }}/documentation/transforms/python/aggregation/count) counts the number of elements within each aggregation.

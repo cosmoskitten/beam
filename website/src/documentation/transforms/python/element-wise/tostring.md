@@ -1,7 +1,7 @@
 ---
 layout: section
-title: "Values"
-permalink: /documentation/transforms/python/elementwise/values/
+title: "ToString"
+permalink: /documentation/transforms/python/elementwise/tostring/
 section_menu: section-menu/documentation.html
 ---
 <!--
@@ -18,19 +18,10 @@ See the License for the specific language governing permissions and
 limitations under the License.
 -->
 
-# Values
-<table align="left">
-    <a target="_blank" class="button"
-        href="https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.util.html#apache_beam.transforms.util.Values">
-      <img src="https://beam.apache.org/images/logos/sdks/python.png" width="20px" height="20px" />
-      Pydoc
-    </a>
-</table>
-<br>
-Takes a collection of key-value pairs, and returns the value of each element.
+# ToString
+Transforms every element in an input collection a string.
 
 ## Examples
 See [BEAM-7389](https://issues.apache.org/jira/browse/BEAM-7389) for updates. 
 
 ## Related transforms 
-* [Keys]({{ site.baseurl }}/documentation/transforms/python/elementwise/keys) for extracting the key of each component.

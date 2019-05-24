@@ -1,7 +1,7 @@
 ---
 layout: section
-title: "Mean"
-permalink: /documentation/transforms/python/aggregation/mean/
+title: "Latest"
+permalink: /documentation/transforms/python/aggregation/latest/
 section_menu: section-menu/documentation.html
 ---
 <!--
@@ -17,22 +17,10 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 -->
-
-# Mean
-<table align="left">
-    <a target="_blank" class="button"
-        href="https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.combiners.html?highlight=mean#apache_beam.transforms.combiners.Mean">
-      <img src="https://beam.apache.org/images/logos/sdks/python.png" width="20px" height="20px" />
-      Pydoc
-    </a>
-</table>
-<br>
-Transforms for computing the arithmetic mean of the elements in a collection,
-or the mean of the values associated with each key in a collection of
-key-value pairs.
+# Latest
 
 ## Examples
 See [BEAM-7390](https://issues.apache.org/jira/browse/BEAM-7390) for updates. 
 
 ## Related transforms 
-* [Combine]({{ site.baseurl }}/documentation/transforms/python/aggregation/combine) to combine elements.
+* [Sample]({{ site.baseurl }}/documentation/transforms/python/aggregation/sample) to combine elements. takes samples of the elements in a collection.

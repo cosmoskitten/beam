@@ -1,7 +1,7 @@
 ---
 layout: section
-title: "Window"
-permalink: /documentation/transforms/python/other/window/
+title: "WindowInto"
+permalink: /documentation/transforms/python/other/windowinto/
 section_menu: section-menu/documentation.html
 ---
 <!--
@@ -18,13 +18,22 @@ See the License for the specific language governing permissions and
 limitations under the License.
 -->
 
-# Window
-[Pydoc](https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.window.html?highlight=window#module-apache_beam.transforms.window)
-
+# WindowInto
+<table align="left">
+    <a target="_blank" class="button"
+        href="https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.window.html?highlight=window#module-apache_beam.transforms.window">
+      <img src="https://beam.apache.org/images/logos/sdks/python.png" width="20px" height="20px" />
+      Pydoc
+    </a>
+</table>
+<br>
 Logically divides up or groups the elements of a collection into finite
 windows according to a function.
 
-## See also 
+## Examples
+See [BEAM-7391](https://issues.apache.org/jira/browse/BEAM-7391) for updates. 
+
+## Related transforms
 * [GroupByKey]({{ site.baseurl }}/documentation/transforms/python/aggregation/groupbykey)
   produces a collection where each element consists of a key and all values associated
   with that key.

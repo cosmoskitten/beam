@@ -19,14 +19,22 @@ limitations under the License.
 -->
 
 # Filter 
-[Pydoc](https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.core.html#apache_beam.transforms.core.Filter)
-
+<table align="left">
+    <a target="_blank" class="button"
+        href="https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.core.html#apache_beam.transforms.core.Filter">
+      <img src="https://beam.apache.org/images/logos/sdks/python.png" width="20px" height="20px" />
+      Pydoc
+    </a>
+</table>
+<br>
 Given a predicate, filter out all elements that don't satisfy that predicate.
 May also be used to filter based on an inequality with a given value based
 on the comparison ordering of the element.
 
+## Examples
+See [BEAM-7389](https://issues.apache.org/jira/browse/BEAM-7389) for updates. 
 
-## See also 
+## Related transforms  
 * [FlatMap]({{ site.baseurl }}/documentation/transforms/python/elementwise/flatmap) behaves the same as `Map`, but for
   each input it might produce zero or more outputs.
 * [ParDo]({{ site.baseurl }}/documentation/transforms/python/elementwise/pardo) is the most general element-wise mapping

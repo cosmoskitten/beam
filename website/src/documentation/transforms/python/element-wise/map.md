@@ -19,12 +19,20 @@ limitations under the License.
 -->
 
 # Map
-[Pydoc](https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.core.html#apache_beam.transforms.core.Map)
-
+<table align="left">
+    <a target="_blank" class="button"
+        href="https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.core.html#apache_beam.transforms.core.Map">
+      <img src="https://beam.apache.org/images/logos/sdks/python.png" width="20px" height="20px" />
+      Pydoc
+    </a>
+</table>
+<br>
 Applies a simple 1-to-1 mapping function over each element in the collection.
 
-## See also
+## Examples
+See [BEAM-7389](https://issues.apache.org/jira/browse/BEAM-7389) for updates. 
 
+## Related transforms 
 * [FlatMap]({{ site.baseurl }}/documentation/transforms/python/elementwise/flatmap) behaves the same as `Map`, but for
   each input it may produce zero or more outputs.
 * [Filter]({{ site.baseurl }}/documentation/transforms/python/elementwise/filter) is useful if the function is just 

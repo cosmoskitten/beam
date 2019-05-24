@@ -19,13 +19,23 @@ limitations under the License.
 -->
 
 # FlatMap
-[Pydoc](https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.core.html#apache_beam.transforms.core.FlatMap)
-
+<table align="left">
+    <a target="_blank" class="button"
+        href="https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.core.html#apache_beam.transforms.core.FlatMap">
+      <img src="https://beam.apache.org/images/logos/sdks/python.png" width="20px" height="20px" />
+      Pydoc
+    </a>
+</table>
+<br>
 Applies a simple 1-to-many mapping function over each element in the collection.
 The many elements are flattened into the resulting collection.
 
-## See also
+## Examples
+See [BEAM-7389](https://issues.apache.org/jira/browse/BEAM-7389) for updates. 
+
+## Related transforms 
 * [Filter]({{ site.baseurl }}/documentation/transforms/python/elementwise/filter) is useful if the function is just 
   deciding whether to output an element or not.
 * [ParDo]({{ site.baseurl }}/documentation/transforms/python/elementwise/pardo) is the most general element-wise mapping
   operation, and includes other abilities such as multiple output collections and side-inputs. 
+* [Map]({{ site.baseurl }}/documentation/transforms/python/elementwise/map) behaves the same, but produces exactly one output for each input.

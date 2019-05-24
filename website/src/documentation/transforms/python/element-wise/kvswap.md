@@ -19,11 +19,20 @@ limitations under the License.
 -->
 
 # Kvswap
-[Pydoc](https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.util.html#apache_beam.transforms.util.KvSwap)
-
+<table align="left">
+    <a target="_blank" class="button"
+        href="https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.util.html#apache_beam.transforms.util.KvSwap">
+      <img src="https://beam.apache.org/images/logos/sdks/python.png" width="20px" height="20px" />
+      Pydoc
+    </a>
+</table>
+<br>
 Takes a collection of key-value pairs and returns a collection of key-value pairs 
 which has each key and value swapped.
 
-## See also
+## Examples
+See [BEAM-7389](https://issues.apache.org/jira/browse/BEAM-7389) for updates. 
+
+## Related transforms 
 * [Keys]({{ site.baseurl }}/documentation/transforms/python/elementwise/keys) for extracting the key of each component.
 * [Values]({{ site.baseurl }}/documentation/transforms/python/elementwise/values) for extracting the value of each element.

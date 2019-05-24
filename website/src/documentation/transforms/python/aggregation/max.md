@@ -1,7 +1,7 @@
 ---
 layout: section
-title: "RemoveDuplicates"
-permalink: /documentation/transforms/python/aggregation/removeduplicates/
+title: "Max"
+permalink: /documentation/transforms/python/aggregation/max/
 section_menu: section-menu/documentation.html
 ---
 <!--
@@ -18,11 +18,9 @@ See the License for the specific language governing permissions and
 limitations under the License.
 -->
 
-# RemoveDuplicates
-[Pydoc](https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.util.html?highlight=removeduplicates#apache_beam.transforms.util.RemoveDuplicates)
+# Max
 
-Produces a collection containing distinct elements from the input collection.
-Does not preserve the order of the input collection.
+## Examples
+See [BEAM-7390](https://issues.apache.org/jira/browse/BEAM-7390) for updates. 
 
-You can provide a function that computes representative values, such as an event ID,
-from an element.
+## Related transforms

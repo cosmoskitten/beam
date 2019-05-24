@@ -1,7 +1,7 @@
 ---
 layout: section
-title: "Timestamp"
-permalink: /documentation/transforms/python/elementwise/timestamp/
+title: "Count"
+permalink: /documentation/transforms/python/aggregation/count/
 section_menu: section-menu/documentation.html
 ---
 <!--
@@ -17,8 +17,19 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 -->
+# Count
+<table align="left">
+    <a target="_blank" class="button"
+        href="https://beam.apache.org/releases/pydoc/2.12.0/apache_beam.transforms.combiners.html?#apache_beam.transforms.combiners.Count">
+      <img src="https://beam.apache.org/images/logos/sdks/python.png" width="20px" height="20px" />
+      Pydoc
+    </a>
+</table>
+<br>
+Counts the number of elements within each aggregation.
 
-# Timestamp
-[Pydoc](https://beam.apache.org/releases/pydoc/current/apache_beam.utils.timestamp.html?highlight=timestamps#apache_beam.utils.timestamp.Timestamp)
+## Examples
+See [BEAM-7390](https://issues.apache.org/jira/browse/BEAM-7390) for updates. 
 
-Assigns timestamps to all the elements of a collection.
+## Related transforms 
+N/A

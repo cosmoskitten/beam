@@ -19,15 +19,25 @@ limitations under the License.
 -->
 
 # ParDo
-[Pydoc](https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.core.html#apache_beam.transforms.core.ParDo)
-
+<table align="left">
+    <a target="_blank" class="button"
+        href="https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.core.html#apache_beam.transforms.core.ParDo">
+      <img src="https://beam.apache.org/images/logos/sdks/python.png" width="20px" height="20px" />
+      Pydoc
+    </a>
+</table>
+<br>
 A transform for generic parallel processing. A `ParDo` transform considers each
 element in the input `PCollection`, performs some processing function
 (your user code) on that element, and emits zero or more elements to
 an output PCollection.
 
-## See also
-* [FlatMap]({{ site.baseurl }}/documentation/transforms/python/elementwise/flatmap) behaves the same as `Map`, but for
-  each input it may produce zero or more outputs.
+See more information in the [Beam Programming Guide]({{ site.baseurl }}/documentation/programming-guide/#pardo).
+
+## Examples
+See [BEAM-7389](https://issues.apache.org/jira/browse/BEAM-7389) for updates. 
+
+## Related transforms 
+* [FlatMap]({{ site.baseurl }}/documentation/transforms/python/elementwise/flatmap) behaves the same as `Map`, but for each input it may produce zero or more outputs.
 * [Filter]({{ site.baseurl }}/documentation/transforms/python/elementwise/filter) is useful if the function is just 
   deciding whether to output an element or not.

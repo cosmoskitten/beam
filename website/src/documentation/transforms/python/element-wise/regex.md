@@ -1,7 +1,7 @@
 ---
 layout: section
-title: "Values"
-permalink: /documentation/transforms/python/elementwise/values/
+title: "Regex"
+permalink: /documentation/transforms/python/elementwise/regex/
 section_menu: section-menu/documentation.html
 ---
 <!--
@@ -18,19 +18,11 @@ See the License for the specific language governing permissions and
 limitations under the License.
 -->
 
-# Values
-<table align="left">
-    <a target="_blank" class="button"
-        href="https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.util.html#apache_beam.transforms.util.Values">
-      <img src="https://beam.apache.org/images/logos/sdks/python.png" width="20px" height="20px" />
-      Pydoc
-    </a>
-</table>
-<br>
-Takes a collection of key-value pairs, and returns the value of each element.
+# Regex
+Filters input string elements based on a regex. May also transform them based on the matching groups.
 
 ## Examples
 See [BEAM-7389](https://issues.apache.org/jira/browse/BEAM-7389) for updates. 
 
 ## Related transforms 
-* [Keys]({{ site.baseurl }}/documentation/transforms/python/elementwise/keys) for extracting the key of each component.
+* [Map]({{ site.baseurl }}/documentation/transforms/python/elementwise/map) applies a simple 1-to-1 mapping function over each element in the collection

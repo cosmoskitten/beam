@@ -1,7 +1,7 @@
 ---
 layout: section
-title: "Reshuffle"
-permalink: /documentation/transforms/python/other/reshuffle/
+title: "Top"
+permalink: /documentation/transforms/python/aggregation/top/
 section_menu: section-menu/documentation.html
 ---
 <!--
@@ -17,23 +17,21 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 -->
-
-# Reshuffle
+# Top
 <table align="left">
     <a target="_blank" class="button"
-        href="https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.util.html?highlight=reshuffle#apache_beam.transforms.util.Reshuffle">
+        href="https://beam.apache.org/releases/pydoc/2.12.0/apache_beam.transforms.combiners.html?#apache_beam.transforms.combiners.Top">
       <img src="https://beam.apache.org/images/logos/sdks/python.png" width="20px" height="20px" />
       Pydoc
     </a>
 </table>
 <br>
- Adds a temporary random key to each element in a collection, reshuffles
- these keys, and removes the temporary key. This redistributes the
- elements between workers and returns a collection equivalent to its
- input collection.  This is most useful for adjusting paralellism or
- preventing coupled failures.
+Transforms for finding the largest (or smallest) set of elements in
+a collection, or the largest (or smallest) set of values associated
+with each key in a collection of key-value pairs.
 
 ## Examples
-See [BEAM-7391](https://issues.apache.org/jira/browse/BEAM-7391) for updates. 
+See [BEAM-7390](https://issues.apache.org/jira/browse/BEAM-7390) for updates. 
 
-## Related transforms
+## Related transforms 
+* [Sample]({{ site.baseurl }}/documentation/transforms/python/aggregation/sample) to combine elements. takes samples of the elements in a collection.
