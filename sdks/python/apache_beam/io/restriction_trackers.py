@@ -24,6 +24,7 @@ from builtins import object
 
 from apache_beam.io.iobase import RestrictionProgress
 from apache_beam.io.iobase import RestrictionTracker
+from apache_beam.io.iobase import RangeTracker
 from apache_beam.io.range_trackers import OffsetRangeTracker
 
 
@@ -190,6 +191,8 @@ class SDFBoundedSourceRestrictionTracker(RestrictionTracker):
   Delegated RangeTracker guarantees synchronization safety.
   """
   def __init__(self, range_tracker):
+    if not isinstance(range_tracker, RangeTracker):
+      raise ValueError('Initializing SDFBoundedSourceRestrictionTracker requires a RangeTracker')
     self._delegate_range_tracker = range_tracker
 
   def current_restriction(self):

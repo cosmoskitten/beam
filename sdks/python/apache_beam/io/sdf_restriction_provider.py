@@ -9,6 +9,8 @@ class SDFBoundedSourceRestrictionProvider(RestrictionProvider):
   def __init__(self, source, desired_chunk_size=None):
     self._source = source
     self._desired_chunk_size = desired_chunk_size
+    # The size cannot be calculated directly by end_pos - start_pos since the
+    # position may not be numeric(e.g., key space position).
     self._restriction_size_map = {}
 
   def initial_restriction(self, element):
@@ -30,6 +32,5 @@ class SDFBoundedSourceRestrictionProvider(RestrictionProvider):
       yield (source_bundle.start_position, source_bundle.stop_position)
 
   def restriction_size(self, element, restriction):
-    # More precisely, this function returns the weight, rather the actual size.
     return self._restriction_size_map[(restriction[0], restriction[1])]
 
