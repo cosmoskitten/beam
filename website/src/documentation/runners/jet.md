@@ -62,7 +62,6 @@ should contain this:
 
 Generate the Examples Maven Project just like when the archetype is local:
 ```
-    $ cd ../../../../..
     $ mvn archetype:generate \
         -DarchetypeGroupId=org.apache.beam \
         -DarchetypeArtifactId=beam-sdks-java-maven-archetypes-examples \
@@ -86,8 +85,7 @@ Issue following command in the Beam examples project to start new Jet cluster an
         -Dexec.mainClass=org.apache.beam.examples.WordCount \
         -Dexec.args="\
             --runner=JetRunner \
-            --jetGroupName=jet \
-            --jetLocalMode=3
+            --jetLocalMode=3 \
             --inputFile=pom.xml \
             --output=counts" \
         -Pjet-runner
@@ -97,12 +95,13 @@ Issue following command in the Beam examples project to start new Jet cluster an
 Download latest stable Hazelcast Jet code from [Hazelcast Website](https://jet.hazelcast.org/download/) and 
 start Jet cluster. 
 The simplest way is to start Jet cluster member using the `jet-start` script that comes with Jet distribution.
-The members use the [auto discovery feature](https://docs.hazelcast.org/docs/3.12/manual/html-single/index.html#setting-up-clusters) to form a cluster.
+The members use the [auto discovery feature](https://docs.hazelcast.org/docs/3.12/manual/html-single/index.html#setting-up-clusters) 
+to form a cluster. Let's start up a cluster formed by two members:
 
 ```
-    $ cd hazelcast-jet/bin/
-    $ ./jet-start.sh &
-    $ ./jet-start.sh &
+    $ cd hazelcast-jet
+    $ bin/jet-start.sh &
+    $ bin/jet-start.sh &
 ```
 
 Check the cluster is up and running:
@@ -135,7 +134,6 @@ cluster runs. The word count job won't be able to read the data otherwise.
         -Dexec.mainClass=org.apache.beam.examples.WordCount \
         -Dexec.args="\
             --runner=JetRunner \
-            --jetGroupName=jet \
             --jetServers=192.168.0.117:5701,192.168.0.117:5702 \
             --codeJarPathname=target/word-count-beam-bundled-0.1.jar \
             --inputFile=~/hazelcast-jet-3.0/license/apache-v2-license.txt \
