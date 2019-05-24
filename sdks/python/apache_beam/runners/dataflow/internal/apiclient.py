@@ -183,14 +183,20 @@ class Environment(object):
       if runner_harness_override:
         self.debug_options.experiments.append(
             'runner_harness_container_image=' + runner_harness_override)
-      # Add use_multiple_sdk_containers flag if its not already present. Do not
+      # Add use_multiple_sdk_containers flag if it's not already present. Do not
       # add the flag if 'no_use_multiple_sdk_containers' is present.
       # TODO: Cleanup use_multiple_sdk_containers once we deprecate Python SDK
       # till version 2.4.
-      debug_options_experiments = self.debug_options.experiments
-      if ('use_multiple_sdk_containers' not in debug_options_experiments and
-          'no_use_multiple_sdk_containers' not in debug_options_experiments):
+      if ('use_multiple_sdk_containers' not in self.debug_options.experiments and
+          'no_use_multiple_sdk_containers' not in self.debug_options.experiments):
         self.debug_options.experiments.append('use_multiple_sdk_containers')
+      # Add enable_health_checker flag if it's not already present. Do not
+      # add the flag if 'disable_health_checker' is present.
+      # TODO: Cleanup enable_health_checker once we deprecate Python SDK
+      # till version 2.14.
+      if ('enable_health_checker' not in self.debug_options.experiments and
+          'disable_health_checker' not in self.debug_options.experiments):
+        self.debug_options.experiments.append('enable_health_checker')
     # FlexRS
     if self.google_cloud_options.flexrs_goal == 'COST_OPTIMIZED':
       self.proto.flexResourceSchedulingGoal = (
