@@ -61,7 +61,8 @@ public class ReadAllViaFileBasedSource<T>
     return input
         .apply("Split into ranges", ParDo.of(new SplitIntoRangesFn(desiredBundleSizeBytes)))
         .apply("Reshuffle", Reshuffle.viaRandomKey())
-        .apply("Read ranges", ParDo.of(new ReadFileRangesFn<>(createSource)))
+        .apply("Create sources", ParDo.of(new CreateBoundedSourceFn<>(createSource)))
+        .apply("Read ranges", ParDo.of(new ReadFromBoundedSourceFn<>()))
         .setCoder(coder);
   }
 
@@ -86,10 +87,11 @@ public class ReadAllViaFileBasedSource<T>
     }
   }
 
-  private static class ReadFileRangesFn<T> extends DoFn<KV<ReadableFile, OffsetRange>, T> {
+  private static class CreateBoundedSourceFn<T>
+      extends DoFn<KV<ReadableFile, OffsetRange>, BoundedSource<T>> {
     private final SerializableFunction<String, ? extends FileBasedSource<T>> createSource;
 
-    private ReadFileRangesFn(
+    private CreateBoundedSourceFn(
         SerializableFunction<String, ? extends FileBasedSource<T>> createSource) {
       this.createSource = createSource;
     }
@@ -98,15 +100,22 @@ public class ReadAllViaFileBasedSource<T>
     public void process(ProcessContext c) throws IOException {
       ReadableFile file = c.element().getKey();
       OffsetRange range = c.element().getValue();
-      FileBasedSource<T> source =
+      c.output(
           CompressedSource.from(createSource.apply(file.getMetadata().resourceId().toString()))
-              .withCompression(file.getCompression());
+              .withCompression(file.getCompression())
+              .createForSubrangeOfFile(file.getMetadata(), range.getFrom(), range.getTo()));
+    }
+  }
+
+  /** Reads elements contained within an input {@link BoundedSource}. */
+  // TODO: Extend to be a Splittable DoFn.
+  public static class ReadFromBoundedSourceFn<T> extends DoFn<BoundedSource<T>, T> {
+    @ProcessElement
+    public void readSource(ProcessContext c) throws IOException {
       try (BoundedSource.BoundedReader<T> reader =
-          source
-              .createForSubrangeOfFile(file.getMetadata(), range.getFrom(), range.getTo())
-              .createReader(c.getPipelineOptions())) {
+          c.element().createReader(c.getPipelineOptions())) {
         for (boolean more = reader.start(); more; more = reader.advance()) {
-          c.output(reader.getCurrent());
+          c.outputWithTimestamp(reader.getCurrent(), reader.getCurrentTimestamp());
         }
       }
     }

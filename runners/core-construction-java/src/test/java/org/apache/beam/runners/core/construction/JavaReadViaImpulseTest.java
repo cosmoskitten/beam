@@ -17,6 +17,7 @@
  */
 package org.apache.beam.runners.core.construction;
 
+import static org.apache.beam.sdk.io.ReadAllViaFileBasedSource.ReadFromBoundedSourceFn;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.greaterThan;
 import static org.hamcrest.Matchers.not;
@@ -25,7 +26,6 @@ import static org.junit.Assert.assertThat;
 import java.io.IOException;
 import java.util.Collections;
 import java.util.List;
-import org.apache.beam.runners.core.construction.JavaReadViaImpulse.ReadFromBoundedSourceFn;
 import org.apache.beam.runners.core.construction.JavaReadViaImpulse.SplitBoundedSourceFn;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.BigEndianIntegerCoder;

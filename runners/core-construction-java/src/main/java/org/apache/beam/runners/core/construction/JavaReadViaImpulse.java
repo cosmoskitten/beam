@@ -17,6 +17,8 @@
  */
 package org.apache.beam.runners.core.construction;
 
+import static org.apache.beam.sdk.io.ReadAllViaFileBasedSource.ReadFromBoundedSourceFn;
+
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -123,21 +125,6 @@ public class JavaReadViaImpulse {
     public void splitSource(ProcessContext ctxt) throws Exception {
       for (BoundedSource<T> split : source.split(bundleSize, ctxt.getPipelineOptions())) {
         ctxt.output(split);
-      }
-    }
-  }
-
-  /** Reads elements contained within an input {@link BoundedSource}. */
-  // TODO: Extend to be a Splittable DoFn.
-  @VisibleForTesting
-  static class ReadFromBoundedSourceFn<T> extends DoFn<BoundedSource<T>, T> {
-    @ProcessElement
-    public void readSource(ProcessContext ctxt) throws IOException {
-      try (BoundedSource.BoundedReader<T> reader =
-          ctxt.element().createReader(ctxt.getPipelineOptions())) {
-        for (boolean more = reader.start(); more; more = reader.advance()) {
-          ctxt.outputWithTimestamp(reader.getCurrent(), reader.getCurrentTimestamp());
-        }
       }
     }
   }
