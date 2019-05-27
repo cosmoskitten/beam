@@ -646,6 +646,9 @@ class DataflowRunner(PipelineRunner):
     if (not isinstance(transform, beam.io.WriteToBigQuery)
         or 'use_beam_bq_sink' in experiments):
       return self.apply_PTransform(transform, pcoll, options)
+    if transform.schema == beam.io.gcp.bigquery.SCHEMA_AUTODETECT:
+      raise RuntimeError(
+          'Schema auto-detection is not supported on the native sink')
     standard_options = options.view_as(StandardOptions)
     if standard_options.streaming:
       if (transform.write_disposition ==
