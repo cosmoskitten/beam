@@ -35,10 +35,6 @@ public class DataInputViewWrapper extends InputStream {
     this.inputView = inputView;
   }
 
-  public void setInputView(DataInputView inputView) {
-    this.inputView = inputView;
-  }
-
   @Override
   public int read() throws IOException {
     try {

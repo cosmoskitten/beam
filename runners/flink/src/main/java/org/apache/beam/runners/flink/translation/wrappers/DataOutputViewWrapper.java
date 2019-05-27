@@ -34,10 +34,6 @@ public class DataOutputViewWrapper extends OutputStream {
     this.outputView = outputView;
   }
 
-  public void setOutputView(DataOutputView outputView) {
-    this.outputView = outputView;
-  }
-
   @Override
   public void write(int b) throws IOException {
     outputView.write(b);
