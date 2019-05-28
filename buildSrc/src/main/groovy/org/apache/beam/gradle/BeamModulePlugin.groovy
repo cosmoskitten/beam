@@ -1261,8 +1261,8 @@ class BeamModulePlugin implements Plugin<Project> {
     // additional dependencies that might be needed while running integration tests.
     project.ext.provideIntegrationTestingDependencies = {
 
-      // See: http://groovy-lang.org/closures      // Use the implicit it parameter of the closure to handle zero argument or one argument map calls.
-.html#implicit-it
+      // Use the implicit it parameter of the closure to handle zero argument or one argument map calls.
+      // See: http://groovy-lang.org/closures.html#implicit-it
       JavaPerformanceTestConfiguration configuration = it ? it as JavaPerformanceTestConfiguration : new JavaPerformanceTestConfiguration()
 
       project.dependencies {
@@ -1829,43 +1829,6 @@ class BeamModulePlugin implements Plugin<Project> {
             project.exec {
               executable 'sh'
               args '-c', ". ${project.ext.envdir}/bin/activate && ${runScriptsDir}/run_integration_test.sh ${cmdArgs}"
-            }
-          }
-        }
-      }
-
-      // Method to create the ValidatesRunnerTasks.
-      project.ext.enablePythonDataflowValidatesRunner = {
-
-        // Use the implicit it parameter of the closure to handle zero argument or one argument map calls.
-        // See: http://groovy-lang.org/closures.html#implicit-it
-        def config = it ? it as PythonValidatesRunnerConfiguration : new PythonValidatesRunnerConfiguration()
-
-        project.task('validatesRunnerBatchTests') {
-          dependsOn 'installGcpTest'
-          dependsOn 'sdist'
-
-          def dataflowWorkerJar = project.findProperty('dataflowWorkerJar') ?:
-                  project.project(":runners:google-cloud-dataflow-java:worker:legacy-worker").shadowJar.archivePath
-
-          doLast {
-            def argMap = [:]
-
-            // Build test options that configures test environment and framework
-            def testOptions = []
-            if (config.tests)
-              testOptions += "--tests=$config.tests"
-            if (config.attribute)
-              testOptions += "--attr=$config.attribute"
-            testOptions.addAll(config.extraTestOptions)
-            argMap["test_opts"] = testOptions
-            argMap["sdk_location"] = ${project.buildDir}/apache-beam.tar.gz
-            argMap["worker_jar"] = dataflowWorkerJar
-            def cmdArgs = project.mapToArgString(argMap)
-
-            exec {
-              executable 'sh'
-              args '-c', ". ${project.ext.envdir}/bin/activate && ${runScriptsDir}/run_integration_test.sh $cmdArgs"
             }
           }
         }
