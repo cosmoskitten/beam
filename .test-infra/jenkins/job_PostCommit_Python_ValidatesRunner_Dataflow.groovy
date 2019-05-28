@@ -32,7 +32,7 @@ PostcommitJobBuilder.postCommitJob('beam_PostCommit_Py_VR_Dataflow', 'Run Python
   steps {
     gradle {
       rootBuildScriptDir(commonJobProperties.checkoutDir)
-      tasks(':pythonValidatesRunner')
+      // Comment during debugging tasks(':pythonValidatesRunner')
       tasks(':python3ValidatesRunner')
       commonJobProperties.setGradleSwitches(delegate)
     }
