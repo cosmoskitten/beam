@@ -914,6 +914,10 @@ ptransform.PTransform.register_urn(
 
 
 class SDFBoundedSourceWrapper(ptransform.PTransform):
+  """A ``PTransform`` that uses SDF to read from a ``BoundedSource``.
+  NOTE: This transform can only be used with beam_fn_api enabled.
+  """
+
   def __init__(self, source):
     if not isinstance(source, BoundedSource):
       raise RuntimeError('SDFBoundedSourceWrapper can only wrap BoundedSource')
