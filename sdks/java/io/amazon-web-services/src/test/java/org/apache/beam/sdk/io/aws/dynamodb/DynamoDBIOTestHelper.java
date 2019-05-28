@@ -84,8 +84,14 @@ class DynamoDBIOTestHelper implements Serializable {
     localStackContainer.stop();
   }
 
-  static DynamoDBIO.DynamoDBConfiguration getDynamoDBConfig() {
-    return DynamoDBIO.DynamoDBConfiguration.create(endpointUrl, region, accessKey, secretKey);
+  static AmazonDynamoDB getDynamoDBClient() {
+    // Note: each test case got to have their own dynamo client obj, can't be shared
+    // Otherwise will run into connection pool issue
+    return AmazonDynamoDBClientBuilder.standard()
+        .withEndpointConfiguration(
+            localStackContainer.getEndpointConfiguration(LocalStackContainer.Service.DYNAMODB))
+        .withCredentials(localStackContainer.getDefaultCredentialsProvider())
+        .build();
   }
 
   static List<Map<String, AttributeValue>> generateTestData(String tableName, int numOfItems) {

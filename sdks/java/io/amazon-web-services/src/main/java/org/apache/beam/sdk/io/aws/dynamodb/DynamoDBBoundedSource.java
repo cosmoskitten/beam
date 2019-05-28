@@ -50,8 +50,7 @@ class DynamoDBBoundedSource extends BoundedSource<Map<String, AttributeValue>> {
     client =
         Suppliers.memoize(
             (Supplier<AmazonDynamoDB> & Serializable)
-                () ->
-                    Objects.requireNonNull(read.getDynamoDBConfiguration()).buildAmazonDynamoDB());
+                () -> Objects.requireNonNull(read.getAwsClientsProvider()).createDynamoDB());
   }
 
   @Override
