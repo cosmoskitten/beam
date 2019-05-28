@@ -881,27 +881,28 @@ public class RemoteExecutionTest implements Serializable {
     StateRequestHandler stateRequestHandler =
         StateRequestHandlers.forBagUserStateHandlerFactory(
             descriptor,
-            new BagUserStateHandlerFactory<String, Object, BoundedWindow>() {
+            new BagUserStateHandlerFactory<ByteString, Object, BoundedWindow>() {
               @Override
-              public BagUserStateHandler<String, Object, BoundedWindow> forUserState(
+              public BagUserStateHandler<ByteString, Object, BoundedWindow> forUserState(
                   String pTransformId,
                   String userStateId,
-                  Coder<String> keyCoder,
+                  Coder<ByteString> keyCoder,
                   Coder<Object> valueCoder,
                   Coder<BoundedWindow> windowCoder) {
-                return new BagUserStateHandler<String, Object, BoundedWindow>() {
+                return new BagUserStateHandler<ByteString, Object, BoundedWindow>() {
                   @Override
-                  public Iterable<Object> get(String key, BoundedWindow window) {
+                  public Iterable<Object> get(ByteString key, BoundedWindow window) {
                     return (Iterable) userStateData.get(userStateId);
                   }
 
                   @Override
-                  public void append(String key, BoundedWindow window, Iterator<Object> values) {
+                  public void append(
+                      ByteString key, BoundedWindow window, Iterator<Object> values) {
                     Iterators.addAll(userStateData.get(userStateId), (Iterator) values);
                   }
 
                   @Override
-                  public void clear(String key, BoundedWindow window) {
+                  public void clear(ByteString key, BoundedWindow window) {
                     userStateData.get(userStateId).clear();
                   }
                 };
