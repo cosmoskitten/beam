@@ -15,6 +15,8 @@
 # limitations under the License.
 #
 
+from __future__ import absolute_import
+
 from apache_beam.io.restriction_trackers import SDFBoundedSourceRestrictionTracker
 from apache_beam.transforms.core import RestrictionProvider
 
@@ -22,6 +24,8 @@ __all__ = ['SDFBoundedSourceRestrictionProvider']
 
 
 class SDFBoundedSourceRestrictionProvider(RestrictionProvider):
+  """A `RestrictionProvider` that is used by SDF for `BoundedSource`."""
+
   def __init__(self, source, desired_chunk_size=None):
     self._source = source
     self._desired_chunk_size = desired_chunk_size
