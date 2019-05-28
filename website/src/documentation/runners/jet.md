@@ -148,41 +148,50 @@ cluster runs. The word count job won't be able to read the data otherwise.
   <th>Field</th>
   <th>Description</th>
   <th>Default Value</th>
+</tr>
 <tr>
   <td><code>runner</code></td>
   <td>The pipeline runner to use. This option allows you to determine the pipeline runner at runtime.</td>
   <td>Set to <code>JetRunner</code> to run using Jet.</td>
+</tr>
 <tr>
   <td><code>jetGroupName</code></td>
   <td>The name of the Hazelcast Group to join, in essence an ID of the Jet Cluster that will be 
   used by the Runner. With groups it is possible to create multiple clusters where each cluster has its own 
-  group and doesn't interfere with other clusters.
+  group and doesn't interfere with other clusters.</td>
   <td><code>jet</code></td>
+</tr>
 <tr>
   <td><code>jetServers</code></td>
   <td>List of the addresses of Jet Cluster members, needed when the Runner doesn't start its own Jet Cluster, 
   but makes use of an external, independently started one. Takes the form of a comma separated list of ip/hostname-port pairs, 
-  like this: <code>192.168.0.117:5701,192.168.0.117:5702</code> 
+  like this: <code>192.168.0.117:5701,192.168.0.117:5702</code></td>
   <td><code>127.0.0.1:5701</code></td>
+</tr>
 <tr>
   <td><code>codeJarPathname</code></td>
   <td>Also a property needed only when using external Jet Clusters, specifies the location of a fat jar
   containing all the code that needs to run on the cluster (so at least the pipeline and the runner code). The value 
-  is any string that is acceptad by <code>new java.io.File()</code> as a parameter. 
+  is any string that is acceptad by <code>new java.io.File()</code> as a parameter.</td>
   <td>Has no default value.</td>
+</tr>
 <tr>
   <td><code>jetLocalMode</code></td>
   <td>The number of Jet Cluster members that should be started locally by the Runner. If it's <code>0</code>
-  then the Runner will be using an external cluster. If greater, then the Runner will be using a cluster started by itself.
+  then the Runner will be using an external cluster. If greater, then the Runner will be using a cluster started by itself.</td>
   <td><code>0</code></td>
+</tr>
 <tr>
   <td><code>jetDefaultParallelism</code></td>
   <td>Local parallelism of Jet members, the number of processors of each vertex of the DAG that will be created on each 
-  Jet Cluster member.
+  Jet Cluster member.</td>
   <td><code>2</code></td>
+</tr>
 <tr>
   <td><code>jetProcessorsCooperative</code></td>
   <td>Boolean flag specifying if Jet Processors for DoFns are allowed to be cooperative (ie. use green threads instead of 
   dedicated OS ones). If set to true than all such Processors will be cooperative, except when they have no outputs
-  (so they are assumed to be syncs).
+  (so they are assumed to be syncs).</td>
   <td><code>false</code></td>
+</tr>
+</table>
