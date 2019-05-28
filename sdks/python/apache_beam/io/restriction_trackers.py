@@ -156,7 +156,8 @@ class OffsetRestrictionTracker(RestrictionTracker):
           cur = self._range.start - 1
         else:
           cur = self._current_position
-        split_point = cur + int(max(1, (self._range.stop - cur) * fraction))
+        split_point = (
+            cur + int(max(1, (self._range.stop - cur) * fraction_of_remainder)))
         if split_point < self._range.stop:
           prev_stop, self._range.stop = self._range.stop, split_point
           return (self._range.start, split_point), (split_point, prev_stop)
