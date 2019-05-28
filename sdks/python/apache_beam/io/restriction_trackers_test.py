@@ -193,5 +193,4 @@ class SDFBoundedSourceRestrictionTrackerTest(unittest.TestCase):
 
 
 if __name__ == '__main__':
-  logging.getLogger().setLevel(logging.INFO)
   unittest.main()
