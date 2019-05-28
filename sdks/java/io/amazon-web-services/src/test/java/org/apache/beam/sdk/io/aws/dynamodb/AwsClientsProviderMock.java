@@ -17,14 +17,30 @@
  */
 package org.apache.beam.sdk.io.aws.dynamodb;
 
-import com.amazonaws.services.dynamodbv2.model.AmazonDynamoDBException;
-import com.amazonaws.services.dynamodbv2.model.BatchWriteItemRequest;
-import com.amazonaws.services.dynamodbv2.model.BatchWriteItemResult;
+import com.amazonaws.services.cloudwatch.AmazonCloudWatch;
+import com.amazonaws.services.dynamodbv2.AmazonDynamoDB;
+import org.mockito.Mockito;
 
-/** Mock AmazonDynamoDB for test Writer' retries. */
-public class AmazonDynamoDBMockErrors extends AmazonDynamoDBMock {
+/** Mocking AwsClientProvider. */
+public class AwsClientsProviderMock implements AwsClientsProvider {
+
+  private static AwsClientsProviderMock instance = new AwsClientsProviderMock();
+  private static AmazonDynamoDB db;
+
+  private AwsClientsProviderMock() {}
+
+  public static AwsClientsProviderMock of(AmazonDynamoDB dynamoDB) {
+    db = dynamoDB;
+    return instance;
+  }
+
   @Override
-  public BatchWriteItemResult batchWriteItem(BatchWriteItemRequest batchWriteItemRequest) {
-    throw new AmazonDynamoDBException("Service unavailable");
+  public AmazonCloudWatch getCloudWatchClient() {
+    return Mockito.mock(AmazonCloudWatch.class);
+  }
+
+  @Override
+  public AmazonDynamoDB createDynamoDB() {
+    return db;
   }
 }
