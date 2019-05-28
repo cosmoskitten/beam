@@ -1845,8 +1845,7 @@ class BeamModulePlugin implements Plugin<Project> {
           dependsOn 'installGcpTest'
           dependsOn 'sdist'
 
-          def dataflowWorkerJar = project.findProperty('dataflowWorkerJar') ?:
-                  project.project(":runners:google-cloud-dataflow-java:worker:legacy-worker").shadowJar.archivePath
+          def dataflowWorkerJar = project.project(":runners:google-cloud-dataflow-java:worker").shadowJar.archivePath
 
           doLast {
             def argMap = [:]
