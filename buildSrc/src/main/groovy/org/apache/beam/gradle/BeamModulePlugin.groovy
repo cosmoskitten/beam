@@ -1261,8 +1261,8 @@ class BeamModulePlugin implements Plugin<Project> {
     // additional dependencies that might be needed while running integration tests.
     project.ext.provideIntegrationTestingDependencies = {
 
-      // See: http://groovy-lang.org/closures      // Use the implicit it parameter of the closure to handle zero argument or one argument map calls.
-.html#implicit-it
+      // Use the implicit it parameter of the closure to handle zero argument or one argument map calls.
+      // See: http://groovy-lang.org/closures.html#implicit-it
       JavaPerformanceTestConfiguration configuration = it ? it as JavaPerformanceTestConfiguration : new JavaPerformanceTestConfiguration()
 
       project.dependencies {
@@ -1844,19 +1844,16 @@ class BeamModulePlugin implements Plugin<Project> {
         project.task('validatesRunnerBatchTests') {
           dependsOn 'installGcpTest'
           dependsOn 'sdist'
+          dependsOn ':runners:google-cloud-dataflow-java:worker'
 
-          def dataflowWorkerJar = project.findProperty('dataflowWorkerJar') ?:
-                  project.project(":runners:google-cloud-dataflow-java:worker:legacy-worker").shadowJar.archivePath
+          def dataflowWorkerJar = project(":runners:google-cloud-dataflow-java:worker").shadowJar.archivePath
 
           doLast {
             def argMap = [:]
 
             // Build test options that configures test environment and framework
             def testOptions = []
-            if (config.tests)
-              testOptions += "--tests=$config.tests"
-            if (config.attribute)
-              testOptions += "--attr=$config.attribute"
+            testOptions += "--attr=ValidatesRunner"
             testOptions.addAll(config.extraTestOptions)
             argMap["test_opts"] = testOptions
             argMap["sdk_location"] = ${project.buildDir}/apache-beam.tar.gz
