@@ -21,8 +21,9 @@ limitations under the License.
 <table align="left">
     <a target="_blank" class="button"
         href="https://beam.apache.org/releases/pydoc/2.12.0/apache_beam.transforms.combiners.html?#apache_beam.transforms.combiners.Top">
-      <img src="https://beam.apache.org/images/logos/sdks/python.png" width="20px" height="20px" />
-      Pydoc
+      <img src="https://beam.apache.org/images/logos/sdks/python.png" width="20px" height="20px"
+           alt="Pydoc" />
+     Pydoc
     </a>
 </table>
 <br>

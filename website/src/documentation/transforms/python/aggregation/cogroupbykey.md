@@ -22,8 +22,9 @@ limitations under the License.
 <table align="left">
     <a target="_blank" class="button"
         href="https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.util.html#apache_beam.transforms.util.CoGroupByKey">
-      <img src="https://beam.apache.org/images/logos/sdks/python.png" width="20px" height="20px" />
-      Pydoc
+      <img src="https://beam.apache.org/images/logos/sdks/python.png" width="20px" height="20px"
+           alt="Pydoc" />
+     Pydoc
     </a>
 </table>
 <br>
@@ -40,5 +41,5 @@ See more information in the [Beam Programming Guide]({{ site.baseurl }}/document
 See [BEAM-7390](https://issues.apache.org/jira/browse/BEAM-7390) for updates. 
 
 ## Related transforms
-* [Combine]({{ site.baseurl }}/documentation/transforms/python/aggregation/combine) to combine elements.
+* [CombineGlobally]({{ site.baseurl }}/documentation/transforms/python/aggregation/combineglobally) to combine elements.
 * [GroupByKey]({{ site.baseurl }}/documentation/transforms/python/aggregation/groupbykey) takes one input collection.

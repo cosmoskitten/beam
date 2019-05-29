@@ -1,7 +1,7 @@
 ---
 layout: section
-title: "Combine"
-permalink: /documentation/transforms/python/aggregation/combine/
+title: "CombineGlobally"
+permalink: /documentation/transforms/python/aggregation/combineglobally/
 section_menu: section-menu/documentation.html
 ---
 <!--
@@ -17,24 +17,18 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 -->
-# Combine
-<table align="left">
-    <a target="_blank" class="button"
-        href="https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.combiners.html">
-      <img src="https://beam.apache.org/images/logos/sdks/python.png" width="20px" height="20px" />
-      Combiners Pydoc
-    </a>
-</table>
+# CombineGlobally
 <table align="left">
     <a target="_blank" class="button"
         href="https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.core.html#apache_beam.transforms.core.CombineGlobally">
-      <img src="https://beam.apache.org/images/logos/sdks/python.png" width="20px" height="20px" />
-      CombineGlobally Pydoc
+      <img src="https://beam.apache.org/images/logos/sdks/python.png" width="20px" height="20px"
+           alt="Pydoc" />
+     Pydoc
     </a>
 </table>
 <br>
 
-Combines all elements in a collection (global combine) or combines all elements associated with each key. 
+Combines all elements in a collection.
 
 See more information in the [Beam Programming Guide]({{ site.baseurl }}/documentation/programming-guide/#combine).
 
@@ -42,4 +36,8 @@ See more information in the [Beam Programming Guide]({{ site.baseurl }}/document
 See [BEAM-7390](https://issues.apache.org/jira/browse/BEAM-7390) for updates. 
 
 ## Related transforms 
-N/A
+You can use the following combiner transforms:
+* [Mean]({{ site.baseurl }}/documentation/transforms/python/aggregation/mean)
+* [Count]({{ site.baseurl }}/documentation/transforms/python/aggregation/count)
+* [Top]({{ site.baseurl }}/documentation/transforms/python/aggregation/top)
+* [Sample]({{ site.baseurl }}/documentation/transforms/python/aggregation/sample)

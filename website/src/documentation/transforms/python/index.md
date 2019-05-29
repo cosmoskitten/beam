@@ -30,7 +30,7 @@ limitations under the License.
   <tr><td><a href="{{ site.baseurl }}/documentation/transforms/python/elementwise/keys">Keys</a></td><td>Extracts the key from each element in a collection of key-value pairs.</td></tr>
   <tr><td><a href="{{ site.baseurl }}/documentation/transforms/python/elementwise/kvswap">KvSwap</a></td><td>Swaps the key and value of each element in a collection of key-value pairs.</td></tr>
   <tr><td><a href="{{ site.baseurl }}/documentation/transforms/python/elementwise/map">Map</a></td><td>Applies a function to every element in the input and outputs the result.</td></tr>
-  <tr><td><a href="{{ site.baseurl }}/documentation/transforms/python/elementwise/pardo">ParDo</a></td><td>The most-general mechanism for applying a user-defined `DoFn` to every element
+  <tr><td><a href="{{ site.baseurl }}/documentation/transforms/python/elementwise/pardo">ParDo</a></td><td>The most-general mechanism for applying a user-defined <code>DoFn</code> to every element
   in the input collection.</td></tr>
   <tr><td><a href="{{ site.baseurl }}/documentation/transforms/python/elementwise/partition">Partition</a></td><td>Routes each input element to a specific output collection based on some partition
   function.</td></tr>
@@ -52,7 +52,7 @@ limitations under the License.
   <tr><td>ApproximateUnique</td><td>Not available. See <a href="https://issues.apache.org/jira/browse/BEAM-6693">BEAM-6693</a> for updates.</td></tr>
   <tr><td><a href="{{ site.baseurl }}/documentation/transforms/python/aggregation/cogroupbykey">CoGroupByKey</a></td><td>Takes several keyed collections of elements and produces a collection where each element 
   consists of a key and all values associated with that key.</td></tr>  
-  <tr><td><a href="{{ site.baseurl }}/documentation/transforms/python/aggregation/combine">Combine</a></td><td>Transforms to combine elements.</td></tr>
+  <tr><td><a href="{{ site.baseurl }}/documentation/transforms/python/aggregation/combineglobally">CombineGlobally</a></td><td>Transforms to combine elements.</td></tr>
   <tr><td>CombineWithContext</td><td>Not available.</td></tr>
   <tr><td><a href="{{ site.baseurl }}/documentation/transforms/python/aggregation/count">Count</a></td><td>Counts the number of elements within each aggregation.</td></tr>
   <tr><td><a href="{{ site.baseurl }}/documentation/transforms/python/aggregation/distinct">Distinct</a></td><td>Produces a collection containing distinct elements from the input collection.</td></tr>  

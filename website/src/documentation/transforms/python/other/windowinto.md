@@ -22,8 +22,8 @@ limitations under the License.
 <table align="left">
     <a target="_blank" class="button"
         href="https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.window.html?highlight=window#module-apache_beam.transforms.window">
-      <img src="https://beam.apache.org/images/logos/sdks/python.png" width="20px" height="20px" />
-      Pydoc
+      <img src="https://beam.apache.org/images/logos/sdks/python.png" width="20px" height="20px" alt="Pydoc">
+     Pydoc
     </a>
 </table>
 <br>
@@ -37,5 +37,5 @@ See [BEAM-7391](https://issues.apache.org/jira/browse/BEAM-7391) for updates.
 * [GroupByKey]({{ site.baseurl }}/documentation/transforms/python/aggregation/groupbykey)
   produces a collection where each element consists of a key and all values associated
   with that key.
-* [Timestamp]({{ site.baseurl }}/documentation/transforms/python/elementwise/timestamp)
+* [Timestamp]({{ site.baseurl }}/documentation/transforms/python/elementwise/withtimestamps)
   applies a function to determine a timestamp to each element in the output collection.
