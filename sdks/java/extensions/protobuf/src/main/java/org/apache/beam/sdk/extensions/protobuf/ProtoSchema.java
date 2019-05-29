@@ -28,11 +28,15 @@ import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 import java.util.stream.Collectors;
 import org.apache.beam.sdk.annotations.Experimental;
+import org.apache.beam.sdk.schemas.Factory;
+import org.apache.beam.sdk.schemas.FieldValueGetter;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.SchemaCoder;
 import org.apache.beam.sdk.transforms.SerializableFunction;
@@ -82,6 +86,8 @@ public class ProtoSchema implements Serializable {
   private transient Method fnNewBuilder;
   private transient ArrayList<ProtoRow.FieldOverlay> getters;
 
+  private static Map<UUID, ProtoSchema> globalSchemaCache = new HashMap<>();
+
   ProtoSchema(
       Class rawType,
       Descriptors.Descriptor descriptor,
@@ -92,6 +98,10 @@ public class ProtoSchema implements Serializable {
     this.typeMapping = overlayClasses;
     this.domain = domain;
     init();
+  }
+
+  public static ProtoSchema fromSchema(Schema schema) {
+    return globalSchemaCache.get(schema.getUUID());
   }
 
   static Schema.FieldType convertType(Descriptors.FieldDescriptor.Type type) {
@@ -232,7 +242,8 @@ public class ProtoSchema implements Serializable {
     }
 
     schema = builder.build();
-
+    schema.setUUID(UUID.randomUUID());
+    globalSchemaCache.put(schema.getUUID(), this);
     try {
       if (DynamicMessage.class.equals(rawType)) {
         this.fnNewBuilder = rawType.getMethod("newBuilder", Descriptors.Descriptor.class);
@@ -288,6 +299,17 @@ public class ProtoSchema implements Serializable {
     return domain;
   }
 
+  /** Overlay. */
+  public static class ProtoOverlayFactory implements Factory<List<FieldValueGetter>> {
+
+    public ProtoOverlayFactory() {}
+
+    @Override
+    public List create(Class<?> clazz, Schema schema) {
+      return ProtoSchema.fromSchema(schema).getters;
+    }
+  }
+
   private static class MessageToRowFunction implements SerializableFunction<Message, Row> {
     private ProtoSchema protoSchema;
 
@@ -297,7 +319,12 @@ public class ProtoSchema implements Serializable {
 
     @Override
     public Row apply(Message input) {
-      return new ProtoRow(protoSchema.schema, protoSchema.getters, input);
+      return Row.withSchema(protoSchema.schema)
+          .withFieldValueGettersHandleCollections(true)
+          .withFieldValueGetters(new ProtoOverlayFactory(), input)
+          .build();
+
+      // return new ProtoRow(protoSchema.schema, protoSchema.getters, input);
     }
   }
 

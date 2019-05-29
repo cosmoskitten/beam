@@ -26,12 +26,11 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Experimental;
+import org.apache.beam.sdk.schemas.FieldValueGetter;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.SchemaCoder;
 import org.apache.beam.sdk.transforms.SerializableFunction;
-import org.apache.beam.sdk.values.Row;
 import org.joda.time.Instant;
 
 /**
@@ -43,46 +42,17 @@ import org.joda.time.Instant;
  * overlays for Well Know Types, Repeatable, Map and Nullable.
  */
 @Experimental(Experimental.Kind.SCHEMAS)
-class ProtoRow extends Row {
-
-  private Message containingMessage;
-  private ArrayList<FieldOverlay> fieldOverlay;
-
-  ProtoRow(Schema schema, ArrayList<FieldOverlay> fieldOverlay, Message message) {
-    super(schema);
-    this.fieldOverlay = fieldOverlay;
-    this.containingMessage = message;
-  }
-
-  @Nullable
-  @Override
-  @SuppressWarnings({"TypeParameterUnusedInFormals", "unchecked"})
-  public <T> T getValue(int fieldIdx) {
-    return (T) fieldOverlay.get(fieldIdx).get(this.containingMessage);
-  }
-
-  @Override
-  public int getFieldCount() {
-    return fieldOverlay.size();
-  }
-
-  @Override
-  public List<Object> getValues() {
-    List values = new ArrayList();
-    for (FieldOverlay get : fieldOverlay) {
-      values.add(get.get(containingMessage));
-    }
-    return values;
-  }
+class ProtoRow {
 
   /**
    * Protobuf FieldOverlay is the interface that each implementation needs to implement to handle a
    * specific field types.
    */
-  public interface FieldOverlay<ValueT> {
+  public interface FieldOverlay<ValueT> extends FieldValueGetter<Message, ValueT> {
 
-    /** Convert the overlayed field in the Message and convert it to the Row field. */
-    ValueT get(Message object);
+    //    /** Convert the overlayed field in the Message and convert it to the Row field. */
+    //
+    //    ValueT get(Message object);
 
     ValueT convertGetObject(Object object);
 
@@ -110,6 +80,11 @@ class ProtoRow extends Row {
     @Override
     public Object get(Message message) {
       return convertGetObject(message.getField(fieldDescriptor));
+    }
+
+    @Override
+    public String name() {
+      return field.getName();
     }
 
     @Override
@@ -190,6 +165,11 @@ class ProtoRow extends Row {
     }
 
     @Override
+    public String name() {
+      return fieldDescriptor.getName();
+    }
+
+    @Override
     public ValueT convertGetObject(Object object) {
       return (ValueT) object;
     }
@@ -242,6 +222,11 @@ class ProtoRow extends Row {
         return convertGetObject(wrapper);
       }
       return null;
+    }
+
+    @Override
+    public String name() {
+      return field.getName();
     }
 
     @Override
@@ -305,6 +290,11 @@ class ProtoRow extends Row {
         return convertGetObject(message.getField(fieldDescriptor));
       }
       return null;
+    }
+
+    @Override
+    public String name() {
+      return this.schemaField.getName();
     }
 
     @Override
@@ -377,6 +367,11 @@ class ProtoRow extends Row {
     }
 
     @Override
+    public String name() {
+      return this.schemaField.getName();
+    }
+
+    @Override
     public Map convertGetObject(Object object) {
       throw new RuntimeException("?");
     }
@@ -444,6 +439,11 @@ class ProtoRow extends Row {
     }
 
     @Override
+    public String name() {
+      return this.schemaField.getName();
+    }
+
+    @Override
     public List convertGetObject(Object object) {
       throw new RuntimeException("?");
     }
@@ -484,6 +484,11 @@ class ProtoRow extends Row {
     @Override
     public Object get(Message message) {
       return convertGetObject(message.getField(fieldDescriptor));
+    }
+
+    @Override
+    public String name() {
+      return field.getName();
     }
 
     @Override
@@ -529,6 +534,11 @@ class ProtoRow extends Row {
         return fieldOverlay.get(message);
       }
       return null;
+    }
+
+    @Override
+    public String name() {
+      return fieldOverlay.getSchemaField().getName();
     }
 
     @Override

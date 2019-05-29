@@ -480,6 +480,11 @@ public class ProtoSchemaTest {
     }
 
     @Override
+    public String name() {
+      return fieldDescriptor.getName();
+    }
+
+    @Override
     public LatLng convertGetObject(Object object) {
       return null;
     }
