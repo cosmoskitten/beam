@@ -43,15 +43,22 @@ import org.apache.beam.vendor.guava.v20_0.com.google.common.net.HostAndPort;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
-import org.junit.runners.JUnit4;
+import org.junit.runners.Parameterized;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 
 /** Tests for {@link BeamFnControlService}. */
-@RunWith(JUnit4.class)
+@RunWith(Parameterized.class)
 public class BeamFnControlServiceTest {
   @Mock private StreamObserver<BeamFnApi.InstructionRequest> requestObserver;
   @Mock private StreamObserver<BeamFnApi.InstructionRequest> anotherRequestObserver;
+
+  @Parameterized.Parameters
+  public static Object[][] data() {
+    return new Object[1000][0];
+  }
+
+  public BeamFnControlServiceTest() {}
 
   @Before
   public void setUp() {
