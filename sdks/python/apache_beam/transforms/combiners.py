@@ -928,7 +928,8 @@ class LatestCombineFn(core.CombineFn):
 
 
 class ToString(object):
-  """PTransform for converting a PCollection element, KV or PCollection Iterable
+  """
+  PTransform for converting a PCollection element, KV or PCollection Iterable
   to string.
   """
 
@@ -936,10 +937,6 @@ class ToString(object):
     """
     Transforms each element of the PCollection to a string on the key followed
     by the specific delimiter and the value.
-
-    Args:
-      delimiter: Delimiter used to separate the key and the value to string.
-      Default is the comma ","
     """
 
     def __init__(self, delimiter=None, **kwargs):
@@ -956,10 +953,6 @@ class ToString(object):
   class Element(ptransform.PTransform):
     """
     Transforms each element of the PCollection to a string.
-
-    Args:
-      delimiter: Delimiter used to separate the elements to string. Default is
-      the comma ","
     """
 
     def __init__(self, delimiter=None, **kwargs):
@@ -977,10 +970,6 @@ class ToString(object):
     """
     Transforms each item in the iterable of the input of PCollection to a
     string. There is no trailing delimiter.
-
-    Args:
-      delimiter: Delimiter used to separate the iterable elements to string.
-      Default is the comma ","
     """
 
     def __init__(self, delimiter=None, **kwargs):
