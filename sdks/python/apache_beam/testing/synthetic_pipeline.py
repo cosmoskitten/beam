@@ -664,7 +664,7 @@ def parse_args(args):
            '(4) A float "output_filter_ratio" in the range [0, 1] . '
            '    Defaults to 0.'
            '(5) A bool "splittable" that defaults to false.'
-           '(6) A integer "initial_splitting_num_bundles". Defaults to 8.')
+           '(6) An integer "initial_splitting_num_bundles". Defaults to 8.')
 
   parser.add_argument(
       '--input',
