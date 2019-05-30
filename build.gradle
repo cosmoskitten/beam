@@ -194,6 +194,9 @@ task pythonPreCommit() {
   dependsOn ":sdks:python:test-suites:tox:py36:preCommitPy36"
   dependsOn ":sdks:python:test-suites:tox:py37:preCommitPy37"
   dependsOn ":sdks:python:test-suites:dataflow:preCommitIT"
+  dependsOn ":sdks:python:test-suites:dataflow:py35:preCommitIT"
+  dependsOn ":sdks:python:test-suites:dataflow:py36:preCommitIT"
+  dependsOn ":sdks:python:test-suites:dataflow:py37:preCommitIT"
 }
 
 task pythonPostCommit() {
