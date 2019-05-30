@@ -161,7 +161,7 @@ class SyntheticSDFStepRestrictionProvider(RestrictionProvider):
       return OffsetRestrictionTracker(restriction[0], restriction[1])
 
   def split_randomly(self, restriction):
-    ''' Randomly split the restriction into the right number of bundles.'''
+    '''Randomly split the restriction into the right number of bundles.'''
     elems = restriction[1] - restriction[0]
     bundles = self._initial_splitting_num_bundles
     randomNums = [np.random.randint(0, elems - 1) for _ in
