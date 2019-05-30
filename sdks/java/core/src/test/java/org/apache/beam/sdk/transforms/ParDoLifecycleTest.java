@@ -405,7 +405,8 @@ public class ParDoLifecycleTest implements Serializable {
     }
 
     private void initCallState() {
-      DelayedCallStateTracker previousTracker = callStateMap.put(id(), new DelayedCallStateTracker(CallState.SETUP));
+      DelayedCallStateTracker previousTracker =
+          callStateMap.put(id(), new DelayedCallStateTracker(CallState.SETUP));
       if (previousTracker != null) {
         fail(CallState.SETUP + " method called multiple times");
       }
