@@ -166,7 +166,6 @@ class SyntheticSDFStepRestrictionProvider(RestrictionProvider):
     bundles = self._initial_splitting_num_bundles
     randomNums = [np.random.randint(0, elems - 1) for _ in
                   range(0, bundles - 1)]
-    print randomNums
     randomNums.append(0)
     randomNums.append(elems)
     randomNums.sort()
