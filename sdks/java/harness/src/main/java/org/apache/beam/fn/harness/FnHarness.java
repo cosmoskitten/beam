@@ -19,6 +19,7 @@ package org.apache.beam.fn.harness;
 
 import java.util.EnumMap;
 import java.util.List;
+import java.util.concurrent.ExecutorService;
 import java.util.function.Function;
 import org.apache.beam.fn.harness.control.AddHarnessIdInterceptor;
 import org.apache.beam.fn.harness.control.BeamFnControlClient;
@@ -203,7 +204,9 @@ public class FnHarness {
       JvmInitializers.runBeforeProcessing(options);
 
       LOG.info("Entering instruction processing loop");
-      control.processInstructionRequests(options.as(GcsOptions.class).getExecutorService());
+      ExecutorService executorService = options.as(GcsOptions.class).getExecutorService();
+      control.processInstructionRequests(executorService);
+      executorService.shutdown();
     } finally {
       System.out.println("Shutting SDK harness down.");
     }
