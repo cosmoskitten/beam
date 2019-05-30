@@ -201,7 +201,7 @@ def getSyntheticSDFStep(per_element_delay_sec=0,
                         initial_splitting_uneven_chunks=False,
                         disable_liquid_sharding=False,
                         size_estimate_override=None,):
-  """ A function which returns a SyntheticSDFStep with given parameters. """
+  """A function which returns a SyntheticSDFStep with given parameters."""
 
   class SyntheticSDFStep(beam.DoFn):
     """A SplittableDoFn of which behavior can be controlled through prespecified
