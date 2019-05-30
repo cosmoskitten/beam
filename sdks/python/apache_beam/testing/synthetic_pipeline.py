@@ -131,7 +131,7 @@ class NonLiquidShardingOffsetRangeTracker(OffsetRestrictionTracker):
 class SyntheticSDFStepRestrictionProvider(RestrictionProvider):
   """A `RestrictionProvider` for SyntheticSDFStep.
 
-  An initial_restriction and split that operate on num_records and ignore
+  An initial_restriction and split that operate on num_records and ignores
   source description (element). Splits into initial_splitting_num_bundles.
   Returns size_estimate_override as restriction size, if set. Otherwise uses
   element size.
