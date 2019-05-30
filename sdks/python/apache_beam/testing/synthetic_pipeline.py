@@ -119,7 +119,7 @@ class SyntheticStep(beam.DoFn):
 
 
 class NonLiquidShardingOffsetRangeTracker(OffsetRestrictionTracker):
-  """ A OffsetRangeTracker that doesn't allow splitting. """
+  """An OffsetRangeTracker that doesn't allow splitting."""
 
   def try_split(self, split_offset):
     return  # Don't split.
