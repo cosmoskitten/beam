@@ -1226,9 +1226,9 @@ class RestrictionTracker(object):
 
     If this succeeds, the DoFn MUST execute the entire block of work. If it
     fails, the ``DoFn.process()`` MUST return ``None`` without performing any
-    additional work or emitting (note that emitting output or performing work
-    from ``DoFn.process()`` is also not allowed before the first call of this
-    method).
+    additional work or emitting output (note that emitting output or performing
+    work from ``DoFn.process()`` is also not allowed before the first call of
+    this method).
 
     Args:
       position: current position that wants to be claimed.
