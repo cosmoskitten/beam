@@ -1180,15 +1180,47 @@ class RestrictionTracker(object):
     raise NotImplementedError
 
   def try_split(self, fraction_of_remainder):
+    """Splits current restriction based on fraction_of_remainder.
+
+    Invoked when SDK receiving ProcessBundleSplitRequest during processing
+    bundle.
+
+    Args:
+      fraction_of_remainder: a fraction of (cur_pos, stop_pos).
+
+    Returns: ``None`` when current restriction has been checkpointed, or
+    split_point is out of current restriction range. Otherwise, return
+    ((start_pos, split_pos), (split_pos, stop_pos)).
+
+    ** Thread safety **
+    Accessing to position and checkpoint status should be guarded by a single
+    lock object.
+    """
     raise NotImplementedError
 
   def try_claim(self, position):
+    """ Claims position as current_position.
+
+    Args:
+      position: current position that wants to be claimed.
+    Returns: ``True`` if the position can be claimed as current_position.
+    Otherwise, returns ``False``.
+
+    ** Thread safety **
+    Accessing to position should be guarded by a single lock object.
+    """
     raise NotImplementedError
 
   def defer_remainder(self, watermark=None):
+    """ Invokes checkpoint() in an SDF.process()
+
+    Args:
+      watermark
+    """
     raise NotImplementedError
 
   def deferred_status(self):
+    """ Returns deferred_residual with deferred_watermark."""
     raise NotImplementedError
 
 
