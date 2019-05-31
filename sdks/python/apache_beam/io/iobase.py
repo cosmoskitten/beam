@@ -1127,6 +1127,7 @@ class RestrictionTracker(object):
     Methods of the class ``RestrictionTracker`` including this method may get
     invoked by different threads, hence must be made thread-safe, e.g. by using
     a single lock object.
+    TODO(BEAM-7473): Remove thread safety requirements from API implementation.
     """
     raise NotImplementedError
 
@@ -1153,6 +1154,7 @@ class RestrictionTracker(object):
     Methods of the class ``RestrictionTracker`` including this method may get
     invoked by different threads, hence must be made thread-safe, e.g. by using
     a single lock object.
+    TODO(BEAM-7473): Remove thread safety requirements from API implementation.
     """
 
     raise NotImplementedError
@@ -1172,6 +1174,7 @@ class RestrictionTracker(object):
     Methods of the class ``RestrictionTracker`` including this method may get
     invoked by different threads, hence must be made thread-safe, e.g. by using
     a single lock object.
+    TODO(BEAM-7473): Remove thread safety requirements from API implementation.
 
     Returns: ``True`` if current restriction has been fully processed.
     Raises:
@@ -1217,6 +1220,7 @@ class RestrictionTracker(object):
     Methods of the class ``RestrictionTracker`` including this method may get
     invoked by different threads, hence must be made thread-safe, e.g. by using
     a single lock object.
+    TODO(BEAM-7473): Remove thread safety requirements from API implementation.
     """
     raise NotImplementedError
 
@@ -1232,6 +1236,7 @@ class RestrictionTracker(object):
 
     Args:
       position: current position that wants to be claimed.
+
     Returns: ``True`` if the position can be claimed as current_position.
     Otherwise, returns ``False``.
 
@@ -1240,11 +1245,15 @@ class RestrictionTracker(object):
     Methods of the class ``RestrictionTracker`` including this method may get
     invoked by different threads, hence must be made thread-safe, e.g. by using
     a single lock object.
+    TODO(BEAM-7473): Remove thread safety requirements from API implementation.
     """
     raise NotImplementedError
 
   def defer_remainder(self, watermark=None):
     """ Invokes checkpoint() in an SDF.process().
+
+    TODO(BEAM-7472): Mark defer_remainder as deprecated once SDF.process() uses
+    ``ProcessContinuation``.
 
     Args:
       watermark
@@ -1252,7 +1261,11 @@ class RestrictionTracker(object):
     raise NotImplementedError
 
   def deferred_status(self):
-    """ Returns deferred_residual with deferred_watermark."""
+    """ Returns deferred_residual with deferred_watermark.
+
+    TODO(BEAM-7472): Mark defer_status as deprecated once SDF.process() uses
+    ``ProcessContinuation``.
+    """
     raise NotImplementedError
 
 
