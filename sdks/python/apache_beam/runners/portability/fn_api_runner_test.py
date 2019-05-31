@@ -19,7 +19,6 @@ from __future__ import print_function
 
 import collections
 import logging
-import mock
 import os
 import random
 import shutil
@@ -32,7 +31,8 @@ import unittest
 import uuid
 from builtins import range
 
-import hamcrest
+import hamcrest  # pylint: disable=ungrouped-imports
+import mock
 from hamcrest.core.matcher import Matcher
 from hamcrest.core.string_description import StringDescription
 from tenacity import retry

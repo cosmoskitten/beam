@@ -22,7 +22,6 @@ from __future__ import division
 import threading
 from builtins import object
 
-from apache_beam.io.iobase import RangeTracker
 from apache_beam.io.iobase import RestrictionProgress
 from apache_beam.io.iobase import RestrictionTracker
 from apache_beam.io.range_trackers import OffsetRangeTracker

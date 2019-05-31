@@ -1394,4 +1394,3 @@ class _SDFBoundedSourceWrapper(ptransform.PTransform):
     return {'source': DisplayDataItem(self.source.__class__,
                                       label='Read Source'),
             'source_dd': self.source}
-
