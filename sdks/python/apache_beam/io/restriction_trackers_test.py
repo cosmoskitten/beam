@@ -19,6 +19,7 @@
 
 from __future__ import absolute_import
 
+import logging
 import unittest
 
 from apache_beam.io.restriction_trackers import OffsetRange
@@ -156,4 +157,5 @@ class OffsetRestrictionTrackerTest(unittest.TestCase):
 
 
 if __name__ == '__main__':
+  logging.getLogger().setLevel(logging.INFO)
   unittest.main()
