@@ -22,24 +22,36 @@ limitations under the License.
 
 The samples on this page show you common Beam side input patterns. A side input is an additional input that your `DoFn` can access each time it processes an element in the input `PCollection`. For more information, see the [programming guide section on side inputs](https://beam.apache.org/documentation/programming-guide/#side-inputs).
 
+<nav class="language-switcher">
+  <strong>Adapt for:</strong>
+  <ul>
+    <li data-type="language-java" class="active">Java SDK</li>
+    <li data-type="language-py">Python SDK</li>
+  </ul>
+</nav>
+
 ## Using global window side inputs in non-global windows
 
+{:.language-py}
+This option is not yet [available for Python](https://issues.apache.org/jira/browse/BEAM-7468).
+
+{:.language-java}
 You can retrieve side inputs from global windows to use them in a pipeline job with non-global windows, like a `FixedWindow`.
 
+{:.language-java}
 To use global window side inputs in pipelines with non-global windows:
 
+{:.language-java}
 1. Write a `DoFn` that periodically pulls data from a bounded source into a global window.
-    
     a. Use the `GenerateSequence` source transform to periodically emit a value.
-
     b. Instantiate a data-driven trigger that activates on each element and pulls data from a bounded source.
-    
     c. Fire the trigger to pass the data into the global window.
-
 1. Create the side input for downstream transforms. The side input should fit into memory.
 
+{:.language-java}
 The global window side input triggers on processing time, so the main pipeline nondeterministically matches the side input to elements in event time.
 
+{:.language-java}
 For instance, the following code sample uses a `Map` to create a `DoFn`. The `Map` becomes a `View.asSingleton` side input that’s rebuilt on each counter tick. The side input updates every 5 seconds in order to demonstrate the workflow. In a real-world scenario, the side input would typically update every few hours or once per day.
 
 ```java

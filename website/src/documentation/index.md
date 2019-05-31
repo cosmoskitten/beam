@@ -39,6 +39,9 @@ Learn about the Beam Programming Model and the concepts common to all Beam SDKs 
 * [Create Your Pipeline]({{ site.baseurl }}/documentation/pipelines/create-your-pipeline/) using the classes in the Beam SDKs.
 * [Test Your Pipeline]({{ site.baseurl }}/documentation/pipelines/test-your-pipeline/) to minimize debugging a pipeline’s remote execution.
 
+## Common pipeline patterns
+Review common Beam use cases with descriptions, examples, and solutions or psuedocode. See [Common pipeline patterns]({{ site.baseurl }}/documentation/patterns/overview) for all samples.
+
 ## SDKs
 
 Find status and reference information on all of the available Beam SDKs.

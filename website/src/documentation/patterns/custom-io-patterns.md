@@ -32,10 +32,10 @@ This page describes common patterns in pipelines with [custom I/O connectors](ht
 
 ## Choosing between built-in and custom connectors
 
-[Built-in I/O connectors](https://beam.apache.org/documentation/io/built-in/) are tested and hardened, so use them whenever possible. Only use custom I/O connectors when:
+[Built-in I/O connectors]({{ site.baseurl }}//documentation/io/built-in/) are tested and hardened, so use them whenever possible. Only use custom I/O connectors when:
 * No built-in options exist
 * Your pipeline pulls in a small subset of source data
 
 For instance, use a custom I/O connector to enrich pipeline elements with a small subset of source data. If you’re processing a sales order and adding information to each purchase, you can use a custom I/O connector to pull the small subset of data into your pipeline (instead of processing the entire source).
 
-Beam distributes work across many threads, so custom I/O connectors can increase your data source’s load average. You can reduce the load with the <span class="language-java">[start](https://beam.apache.org/releases/javadoc/2.9.0/org/apache/beam/sdk/transforms/DoFn.StartBundle.html)</span><span class="language-py">[start](https://beam.apache.org/releases/pydoc/2.9.0/apache_beam.transforms.core.html?highlight=bundle#apache_beam.transforms.core.DoFn.start_bundle)</span> and <span class="language-java">[finish](https://beam.apache.org/releases/javadoc/2.9.0/org/apache/beam/sdk/transforms/DoFn.FinishBundle.html)</span><span class="language-py">[finish](https://beam.apache.org/releases/pydoc/2.9.0/apache_beam.transforms.core.html?highlight=bundle#apache_beam.transforms.core.DoFn.finish_bundle)</span> bundle annotations.
+Beam distributes work across many threads, so custom I/O connectors can increase your data source’s load average. You can reduce the load with the <span class="language-java">[start]({{ site.baseurl }}/releases/javadoc/2.9.0/org/apache/beam/sdk/transforms/DoFn.StartBundle.html)</span><span class="language-py">[start]({{ site.baseurl }}/releases/pydoc/2.9.0/apache_beam.transforms.core.html?highlight=bundle#apache_beam.transforms.core.DoFn.start_bundle)</span> and <span class="language-java">[finish]({{ site.baseurl }}/releases/javadoc/2.9.0/org/apache/beam/sdk/transforms/DoFn.FinishBundle.html)</span><span class="language-py">[finish]({{ site.baseurl }}/releases/pydoc/2.9.0/apache_beam.transforms.core.html?highlight=bundle#apache_beam.transforms.core.DoFn.finish_bundle)</span> bundle annotations.

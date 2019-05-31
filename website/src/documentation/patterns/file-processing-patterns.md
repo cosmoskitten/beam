@@ -40,7 +40,7 @@ This section shows you how to process files as they arrive in your file system o
 You can use `FileIO` or `TextIO` to continuously read the source for new files.
 
 {:.language-java}
-Use the [`FileIO`](https://beam.apache.org/releases/javadoc/2.9.0/org/apache/beam/sdk/io/FileIO.html) class to continuously watch a single file pattern. The following example matches a file pattern repeatedly every 30 seconds, continuously returns new matched files as an unbounded `PCollection<Metadata>`, and stops if no new files appear for one hour:
+Use the [`FileIO`]({{ site.baseurl }}/releases/javadoc/2.9.0/org/apache/beam/sdk/io/FileIO.html) class to continuously watch a single file pattern. The following example matches a file pattern repeatedly every 30 seconds, continuously returns new matched files as an unbounded `PCollection<Metadata>`, and stops if no new files appear for one hour:
 
 ```java
 {% github_sample /apache/beam/blob/master/examples/java/src/main/java/org/apache/beam/examples/snippets/Snippets.java tag:FileProcessPatternProcessNewFilesSnip1
@@ -48,7 +48,7 @@ Use the [`FileIO`](https://beam.apache.org/releases/javadoc/2.9.0/org/apache/bea
 ```
 
 {:.language-java}
-The [`TextIO`](https://beam.apache.org/releases/javadoc/2.9.0/org/apache/beam/sdk/io/TextIO.html) class `watchForNewFiles` property streams new file matches.
+The [`TextIO`]({{ site.baseurl }}/releases/javadoc/2.9.0/org/apache/beam/sdk/io/TextIO.html) class `watchForNewFiles` property streams new file matches.
 
 ```java
 {% github_sample /apache/beam/blob/master/examples/java/src/main/java/org/apache/beam/examples/snippets/Snippets.java tag:FileProcessPatternProcessNewFilesSnip2
@@ -94,7 +94,7 @@ To access filenames:
 To read filenames in a pipeline job:
 
 {:.language-py}
-1. Collect the list of file URIs. You can use the [`FileSystems`](https://beam.apache.org/releases/pydoc/2.9.0/apache_beam.io.filesystems.html?highlight=filesystems#module-apache_beam.io.filesystems) module to get a list of files that match a glob pattern.
+1. Collect the list of file URIs. You can use the [`FileSystems`]({{ site.baseurl }}/releases/pydoc/2.9.0/apache_beam.io.filesystems.html?highlight=filesystems#module-apache_beam.io.filesystems) module to get a list of files that match a glob pattern.
 1. Pass the file URIs to a `PCollection`.
 
 ```java
