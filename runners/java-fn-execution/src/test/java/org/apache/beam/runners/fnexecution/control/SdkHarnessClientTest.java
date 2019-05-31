@@ -98,8 +98,8 @@ public class SdkHarnessClientTest {
   private SdkHarnessClient sdkHarnessClient;
   private ProcessBundleDescriptor descriptor;
   private String inputPCollection;
-  private BeamFnApi.Target sdkGrpcReadTarget;
-  private BeamFnApi.Target sdkGrpcWriteTarget;
+  private static final String SDK_GRPC_READ_TRANSFORM = "read";
+  private static final String SDK_GRPC_WRITE_TRANSFORM = "write";
 
   @Before
   public void setup() throws Exception {
@@ -145,24 +145,12 @@ public class SdkHarnessClientTest {
     }
     pbdBuilder
         .putTransforms("proc", targetProcessor)
-        .putTransforms("read", readNode.toPTransform())
-        .putTransforms("write", writeNode.toPTransform());
+        .putTransforms(SDK_GRPC_READ_TRANSFORM, readNode.toPTransform())
+        .putTransforms(SDK_GRPC_WRITE_TRANSFORM, writeNode.toPTransform());
     descriptor = pbdBuilder.build();
 
     inputPCollection =
         getOnlyElement(descriptor.getTransformsOrThrow("read").getOutputsMap().values());
-    sdkGrpcReadTarget =
-        BeamFnApi.Target.newBuilder()
-            .setName(
-                getOnlyElement(descriptor.getTransformsOrThrow("read").getOutputsMap().keySet()))
-            .setPrimitiveTransformReference("read")
-            .build();
-    sdkGrpcWriteTarget =
-        BeamFnApi.Target.newBuilder()
-            .setName(
-                getOnlyElement(descriptor.getTransformsOrThrow("write").getInputsMap().keySet()))
-            .setPrimitiveTransformReference("write")
-            .build();
   }
 
   @Test
@@ -182,7 +170,7 @@ public class SdkHarnessClientTest {
             RemoteInputDestination.of(
                 (FullWindowedValueCoder)
                     FullWindowedValueCoder.of(VarIntCoder.of(), GlobalWindow.Coder.INSTANCE),
-                sdkGrpcReadTarget));
+                SDK_GRPC_READ_TRANSFORM));
 
     BundleProcessor processor1 = sdkHarnessClient.getProcessor(descriptor1, remoteInputs);
     BundleProcessor processor2 = sdkHarnessClient.getProcessor(descriptor2, remoteInputs);
@@ -211,7 +199,7 @@ public class SdkHarnessClientTest {
             RemoteInputDestination.of(
                 (FullWindowedValueCoder)
                     FullWindowedValueCoder.of(VarIntCoder.of(), GlobalWindow.Coder.INSTANCE),
-                sdkGrpcReadTarget));
+                SDK_GRPC_READ_TRANSFORM));
 
     thrown.expect(IllegalStateException.class);
     thrown.expectMessage("containing a state");
@@ -232,7 +220,7 @@ public class SdkHarnessClientTest {
             descriptor,
             Collections.singletonMap(
                 "inputPC",
-                RemoteInputDestination.of((FullWindowedValueCoder) coder, sdkGrpcReadTarget)));
+                RemoteInputDestination.of((FullWindowedValueCoder) coder, SDK_GRPC_READ_TRANSFORM)));
     when(dataService.send(any(), eq(coder))).thenReturn(mock(CloseableFnDataReceiver.class));
 
     try (ActiveBundle activeBundle =
@@ -260,13 +248,13 @@ public class SdkHarnessClientTest {
                 RemoteInputDestination.of(
                     (FullWindowedValueCoder)
                         FullWindowedValueCoder.of(StringUtf8Coder.of(), Coder.INSTANCE),
-                    sdkGrpcReadTarget)));
+                    SDK_GRPC_READ_TRANSFORM)));
 
     Collection<WindowedValue<String>> outputs = new ArrayList<>();
     try (ActiveBundle activeBundle =
         processor.newBundle(
             Collections.singletonMap(
-                sdkGrpcWriteTarget,
+                SDK_GRPC_WRITE_TRANSFORM,
                 RemoteOutputReceiver.of(
                     FullWindowedValueCoder.of(
                         LengthPrefixCoder.of(StringUtf8Coder.of()), Coder.INSTANCE),
@@ -307,7 +295,7 @@ public class SdkHarnessClientTest {
             descriptor,
             Collections.singletonMap(
                 "inputPC",
-                RemoteInputDestination.of((FullWindowedValueCoder) coder, sdkGrpcReadTarget)));
+                RemoteInputDestination.of((FullWindowedValueCoder) coder, SDK_GRPC_READ_TRANSFORM)));
     when(dataService.receive(any(), any(), any())).thenReturn(mockOutputReceiver);
     when(dataService.send(any(), eq(coder))).thenReturn(mockInputSender);
 
@@ -319,7 +307,7 @@ public class SdkHarnessClientTest {
     try {
       try (ActiveBundle activeBundle =
           processor.newBundle(
-              ImmutableMap.of(sdkGrpcWriteTarget, mockRemoteOutputReceiver), mockProgressHandler)) {
+              ImmutableMap.of(SDK_GRPC_WRITE_TRANSFORM, mockRemoteOutputReceiver), mockProgressHandler)) {
         // We shouldn't be required to complete the process bundle response future.
       }
       fail("Exception expected");
@@ -357,7 +345,7 @@ public class SdkHarnessClientTest {
             descriptor,
             Collections.singletonMap(
                 inputPCollection,
-                RemoteInputDestination.of((FullWindowedValueCoder) coder, sdkGrpcReadTarget)),
+                RemoteInputDestination.of((FullWindowedValueCoder) coder, SDK_GRPC_READ_TRANSFORM)),
             mockStateDelegator);
     when(dataService.receive(any(), any(), any())).thenReturn(mockOutputReceiver);
     when(dataService.send(any(), eq(coder))).thenReturn(mockInputSender);
@@ -369,7 +357,7 @@ public class SdkHarnessClientTest {
     try {
       try (ActiveBundle activeBundle =
           processor.newBundle(
-              ImmutableMap.of(sdkGrpcWriteTarget, mockRemoteOutputReceiver),
+              ImmutableMap.of(SDK_GRPC_WRITE_TRANSFORM, mockRemoteOutputReceiver),
               mockStateHandler,
               mockProgressHandler)) {
         // We shouldn't be required to complete the process bundle response future.
@@ -403,7 +391,7 @@ public class SdkHarnessClientTest {
             descriptor,
             Collections.singletonMap(
                 "inputPC",
-                RemoteInputDestination.of((FullWindowedValueCoder) coder, sdkGrpcReadTarget)));
+                RemoteInputDestination.of((FullWindowedValueCoder) coder, SDK_GRPC_READ_TRANSFORM)));
     when(dataService.receive(any(), any(), any())).thenReturn(mockOutputReceiver);
     when(dataService.send(any(), eq(coder))).thenReturn(mockInputSender);
 
@@ -413,7 +401,7 @@ public class SdkHarnessClientTest {
     try {
       try (ActiveBundle activeBundle =
           processor.newBundle(
-              ImmutableMap.of(sdkGrpcWriteTarget, mockRemoteOutputReceiver), mockProgressHandler)) {
+              ImmutableMap.of(SDK_GRPC_WRITE_TRANSFORM, mockRemoteOutputReceiver), mockProgressHandler)) {
         processBundleResponseFuture.completeExceptionally(testException);
       }
       fail("Exception expected");
@@ -450,7 +438,7 @@ public class SdkHarnessClientTest {
             descriptor,
             Collections.singletonMap(
                 inputPCollection,
-                RemoteInputDestination.of((FullWindowedValueCoder) coder, sdkGrpcReadTarget)),
+                RemoteInputDestination.of((FullWindowedValueCoder) coder, SDK_GRPC_READ_TRANSFORM)),
             mockStateDelegator);
     when(dataService.receive(any(), any(), any())).thenReturn(mockOutputReceiver);
     when(dataService.send(any(), eq(coder))).thenReturn(mockInputSender);
@@ -460,7 +448,7 @@ public class SdkHarnessClientTest {
     try {
       try (ActiveBundle activeBundle =
           processor.newBundle(
-              ImmutableMap.of(sdkGrpcWriteTarget, mockRemoteOutputReceiver),
+              ImmutableMap.of(SDK_GRPC_WRITE_TRANSFORM, mockRemoteOutputReceiver),
               mockStateHandler,
               mockProgressHandler)) {
         processBundleResponseFuture.completeExceptionally(testException);
@@ -494,7 +482,7 @@ public class SdkHarnessClientTest {
             descriptor,
             Collections.singletonMap(
                 "inputPC",
-                RemoteInputDestination.of((FullWindowedValueCoder) coder, sdkGrpcReadTarget)));
+                RemoteInputDestination.of((FullWindowedValueCoder) coder, SDK_GRPC_READ_TRANSFORM)));
     when(dataService.receive(any(), any(), any())).thenReturn(mockOutputReceiver);
     when(dataService.send(any(), eq(coder))).thenReturn(mockInputSender);
     doThrow(testException).when(mockOutputReceiver).awaitCompletion();
@@ -505,7 +493,7 @@ public class SdkHarnessClientTest {
     try {
       try (ActiveBundle activeBundle =
           processor.newBundle(
-              ImmutableMap.of(sdkGrpcWriteTarget, mockRemoteOutputReceiver), mockProgressHandler)) {
+              ImmutableMap.of(SDK_GRPC_WRITE_TRANSFORM, mockRemoteOutputReceiver), mockProgressHandler)) {
         // Correlating the ProcessBundleRequest and ProcessBundleResponse is owned by the underlying
         // FnApiControlClient. The SdkHarnessClient owns just wrapping the request and unwrapping
         // the response.
@@ -548,7 +536,7 @@ public class SdkHarnessClientTest {
             descriptor,
             Collections.singletonMap(
                 inputPCollection,
-                RemoteInputDestination.of((FullWindowedValueCoder) coder, sdkGrpcReadTarget)),
+                RemoteInputDestination.of((FullWindowedValueCoder) coder, SDK_GRPC_READ_TRANSFORM)),
             mockStateDelegator);
     when(dataService.receive(any(), any(), any())).thenReturn(mockOutputReceiver);
     when(dataService.send(any(), eq(coder))).thenReturn(mockInputSender);
@@ -559,7 +547,7 @@ public class SdkHarnessClientTest {
     try {
       try (ActiveBundle activeBundle =
           processor.newBundle(
-              ImmutableMap.of(sdkGrpcWriteTarget, mockRemoteOutputReceiver),
+              ImmutableMap.of(SDK_GRPC_WRITE_TRANSFORM, mockRemoteOutputReceiver),
               mockStateHandler,
               mockProgressHandler)) {
         // Correlating the ProcessBundleRequest and ProcessBundleResponse is owned by the underlying

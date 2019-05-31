@@ -419,22 +419,21 @@ public class TimerReceiverTest implements Serializable {
         StateRequestHandler stateRequestHandler,
         BundleProgressHandler progressHandler)
         throws Exception {
-      ImmutableMap.Builder<BeamFnApi.Target, RemoteOutputReceiver<?>> outputReceivers =
+      ImmutableMap.Builder<String, RemoteOutputReceiver<?>> outputReceivers =
           ImmutableMap.builder();
-      for (Map.Entry<BeamFnApi.Target, Coder<WindowedValue<?>>> targetCoder :
-          processBundleDescriptor.getOutputTargetCoders().entrySet()) {
-        BeamFnApi.Target target = targetCoder.getKey();
-        Coder<WindowedValue<?>> coder = targetCoder.getValue();
+      for (Map.Entry<String, Coder<WindowedValue<?>>> outputTransformCoder :
+          processBundleDescriptor.getOutputTransformCoders().entrySet()) {
         String bundleOutputPCollection =
             Iterables.getOnlyElement(
                 processBundleDescriptor
                     .getProcessBundleDescriptor()
-                    .getTransformsOrThrow(target.getPrimitiveTransformReference())
+                    .getTransformsOrThrow(outputTransformCoder.getKey())
                     .getInputsMap()
                     .values());
         FnDataReceiver<WindowedValue<?>> outputReceiver =
             outputReceiverFactory.create(bundleOutputPCollection);
-        outputReceivers.put(target, RemoteOutputReceiver.of(coder, outputReceiver));
+        outputReceivers.put(outputTransformCoder.getKey(),
+            RemoteOutputReceiver.of(outputTransformCoder.getValue(), outputReceiver));
       }
       return processor.newBundle(outputReceivers.build(), stateRequestHandler, progressHandler);
     }

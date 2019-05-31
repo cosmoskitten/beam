@@ -55,22 +55,6 @@ import "metrics.proto";
  * still are missing things like the CompositeTransform.
  */
 
-// A representation of an input or output definition on a primitive transform.
-// Stable
-message Target {
-  // A repeated list of target definitions.
-  message List {
-    repeated Target target = 1;
-  }
-
-  // (Required) The id of the PrimitiveTransform which is the target.
-  string primitive_transform_reference = 1;
-
-  // (Required) The local name of an input or output defined on the primitive
-  // transform.
-  string name = 2;
-}
-
 // A descriptor for connecting to a remote port using the Beam Fn Data API.
 // Allows for communication between two environments (for example between the
 // runner and the SDK).
@@ -559,7 +543,7 @@ message FinalizeBundleResponse {
 // Stable
 message Elements {
   // Represents multiple encoded elements in nested context for a given named
-  // instruction and target.
+  // instruction and transform.
   message Data {
     // (Required) A reference to an active instruction request with the given
     // instruction id.
@@ -572,16 +556,15 @@ message Elements {
     //
     // Note that a single element may span multiple Data messages.
     //
-    // Note that a sending/receiving pair should share the same target
-    // identifier.
-    Target target = 2;
+    // Note that a sending/receiving pair should share the same identifier.
+    string ptransform_id = 2;
 
     // (Optional) Represents a part of a logical byte stream. Elements within
     // the logical byte stream are encoded in the nested context and
     // concatenated together.
     //
     // An empty data block represents the end of stream for the given
-    // instruction and target.
+    // instruction and transform.
     bytes data = 3;
   }
 

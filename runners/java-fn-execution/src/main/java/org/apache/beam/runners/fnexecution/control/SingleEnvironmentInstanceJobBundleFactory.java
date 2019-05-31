@@ -22,7 +22,6 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
-import org.apache.beam.model.fnexecution.v1.BeamFnApi.Target;
 import org.apache.beam.model.pipeline.v1.RunnerApi.Environment;
 import org.apache.beam.runners.core.construction.graph.ExecutableStage;
 import org.apache.beam.runners.fnexecution.GrpcFnServer;
@@ -153,21 +152,21 @@ public class SingleEnvironmentInstanceJobBundleFactory implements JobBundleFacto
         OutputReceiverFactory outputReceiverFactory,
         StateRequestHandler stateRequestHandler,
         BundleProgressHandler progressHandler) {
-      Map<Target, RemoteOutputReceiver<?>> outputReceivers = new HashMap<>();
-      for (Map.Entry<Target, Coder<WindowedValue<?>>> targetCoders :
-          descriptor.getOutputTargetCoders().entrySet()) {
+      Map<String, RemoteOutputReceiver<?>> outputReceivers = new HashMap<>();
+      for (Map.Entry<String, Coder<WindowedValue<?>>> outputTransformCoders :
+          descriptor.getOutputTransformCoders().entrySet()) {
         String bundleOutputPCollection =
             Iterables.getOnlyElement(
                 descriptor
                     .getProcessBundleDescriptor()
-                    .getTransformsOrThrow(targetCoders.getKey().getPrimitiveTransformReference())
+                    .getTransformsOrThrow(outputTransformCoders.getKey())
                     .getInputsMap()
                     .values());
         FnDataReceiver<WindowedValue<?>> outputReceiver =
             outputReceiverFactory.create(bundleOutputPCollection);
         outputReceivers.put(
-            targetCoders.getKey(),
-            RemoteOutputReceiver.of(targetCoders.getValue(), outputReceiver));
+            outputTransformCoders.getKey(),
+            RemoteOutputReceiver.of(outputTransformCoders.getValue(), outputReceiver));
       }
       return processor.newBundle(outputReceivers, stateRequestHandler, progressHandler);
     }
