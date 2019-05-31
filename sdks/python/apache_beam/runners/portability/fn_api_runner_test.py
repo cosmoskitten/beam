@@ -480,7 +480,7 @@ class FnApiRunnerTest(unittest.TestCase):
       self.assertEqual(1, len(counters))
       self.assertEqual(counters[0].committed, len(''.join(data)))
 
-  def test_sdf_wrap_range_source(self):
+  def _run_sdf_wrapper_pipeline(self, source, expected_value):
     with self.create_pipeline() as p:
       from apache_beam.options.pipeline_options import DebugOptions
       experiments = (p._options.view_as(DebugOptions).experiments or [])
@@ -492,9 +492,22 @@ class FnApiRunnerTest(unittest.TestCase):
       p._options.view_as(DebugOptions).experiments = experiments
 
       actual = (
-          p | beam.io.Read(RangeSource(0, 4))
+          p | beam.io.Read(source)
       )
-    assert_that(actual, equal_to([0, 1, 2, 3]))
+    assert_that(actual, equal_to(expected_value))
+
+
+  @mock.patch('apache_beam.io.iobase._SDFBoundedSourceWrapper.expand')
+  def test_sdf_wrap_overrides_read(self, sdf_wrapper_mock_expand):
+    def _fake_wrapper_expand(pbegin):
+      return (pbegin
+              | beam.Create(['1']))
+
+    sdf_wrapper_mock_expand.side_effect = _fake_wrapper_expand
+    self._run_sdf_wrapper_pipeline(RangeSource(0, 4), ['1'])
+
+  def test_sdf_wrap_range_source(self):
+    self._run_sdf_wrapper_pipeline(RangeSource(0, 4), [0, 1, 2, 3])
 
   def test_group_by_key(self):
     with self.create_pipeline() as p:
