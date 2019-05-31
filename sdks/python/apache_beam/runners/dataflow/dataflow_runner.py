@@ -100,7 +100,7 @@ class DataflowRunner(PipelineRunner):
       CreatePTransformOverride(),
   ]
 
-  SDF_PTRANSFORM_OVERRIDES = [
+  _SDF_PTRANSFORM_OVERRIDES = [
       ReadPTransformOverride(),
   ]
 
@@ -377,7 +377,7 @@ class DataflowRunner(PipelineRunner):
     # any added PTransforms.
     pipeline.replace_all(DataflowRunner._PTRANSFORM_OVERRIDES)
     if apiclient._use_sdf_bounded_source(options):
-      pipeline.replace_all(DataflowRunner.SDF_PTRANSFORM_OVERRIDES)
+      pipeline.replace_all(DataflowRunner._SDF_PTRANSFORM_OVERRIDES)
 
     # Snapshot the pipeline in a portable proto.
     self.proto_pipeline, self.proto_context = pipeline.to_runner_api(

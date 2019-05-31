@@ -19,6 +19,7 @@ from __future__ import print_function
 
 import collections
 import logging
+import mock
 import os
 import random
 import shutil
@@ -493,7 +494,7 @@ class FnApiRunnerTest(unittest.TestCase):
       actual = (
           p | beam.io.Read(RangeSource(0, 4))
       )
-      assert_that(actual, equal_to([0, 1, 2, 3]))
+    assert_that(actual, equal_to([0, 1, 2, 3]))
 
   def test_group_by_key(self):
     with self.create_pipeline() as p:

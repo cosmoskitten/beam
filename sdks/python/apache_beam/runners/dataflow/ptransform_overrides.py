@@ -63,5 +63,5 @@ class ReadPTransformOverride(PTransformOverride):
     return False
 
   def get_replacement_transform(self, ptransform):
-    from apache_beam.io.iobase import SDFBoundedSourceWrapper
-    return SDFBoundedSourceWrapper(ptransform.source)
+    from apache_beam.io.iobase import _SDFBoundedSourceWrapper
+    return _SDFBoundedSourceWrapper(ptransform.source)

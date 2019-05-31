@@ -845,8 +845,9 @@ class Read(ptransform.PTransform):
     super(Read, self).__init__()
     self.source = source
 
-  def _get_desired_chunk_size(self):
-    total_size = self.source.estimate_size()
+  @staticmethod
+  def get_desired_chunk_size(total_size):
+    total_size
     if total_size:
       # 1MB = 1 shard, 1GB = 32 shards, 1TB = 1000 shards, 1PB = 32k shards
       chunk_size = max(1 << 20, 1000 * int(math.sqrt(total_size)))
@@ -866,7 +867,8 @@ class Read(ptransform.PTransform):
       source = self.source
 
       def split_source(unused_impulse):
-        return source.split(self._get_desired_chunk_size())
+        return source.split(
+            self.get_desired_chunk_size(self.source.estimate_size()))
 
       return (
           pbegin
@@ -911,67 +913,6 @@ ptransform.PTransform.register_urn(
     common_urns.deprecated_primitives.READ.urn,
     beam_runner_api_pb2.ReadPayload,
     Read.from_runner_api_parameter)
-
-
-class SDFBoundedSourceWrapper(ptransform.PTransform):
-  """A ``PTransform`` that uses SDF to read from a ``BoundedSource``.
-  NOTE: This transform can only be used with beam_fn_api enabled.
-  """
-
-  def __init__(self, source):
-    if not isinstance(source, BoundedSource):
-      raise RuntimeError('SDFBoundedSourceWrapper can only wrap BoundedSource')
-    super(SDFBoundedSourceWrapper, self).__init__()
-    self.source = source
-
-  def _get_desired_chunk_size(self):
-    total_size = self.source.estimate_size()
-    if total_size:
-      # 1MB = 1 shard, 1GB = 32 shards, 1TB = 1000 shards, 1PB = 32k shards
-      chunk_size = max(1 << 20, 1000 * int(math.sqrt(total_size)))
-    else:
-      chunk_size = 64 << 20  # 64mb
-    return chunk_size
-
-  def _create_sdf_bounded_source_dofn(self):
-    from apache_beam.io.sdf_restriction_provider \
-      import SDFBoundedSourceRestrictionProvider
-    chunk_size = self._get_desired_chunk_size()
-    source = self.source
-
-    class SDFBoundedSourceDoFn(core.DoFn):
-      def __init__(self, read_source):
-        self.source = read_source
-
-      def process(
-          self,
-          element,
-          restriction_tracker=core.DoFn.RestrictionParam(
-              SDFBoundedSourceRestrictionProvider(source, chunk_size))):
-        start_pos, end_pos = restriction_tracker.current_restriction()
-        range_tracker = self.source.get_range_tracker(start_pos, end_pos)
-        return self.source.read(range_tracker)
-
-    return SDFBoundedSourceDoFn(self.source)
-
-  def expand(self, pbegin):
-    return (pbegin
-            | core.Impulse()
-            | core.ParDo(self._create_sdf_bounded_source_dofn()))
-
-  def get_windowing(self, unused_inputs):
-    return core.Windowing(window.GlobalWindows())
-
-  def _infer_output_coder(self, input_type=None, input_coder=None):
-    if isinstance(self.source, BoundedSource):
-      return self.source.default_output_coder()
-    else:
-      return self.source.coder
-
-  def display_data(self):
-    return {'source': DisplayDataItem(self.source.__class__,
-                                      label='Read Source'),
-            'source_dd': self.source}
 
 
 class Write(ptransform.PTransform):
@@ -1302,3 +1243,123 @@ class RestrictionProgress(object):
   def with_completed(self, completed):
     return RestrictionProgress(
         fraction=self._fraction, remaining=self._remaining, completed=completed)
+
+
+class _SDFBoundedSourceWrapper(ptransform.PTransform):
+  """A ``PTransform`` that uses SDF to read from a ``BoundedSource``.
+
+  NOTE: This transform can only be used with beam_fn_api enabled.
+  """
+  class _SDFBoundedSourceRestrictionTracker(RestrictionTracker):
+    """An `iobase.RestrictionTracker` implementations for wrapping BoundedSource
+    with SDF.
+
+    Delegated RangeTracker guarantees synchronization safety.
+    """
+    def __init__(self, range_tracker):
+      if not isinstance(range_tracker, RangeTracker):
+        raise ValueError('Initializing SDFBoundedSourceRestrictionTracker'
+                         'requires a RangeTracker')
+      self._delegate_range_tracker = range_tracker
+
+    def current_restriction(self):
+      return (self._delegate_range_tracker.start_position(),
+              self._delegate_range_tracker.stop_position())
+
+    def start_pos(self):
+      return self._delegate_range_tracker.start_position()
+
+    def stop_pos(self):
+      return self._delegate_range_tracker.stop_position()
+
+    def try_claim(self, position):
+      return self._delegate_range_tracker.try_claim(position)
+
+    def try_split(self, fraction_of_remainder):
+      consumed_fraction = self._delegate_range_tracker.fraction_consumed()
+      fraction = (consumed_fraction +
+                  (1 - consumed_fraction) * fraction_of_remainder)
+      position = self._delegate_range_tracker.position_at_fraction(fraction)
+      # Need to stash current stop_pos before splitting since
+      # range_tracker.split will update its stop_pos if splits
+      # successfully.
+      stop_pos = self.stop_pos()
+      split_pos, _ = self._delegate_range_tracker.try_split(position)
+      if split_pos:
+        return ((self._delegate_range_tracker.start_position(), split_pos),
+                (split_pos, stop_pos))
+
+    def deferred_status(self):
+      return None
+
+  class _SDFBoundedSourceRestrictionProvider(core.RestrictionProvider):
+    """A `RestrictionProvider` that is used by SDF for `BoundedSource`."""
+
+    def __init__(self, source, desired_chunk_size=None):
+      self._source = source
+      self._desired_chunk_size = desired_chunk_size
+
+    def initial_restriction(self, element):
+      # Get initial range_tracker from source
+      range_tracker = self._source.get_range_tracker(None, None)
+      return SourceBundle(None,
+                          self._source,
+                          range_tracker.start_position(),
+                          range_tracker.stop_position())
+
+    def create_tracker(self, restriction):
+      return _SDFBoundedSourceWrapper._SDFBoundedSourceRestrictionTracker(
+          restriction.source.get_range_tracker(restriction.start_position,
+                                               restriction.stop_position))
+
+    def split(self, element, restriction):
+      # Invoke source.split to get initial splitting results.
+      source_bundles = self._source.split(self._desired_chunk_size)
+      for source_bundle in source_bundles:
+        yield source_bundle
+
+    def restriction_size(self, element, restriction):
+      return restriction.weight
+
+  def __init__(self, source):
+    if not isinstance(source, BoundedSource):
+      raise RuntimeError('SDFBoundedSourceWrapper can only wrap BoundedSource')
+    super(_SDFBoundedSourceWrapper, self).__init__()
+    self.source = source
+
+  def _create_sdf_bounded_source_dofn(self):
+    source = self.source
+    chunk_size = Read.get_desired_chunk_size(source.estimate_size())
+
+    class SDFBoundedSourceDoFn(core.DoFn):
+      def __init__(self, read_source):
+        self.source = read_source
+
+      def process(
+          self,
+          element,
+          restriction_tracker=core.DoFn.RestrictionParam(
+              _SDFBoundedSourceWrapper._SDFBoundedSourceRestrictionProvider(
+                  source, chunk_size))):
+        start_pos, end_pos = restriction_tracker.current_restriction()
+        range_tracker = self.source.get_range_tracker(start_pos, end_pos)
+        return self.source.read(range_tracker)
+
+    return SDFBoundedSourceDoFn(self.source)
+
+  def expand(self, pbegin):
+    return (pbegin
+            | core.Impulse()
+            | core.ParDo(self._create_sdf_bounded_source_dofn()))
+
+  def get_windowing(self, unused_inputs):
+    return core.Windowing(window.GlobalWindows())
+
+  def _infer_output_coder(self, input_type=None, input_coder=None):
+    return self.source.default_output_coder()
+
+  def display_data(self):
+    return {'source': DisplayDataItem(self.source.__class__,
+                                      label='Read Source'),
+            'source_dd': self.source}
+
