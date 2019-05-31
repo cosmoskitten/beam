@@ -18,6 +18,7 @@
 package org.apache.beam.runners.dataflow.worker.fn.control;
 
 import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkState;
+import static org.junit.Assert.assertTrue;
 
 import java.io.Serializable;
 import java.util.HashMap;
@@ -233,7 +234,7 @@ public class TimerReceiverTest implements Serializable {
     Object windowedTimer = WindowedValue.valueInGlobalWindow(timer);
 
     // Simulate the SDK Harness sending a timer element to the Runner Harness.
-    org.junit.Assert.assertTrue(timerReceiver.receive(timerOutputPCollection, windowedTimer));
+    assertTrue(timerReceiver.receive(timerOutputPCollection, windowedTimer));
 
     // Expect that we get a timer element when we finish.
     Object expected =
@@ -351,9 +352,9 @@ public class TimerReceiverTest implements Serializable {
     Object windowedTimer2 = WindowedValue.valueInGlobalWindow(timer2);
 
     // Simulate the SDK Harness sending a timer element to the Runner Harness.
-    org.junit.Assert.assertTrue(
+    assertTrue(
         timerReceiver.receive(timerSpecMap.get(timerId1).outputCollectionId(), windowedTimer1));
-    org.junit.Assert.assertTrue(
+    assertTrue(
         timerReceiver.receive(timerSpecMap.get(timerId2).outputCollectionId(), windowedTimer2));
 
     // Expect that we get a timer element when we finish.
