@@ -152,13 +152,9 @@ public class SdkHarnessClient implements AutoCloseable {
       CompletionStage<BeamFnApi.ProcessBundleResponse> specificResponse =
           genericResponse.thenApply(InstructionResponse::getProcessBundle);
       Map<String, InboundDataClient> outputClients = new HashMap<>();
-      for (Map.Entry<String, RemoteOutputReceiver<?>> receiver :
-          outputReceivers.entrySet()) {
+      for (Map.Entry<String, RemoteOutputReceiver<?>> receiver : outputReceivers.entrySet()) {
         InboundDataClient outputClient =
-            attachReceiver(
-                bundleId,
-                receiver.getKey(),
-                (RemoteOutputReceiver) receiver.getValue());
+            attachReceiver(bundleId, receiver.getKey(), (RemoteOutputReceiver) receiver.getValue());
         outputClients.put(receiver.getKey(), outputClient);
       }
 

@@ -259,7 +259,9 @@ public class BeamFnDataGrpcServiceTest {
           service
               .getDataService(DEFAULT_CLIENT)
               .receive(
-                  LogicalEndpoint.of(Integer.toString(i), PTRANSFORM_ID), CODER, serverInboundValue::add));
+                  LogicalEndpoint.of(Integer.toString(i), PTRANSFORM_ID),
+                  CODER,
+                  serverInboundValue::add));
     }
 
     // Waiting for the client provides the necessary synchronization for the elements to arrive.
@@ -292,7 +294,10 @@ public class BeamFnDataGrpcServiceTest {
                         .concat(
                             ByteString.copyFrom(
                                 encodeToByteArray(CODER, valueInGlobalWindow("C" + id))))))
-        .addData(BeamFnApi.Elements.Data.newBuilder().setInstructionReference(id).setPtransformId(PTRANSFORM_ID))
+        .addData(
+            BeamFnApi.Elements.Data.newBuilder()
+                .setInstructionReference(id)
+                .setPtransformId(PTRANSFORM_ID))
         .build();
   }
 

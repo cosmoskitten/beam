@@ -101,7 +101,12 @@ public class BeamFnDataWriteRunner<InputT> {
       }
       BeamFnDataWriteRunner<InputT> runner =
           new BeamFnDataWriteRunner<>(
-              pTransformId, pTransform, processBundleInstructionId, coderSpec, coders, beamFnDataClient);
+              pTransformId,
+              pTransform,
+              processBundleInstructionId,
+              coderSpec,
+              coders,
+              beamFnDataClient);
       startFunctionRegistry.register(pTransformId, runner::registerForOutput);
       pCollectionConsumerRegistry.register(
           getOnlyElement(pTransform.getInputsMap().values()),

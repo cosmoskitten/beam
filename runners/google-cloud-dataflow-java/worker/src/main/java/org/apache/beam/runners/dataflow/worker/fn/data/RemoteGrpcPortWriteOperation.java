@@ -75,7 +75,13 @@ public class RemoteGrpcPortWriteOperation<T> extends ReceivingOperation {
       IdGenerator bundleIdSupplier,
       Coder<WindowedValue<T>> coder,
       OperationContext context) {
-    this(beamFnDataService, ptransformId, bundleIdSupplier, coder, context, System::currentTimeMillis);
+    this(
+        beamFnDataService,
+        ptransformId,
+        bundleIdSupplier,
+        coder,
+        context,
+        System::currentTimeMillis);
   }
 
   public RemoteGrpcPortWriteOperation(

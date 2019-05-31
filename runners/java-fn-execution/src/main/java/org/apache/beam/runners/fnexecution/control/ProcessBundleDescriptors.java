@@ -28,7 +28,6 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.stream.Collectors;
 import javax.annotation.Nullable;
-import org.apache.beam.model.fnexecution.v1.BeamFnApi;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.ProcessBundleDescriptor;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.RemoteGrpcPort;
 import org.apache.beam.model.pipeline.v1.Endpoints.ApiServiceDescriptor;
@@ -135,7 +134,11 @@ public class ProcessBundleDescriptors {
 
     Map<String, Map<String, TimerSpec>> timerSpecs =
         forTimerSpecs(
-            dataEndpoint, stage, components, inputDestinationsBuilder, outputTransformCodersBuilder);
+            dataEndpoint,
+            stage,
+            components,
+            inputDestinationsBuilder,
+            outputTransformCodersBuilder);
 
     // Copy data from components to ProcessBundleDescriptor.
     ProcessBundleDescriptor.Builder bundleDescriptorBuilder =
@@ -490,7 +493,12 @@ public class ProcessBundleDescriptors {
         String outputTransformId,
         org.apache.beam.sdk.state.TimerSpec timerSpec) {
       return new AutoValue_ProcessBundleDescriptors_TimerSpec(
-          transformId, timerId, inputCollectionId, outputCollectionId, outputTransformId, timerSpec);
+          transformId,
+          timerId,
+          inputCollectionId,
+          outputCollectionId,
+          outputTransformId,
+          timerSpec);
     }
 
     public abstract String transformId();

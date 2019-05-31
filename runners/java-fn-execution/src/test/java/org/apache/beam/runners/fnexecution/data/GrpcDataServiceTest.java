@@ -145,7 +145,9 @@ public class GrpcDataServiceTest {
         serverInboundValues.add(serverInboundValue);
         readFutures.add(
             service.receive(
-                LogicalEndpoint.of(Integer.toString(i), PTRANSFORM_ID), CODER, serverInboundValue::add));
+                LogicalEndpoint.of(Integer.toString(i), PTRANSFORM_ID),
+                CODER,
+                serverInboundValue::add));
       }
       for (InboundDataClient readFuture : readFutures) {
         readFuture.awaitCompletion();
@@ -183,7 +185,10 @@ public class GrpcDataServiceTest {
                             ByteString.copyFrom(
                                 encodeToByteArray(
                                     CODER, WindowedValue.valueInGlobalWindow("C" + id))))))
-        .addData(BeamFnApi.Elements.Data.newBuilder().setInstructionReference(id).setPtransformId(PTRANSFORM_ID))
+        .addData(
+            BeamFnApi.Elements.Data.newBuilder()
+                .setInstructionReference(id)
+                .setPtransformId(PTRANSFORM_ID))
         .build();
   }
 }

@@ -39,8 +39,7 @@ import org.junit.Test;
 public class BeamFnDataGrpcMultiplexerTest {
   private static final Endpoints.ApiServiceDescriptor DESCRIPTOR =
       Endpoints.ApiServiceDescriptor.newBuilder().setUrl("test").build();
-  private static final LogicalEndpoint OUTPUT_LOCATION =
-      LogicalEndpoint.of("777L", "888L");
+  private static final LogicalEndpoint OUTPUT_LOCATION = LogicalEndpoint.of("777L", "888L");
   private static final BeamFnApi.Elements ELEMENTS =
       BeamFnApi.Elements.newBuilder()
           .addData(

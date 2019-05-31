@@ -44,8 +44,7 @@ import org.junit.runners.JUnit4;
 /** Tests for {@link BeamFnDataBufferingOutboundObserver}. */
 @RunWith(JUnit4.class)
 public class BeamFnDataBufferingOutboundObserverTest {
-  private static final LogicalEndpoint OUTPUT_LOCATION =
-      LogicalEndpoint.of("777L", "555L");
+  private static final LogicalEndpoint OUTPUT_LOCATION = LogicalEndpoint.of("777L", "555L");
   private static final Coder<WindowedValue<byte[]>> CODER =
       LengthPrefixCoder.of(WindowedValue.getValueOnlyCoder(ByteArrayCoder.of()));
 

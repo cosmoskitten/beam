@@ -265,10 +265,12 @@ public class RemoteExecutionTest implements Serializable {
     BundleProcessor processor =
         controlClient.getProcessor(
             descriptor.getProcessBundleDescriptor(), descriptor.getRemoteInputDestinations());
-    Map<String, ? super Coder<WindowedValue<?>>> outputTransforms = descriptor.getOutputTransformCoders();
+    Map<String, ? super Coder<WindowedValue<?>>> outputTransforms =
+        descriptor.getOutputTransformCoders();
     Map<String, Collection<? super WindowedValue<?>>> outputValues = new HashMap<>();
     Map<String, RemoteOutputReceiver<?>> outputReceivers = new HashMap<>();
-    for (Entry<String, ? super Coder<WindowedValue<?>>> outputTransform : outputTransforms.entrySet()) {
+    for (Entry<String, ? super Coder<WindowedValue<?>>> outputTransform :
+        outputTransforms.entrySet()) {
       List<? super WindowedValue<?>> outputContents =
           Collections.synchronizedList(new ArrayList<>());
       outputValues.put(outputTransform.getKey(), outputContents);
@@ -328,10 +330,12 @@ public class RemoteExecutionTest implements Serializable {
     BundleProcessor processor =
         controlClient.getProcessor(
             descriptor.getProcessBundleDescriptor(), descriptor.getRemoteInputDestinations());
-    Map<String, ? super Coder<WindowedValue<?>>> outputTransforms = descriptor.getOutputTransformCoders();
+    Map<String, ? super Coder<WindowedValue<?>>> outputTransforms =
+        descriptor.getOutputTransformCoders();
     Map<String, Collection<? super WindowedValue<?>>> outputValues = new HashMap<>();
     Map<String, RemoteOutputReceiver<?>> outputReceivers = new HashMap<>();
-    for (Entry<String, ? super Coder<WindowedValue<?>>> outputTransform : outputTransforms.entrySet()) {
+    for (Entry<String, ? super Coder<WindowedValue<?>>> outputTransform :
+        outputTransforms.entrySet()) {
       List<? super WindowedValue<?>> outputContents =
           Collections.synchronizedList(new ArrayList<>());
       outputValues.put(outputTransform.getKey(), outputContents);

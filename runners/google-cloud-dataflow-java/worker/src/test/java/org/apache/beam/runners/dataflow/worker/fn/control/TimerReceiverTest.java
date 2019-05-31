@@ -29,7 +29,6 @@ import java.util.concurrent.Future;
 import java.util.concurrent.ThreadFactory;
 import javax.annotation.Nullable;
 import org.apache.beam.fn.harness.FnHarness;
-import org.apache.beam.model.fnexecution.v1.BeamFnApi;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.runners.core.InMemoryTimerInternals;
 import org.apache.beam.runners.core.StateInternals;
@@ -432,7 +431,8 @@ public class TimerReceiverTest implements Serializable {
                     .values());
         FnDataReceiver<WindowedValue<?>> outputReceiver =
             outputReceiverFactory.create(bundleOutputPCollection);
-        outputReceivers.put(outputTransformCoder.getKey(),
+        outputReceivers.put(
+            outputTransformCoder.getKey(),
             RemoteOutputReceiver.of(outputTransformCoder.getValue(), outputReceiver));
       }
       return processor.newBundle(outputReceivers.build(), stateRequestHandler, progressHandler);
