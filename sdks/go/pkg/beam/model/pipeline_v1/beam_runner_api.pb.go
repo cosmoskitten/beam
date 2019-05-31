@@ -51,7 +51,7 @@ func (x BeamConstants_Constants) String() string {
 	return proto.EnumName(BeamConstants_Constants_name, int32(x))
 }
 func (BeamConstants_Constants) EnumDescriptor() ([]byte, []int) {
-	return fileDescriptor_beam_runner_api_df0b6421bc6371ce, []int{0, 0}
+	return fileDescriptor_beam_runner_api_c6b2e5c2ae28d22f, []int{0, 0}
 }
 
 type StandardPTransforms_Primitives int32
@@ -130,7 +130,7 @@ func (x StandardPTransforms_Primitives) String() string {
 	return proto.EnumName(StandardPTransforms_Primitives_name, int32(x))
 }
 func (StandardPTransforms_Primitives) EnumDescriptor() ([]byte, []int) {
-	return fileDescriptor_beam_runner_api_df0b6421bc6371ce, []int{4, 0}
+	return fileDescriptor_beam_runner_api_c6b2e5c2ae28d22f, []int{4, 0}
 }
 
 type StandardPTransforms_DeprecatedPrimitives int32
@@ -157,7 +157,7 @@ func (x StandardPTransforms_DeprecatedPrimitives) String() string {
 	return proto.EnumName(StandardPTransforms_DeprecatedPrimitives_name, int32(x))
 }
 func (StandardPTransforms_DeprecatedPrimitives) EnumDescriptor() ([]byte, []int) {
-	return fileDescriptor_beam_runner_api_df0b6421bc6371ce, []int{4, 1}
+	return fileDescriptor_beam_runner_api_c6b2e5c2ae28d22f, []int{4, 1}
 }
 
 type StandardPTransforms_Composites int32
@@ -196,7 +196,7 @@ func (x StandardPTransforms_Composites) String() string {
 	return proto.EnumName(StandardPTransforms_Composites_name, int32(x))
 }
 func (StandardPTransforms_Composites) EnumDescriptor() ([]byte, []int) {
-	return fileDescriptor_beam_runner_api_df0b6421bc6371ce, []int{4, 2}
+	return fileDescriptor_beam_runner_api_c6b2e5c2ae28d22f, []int{4, 2}
 }
 
 // Payload for all of these: CombinePayload
@@ -252,7 +252,7 @@ func (x StandardPTransforms_CombineComponents) String() string {
 	return proto.EnumName(StandardPTransforms_CombineComponents_name, int32(x))
 }
 func (StandardPTransforms_CombineComponents) EnumDescriptor() ([]byte, []int) {
-	return fileDescriptor_beam_runner_api_df0b6421bc6371ce, []int{4, 3}
+	return fileDescriptor_beam_runner_api_c6b2e5c2ae28d22f, []int{4, 3}
 }
 
 // Payload for all of these: ParDoPayload containing the user's SDF
@@ -312,7 +312,7 @@ func (x StandardPTransforms_SplittableParDoComponents) String() string {
 	return proto.EnumName(StandardPTransforms_SplittableParDoComponents_name, int32(x))
 }
 func (StandardPTransforms_SplittableParDoComponents) EnumDescriptor() ([]byte, []int) {
-	return fileDescriptor_beam_runner_api_df0b6421bc6371ce, []int{4, 4}
+	return fileDescriptor_beam_runner_api_c6b2e5c2ae28d22f, []int{4, 4}
 }
 
 type StandardSideInputTypes_Enum int32
@@ -335,7 +335,7 @@ func (x StandardSideInputTypes_Enum) String() string {
 	return proto.EnumName(StandardSideInputTypes_Enum_name, int32(x))
 }
 func (StandardSideInputTypes_Enum) EnumDescriptor() ([]byte, []int) {
-	return fileDescriptor_beam_runner_api_df0b6421bc6371ce, []int{5, 0}
+	return fileDescriptor_beam_runner_api_c6b2e5c2ae28d22f, []int{5, 0}
 }
 
 type Parameter_Type_Enum int32
@@ -364,7 +364,7 @@ func (x Parameter_Type_Enum) String() string {
 	return proto.EnumName(Parameter_Type_Enum_name, int32(x))
 }
 func (Parameter_Type_Enum) EnumDescriptor() ([]byte, []int) {
-	return fileDescriptor_beam_runner_api_df0b6421bc6371ce, []int{8, 0, 0}
+	return fileDescriptor_beam_runner_api_c6b2e5c2ae28d22f, []int{8, 0, 0}
 }
 
 type IsBounded_Enum int32
@@ -390,7 +390,7 @@ func (x IsBounded_Enum) String() string {
 	return proto.EnumName(IsBounded_Enum_name, int32(x))
 }
 func (IsBounded_Enum) EnumDescriptor() ([]byte, []int) {
-	return fileDescriptor_beam_runner_api_df0b6421bc6371ce, []int{16, 0}
+	return fileDescriptor_beam_runner_api_c6b2e5c2ae28d22f, []int{16, 0}
 }
 
 type StandardCoders_Enum int32
@@ -507,7 +507,7 @@ func (x StandardCoders_Enum) String() string {
 	return proto.EnumName(StandardCoders_Enum_name, int32(x))
 }
 func (StandardCoders_Enum) EnumDescriptor() ([]byte, []int) {
-	return fileDescriptor_beam_runner_api_df0b6421bc6371ce, []int{23, 0}
+	return fileDescriptor_beam_runner_api_c6b2e5c2ae28d22f, []int{23, 0}
 }
 
 type Schema_TypeName int32
@@ -569,7 +569,7 @@ func (x Schema_TypeName) String() string {
 	return proto.EnumName(Schema_TypeName_name, int32(x))
 }
 func (Schema_TypeName) EnumDescriptor() ([]byte, []int) {
-	return fileDescriptor_beam_runner_api_df0b6421bc6371ce, []int{24, 0}
+	return fileDescriptor_beam_runner_api_c6b2e5c2ae28d22f, []int{24, 0}
 }
 
 type MergeStatus_Enum int32
@@ -606,7 +606,7 @@ func (x MergeStatus_Enum) String() string {
 	return proto.EnumName(MergeStatus_Enum_name, int32(x))
 }
 func (MergeStatus_Enum) EnumDescriptor() ([]byte, []int) {
-	return fileDescriptor_beam_runner_api_df0b6421bc6371ce, []int{26, 0}
+	return fileDescriptor_beam_runner_api_c6b2e5c2ae28d22f, []int{26, 0}
 }
 
 type AccumulationMode_Enum int32
@@ -634,7 +634,7 @@ func (x AccumulationMode_Enum) String() string {
 	return proto.EnumName(AccumulationMode_Enum_name, int32(x))
 }
 func (AccumulationMode_Enum) EnumDescriptor() ([]byte, []int) {
-	return fileDescriptor_beam_runner_api_df0b6421bc6371ce, []int{27, 0}
+	return fileDescriptor_beam_runner_api_c6b2e5c2ae28d22f, []int{27, 0}
 }
 
 type ClosingBehavior_Enum int32
@@ -663,7 +663,7 @@ func (x ClosingBehavior_Enum) String() string {
 	return proto.EnumName(ClosingBehavior_Enum_name, int32(x))
 }
 func (ClosingBehavior_Enum) EnumDescriptor() ([]byte, []int) {
-	return fileDescriptor_beam_runner_api_df0b6421bc6371ce, []int{28, 0}
+	return fileDescriptor_beam_runner_api_c6b2e5c2ae28d22f, []int{28, 0}
 }
 
 type OnTimeBehavior_Enum int32
@@ -692,7 +692,7 @@ func (x OnTimeBehavior_Enum) String() string {
 	return proto.EnumName(OnTimeBehavior_Enum_name, int32(x))
 }
 func (OnTimeBehavior_Enum) EnumDescriptor() ([]byte, []int) {
-	return fileDescriptor_beam_runner_api_df0b6421bc6371ce, []int{29, 0}
+	return fileDescriptor_beam_runner_api_c6b2e5c2ae28d22f, []int{29, 0}
 }
 
 type OutputTime_Enum int32
@@ -726,7 +726,7 @@ func (x OutputTime_Enum) String() string {
 	return proto.EnumName(OutputTime_Enum_name, int32(x))
 }
 func (OutputTime_Enum) EnumDescriptor() ([]byte, []int) {
-	return fileDescriptor_beam_runner_api_df0b6421bc6371ce, []int{30, 0}
+	return fileDescriptor_beam_runner_api_c6b2e5c2ae28d22f, []int{30, 0}
 }
 
 type TimeDomain_Enum int32
@@ -763,7 +763,7 @@ func (x TimeDomain_Enum) String() string {
 	return proto.EnumName(TimeDomain_Enum_name, int32(x))
 }
 func (TimeDomain_Enum) EnumDescriptor() ([]byte, []int) {
-	return fileDescriptor_beam_runner_api_df0b6421bc6371ce, []int{31, 0}
+	return fileDescriptor_beam_runner_api_c6b2e5c2ae28d22f, []int{31, 0}
 }
 
 type StandardEnvironments_Environments int32
@@ -789,7 +789,7 @@ func (x StandardEnvironments_Environments) String() string {
 	return proto.EnumName(StandardEnvironments_Environments_name, int32(x))
 }
 func (StandardEnvironments_Environments) EnumDescriptor() ([]byte, []int) {
-	return fileDescriptor_beam_runner_api_df0b6421bc6371ce, []int{36, 0}
+	return fileDescriptor_beam_runner_api_c6b2e5c2ae28d22f, []int{36, 0}
 }
 
 type DisplayData_Type_Enum int32
@@ -830,7 +830,7 @@ func (x DisplayData_Type_Enum) String() string {
 	return proto.EnumName(DisplayData_Type_Enum_name, int32(x))
 }
 func (DisplayData_Type_Enum) EnumDescriptor() ([]byte, []int) {
-	return fileDescriptor_beam_runner_api_df0b6421bc6371ce, []int{42, 2, 0}
+	return fileDescriptor_beam_runner_api_c6b2e5c2ae28d22f, []int{42, 2, 0}
 }
 
 type BeamConstants struct {
@@ -843,7 +843,7 @@ func (m *BeamConstants) Reset()         { *m = BeamConstants{} }
 func (m *BeamConstants) String() string { return proto.CompactTextString(m) }
 func (*BeamConstants) ProtoMessage()    {}
 func (*BeamConstants) Descriptor() ([]byte, []int) {
-	return fileDescriptor_beam_runner_api_df0b6421bc6371ce, []int{0}
+	return fileDescriptor_beam_runner_api_c6b2e5c2ae28d22f, []int{0}
 }
 func (m *BeamConstants) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_BeamConstants.Unmarshal(m, b)
@@ -885,7 +885,7 @@ func (m *Components) Reset()         { *m = Components{} }
 func (m *Components) String() string { return proto.CompactTextString(m) }
 func (*Components) ProtoMessage()    {}
 func (*Components) Descriptor() ([]byte, []int) {
-	return fileDescriptor_beam_runner_api_df0b6421bc6371ce, []int{1}
+	return fileDescriptor_beam_runner_api_c6b2e5c2ae28d22f, []int{1}
 }
 func (m *Components) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_Components.Unmarshal(m, b)
@@ -969,7 +969,7 @@ func (m *Pipeline) Reset()         { *m = Pipeline{} }
 func (m *Pipeline) String() string { return proto.CompactTextString(m) }
 func (*Pipeline) ProtoMessage()    {}
 func (*Pipeline) Descriptor() ([]byte, []int) {
-	return fileDescriptor_beam_runner_api_df0b6421bc6371ce, []int{2}
+	return fileDescriptor_beam_runner_api_c6b2e5c2ae28d22f, []int{2}
 }
 func (m *Pipeline) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_Pipeline.Unmarshal(m, b)
@@ -1083,7 +1083,7 @@ func (m *PTransform) Reset()         { *m = PTransform{} }
 func (m *PTransform) String() string { return proto.CompactTextString(m) }
 func (*PTransform) ProtoMessage()    {}
 func (*PTransform) Descriptor() ([]byte, []int) {
-	return fileDescriptor_beam_runner_api_df0b6421bc6371ce, []int{3}
+	return fileDescriptor_beam_runner_api_c6b2e5c2ae28d22f, []int{3}
 }
 func (m *PTransform) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_PTransform.Unmarshal(m, b)
@@ -1155,7 +1155,7 @@ func (m *StandardPTransforms) Reset()         { *m = StandardPTransforms{} }
 func (m *StandardPTransforms) String() string { return proto.CompactTextString(m) }
 func (*StandardPTransforms) ProtoMessage()    {}
 func (*StandardPTransforms) Descriptor() ([]byte, []int) {
-	return fileDescriptor_beam_runner_api_df0b6421bc6371ce, []int{4}
+	return fileDescriptor_beam_runner_api_c6b2e5c2ae28d22f, []int{4}
 }
 func (m *StandardPTransforms) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_StandardPTransforms.Unmarshal(m, b)
@@ -1185,7 +1185,7 @@ func (m *StandardSideInputTypes) Reset()         { *m = StandardSideInputTypes{}
 func (m *StandardSideInputTypes) String() string { return proto.CompactTextString(m) }
 func (*StandardSideInputTypes) ProtoMessage()    {}
 func (*StandardSideInputTypes) Descriptor() ([]byte, []int) {
-	return fileDescriptor_beam_runner_api_df0b6421bc6371ce, []int{5}
+	return fileDescriptor_beam_runner_api_c6b2e5c2ae28d22f, []int{5}
 }
 func (m *StandardSideInputTypes) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_StandardSideInputTypes.Unmarshal(m, b)
@@ -1235,7 +1235,7 @@ func (m *PCollection) Reset()         { *m = PCollection{} }
 func (m *PCollection) String() string { return proto.CompactTextString(m) }
 func (*PCollection) ProtoMessage()    {}
 func (*PCollection) Descriptor() ([]byte, []int) {
-	return fileDescriptor_beam_runner_api_df0b6421bc6371ce, []int{6}
+	return fileDescriptor_beam_runner_api_c6b2e5c2ae28d22f, []int{6}
 }
 func (m *PCollection) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_PCollection.Unmarshal(m, b)
@@ -1320,7 +1320,7 @@ func (m *ParDoPayload) Reset()         { *m = ParDoPayload{} }
 func (m *ParDoPayload) String() string { return proto.CompactTextString(m) }
 func (*ParDoPayload) ProtoMessage()    {}
 func (*ParDoPayload) Descriptor() ([]byte, []int) {
-	return fileDescriptor_beam_runner_api_df0b6421bc6371ce, []int{7}
+	return fileDescriptor_beam_runner_api_c6b2e5c2ae28d22f, []int{7}
 }
 func (m *ParDoPayload) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_ParDoPayload.Unmarshal(m, b)
@@ -1421,7 +1421,7 @@ func (m *Parameter) Reset()         { *m = Parameter{} }
 func (m *Parameter) String() string { return proto.CompactTextString(m) }
 func (*Parameter) ProtoMessage()    {}
 func (*Parameter) Descriptor() ([]byte, []int) {
-	return fileDescriptor_beam_runner_api_df0b6421bc6371ce, []int{8}
+	return fileDescriptor_beam_runner_api_c6b2e5c2ae28d22f, []int{8}
 }
 func (m *Parameter) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_Parameter.Unmarshal(m, b)
@@ -1458,7 +1458,7 @@ func (m *Parameter_Type) Reset()         { *m = Parameter_Type{} }
 func (m *Parameter_Type) String() string { return proto.CompactTextString(m) }
 func (*Parameter_Type) ProtoMessage()    {}
 func (*Parameter_Type) Descriptor() ([]byte, []int) {
-	return fileDescriptor_beam_runner_api_df0b6421bc6371ce, []int{8, 0}
+	return fileDescriptor_beam_runner_api_c6b2e5c2ae28d22f, []int{8, 0}
 }
 func (m *Parameter_Type) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_Parameter_Type.Unmarshal(m, b)
@@ -1495,7 +1495,7 @@ func (m *StateSpec) Reset()         { *m = StateSpec{} }
 func (m *StateSpec) String() string { return proto.CompactTextString(m) }
 func (*StateSpec) ProtoMessage()    {}
 func (*StateSpec) Descriptor() ([]byte, []int) {
-	return fileDescriptor_beam_runner_api_df0b6421bc6371ce, []int{9}
+	return fileDescriptor_beam_runner_api_c6b2e5c2ae28d22f, []int{9}
 }
 func (m *StateSpec) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_StateSpec.Unmarshal(m, b)
@@ -1733,7 +1733,7 @@ func (m *ValueStateSpec) Reset()         { *m = ValueStateSpec{} }
 func (m *ValueStateSpec) String() string { return proto.CompactTextString(m) }
 func (*ValueStateSpec) ProtoMessage()    {}
 func (*ValueStateSpec) Descriptor() ([]byte, []int) {
-	return fileDescriptor_beam_runner_api_df0b6421bc6371ce, []int{10}
+	return fileDescriptor_beam_runner_api_c6b2e5c2ae28d22f, []int{10}
 }
 func (m *ValueStateSpec) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_ValueStateSpec.Unmarshal(m, b)
@@ -1771,7 +1771,7 @@ func (m *BagStateSpec) Reset()         { *m = BagStateSpec{} }
 func (m *BagStateSpec) String() string { return proto.CompactTextString(m) }
 func (*BagStateSpec) ProtoMessage()    {}
 func (*BagStateSpec) Descriptor() ([]byte, []int) {
-	return fileDescriptor_beam_runner_api_df0b6421bc6371ce, []int{11}
+	return fileDescriptor_beam_runner_api_c6b2e5c2ae28d22f, []int{11}
 }
 func (m *BagStateSpec) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_BagStateSpec.Unmarshal(m, b)
@@ -1810,7 +1810,7 @@ func (m *CombiningStateSpec) Reset()         { *m = CombiningStateSpec{} }
 func (m *CombiningStateSpec) String() string { return proto.CompactTextString(m) }
 func (*CombiningStateSpec) ProtoMessage()    {}
 func (*CombiningStateSpec) Descriptor() ([]byte, []int) {
-	return fileDescriptor_beam_runner_api_df0b6421bc6371ce, []int{12}
+	return fileDescriptor_beam_runner_api_c6b2e5c2ae28d22f, []int{12}
 }
 func (m *CombiningStateSpec) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_CombiningStateSpec.Unmarshal(m, b)
@@ -1856,7 +1856,7 @@ func (m *MapStateSpec) Reset()         { *m = MapStateSpec{} }
 func (m *MapStateSpec) String() string { return proto.CompactTextString(m) }
 func (*MapStateSpec) ProtoMessage()    {}
 func (*MapStateSpec) Descriptor() ([]byte, []int) {
-	return fileDescriptor_beam_runner_api_df0b6421bc6371ce, []int{13}
+	return fileDescriptor_beam_runner_api_c6b2e5c2ae28d22f, []int{13}
 }
 func (m *MapStateSpec) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_MapStateSpec.Unmarshal(m, b)
@@ -1901,7 +1901,7 @@ func (m *SetStateSpec) Reset()         { *m = SetStateSpec{} }
 func (m *SetStateSpec) String() string { return proto.CompactTextString(m) }
 func (*SetStateSpec) ProtoMessage()    {}
 func (*SetStateSpec) Descriptor() ([]byte, []int) {
-	return fileDescriptor_beam_runner_api_df0b6421bc6371ce, []int{14}
+	return fileDescriptor_beam_runner_api_c6b2e5c2ae28d22f, []int{14}
 }
 func (m *SetStateSpec) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_SetStateSpec.Unmarshal(m, b)
@@ -1940,7 +1940,7 @@ func (m *TimerSpec) Reset()         { *m = TimerSpec{} }
 func (m *TimerSpec) String() string { return proto.CompactTextString(m) }
 func (*TimerSpec) ProtoMessage()    {}
 func (*TimerSpec) Descriptor() ([]byte, []int) {
-	return fileDescriptor_beam_runner_api_df0b6421bc6371ce, []int{15}
+	return fileDescriptor_beam_runner_api_c6b2e5c2ae28d22f, []int{15}
 }
 func (m *TimerSpec) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_TimerSpec.Unmarshal(m, b)
@@ -1984,7 +1984,7 @@ func (m *IsBounded) Reset()         { *m = IsBounded{} }
 func (m *IsBounded) String() string { return proto.CompactTextString(m) }
 func (*IsBounded) ProtoMessage()    {}
 func (*IsBounded) Descriptor() ([]byte, []int) {
-	return fileDescriptor_beam_runner_api_df0b6421bc6371ce, []int{16}
+	return fileDescriptor_beam_runner_api_c6b2e5c2ae28d22f, []int{16}
 }
 func (m *IsBounded) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_IsBounded.Unmarshal(m, b)
@@ -2019,7 +2019,7 @@ func (m *ReadPayload) Reset()         { *m = ReadPayload{} }
 func (m *ReadPayload) String() string { return proto.CompactTextString(m) }
 func (*ReadPayload) ProtoMessage()    {}
 func (*ReadPayload) Descriptor() ([]byte, []int) {
-	return fileDescriptor_beam_runner_api_df0b6421bc6371ce, []int{17}
+	return fileDescriptor_beam_runner_api_c6b2e5c2ae28d22f, []int{17}
 }
 func (m *ReadPayload) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_ReadPayload.Unmarshal(m, b)
@@ -2066,7 +2066,7 @@ func (m *WindowIntoPayload) Reset()         { *m = WindowIntoPayload{} }
 func (m *WindowIntoPayload) String() string { return proto.CompactTextString(m) }
 func (*WindowIntoPayload) ProtoMessage()    {}
 func (*WindowIntoPayload) Descriptor() ([]byte, []int) {
-	return fileDescriptor_beam_runner_api_df0b6421bc6371ce, []int{18}
+	return fileDescriptor_beam_runner_api_c6b2e5c2ae28d22f, []int{18}
 }
 func (m *WindowIntoPayload) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_WindowIntoPayload.Unmarshal(m, b)
@@ -2108,7 +2108,7 @@ func (m *CombinePayload) Reset()         { *m = CombinePayload{} }
 func (m *CombinePayload) String() string { return proto.CompactTextString(m) }
 func (*CombinePayload) ProtoMessage()    {}
 func (*CombinePayload) Descriptor() ([]byte, []int) {
-	return fileDescriptor_beam_runner_api_df0b6421bc6371ce, []int{19}
+	return fileDescriptor_beam_runner_api_c6b2e5c2ae28d22f, []int{19}
 }
 func (m *CombinePayload) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_CombinePayload.Unmarshal(m, b)
@@ -2156,7 +2156,7 @@ func (m *TestStreamPayload) Reset()         { *m = TestStreamPayload{} }
 func (m *TestStreamPayload) String() string { return proto.CompactTextString(m) }
 func (*TestStreamPayload) ProtoMessage()    {}
 func (*TestStreamPayload) Descriptor() ([]byte, []int) {
-	return fileDescriptor_beam_runner_api_df0b6421bc6371ce, []int{20}
+	return fileDescriptor_beam_runner_api_c6b2e5c2ae28d22f, []int{20}
 }
 func (m *TestStreamPayload) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_TestStreamPayload.Unmarshal(m, b)
@@ -2205,7 +2205,7 @@ func (m *TestStreamPayload_Event) Reset()         { *m = TestStreamPayload_Event
 func (m *TestStreamPayload_Event) String() string { return proto.CompactTextString(m) }
 func (*TestStreamPayload_Event) ProtoMessage()    {}
 func (*TestStreamPayload_Event) Descriptor() ([]byte, []int) {
-	return fileDescriptor_beam_runner_api_df0b6421bc6371ce, []int{20, 0}
+	return fileDescriptor_beam_runner_api_c6b2e5c2ae28d22f, []int{20, 0}
 }
 func (m *TestStreamPayload_Event) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_TestStreamPayload_Event.Unmarshal(m, b)
@@ -2381,7 +2381,7 @@ func (m *TestStreamPayload_Event_AdvanceWatermark) Reset() {
 func (m *TestStreamPayload_Event_AdvanceWatermark) String() string { return proto.CompactTextString(m) }
 func (*TestStreamPayload_Event_AdvanceWatermark) ProtoMessage()    {}
 func (*TestStreamPayload_Event_AdvanceWatermark) Descriptor() ([]byte, []int) {
-	return fileDescriptor_beam_runner_api_df0b6421bc6371ce, []int{20, 0, 0}
+	return fileDescriptor_beam_runner_api_c6b2e5c2ae28d22f, []int{20, 0, 0}
 }
 func (m *TestStreamPayload_Event_AdvanceWatermark) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_TestStreamPayload_Event_AdvanceWatermark.Unmarshal(m, b)
@@ -2423,7 +2423,7 @@ func (m *TestStreamPayload_Event_AdvanceProcessingTime) String() string {
 }
 func (*TestStreamPayload_Event_AdvanceProcessingTime) ProtoMessage() {}
 func (*TestStreamPayload_Event_AdvanceProcessingTime) Descriptor() ([]byte, []int) {
-	return fileDescriptor_beam_runner_api_df0b6421bc6371ce, []int{20, 0, 1}
+	return fileDescriptor_beam_runner_api_c6b2e5c2ae28d22f, []int{20, 0, 1}
 }
 func (m *TestStreamPayload_Event_AdvanceProcessingTime) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_TestStreamPayload_Event_AdvanceProcessingTime.Unmarshal(m, b)
@@ -2461,7 +2461,7 @@ func (m *TestStreamPayload_Event_AddElements) Reset()         { *m = TestStreamP
 func (m *TestStreamPayload_Event_AddElements) String() string { return proto.CompactTextString(m) }
 func (*TestStreamPayload_Event_AddElements) ProtoMessage()    {}
 func (*TestStreamPayload_Event_AddElements) Descriptor() ([]byte, []int) {
-	return fileDescriptor_beam_runner_api_df0b6421bc6371ce, []int{20, 0, 2}
+	return fileDescriptor_beam_runner_api_c6b2e5c2ae28d22f, []int{20, 0, 2}
 }
 func (m *TestStreamPayload_Event_AddElements) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_TestStreamPayload_Event_AddElements.Unmarshal(m, b)
@@ -2500,7 +2500,7 @@ func (m *TestStreamPayload_TimestampedElement) Reset()         { *m = TestStream
 func (m *TestStreamPayload_TimestampedElement) String() string { return proto.CompactTextString(m) }
 func (*TestStreamPayload_TimestampedElement) ProtoMessage()    {}
 func (*TestStreamPayload_TimestampedElement) Descriptor() ([]byte, []int) {
-	return fileDescriptor_beam_runner_api_df0b6421bc6371ce, []int{20, 1}
+	return fileDescriptor_beam_runner_api_c6b2e5c2ae28d22f, []int{20, 1}
 }
 func (m *TestStreamPayload_TimestampedElement) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_TestStreamPayload_TimestampedElement.Unmarshal(m, b)
@@ -2552,7 +2552,7 @@ func (m *WriteFilesPayload) Reset()         { *m = WriteFilesPayload{} }
 func (m *WriteFilesPayload) String() string { return proto.CompactTextString(m) }
 func (*WriteFilesPayload) ProtoMessage()    {}
 func (*WriteFilesPayload) Descriptor() ([]byte, []int) {
-	return fileDescriptor_beam_runner_api_df0b6421bc6371ce, []int{21}
+	return fileDescriptor_beam_runner_api_c6b2e5c2ae28d22f, []int{21}
 }
 func (m *WriteFilesPayload) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_WriteFilesPayload.Unmarshal(m, b)
@@ -2614,7 +2614,7 @@ type Coder struct {
 	// may be a cross-language agreed-upon format, or it may be a "custom coder"
 	// that can only be used by a particular SDK. It does not include component
 	// coders, as it is beneficial for these to be comprehensible to a runner
-	// regardless of whether the binary format is agree-upon.
+	// regardless of whether the binary format is agreed-upon.
 	Spec *FunctionSpec `protobuf:"bytes,1,opt,name=spec,proto3" json:"spec,omitempty"`
 	// (Optional) If this coder is parametric, such as ListCoder(VarIntCoder),
 	// this is a list of the components. In order for encodings to be identical,
@@ -2629,7 +2629,7 @@ func (m *Coder) Reset()         { *m = Coder{} }
 func (m *Coder) String() string { return proto.CompactTextString(m) }
 func (*Coder) ProtoMessage()    {}
 func (*Coder) Descriptor() ([]byte, []int) {
-	return fileDescriptor_beam_runner_api_df0b6421bc6371ce, []int{22}
+	return fileDescriptor_beam_runner_api_c6b2e5c2ae28d22f, []int{22}
 }
 func (m *Coder) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_Coder.Unmarshal(m, b)
@@ -2673,7 +2673,7 @@ func (m *StandardCoders) Reset()         { *m = StandardCoders{} }
 func (m *StandardCoders) String() string { return proto.CompactTextString(m) }
 func (*StandardCoders) ProtoMessage()    {}
 func (*StandardCoders) Descriptor() ([]byte, []int) {
-	return fileDescriptor_beam_runner_api_df0b6421bc6371ce, []int{23}
+	return fileDescriptor_beam_runner_api_c6b2e5c2ae28d22f, []int{23}
 }
 func (m *StandardCoders) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_StandardCoders.Unmarshal(m, b)
@@ -2706,7 +2706,7 @@ func (m *Schema) Reset()         { *m = Schema{} }
 func (m *Schema) String() string { return proto.CompactTextString(m) }
 func (*Schema) ProtoMessage()    {}
 func (*Schema) Descriptor() ([]byte, []int) {
-	return fileDescriptor_beam_runner_api_df0b6421bc6371ce, []int{24}
+	return fileDescriptor_beam_runner_api_c6b2e5c2ae28d22f, []int{24}
 }
 func (m *Schema) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_Schema.Unmarshal(m, b)
@@ -2754,7 +2754,7 @@ func (m *Schema_LogicalType) Reset()         { *m = Schema_LogicalType{} }
 func (m *Schema_LogicalType) String() string { return proto.CompactTextString(m) }
 func (*Schema_LogicalType) ProtoMessage()    {}
 func (*Schema_LogicalType) Descriptor() ([]byte, []int) {
-	return fileDescriptor_beam_runner_api_df0b6421bc6371ce, []int{24, 0}
+	return fileDescriptor_beam_runner_api_c6b2e5c2ae28d22f, []int{24, 0}
 }
 func (m *Schema_LogicalType) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_Schema_LogicalType.Unmarshal(m, b)
@@ -2814,7 +2814,7 @@ func (m *Schema_MapType) Reset()         { *m = Schema_MapType{} }
 func (m *Schema_MapType) String() string { return proto.CompactTextString(m) }
 func (*Schema_MapType) ProtoMessage()    {}
 func (*Schema_MapType) Descriptor() ([]byte, []int) {
-	return fileDescriptor_beam_runner_api_df0b6421bc6371ce, []int{24, 1}
+	return fileDescriptor_beam_runner_api_c6b2e5c2ae28d22f, []int{24, 1}
 }
 func (m *Schema_MapType) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_Schema_MapType.Unmarshal(m, b)
@@ -2866,7 +2866,7 @@ func (m *Schema_FieldType) Reset()         { *m = Schema_FieldType{} }
 func (m *Schema_FieldType) String() string { return proto.CompactTextString(m) }
 func (*Schema_FieldType) ProtoMessage()    {}
 func (*Schema_FieldType) Descriptor() ([]byte, []int) {
-	return fileDescriptor_beam_runner_api_df0b6421bc6371ce, []int{24, 2}
+	return fileDescriptor_beam_runner_api_c6b2e5c2ae28d22f, []int{24, 2}
 }
 func (m *Schema_FieldType) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_Schema_FieldType.Unmarshal(m, b)
@@ -3090,7 +3090,7 @@ func (m *Schema_Field) Reset()         { *m = Schema_Field{} }
 func (m *Schema_Field) String() string { return proto.CompactTextString(m) }
 func (*Schema_Field) ProtoMessage()    {}
 func (*Schema_Field) Descriptor() ([]byte, []int) {
-	return fileDescriptor_beam_runner_api_df0b6421bc6371ce, []int{24, 3}
+	return fileDescriptor_beam_runner_api_c6b2e5c2ae28d22f, []int{24, 3}
 }
 func (m *Schema_Field) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_Schema_Field.Unmarshal(m, b)
@@ -3196,7 +3196,7 @@ func (m *WindowingStrategy) Reset()         { *m = WindowingStrategy{} }
 func (m *WindowingStrategy) String() string { return proto.CompactTextString(m) }
 func (*WindowingStrategy) ProtoMessage()    {}
 func (*WindowingStrategy) Descriptor() ([]byte, []int) {
-	return fileDescriptor_beam_runner_api_df0b6421bc6371ce, []int{25}
+	return fileDescriptor_beam_runner_api_c6b2e5c2ae28d22f, []int{25}
 }
 func (m *WindowingStrategy) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_WindowingStrategy.Unmarshal(m, b)
@@ -3299,7 +3299,7 @@ func (m *MergeStatus) Reset()         { *m = MergeStatus{} }
 func (m *MergeStatus) String() string { return proto.CompactTextString(m) }
 func (*MergeStatus) ProtoMessage()    {}
 func (*MergeStatus) Descriptor() ([]byte, []int) {
-	return fileDescriptor_beam_runner_api_df0b6421bc6371ce, []int{26}
+	return fileDescriptor_beam_runner_api_c6b2e5c2ae28d22f, []int{26}
 }
 func (m *MergeStatus) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_MergeStatus.Unmarshal(m, b)
@@ -3332,7 +3332,7 @@ func (m *AccumulationMode) Reset()         { *m = AccumulationMode{} }
 func (m *AccumulationMode) String() string { return proto.CompactTextString(m) }
 func (*AccumulationMode) ProtoMessage()    {}
 func (*AccumulationMode) Descriptor() ([]byte, []int) {
-	return fileDescriptor_beam_runner_api_df0b6421bc6371ce, []int{27}
+	return fileDescriptor_beam_runner_api_c6b2e5c2ae28d22f, []int{27}
 }
 func (m *AccumulationMode) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_AccumulationMode.Unmarshal(m, b)
@@ -3364,7 +3364,7 @@ func (m *ClosingBehavior) Reset()         { *m = ClosingBehavior{} }
 func (m *ClosingBehavior) String() string { return proto.CompactTextString(m) }
 func (*ClosingBehavior) ProtoMessage()    {}
 func (*ClosingBehavior) Descriptor() ([]byte, []int) {
-	return fileDescriptor_beam_runner_api_df0b6421bc6371ce, []int{28}
+	return fileDescriptor_beam_runner_api_c6b2e5c2ae28d22f, []int{28}
 }
 func (m *ClosingBehavior) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_ClosingBehavior.Unmarshal(m, b)
@@ -3396,7 +3396,7 @@ func (m *OnTimeBehavior) Reset()         { *m = OnTimeBehavior{} }
 func (m *OnTimeBehavior) String() string { return proto.CompactTextString(m) }
 func (*OnTimeBehavior) ProtoMessage()    {}
 func (*OnTimeBehavior) Descriptor() ([]byte, []int) {
-	return fileDescriptor_beam_runner_api_df0b6421bc6371ce, []int{29}
+	return fileDescriptor_beam_runner_api_c6b2e5c2ae28d22f, []int{29}
 }
 func (m *OnTimeBehavior) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_OnTimeBehavior.Unmarshal(m, b)
@@ -3428,7 +3428,7 @@ func (m *OutputTime) Reset()         { *m = OutputTime{} }
 func (m *OutputTime) String() string { return proto.CompactTextString(m) }
 func (*OutputTime) ProtoMessage()    {}
 func (*OutputTime) Descriptor() ([]byte, []int) {
-	return fileDescriptor_beam_runner_api_df0b6421bc6371ce, []int{30}
+	return fileDescriptor_beam_runner_api_c6b2e5c2ae28d22f, []int{30}
 }
 func (m *OutputTime) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_OutputTime.Unmarshal(m, b)
@@ -3459,7 +3459,7 @@ func (m *TimeDomain) Reset()         { *m = TimeDomain{} }
 func (m *TimeDomain) String() string { return proto.CompactTextString(m) }
 func (*TimeDomain) ProtoMessage()    {}
 func (*TimeDomain) Descriptor() ([]byte, []int) {
-	return fileDescriptor_beam_runner_api_df0b6421bc6371ce, []int{31}
+	return fileDescriptor_beam_runner_api_c6b2e5c2ae28d22f, []int{31}
 }
 func (m *TimeDomain) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_TimeDomain.Unmarshal(m, b)
@@ -3509,7 +3509,7 @@ func (m *Trigger) Reset()         { *m = Trigger{} }
 func (m *Trigger) String() string { return proto.CompactTextString(m) }
 func (*Trigger) ProtoMessage()    {}
 func (*Trigger) Descriptor() ([]byte, []int) {
-	return fileDescriptor_beam_runner_api_df0b6421bc6371ce, []int{32}
+	return fileDescriptor_beam_runner_api_c6b2e5c2ae28d22f, []int{32}
 }
 func (m *Trigger) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_Trigger.Unmarshal(m, b)
@@ -3972,7 +3972,7 @@ func (m *Trigger_AfterAll) Reset()         { *m = Trigger_AfterAll{} }
 func (m *Trigger_AfterAll) String() string { return proto.CompactTextString(m) }
 func (*Trigger_AfterAll) ProtoMessage()    {}
 func (*Trigger_AfterAll) Descriptor() ([]byte, []int) {
-	return fileDescriptor_beam_runner_api_df0b6421bc6371ce, []int{32, 0}
+	return fileDescriptor_beam_runner_api_c6b2e5c2ae28d22f, []int{32, 0}
 }
 func (m *Trigger_AfterAll) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_Trigger_AfterAll.Unmarshal(m, b)
@@ -4011,7 +4011,7 @@ func (m *Trigger_AfterAny) Reset()         { *m = Trigger_AfterAny{} }
 func (m *Trigger_AfterAny) String() string { return proto.CompactTextString(m) }
 func (*Trigger_AfterAny) ProtoMessage()    {}
 func (*Trigger_AfterAny) Descriptor() ([]byte, []int) {
-	return fileDescriptor_beam_runner_api_df0b6421bc6371ce, []int{32, 1}
+	return fileDescriptor_beam_runner_api_c6b2e5c2ae28d22f, []int{32, 1}
 }
 func (m *Trigger_AfterAny) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_Trigger_AfterAny.Unmarshal(m, b)
@@ -4051,7 +4051,7 @@ func (m *Trigger_AfterEach) Reset()         { *m = Trigger_AfterEach{} }
 func (m *Trigger_AfterEach) String() string { return proto.CompactTextString(m) }
 func (*Trigger_AfterEach) ProtoMessage()    {}
 func (*Trigger_AfterEach) Descriptor() ([]byte, []int) {
-	return fileDescriptor_beam_runner_api_df0b6421bc6371ce, []int{32, 2}
+	return fileDescriptor_beam_runner_api_c6b2e5c2ae28d22f, []int{32, 2}
 }
 func (m *Trigger_AfterEach) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_Trigger_AfterEach.Unmarshal(m, b)
@@ -4097,7 +4097,7 @@ func (m *Trigger_AfterEndOfWindow) Reset()         { *m = Trigger_AfterEndOfWind
 func (m *Trigger_AfterEndOfWindow) String() string { return proto.CompactTextString(m) }
 func (*Trigger_AfterEndOfWindow) ProtoMessage()    {}
 func (*Trigger_AfterEndOfWindow) Descriptor() ([]byte, []int) {
-	return fileDescriptor_beam_runner_api_df0b6421bc6371ce, []int{32, 3}
+	return fileDescriptor_beam_runner_api_c6b2e5c2ae28d22f, []int{32, 3}
 }
 func (m *Trigger_AfterEndOfWindow) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_Trigger_AfterEndOfWindow.Unmarshal(m, b)
@@ -4145,7 +4145,7 @@ func (m *Trigger_AfterProcessingTime) Reset()         { *m = Trigger_AfterProces
 func (m *Trigger_AfterProcessingTime) String() string { return proto.CompactTextString(m) }
 func (*Trigger_AfterProcessingTime) ProtoMessage()    {}
 func (*Trigger_AfterProcessingTime) Descriptor() ([]byte, []int) {
-	return fileDescriptor_beam_runner_api_df0b6421bc6371ce, []int{32, 4}
+	return fileDescriptor_beam_runner_api_c6b2e5c2ae28d22f, []int{32, 4}
 }
 func (m *Trigger_AfterProcessingTime) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_Trigger_AfterProcessingTime.Unmarshal(m, b)
@@ -4186,7 +4186,7 @@ func (m *Trigger_AfterSynchronizedProcessingTime) Reset() {
 func (m *Trigger_AfterSynchronizedProcessingTime) String() string { return proto.CompactTextString(m) }
 func (*Trigger_AfterSynchronizedProcessingTime) ProtoMessage()    {}
 func (*Trigger_AfterSynchronizedProcessingTime) Descriptor() ([]byte, []int) {
-	return fileDescriptor_beam_runner_api_df0b6421bc6371ce, []int{32, 5}
+	return fileDescriptor_beam_runner_api_c6b2e5c2ae28d22f, []int{32, 5}
 }
 func (m *Trigger_AfterSynchronizedProcessingTime) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_Trigger_AfterSynchronizedProcessingTime.Unmarshal(m, b)
@@ -4218,7 +4218,7 @@ func (m *Trigger_Default) Reset()         { *m = Trigger_Default{} }
 func (m *Trigger_Default) String() string { return proto.CompactTextString(m) }
 func (*Trigger_Default) ProtoMessage()    {}
 func (*Trigger_Default) Descriptor() ([]byte, []int) {
-	return fileDescriptor_beam_runner_api_df0b6421bc6371ce, []int{32, 6}
+	return fileDescriptor_beam_runner_api_c6b2e5c2ae28d22f, []int{32, 6}
 }
 func (m *Trigger_Default) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_Trigger_Default.Unmarshal(m, b)
@@ -4250,7 +4250,7 @@ func (m *Trigger_ElementCount) Reset()         { *m = Trigger_ElementCount{} }
 func (m *Trigger_ElementCount) String() string { return proto.CompactTextString(m) }
 func (*Trigger_ElementCount) ProtoMessage()    {}
 func (*Trigger_ElementCount) Descriptor() ([]byte, []int) {
-	return fileDescriptor_beam_runner_api_df0b6421bc6371ce, []int{32, 7}
+	return fileDescriptor_beam_runner_api_c6b2e5c2ae28d22f, []int{32, 7}
 }
 func (m *Trigger_ElementCount) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_Trigger_ElementCount.Unmarshal(m, b)
@@ -4289,7 +4289,7 @@ func (m *Trigger_Never) Reset()         { *m = Trigger_Never{} }
 func (m *Trigger_Never) String() string { return proto.CompactTextString(m) }
 func (*Trigger_Never) ProtoMessage()    {}
 func (*Trigger_Never) Descriptor() ([]byte, []int) {
-	return fileDescriptor_beam_runner_api_df0b6421bc6371ce, []int{32, 8}
+	return fileDescriptor_beam_runner_api_c6b2e5c2ae28d22f, []int{32, 8}
 }
 func (m *Trigger_Never) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_Trigger_Never.Unmarshal(m, b)
@@ -4321,7 +4321,7 @@ func (m *Trigger_Always) Reset()         { *m = Trigger_Always{} }
 func (m *Trigger_Always) String() string { return proto.CompactTextString(m) }
 func (*Trigger_Always) ProtoMessage()    {}
 func (*Trigger_Always) Descriptor() ([]byte, []int) {
-	return fileDescriptor_beam_runner_api_df0b6421bc6371ce, []int{32, 9}
+	return fileDescriptor_beam_runner_api_c6b2e5c2ae28d22f, []int{32, 9}
 }
 func (m *Trigger_Always) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_Trigger_Always.Unmarshal(m, b)
@@ -4357,7 +4357,7 @@ func (m *Trigger_OrFinally) Reset()         { *m = Trigger_OrFinally{} }
 func (m *Trigger_OrFinally) String() string { return proto.CompactTextString(m) }
 func (*Trigger_OrFinally) ProtoMessage()    {}
 func (*Trigger_OrFinally) Descriptor() ([]byte, []int) {
-	return fileDescriptor_beam_runner_api_df0b6421bc6371ce, []int{32, 10}
+	return fileDescriptor_beam_runner_api_c6b2e5c2ae28d22f, []int{32, 10}
 }
 func (m *Trigger_OrFinally) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_Trigger_OrFinally.Unmarshal(m, b)
@@ -4405,7 +4405,7 @@ func (m *Trigger_Repeat) Reset()         { *m = Trigger_Repeat{} }
 func (m *Trigger_Repeat) String() string { return proto.CompactTextString(m) }
 func (*Trigger_Repeat) ProtoMessage()    {}
 func (*Trigger_Repeat) Descriptor() ([]byte, []int) {
-	return fileDescriptor_beam_runner_api_df0b6421bc6371ce, []int{32, 11}
+	return fileDescriptor_beam_runner_api_c6b2e5c2ae28d22f, []int{32, 11}
 }
 func (m *Trigger_Repeat) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_Trigger_Repeat.Unmarshal(m, b)
@@ -4450,7 +4450,7 @@ func (m *TimestampTransform) Reset()         { *m = TimestampTransform{} }
 func (m *TimestampTransform) String() string { return proto.CompactTextString(m) }
 func (*TimestampTransform) ProtoMessage()    {}
 func (*TimestampTransform) Descriptor() ([]byte, []int) {
-	return fileDescriptor_beam_runner_api_df0b6421bc6371ce, []int{33}
+	return fileDescriptor_beam_runner_api_c6b2e5c2ae28d22f, []int{33}
 }
 func (m *TimestampTransform) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_TimestampTransform.Unmarshal(m, b)
@@ -4593,7 +4593,7 @@ func (m *TimestampTransform_Delay) Reset()         { *m = TimestampTransform_Del
 func (m *TimestampTransform_Delay) String() string { return proto.CompactTextString(m) }
 func (*TimestampTransform_Delay) ProtoMessage()    {}
 func (*TimestampTransform_Delay) Descriptor() ([]byte, []int) {
-	return fileDescriptor_beam_runner_api_df0b6421bc6371ce, []int{33, 0}
+	return fileDescriptor_beam_runner_api_c6b2e5c2ae28d22f, []int{33, 0}
 }
 func (m *TimestampTransform_Delay) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_TimestampTransform_Delay.Unmarshal(m, b)
@@ -4636,7 +4636,7 @@ func (m *TimestampTransform_AlignTo) Reset()         { *m = TimestampTransform_A
 func (m *TimestampTransform_AlignTo) String() string { return proto.CompactTextString(m) }
 func (*TimestampTransform_AlignTo) ProtoMessage()    {}
 func (*TimestampTransform_AlignTo) Descriptor() ([]byte, []int) {
-	return fileDescriptor_beam_runner_api_df0b6421bc6371ce, []int{33, 1}
+	return fileDescriptor_beam_runner_api_c6b2e5c2ae28d22f, []int{33, 1}
 }
 func (m *TimestampTransform_AlignTo) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_TimestampTransform_AlignTo.Unmarshal(m, b)
@@ -4704,7 +4704,7 @@ func (m *SideInput) Reset()         { *m = SideInput{} }
 func (m *SideInput) String() string { return proto.CompactTextString(m) }
 func (*SideInput) ProtoMessage()    {}
 func (*SideInput) Descriptor() ([]byte, []int) {
-	return fileDescriptor_beam_runner_api_df0b6421bc6371ce, []int{34}
+	return fileDescriptor_beam_runner_api_c6b2e5c2ae28d22f, []int{34}
 }
 func (m *SideInput) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_SideInput.Unmarshal(m, b)
@@ -4762,7 +4762,7 @@ func (m *Environment) Reset()         { *m = Environment{} }
 func (m *Environment) String() string { return proto.CompactTextString(m) }
 func (*Environment) ProtoMessage()    {}
 func (*Environment) Descriptor() ([]byte, []int) {
-	return fileDescriptor_beam_runner_api_df0b6421bc6371ce, []int{35}
+	return fileDescriptor_beam_runner_api_c6b2e5c2ae28d22f, []int{35}
 }
 func (m *Environment) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_Environment.Unmarshal(m, b)
@@ -4806,7 +4806,7 @@ func (m *StandardEnvironments) Reset()         { *m = StandardEnvironments{} }
 func (m *StandardEnvironments) String() string { return proto.CompactTextString(m) }
 func (*StandardEnvironments) ProtoMessage()    {}
 func (*StandardEnvironments) Descriptor() ([]byte, []int) {
-	return fileDescriptor_beam_runner_api_df0b6421bc6371ce, []int{36}
+	return fileDescriptor_beam_runner_api_c6b2e5c2ae28d22f, []int{36}
 }
 func (m *StandardEnvironments) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_StandardEnvironments.Unmarshal(m, b)
@@ -4838,7 +4838,7 @@ func (m *DockerPayload) Reset()         { *m = DockerPayload{} }
 func (m *DockerPayload) String() string { return proto.CompactTextString(m) }
 func (*DockerPayload) ProtoMessage()    {}
 func (*DockerPayload) Descriptor() ([]byte, []int) {
-	return fileDescriptor_beam_runner_api_df0b6421bc6371ce, []int{37}
+	return fileDescriptor_beam_runner_api_c6b2e5c2ae28d22f, []int{37}
 }
 func (m *DockerPayload) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_DockerPayload.Unmarshal(m, b)
@@ -4879,7 +4879,7 @@ func (m *ProcessPayload) Reset()         { *m = ProcessPayload{} }
 func (m *ProcessPayload) String() string { return proto.CompactTextString(m) }
 func (*ProcessPayload) ProtoMessage()    {}
 func (*ProcessPayload) Descriptor() ([]byte, []int) {
-	return fileDescriptor_beam_runner_api_df0b6421bc6371ce, []int{38}
+	return fileDescriptor_beam_runner_api_c6b2e5c2ae28d22f, []int{38}
 }
 func (m *ProcessPayload) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_ProcessPayload.Unmarshal(m, b)
@@ -4939,7 +4939,7 @@ func (m *ExternalPayload) Reset()         { *m = ExternalPayload{} }
 func (m *ExternalPayload) String() string { return proto.CompactTextString(m) }
 func (*ExternalPayload) ProtoMessage()    {}
 func (*ExternalPayload) Descriptor() ([]byte, []int) {
-	return fileDescriptor_beam_runner_api_df0b6421bc6371ce, []int{39}
+	return fileDescriptor_beam_runner_api_c6b2e5c2ae28d22f, []int{39}
 }
 func (m *ExternalPayload) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_ExternalPayload.Unmarshal(m, b)
@@ -4990,7 +4990,7 @@ func (m *SdkFunctionSpec) Reset()         { *m = SdkFunctionSpec{} }
 func (m *SdkFunctionSpec) String() string { return proto.CompactTextString(m) }
 func (*SdkFunctionSpec) ProtoMessage()    {}
 func (*SdkFunctionSpec) Descriptor() ([]byte, []int) {
-	return fileDescriptor_beam_runner_api_df0b6421bc6371ce, []int{40}
+	return fileDescriptor_beam_runner_api_c6b2e5c2ae28d22f, []int{40}
 }
 func (m *SdkFunctionSpec) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_SdkFunctionSpec.Unmarshal(m, b)
@@ -5069,7 +5069,7 @@ func (m *FunctionSpec) Reset()         { *m = FunctionSpec{} }
 func (m *FunctionSpec) String() string { return proto.CompactTextString(m) }
 func (*FunctionSpec) ProtoMessage()    {}
 func (*FunctionSpec) Descriptor() ([]byte, []int) {
-	return fileDescriptor_beam_runner_api_df0b6421bc6371ce, []int{41}
+	return fileDescriptor_beam_runner_api_c6b2e5c2ae28d22f, []int{41}
 }
 func (m *FunctionSpec) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_FunctionSpec.Unmarshal(m, b)
@@ -5116,7 +5116,7 @@ func (m *DisplayData) Reset()         { *m = DisplayData{} }
 func (m *DisplayData) String() string { return proto.CompactTextString(m) }
 func (*DisplayData) ProtoMessage()    {}
 func (*DisplayData) Descriptor() ([]byte, []int) {
-	return fileDescriptor_beam_runner_api_df0b6421bc6371ce, []int{42}
+	return fileDescriptor_beam_runner_api_c6b2e5c2ae28d22f, []int{42}
 }
 func (m *DisplayData) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_DisplayData.Unmarshal(m, b)
@@ -5160,7 +5160,7 @@ func (m *DisplayData_Identifier) Reset()         { *m = DisplayData_Identifier{}
 func (m *DisplayData_Identifier) String() string { return proto.CompactTextString(m) }
 func (*DisplayData_Identifier) ProtoMessage()    {}
 func (*DisplayData_Identifier) Descriptor() ([]byte, []int) {
-	return fileDescriptor_beam_runner_api_df0b6421bc6371ce, []int{42, 0}
+	return fileDescriptor_beam_runner_api_c6b2e5c2ae28d22f, []int{42, 0}
 }
 func (m *DisplayData_Identifier) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_DisplayData_Identifier.Unmarshal(m, b)
@@ -5224,7 +5224,7 @@ func (m *DisplayData_Item) Reset()         { *m = DisplayData_Item{} }
 func (m *DisplayData_Item) String() string { return proto.CompactTextString(m) }
 func (*DisplayData_Item) ProtoMessage()    {}
 func (*DisplayData_Item) Descriptor() ([]byte, []int) {
-	return fileDescriptor_beam_runner_api_df0b6421bc6371ce, []int{42, 1}
+	return fileDescriptor_beam_runner_api_c6b2e5c2ae28d22f, []int{42, 1}
 }
 func (m *DisplayData_Item) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_DisplayData_Item.Unmarshal(m, b)
@@ -5296,7 +5296,7 @@ func (m *DisplayData_Type) Reset()         { *m = DisplayData_Type{} }
 func (m *DisplayData_Type) String() string { return proto.CompactTextString(m) }
 func (*DisplayData_Type) ProtoMessage()    {}
 func (*DisplayData_Type) Descriptor() ([]byte, []int) {
-	return fileDescriptor_beam_runner_api_df0b6421bc6371ce, []int{42, 2}
+	return fileDescriptor_beam_runner_api_c6b2e5c2ae28d22f, []int{42, 2}
 }
 func (m *DisplayData_Type) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_DisplayData_Type.Unmarshal(m, b)
@@ -5350,7 +5350,7 @@ func (m *MessageWithComponents) Reset()         { *m = MessageWithComponents{} }
 func (m *MessageWithComponents) String() string { return proto.CompactTextString(m) }
 func (*MessageWithComponents) ProtoMessage()    {}
 func (*MessageWithComponents) Descriptor() ([]byte, []int) {
-	return fileDescriptor_beam_runner_api_df0b6421bc6371ce, []int{43}
+	return fileDescriptor_beam_runner_api_c6b2e5c2ae28d22f, []int{43}
 }
 func (m *MessageWithComponents) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_MessageWithComponents.Unmarshal(m, b)
@@ -5814,7 +5814,7 @@ func (m *ExecutableStagePayload) Reset()         { *m = ExecutableStagePayload{}
 func (m *ExecutableStagePayload) String() string { return proto.CompactTextString(m) }
 func (*ExecutableStagePayload) ProtoMessage()    {}
 func (*ExecutableStagePayload) Descriptor() ([]byte, []int) {
-	return fileDescriptor_beam_runner_api_df0b6421bc6371ce, []int{44}
+	return fileDescriptor_beam_runner_api_c6b2e5c2ae28d22f, []int{44}
 }
 func (m *ExecutableStagePayload) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_ExecutableStagePayload.Unmarshal(m, b)
@@ -5906,7 +5906,7 @@ func (m *ExecutableStagePayload_SideInputId) Reset()         { *m = ExecutableSt
 func (m *ExecutableStagePayload_SideInputId) String() string { return proto.CompactTextString(m) }
 func (*ExecutableStagePayload_SideInputId) ProtoMessage()    {}
 func (*ExecutableStagePayload_SideInputId) Descriptor() ([]byte, []int) {
-	return fileDescriptor_beam_runner_api_df0b6421bc6371ce, []int{44, 0}
+	return fileDescriptor_beam_runner_api_c6b2e5c2ae28d22f, []int{44, 0}
 }
 func (m *ExecutableStagePayload_SideInputId) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_ExecutableStagePayload_SideInputId.Unmarshal(m, b)
@@ -5956,7 +5956,7 @@ func (m *ExecutableStagePayload_UserStateId) Reset()         { *m = ExecutableSt
 func (m *ExecutableStagePayload_UserStateId) String() string { return proto.CompactTextString(m) }
 func (*ExecutableStagePayload_UserStateId) ProtoMessage()    {}
 func (*ExecutableStagePayload_UserStateId) Descriptor() ([]byte, []int) {
-	return fileDescriptor_beam_runner_api_df0b6421bc6371ce, []int{44, 1}
+	return fileDescriptor_beam_runner_api_c6b2e5c2ae28d22f, []int{44, 1}
 }
 func (m *ExecutableStagePayload_UserStateId) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_ExecutableStagePayload_UserStateId.Unmarshal(m, b)
@@ -6006,7 +6006,7 @@ func (m *ExecutableStagePayload_TimerId) Reset()         { *m = ExecutableStageP
 func (m *ExecutableStagePayload_TimerId) String() string { return proto.CompactTextString(m) }
 func (*ExecutableStagePayload_TimerId) ProtoMessage()    {}
 func (*ExecutableStagePayload_TimerId) Descriptor() ([]byte, []int) {
-	return fileDescriptor_beam_runner_api_df0b6421bc6371ce, []int{44, 2}
+	return fileDescriptor_beam_runner_api_c6b2e5c2ae28d22f, []int{44, 2}
 }
 func (m *ExecutableStagePayload_TimerId) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_ExecutableStagePayload_TimerId.Unmarshal(m, b)
@@ -6171,10 +6171,10 @@ func init() {
 }
 
 func init() {
-	proto.RegisterFile("beam_runner_api.proto", fileDescriptor_beam_runner_api_df0b6421bc6371ce)
+	proto.RegisterFile("beam_runner_api.proto", fileDescriptor_beam_runner_api_c6b2e5c2ae28d22f)
 }
 
-var fileDescriptor_beam_runner_api_df0b6421bc6371ce = []byte{
+var fileDescriptor_beam_runner_api_c6b2e5c2ae28d22f = []byte{
 	// 5578 bytes of a gzipped FileDescriptorProto
 	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0xbc, 0x7c, 0x5b, 0x6f, 0x24, 0xc7,
 	0x75, 0xff, 0xdc, 0x2f, 0x67, 0x86, 0xc3, 0x66, 0xed, 0x45, 0x54, 0x5b, 0x96, 0x56, 0x2d, 0x59,
