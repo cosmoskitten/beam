@@ -11,7 +11,7 @@
 // the License.
 
 $(document).ready(function () {
-   function Navbar(conf) {
+    function Navbar(conf) {
         var idCTA = conf["classNameCTA"],
             idContainer = conf["classNameContainer"],
             idNavMask = conf["classNameMask"],
