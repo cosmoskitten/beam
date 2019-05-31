@@ -74,7 +74,8 @@ class DataChannel(with_metaclass(abc.ABCMeta, object)):
 
   Read from this channel with the input_elements method::
 
-    for elements_data in data_channel.input_elements(instruction_id, transform_ids):
+    for elements_data in data_channel.input_elements(
+        instruction_id, transform_ids):
       [process elements_data]
 
   Write to this channel using the output_stream method::

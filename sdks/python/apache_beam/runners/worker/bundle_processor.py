@@ -583,8 +583,7 @@ class BundleProcessor(object):
         for data in data_channel.input_elements(
             instruction_id, expected_transforms):
           input_op_by_transform_id[
-              data.transform_id
-          ].process_encoded(data.data)
+              data.ptransform_id].process_encoded(data.data)
 
       # Finish all operations.
       for op in self.ops.values():
