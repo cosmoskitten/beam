@@ -1182,24 +1182,53 @@ class RestrictionTracker(object):
   def try_split(self, fraction_of_remainder):
     """Splits current restriction based on fraction_of_remainder.
 
-    Invoked when SDK receiving ProcessBundleSplitRequest during processing
-    bundle.
+    If splitting the current restriction is possible, the current restriction is
+    split into a primary and residual restriction pair. This invocation updates
+    the ``current_restriction()`` to be the primary restriction effectively
+    having the current ``DoFn.process()`` execution responsible for performing
+    the work that the primary restriction represents. The residual restriction
+    will be executed in a separate ``DoFn.process()`` invocation (likely in a
+    different process). The work performed by executing the primary and residual
+    restrictions as separate ``DoFn.process()`` invocations MUST be equivalent
+    to the work performed as if this split never occurred.
+
+    The ``fraction_of_remainder`` should be used in a best effort manner to
+    choose a primary and residual restriction based upon the fraction of the
+    remaining work that the current ``DoFn.process()`` invocation is responsible
+    for. For example, if a ``DoFn.process()`` was reading a file with a
+    restriction representing the offset range [100, 200) and has processed up to
+    offset 130 with a fraction_of_remainder of 0.7, the primary and residual
+    restrictions returned would be [100, 179), [179, 200) (note: current_offset
+    + fraction_of_remainder * remaining_work = 130 + 0.7 * 70 = 179).
+
+    It is very important for pipeline scaling and end to end pipeline execution
+    that try_split is implemented well.
 
     Args:
-      fraction_of_remainder: a fraction of (cur_pos, stop_pos).
+      fraction_of_remainder: A hint as to the fraction of work the primary
+      restriction should represent based upon the current known remaining amount
+      of work.
 
-    Returns: ``None`` when current restriction has been checkpointed, or
-    split_point is out of current restriction range. Otherwise, return
-    ((start_pos, split_pos), (split_pos, stop_pos)).
+    Returns: ``(primary_restriction, residual_restriction)`` if a split was
+    possible, otherwise returns ``None``.
 
     ** Thread safety **
-    Accessing to position and checkpoint status should be guarded by a single
-    lock object.
+
+    Methods of the class ``RestrictionTracker`` including this method may get
+    invoked by different threads, hence must be made thread-safe, e.g. by using
+    a single lock object.
     """
     raise NotImplementedError
 
   def try_claim(self, position):
-    """ Claims position as current_position.
+    """ Attempts to claim the block of work in the current restriction
+    identified by the given position.
+
+    If this succeeds, the DoFn MUST execute the entire block of work. If it
+    fails, the ``DoFn.process()`` MUST return ``None`` without performing any
+    additional work or emitting (note that emitting output or performing work
+    from ``DoFn.process()`` is also not allowed before the first call of this
+    method).
 
     Args:
       position: current position that wants to be claimed.
@@ -1207,12 +1236,15 @@ class RestrictionTracker(object):
     Otherwise, returns ``False``.
 
     ** Thread safety **
-    Accessing to position should be guarded by a single lock object.
+
+    Methods of the class ``RestrictionTracker`` including this method may get
+    invoked by different threads, hence must be made thread-safe, e.g. by using
+    a single lock object.
     """
     raise NotImplementedError
 
   def defer_remainder(self, watermark=None):
-    """ Invokes checkpoint() in an SDF.process()
+    """ Invokes checkpoint() in an SDF.process().
 
     Args:
       watermark
