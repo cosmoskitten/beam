@@ -66,6 +66,9 @@ class TestStatefulDoFn(DoFn):
 
   @on_timer(EXPIRY_TIMER_1)
   def on_expiry_1(self,
+                  window=DoFn.WindowParam,
+                  timestamp=DoFn.TimestampParam,
+                  key=DoFn.KeyParam,
                   buffer=DoFn.StateParam(BUFFER_STATE_1),
                   timer_1=DoFn.TimerParam(EXPIRY_TIMER_1),
                   timer_2=DoFn.TimerParam(EXPIRY_TIMER_2),
