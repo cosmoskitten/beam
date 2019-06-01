@@ -171,6 +171,7 @@ class MethodWrapper(object):
     self.timer_args_to_replace = {}
     self.timestamp_arg_name = None
     self.window_arg_name = None
+    self.key_arg_name = None
 
     for kw, v in zip(args[-len(defaults):], defaults):
       if isinstance(v, core.DoFn.StateParam):
@@ -183,6 +184,8 @@ class MethodWrapper(object):
         self.timestamp_arg_name = kw
       elif v == core.DoFn.WindowParam:
         self.window_arg_name = kw
+      elif v == core.DoFn.KeyParam:
+        self.key_arg_name = kw
 
   def invoke_timer_callback(self,
                             user_state_context,
@@ -201,6 +204,8 @@ class MethodWrapper(object):
       kwargs[self.timestamp_arg_name] = Timestamp(seconds=timestamp)
     if self.window_arg_name:
       kwargs[self.window_arg_name] = window
+    if self.key_arg_name:
+      kwargs[self.key_arg_name] = key
 
     if kwargs:
       return self.method_value(**kwargs)

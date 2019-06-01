@@ -429,9 +429,11 @@ class DoFn(WithTypeHints, HasDisplayData, urns.RunnerApiFn):
 
   # Parameters to access state and timers.  Not restricted to use only in the
   # .process() method. Usage: DoFn.StateParam(state_spec),
-  # DoFn.TimerParam(timer_spec).
+  # DoFn.TimerParam(timer_spec), DoFn.TimestampParam, DoFn.WindowParam,
+  # DoFn.KeyParam
   StateParam = _StateDoFnParam
   TimerParam = _TimerDoFnParam
+  KeyParam = _DoFnParam('KeyParam')
 
   RestrictionParam = _RestrictionDoFnParam
 
