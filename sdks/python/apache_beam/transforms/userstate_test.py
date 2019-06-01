@@ -573,7 +573,7 @@ class StatefulDoFnOnDirectRunnerTest(unittest.TestCase):
                           window=DoFn.WindowParam,
                           ts=DoFn.TimestampParam,
                           key=DoFn.KeyParam):
-        yield ('timer1-{key}'.format(key=key)., int(ts), int(window.start), int(window.end))
+        yield ('timer1-{key}'.format(key=key), int(ts), int(window.start), int(window.end))
 
     pipeline_options = PipelineOptions()
     with TestPipeline(options=pipeline_options) as p:
