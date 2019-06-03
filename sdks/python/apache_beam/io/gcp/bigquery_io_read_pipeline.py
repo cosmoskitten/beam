@@ -15,26 +15,28 @@
 # limitations under the License.
 #
 
-"""A Dataflow job that counts the number of rows in a BQ table.
+"""
+A pipeline that reads data from a BigQuery table and counts the number of
+rows.
 
-   Can be configured to simulate slow reading for a given number of rows.
+Can be configured to simulate slow reading for a given number of rows.
 """
 
 from __future__ import absolute_import
 
-import argparse
-import logging
 import random
 import time
 
-import apache_beam as beam
-from apache_beam.options.pipeline_options import PipelineOptions
-from apache_beam.testing.test_pipeline import TestPipeline
+from apache_beam import DoFn
+from apache_beam import ParDo
+from apache_beam.io import BigQuerySource
+from apache_beam.io import Read
 from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
+from apache_beam.transforms.combiners import Count
 
 
-class RowToStringWithSlowDown(beam.DoFn):
+class RowToStringWithSlowDown(DoFn):
 
   def process(self, element, num_slow=0, *args, **kwargs):
 
@@ -49,31 +51,13 @@ class RowToStringWithSlowDown(beam.DoFn):
         yield ['row']
 
 
-def run(argv=None):
-  parser = argparse.ArgumentParser()
-  parser.add_argument('--input_table', required=True,
-                      help='Input table to process.')
-  parser.add_argument('--num_records', required=True,
-                      help='The expected number of records', type=int)
-  parser.add_argument('--num_slow', default=0,
-                      help=('Percentage of rows that will be slow. '
-                            'Must be in the range [0, 100)'))
-  known_args, pipeline_args = parser.parse_known_args(argv)
+def run_pipeline(pipeline, input_dataset, input_table, num_slow, num_records):
+  p = (pipeline
+       | 'Read from BigQuery' >> Read(BigQuerySource(dataset=input_dataset,
+                                                     table=input_table))
+       | 'Row to string' >> ParDo(RowToStringWithSlowDown(),
+                                  num_slow=num_slow)
+       | 'Count' >> Count.Globally())
 
-  p = TestPipeline(options=PipelineOptions(pipeline_args))
-
-  # pylint: disable=expression-not-assigned
-  count = (p | 'read' >> beam.io.Read(beam.io.BigQuerySource(
-      known_args.input_table))
-           | 'row to string' >> beam.ParDo(RowToStringWithSlowDown(),
-                                           num_slow=known_args.num_slow)
-           | 'count' >> beam.combiners.Count.Globally())
-
-  assert_that(count, equal_to([known_args.num_records]))
-
-  p.run()
-
-
-if __name__ == '__main__':
-  logging.getLogger().setLevel(logging.INFO)
-  run()
+  pipeline.run()
+  assert_that(p, equal_to([num_records]))
