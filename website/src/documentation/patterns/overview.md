@@ -29,11 +29,11 @@ Pipeline patterns demonstrate common Beam use cases. Pipeline patterns are based
 **Side input patterns** - Patterns for processing supplementary data
 * [Using global window side inputs in non-global windows]({{ site.baseurl }}/documentation/patterns/side-input-patterns/#using-global-window-side-inputs-in-non-global-windows)
 
-**Pipeline option patterns** - Patterns for configuing pipelines
+**Pipeline option patterns** - Patterns for configuring pipelines
 * [Retroactively logging runtime parameters]({{ site.baseurl }}/documentation/patterns/pipeline-option-patterns/#retroactively-logging-runtime-parameters)
 
 **Custom I/O patterns**
-* [Choosing between built-in and custom connectors]({{ site.baseurl }}/documentation/patterns/custom-io-patterns/#choosing-between-built-in-and-custom-connector)
+* [Choosing between built-in and custom connectors]({{ site.baseurl }}/documentation/patterns/custom-io-patterns/#choosing-between-built-in-and-custom-connectors)
 
 ## Contributing a pattern
 
