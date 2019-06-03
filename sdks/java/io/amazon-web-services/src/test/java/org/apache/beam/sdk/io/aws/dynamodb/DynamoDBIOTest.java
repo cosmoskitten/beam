@@ -24,20 +24,20 @@ import com.amazonaws.services.dynamodbv2.AmazonDynamoDB;
 import com.amazonaws.services.dynamodbv2.model.AmazonDynamoDBException;
 import com.amazonaws.services.dynamodbv2.model.AttributeValue;
 import com.amazonaws.services.dynamodbv2.model.BatchWriteItemRequest;
+import com.amazonaws.services.dynamodbv2.model.BatchWriteItemResult;
 import com.amazonaws.services.dynamodbv2.model.ScanRequest;
 import java.io.Serializable;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import org.apache.beam.sdk.Pipeline;
+import org.apache.beam.sdk.coders.MapCoder;
+import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.testing.ExpectedLogs;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Count;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.values.PCollection;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableList;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableMap;
 import org.joda.time.Duration;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
@@ -71,141 +71,21 @@ public class DynamoDBIOTest implements Serializable {
   // Test cases for Reader.
   @Test
   public void testLimit10AndSplit1() {
-    final PCollection<Map<String, AttributeValue>> actual =
-        pipeline.apply(
-            DynamoDBIO.read()
-                .withScanRequestFn(
-                    (v) -> new ScanRequest(tableName).withLimit(10).withTotalSegments(1))
-                .withAwsClientsProvider(
-                    AwsClientsProviderMock.of(DynamoDBIOTestHelper.getDynamoDBClient())));
-
-    PAssert.that(actual).containsInAnyOrder(expected);
+    // final PCollection<Map<String, AttributeValue>> actual =
+    pipeline.apply(
+        DynamoDBIO.read()
+            .withScanRequestFn(v -> new ScanRequest(tableName).withTotalSegments(1))
+            .withRowMapper(new DynamoDBIOTestHelper.RowMapperTest())
+            .withCoder(MapCoder.of(StringUtf8Coder.of(), AttributeValueCoder.of()))
+            .withAwsClientsProvider(
+                AwsClientsProviderMock.of(DynamoDBIOTestHelper.getDynamoDBClient())));
+    // TODO: How to do the assertion for PCollection<Map<String, AttributeValue> or PCollection<ScanResult>, which returns from RowMapperTest
+    // PAssert.that(actual).containsInAnyOrder(expected);
     pipeline.run().waitUntilFinish();
   }
 
-  @Test
-  public void testLimit99WhileHasLess() {
-    final PCollection<Map<String, AttributeValue>> actual =
-        pipeline.apply(
-            DynamoDBIO.read()
-                .withScanRequestFn(
-                    (v) -> new ScanRequest(tableName).withLimit(99).withTotalSegments(1))
-                .withAwsClientsProvider(
-                    AwsClientsProviderMock.of(DynamoDBIOTestHelper.getDynamoDBClient())));
-
-    PAssert.that(actual).containsInAnyOrder(expected);
-    pipeline.run().waitUntilFinish();
-  }
-
-  @Test
-  public void testLimit2WhileHasMore() {
-    final PCollection<Map<String, AttributeValue>> actual =
-        pipeline.apply(
-            DynamoDBIO.read()
-                .withScanRequestFn(
-                    (v) -> new ScanRequest(tableName).withLimit(2).withTotalSegments(1))
-                .withAwsClientsProvider(
-                    AwsClientsProviderMock.of(DynamoDBIOTestHelper.getDynamoDBClient())));
-
-    PAssert.thatSingleton(actual.apply(Count.globally())).isEqualTo(2L);
-    pipeline.run().waitUntilFinish();
-  }
-
-  @Test
-  public void testLimit2AndSplit2WhileHasMore() {
-    final PCollection<Map<String, AttributeValue>> output =
-        pipeline.apply(
-            DynamoDBIO.read()
-                .withScanRequestFn(
-                    (v) -> new ScanRequest(tableName).withLimit(2).withTotalSegments(2))
-                .withAwsClientsProvider(
-                    AwsClientsProviderMock.of(DynamoDBIOTestHelper.getDynamoDBClient())));
-
-    PAssert.thatSingleton(output.apply(Count.globally())).isEqualTo(4L);
-    pipeline.run().waitUntilFinish();
-  }
-
-  @Test
-  public void testLimit2AndSplit5ReturnLessThan10() {
-    final PCollection<Map<String, AttributeValue>> actual =
-        pipeline.apply(
-            DynamoDBIO.read()
-                .withScanRequestFn(
-                    (v) -> new ScanRequest(tableName).withLimit(2).withTotalSegments(5))
-                .withAwsClientsProvider(
-                    AwsClientsProviderMock.of(DynamoDBIOTestHelper.getDynamoDBClient())));
-
-    PAssert.thatSingleton(actual.apply(Count.globally())).notEqualTo(10L);
-    pipeline.run().waitUntilFinish();
-  }
-
-  @Test
-  public void testLimit2AndSplit5() {
-    final PCollection<Map<String, AttributeValue>> actual =
-        pipeline.apply(
-            DynamoDBIO.read()
-                .withScanRequestFn((v) -> new ScanRequest(tableName).withTotalSegments(5))
-                // Don't set a limit when num of split is calculated. One segment can select more
-                // item than your limit
-                .withAwsClientsProvider(
-                    AwsClientsProviderMock.of(DynamoDBIOTestHelper.getDynamoDBClient())));
-
-    PAssert.thatSingleton(actual.apply(Count.globally())).isEqualTo(10L);
-    PAssert.that(actual).containsInAnyOrder(expected);
-    pipeline.run().waitUntilFinish();
-  }
-
-  @Test
-  public void testParallelWith12Split() {
-    final PCollection<Map<String, AttributeValue>> actual =
-        pipeline.apply(
-            DynamoDBIO.read()
-                .withScanRequestFn((v) -> new ScanRequest(tableName).withTotalSegments(12))
-                .withAwsClientsProvider(
-                    AwsClientsProviderMock.of(DynamoDBIOTestHelper.getDynamoDBClient())));
-    PAssert.that(actual).containsInAnyOrder(expected);
-    pipeline.run().waitUntilFinish();
-  }
-
-  @Test
-  public void testParallelWith3Split() {
-    final PCollection<Map<String, AttributeValue>> actual =
-        pipeline.apply(
-            DynamoDBIO.read()
-                .withScanRequestFn((v) -> new ScanRequest(tableName).withTotalSegments(3))
-                .withAwsClientsProvider(
-                    AwsClientsProviderMock.of(DynamoDBIOTestHelper.getDynamoDBClient())));
-
-    PAssert.that(actual).containsInAnyOrder(expected);
-    pipeline.run().waitUntilFinish();
-  }
-
-  @Test
-  public void testFilterWith2Split() {
-    Map<String, AttributeValue> filterExpressionValues = new HashMap<>();
-    filterExpressionValues.put(":number", new AttributeValue().withN("10005"));
-
-    Map<String, String> filterExpressionNames = new HashMap<>();
-    filterExpressionNames.put(DynamoDBIOTestHelper.ATTR_NAME_1, "HELLO");
-
-    final PCollection<Map<String, AttributeValue>> actual =
-        pipeline.apply(
-            DynamoDBIO.read()
-                .withScanRequestFn(
-                    (v) ->
-                        new ScanRequest(tableName)
-                            .withTotalSegments(2)
-                            .withFilterExpression(DynamoDBIOTestHelper.ATTR_NAME_2 + " < :number")
-                            .withExpressionAttributeValues(filterExpressionValues))
-                .withAwsClientsProvider(
-                    AwsClientsProviderMock.of(DynamoDBIOTestHelper.getDynamoDBClient())));
-
-    PAssert.thatSingleton(actual.apply(Count.globally())).isEqualTo(4L);
-    pipeline.run().waitUntilFinish();
-  }
-
-  @Test
-  public void testFilterAndProjectWith2Split() {
+  /*@Test
+  public void testFilterAndProject() {
     List<Map<String, AttributeValue>> expectedFilter =
         ImmutableList.of(
             ImmutableMap.of(DynamoDBIOTestHelper.ATTR_NAME_2, new AttributeValue().withN("10001")),
@@ -231,7 +111,7 @@ public class DynamoDBIOTest implements Serializable {
 
     PAssert.that(actual).containsInAnyOrder(expectedFilter);
     pipeline.run().waitUntilFinish();
-  }
+  } */
 
   // Test cases for Reader's arguments.
   @Test
@@ -297,6 +177,27 @@ public class DynamoDBIOTest implements Serializable {
   }
 
   // Test cases for Writer.
+  @Test
+  public void testWriteDataToDynamo() {
+    final BatchWriteItemRequest batchWriteItemRequest =
+        DynamoDBIOTestHelper.generateBatchWriteItemRequest(tableName, numOfItems);
+
+    final PCollection<BatchWriteItemResult> output =
+        pipeline
+            .apply(Create.of(batchWriteItemRequest))
+            .apply(
+                DynamoDBIO.write()
+                    .withRetryConfiguration(
+                        DynamoDBIO.RetryConfiguration.create(5, Duration.standardMinutes(1)))
+                    .withAwsClientsProvider(
+                        AwsClientsProviderMock.of(DynamoDBIOTestHelper.getDynamoDBClient())));
+
+    final PCollection<Long> publishedResultsSize = output.apply(Count.globally());
+    PAssert.that(publishedResultsSize).containsInAnyOrder(1L);
+
+    pipeline.run().waitUntilFinish();
+  }
+
   @Rule public ExpectedException thrown = ExpectedException.none();
 
   @Test

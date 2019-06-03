@@ -172,4 +172,13 @@ class DynamoDBIOTestHelper implements Serializable {
 
     return dynamoDBClient.createTable(request);
   }
+
+  // Client RowMapper for testing
+  static class RowMapperTest implements DynamoDBIO.RowMapper<Map<String, AttributeValue>> {
+    @Override
+    public Map<String, AttributeValue> extract(ScanResult scanResult) {
+      // TODO: How to extract each item from ScanResult and return? (the Map represent for one item)
+      return null;
+    }
+  }
 }
