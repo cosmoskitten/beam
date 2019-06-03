@@ -52,7 +52,7 @@ public class PartitionRangeTracker extends RestrictionTracker<PartitionRange, Pa
       return true;
     }
 
-    if (comparator.compare(lastClaimedPartition, partition) > 0) {
+    if (comparator.compare(lastClaimedPartition, partition) >= 0) {
       return false;
     }
     lastClaimedPartition = partition;
@@ -72,22 +72,35 @@ public class PartitionRangeTracker extends RestrictionTracker<PartitionRange, Pa
 
   @Override
   public PartitionRange checkpoint() {
-    checkState(
-        lastClaimedPartition != null,
-        "Can't checkpoint before any partition was successfully claimed");
+    // If we haven't claimed any partition, we should return the list of all partitions we were
+    // originally
+    // supposed to process as the checkpoint.
+    if (lastClaimedPartition == null) {
+      PartitionRange originalRange = range;
+      // We update our current range to an interval that contains no partitions.
+      range = new PartitionRange(ImmutableList.of(), comparator, lastClaimedPartition);
+      return originalRange;
+    }
+
     final ImmutableList<Partition> allPartitions = range.getPartitions();
     List<Partition> forSort = new ArrayList<>(allPartitions);
     Collections.sort(forSort, comparator);
     final int lastClaimedPartitionIndex = forSort.indexOf(lastClaimedPartition);
-    final List<Partition> unprocessedPartitions =
-        forSort.subList(lastClaimedPartitionIndex + 1, forSort.size());
-    this.range =
-        new PartitionRange(
-            ImmutableList.copyOf(forSort.subList(0, lastClaimedPartitionIndex + 1)),
-            comparator,
-            lastClaimedPartition);
-    return new PartitionRange(
-        ImmutableList.copyOf(unprocessedPartitions), comparator, lastClaimedPartition);
+    if (lastClaimedPartitionIndex == forSort.size() - 1) {
+      this.range =
+          new PartitionRange(ImmutableList.copyOf(forSort), comparator, lastClaimedPartition);
+      return new PartitionRange(ImmutableList.of(), comparator, lastClaimedPartition);
+    } else {
+      final List<Partition> unprocessedPartitions =
+          forSort.subList(lastClaimedPartitionIndex + 1, forSort.size());
+      this.range =
+          new PartitionRange(
+              ImmutableList.copyOf(forSort.subList(0, lastClaimedPartitionIndex + 1)),
+              comparator,
+              lastClaimedPartition);
+      return new PartitionRange(
+          ImmutableList.copyOf(unprocessedPartitions), comparator, lastClaimedPartition);
+    }
   }
 
   @Override
