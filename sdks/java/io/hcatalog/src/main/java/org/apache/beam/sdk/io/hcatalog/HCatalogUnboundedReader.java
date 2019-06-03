@@ -49,7 +49,7 @@ import org.apache.hive.hcatalog.data.HCatRecord;
  * reader.setConfig(configProperties)
  *
  * 2) Create the input request object to specify database and table to read from
- *     List<PartitionPoller.ReadRequest> expected = new ArrayList<>();
+ *     List<PartitionPollerFn.ReadRequest> expected = new ArrayList<>();
  *     final HCatalogIO.Read readRequest = HCatalogIO.read()
  *       .withConfigProperties(configProperties)
  *       .withDatabase("default") //optional, assumes default if none specified
@@ -59,7 +59,7 @@ import org.apache.hive.hcatalog.data.HCatRecord;
  *     //Provide the list of partition cols
  *     final ImmutableList<String> partitions = ImmutableList.of("load_date", "product_type");
  *
- *     final PartitionPoller.ReadRequest readRequest = new PartitionPoller.ReadRequest(
+ *     final PartitionPollerFn.ReadRequest readRequest = new PartitionPollerFn.ReadRequest(
  *         Duration.millis(30000),    //How often should we poll for new partitions?
  *         readRequest,
  *         new PartitionComparator(), //How to sort partitions?
@@ -75,7 +75,7 @@ import org.apache.hive.hcatalog.data.HCatRecord;
  * }</pre>
  */
 public class HCatalogUnboundedReader
-    extends PTransform<PCollection<PartitionPoller.ReadRequest>, PCollection<HCatRecord>> {
+    extends PTransform<PCollection<PartitionPollerFn.ReadRequest>, PCollection<HCatRecord>> {
 
   private Map<String, String> configMap;
   private String database;
@@ -104,10 +104,10 @@ public class HCatalogUnboundedReader
   }
 
   @Override
-  public PCollection<HCatRecord> expand(PCollection<PartitionPoller.ReadRequest> input) {
+  public PCollection<HCatRecord> expand(PCollection<PartitionPollerFn.ReadRequest> input) {
     return input
         .apply(
-            ParDo.of(new PartitionPoller(configMap, database, table, shouldTreatSourceAsBounded)))
-        .apply(ParDo.of(new HCatRecordReader()));
+            ParDo.of(new PartitionPollerFn(configMap, database, table, shouldTreatSourceAsBounded)))
+        .apply(ParDo.of(new HCatRecordReaderFn()));
   }
 }

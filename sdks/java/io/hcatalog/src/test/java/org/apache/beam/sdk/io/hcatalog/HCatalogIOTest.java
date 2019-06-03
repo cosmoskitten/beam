@@ -234,8 +234,8 @@ public class HCatalogIOTest implements Serializable {
     readAfterWritePipeline.run();
   }
 
-  private static List<PartitionPoller.ReadRequest> buildReadRequest() {
-    List<PartitionPoller.ReadRequest> expected = new ArrayList<>();
+  private static List<PartitionPollerFn.ReadRequest> buildReadRequest() {
+    List<PartitionPollerFn.ReadRequest> expected = new ArrayList<>();
     final HCatalogIO.Read read =
         HCatalogIO.read()
             .withDatabase(TEST_DATABASE)
@@ -244,8 +244,8 @@ public class HCatalogIOTest implements Serializable {
 
     final ImmutableList<String> partitions = ImmutableList.of("load_date", "product_type");
 
-    final PartitionPoller.ReadRequest readRequest =
-        new PartitionPoller.ReadRequest(
+    final PartitionPollerFn.ReadRequest readRequest =
+        new PartitionPollerFn.ReadRequest(
             Duration.millis(15000),
             read,
             new PartitionCreateTimeComparator(),
