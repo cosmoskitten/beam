@@ -1127,6 +1127,7 @@ class RestrictionTracker(object):
     Methods of the class ``RestrictionTracker`` including this method may get
     invoked by different threads, hence must be made thread-safe, e.g. by using
     a single lock object.
+
     TODO(BEAM-7473): Remove thread safety requirements from API implementation.
     """
     raise NotImplementedError
@@ -1154,6 +1155,7 @@ class RestrictionTracker(object):
     Methods of the class ``RestrictionTracker`` including this method may get
     invoked by different threads, hence must be made thread-safe, e.g. by using
     a single lock object.
+
     TODO(BEAM-7473): Remove thread safety requirements from API implementation.
     """
 
@@ -1174,6 +1176,7 @@ class RestrictionTracker(object):
     Methods of the class ``RestrictionTracker`` including this method may get
     invoked by different threads, hence must be made thread-safe, e.g. by using
     a single lock object.
+
     TODO(BEAM-7473): Remove thread safety requirements from API implementation.
 
     Returns: ``True`` if current restriction has been fully processed.
@@ -1220,6 +1223,7 @@ class RestrictionTracker(object):
     Methods of the class ``RestrictionTracker`` including this method may get
     invoked by different threads, hence must be made thread-safe, e.g. by using
     a single lock object.
+
     TODO(BEAM-7473): Remove thread safety requirements from API implementation.
     """
     raise NotImplementedError
@@ -1245,6 +1249,7 @@ class RestrictionTracker(object):
     Methods of the class ``RestrictionTracker`` including this method may get
     invoked by different threads, hence must be made thread-safe, e.g. by using
     a single lock object.
+
     TODO(BEAM-7473): Remove thread safety requirements from API implementation.
     """
     raise NotImplementedError
