@@ -52,7 +52,7 @@ public class PartitionRangeTracker extends RestrictionTracker<PartitionRange, Pa
       return true;
     }
 
-    if (comparator.compare(lastClaimedPartition, partition) > 0) {
+    if (comparator.compare(partition, lastClaimedPartition) >= 0) {
       return false;
     }
     lastClaimedPartition = partition;
