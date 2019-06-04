@@ -356,6 +356,8 @@ class TestBigQueryFileLoads(_TestCaseWithTempDirCleanUp):
 
 @unittest.skipIf(HttpError is None, 'GCP dependencies are not installed')
 class BigQueryFileLoadsIT(unittest.TestCase):
+  # Enable nose tests running in parallel
+  _multiprocess_can_split_ = True
 
   BIG_QUERY_DATASET_ID = 'python_bq_file_loads_'
   BIG_QUERY_SCHEMA = (
@@ -377,6 +379,8 @@ class BigQueryFileLoadsIT(unittest.TestCase):
                                   str(int(time.time())),
                                   random.randint(0, 10000))
     self.bigquery_client = bigquery_tools.BigQueryWrapper()
+    logging.warning(
+        'Create bigquery dataset %s.%s' % (self.project, self.dataset_id))
     self.bigquery_client.get_or_create_dataset(self.project, self.dataset_id)
     self.output_table = "%s.output_table" % (self.dataset_id)
     logging.info("Created dataset %s in project %s",
