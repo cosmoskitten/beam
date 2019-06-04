@@ -24,7 +24,9 @@ import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Throwabl
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.CancellationException;
 import java.util.function.Consumer;
+import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import org.apache.beam.model.jobmanagement.v1.JobApi.JobMessage;
 import org.apache.beam.model.jobmanagement.v1.JobApi.JobState;
@@ -99,7 +101,12 @@ public class JobInvocation {
           }
 
           @Override
-          public void onFailure(Throwable throwable) {
+          public void onFailure(@Nonnull Throwable throwable) {
+            // If we have been cancelled we just update our job state
+            if (throwable instanceof CancellationException) {
+              setState(JobState.Enum.CANCELLED);
+              return;
+            }
             String message = String.format("Error during job invocation %s.", getId());
             LOG.error(message, throwable);
             sendMessage(
@@ -133,9 +140,11 @@ public class JobInvocation {
           new FutureCallback<PipelineResult>() {
             @Override
             public void onSuccess(@Nullable PipelineResult pipelineResult) {
-              if (pipelineResult != null) {
+              // Do not cancel when we are already done.
+              if (pipelineResult != null && pipelineResult.getState() != PipelineResult.State.DONE) {
                 try {
                   pipelineResult.cancel();
+                  setState(JobState.Enum.CANCELLED);
                 } catch (IOException exn) {
                   throw new RuntimeException(exn);
                 }
