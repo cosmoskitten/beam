@@ -837,6 +837,7 @@ class Read(ptransform.PTransform):
   """A transform that reads a PCollection."""
 
   def __init__(self, source):
+    # type: (BoundedSource) -> None
     """Initializes a Read transform.
 
     Args:
@@ -856,6 +857,7 @@ class Read(ptransform.PTransform):
     return chunk_size
 
   def expand(self, pbegin):
+    # type: (pvalue.PBegin) -> pvalue.PCollection
     from apache_beam.options.pipeline_options import DebugOptions
     from apache_beam.transforms import util
 
@@ -957,6 +959,7 @@ class Write(ptransform.PTransform):
             'sink_dd': self.sink}
 
   def expand(self, pcoll):
+    # type: (pvalue.PCollection) -> pvalue.PCollection
     from apache_beam.runners.dataflow.native_io import iobase as dataflow_io
     if isinstance(self.sink, dataflow_io.NativeSink):
       # A native sink

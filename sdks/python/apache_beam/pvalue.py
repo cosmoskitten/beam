@@ -32,13 +32,18 @@ import typing
 from builtins import hex
 from builtins import object
 
-from past.builtins import unicode
+if not typing.TYPE_CHECKING:
+    from past.builtins import unicode
 
 from apache_beam import typehints
 from apache_beam.internal import pickler
 from apache_beam.portability import common_urns
 from apache_beam.portability import python_urns
 from apache_beam.portability.api import beam_runner_api_pb2
+
+if typing.TYPE_CHECKING:
+    from apache_beam.transforms import ptransform
+    from apache_beam import pipeline
 
 __all__ = [
     'PCollection',
@@ -50,8 +55,11 @@ __all__ = [
     'EmptySideInput',
 ]
 
+T = typing.TypeVar('T')
+OutT = typing.TypeVar('OutT')
 
-class PValue(object):
+
+class PValue(typing.Generic[T]):
   """Base class for PCollection.
 
   Dataflow users should not construct PValue objects directly in their
@@ -64,6 +72,7 @@ class PValue(object):
   """
 
   def __init__(self, pipeline, tag=None, element_type=None, windowing=None):
+    # type: (pipeline.Pipeline, typing.Any, typing.Any, typing.Any) -> None
     """Initializes a PValue with all arguments hidden behind keyword arguments.
 
     Args:
@@ -108,10 +117,11 @@ class PValue(object):
     return self.pipeline.apply(*arglist, **kwargs)
 
   def __or__(self, ptransform):
+    # type: (ptransform.PTransform[T, OutT]) -> PCollection[OutT]
     return self.pipeline.apply(ptransform, self)
 
 
-class PCollection(PValue, typing.Generic[typing.TypeVar('T')]):
+class PCollection(PValue[T]):
   """A multiple values (potentially huge) container.
 
   Dataflow users should not construct PCollection objects directly in their
@@ -172,7 +182,7 @@ class _InvalidUnpickledPCollection(object):
   pass
 
 
-class PBegin(PValue):
+class PBegin(PValue[None]):
   """A pipeline begin marker used as input to create/read transforms.
 
   The class is used internally to represent inputs to Create and Read
@@ -182,7 +192,7 @@ class PBegin(PValue):
   pass
 
 
-class PDone(PValue):
+class PDone(PValue[None]):
   """PDone is the output of a transform that has a trivial result such as Write.
   """
   pass

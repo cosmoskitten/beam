@@ -24,6 +24,7 @@ import logging
 import random
 import re
 import types
+import typing
 from builtins import map
 from builtins import object
 from builtins import range
@@ -60,7 +61,7 @@ from apache_beam.typehints import Iterable
 from apache_beam.typehints import Union
 from apache_beam.typehints import trivial_inference
 from apache_beam.typehints.decorators import TypeCheckError
-from apache_beam.typehints.decorators import WithTypeHints
+from apache_beam.typehints.decorators import WithTypeHints, InT, OutT
 from apache_beam.typehints.decorators import get_type_hints
 from apache_beam.typehints.decorators import getfullargspec
 from apache_beam.typehints.trivial_inference import element_type
@@ -92,6 +93,10 @@ __all__ = [
 T = typehints.TypeVariable('T')
 K = typehints.TypeVariable('K')
 V = typehints.TypeVariable('V')
+
+T_ = typing.TypeVar('T_')
+K_ = typing.TypeVar('K_')
+V_ = typing.TypeVar('V_')
 
 
 class DoFnContext(object):
@@ -403,7 +408,7 @@ class _BundleFinalizerParam(_DoFnParam):
     del self._callbacks[:]
 
 
-class DoFn(WithTypeHints, HasDisplayData, urns.RunnerApiFn):
+class DoFn(WithTypeHints[InT, OutT], HasDisplayData, urns.RunnerApiFn):
   """A function object used by a transform with custom processing.
 
   The ParDo transform is such a transform. The ParDo.apply
@@ -446,6 +451,7 @@ class DoFn(WithTypeHints, HasDisplayData, urns.RunnerApiFn):
     return self.__class__.__name__
 
   def process(self, element, *args, **kwargs):
+    # type: (InT, *typing.Any, **typing.Any) -> typing.Iterable[OutT]
     """Method to use for processing elements.
 
     This is invoked by ``DoFnRunner`` for each element of a input
@@ -579,7 +585,7 @@ def _fn_takes_side_inputs(fn):
           argspec.varargs or varkw)
 
 
-class CallableWrapperDoFn(DoFn):
+class CallableWrapperDoFn(DoFn[InT, OutT]):
   """For internal use only; no backwards-compatibility guarantees.
 
   A DoFn (function) object wrapping a callable object.
@@ -589,6 +595,7 @@ class CallableWrapperDoFn(DoFn):
   """
 
   def __init__(self, fn):
+    # type: (typing.Callable[[InT], OutT]) -> None
     """Initializes a CallableWrapperDoFn object wrapping a callable.
 
     Args:
@@ -1019,7 +1026,7 @@ class CallableWrapperPartitionFn(PartitionFn):
     return self._fn(element, num_partitions, *args, **kwargs)
 
 
-class ParDo(PTransformWithSideInputs):
+class ParDo(PTransformWithSideInputs[InT, OutT]):
   """A :class:`ParDo` transform.
 
   Processes an input :class:`~apache_beam.pvalue.PCollection` by applying a
@@ -1052,6 +1059,7 @@ class ParDo(PTransformWithSideInputs):
   """
 
   def __init__(self, fn, *args, **kwargs):
+    # type: (DoFn[InT, OutT], *typing.Any, **typing.Any) -> None
     super(ParDo, self).__init__(fn, *args, **kwargs)
     # TODO(robertwb): Change all uses of the dofn attribute to use fn instead.
     self.dofn = self.fn
@@ -1085,6 +1093,7 @@ class ParDo(PTransformWithSideInputs):
             'fn_dd': self.fn}
 
   def expand(self, pcoll):
+    # type: (pvalue.PCollection[InT]) -> pvalue.PCollection[OutT]
     # In the case of a stateful DoFn, warn if the key coder is not
     # deterministic.
     if self._signature.is_stateful_dofn():
@@ -1233,7 +1242,9 @@ class _MultiParDo(PTransform):
         pcoll.pipeline, self._do_transform, self._tags, self._main_tag)
 
 
-def FlatMap(fn, *args, **kwargs):  # pylint: disable=invalid-name
+def FlatMap(fn,  # type: typing.Callable[[InT], typing.Iterable[OutT]]
+            *args, **kwargs):  # pylint: disable=invalid-name
+  # type: (...) -> ParDo[InT, OutT]
   """:func:`FlatMap` is like :class:`ParDo` except it takes a callable to
   specify the transformation.
 
@@ -1267,7 +1278,9 @@ def FlatMap(fn, *args, **kwargs):  # pylint: disable=invalid-name
   return pardo
 
 
-def Map(fn, *args, **kwargs):  # pylint: disable=invalid-name
+def Map(fn,  # type: typing.Callable[[InT], OutT]
+        *args, **kwargs):  # pylint: disable=invalid-name
+  # type: (...) -> ParDo[InT, OutT]
   """:func:`Map` is like :func:`FlatMap` except its callable returns only a
   single element.
 
@@ -1791,7 +1804,8 @@ class _CombinePerKeyWithHotKeyFanout(PTransform):
 
 @typehints.with_input_types(typehints.KV[K, V])
 @typehints.with_output_types(typehints.KV[K, typehints.Iterable[V]])
-class GroupByKey(PTransform):
+class GroupByKey(PTransform[typing.Tuple[K_, V_],
+                            typing.Tuple[K_, typing.Iterable[V_]]]):
   """A group by key transform.
 
   Processes an input PCollection consisting of key/value pairs represented as a
@@ -1806,6 +1820,7 @@ class GroupByKey(PTransform):
 
     def process(self, element, window=DoFn.WindowParam,
                 timestamp=DoFn.TimestampParam):
+      # type: (typing.Tuple[K_, V_], Any, Any) -> typing.List[typing.Tuple[K_, V_]]
       try:
         k, v = element
       except TypeError:
@@ -1818,7 +1833,9 @@ class GroupByKey(PTransform):
       key_type, value_type = trivial_inference.key_value_types(input_type)
       return Iterable[KV[key_type, typehints.WindowedValue[value_type]]]
 
-  def expand(self, pcoll):
+  def expand(self, pcoll  # type: pvalue.PCollection[typing.Tuple[K_, V_]]
+             ):
+    # type: (...) -> pvalue.PCollection[typing.Tuple[K_, typing.Iterable[V_]]]
     # This code path is only used in the local direct runner.  For Dataflow
     # runner execution, the GroupByKey transform is expanded on the service.
     input_type = pcoll.element_type
@@ -1871,13 +1888,16 @@ class GroupByKey(PTransform):
 
 @typehints.with_input_types(typehints.KV[K, V])
 @typehints.with_output_types(typehints.KV[K, typehints.Iterable[V]])
-class _GroupByKeyOnly(PTransform):
+class _GroupByKeyOnly(PTransform[typing.Tuple[K_, V_],
+                                 typing.Tuple[K_, typing.Iterable[V_]]]):
   """A group by key transform, ignoring windows."""
   def infer_output_type(self, input_type):
     key_type, value_type = trivial_inference.key_value_types(input_type)
     return KV[key_type, Iterable[value_type]]
 
-  def expand(self, pcoll):
+  def expand(self, pcoll  # type: pvalue.PCollection[typing.Tuple[K_, V_]]
+             ):
+    # type: (...) -> pvalue.PCollection[typing.Tuple[K_, typing.Iterable[V_]]]
     self._check_pcollection(pcoll)
     return pvalue.PCollection(pcoll.pipeline)
 
@@ -2143,7 +2163,7 @@ PTransform.register_urn(
 WindowIntoFn = WindowInto.WindowIntoFn
 
 
-class Flatten(PTransform):
+class Flatten(PTransform[InT, OutT]):
   """Merges several PCollections into a single PCollection.
 
   Copies all elements in 0 or more PCollections into a single output
@@ -2172,7 +2192,9 @@ class Flatten(PTransform):
                        'Got a value of type %s instead.' % type(pvalueish))
     return pvalueish, pvalueish
 
-  def expand(self, pcolls):
+  def expand(self, pcolls  # type: typing.Tuple[pvalue.PCollection[InT], ...]
+             ):
+    # type: (...) -> pvalue.PCollection[OutT]
     for pcoll in pcolls:
       self._check_pcollection(pcoll)
     result = pvalue.PCollection(self.pipeline)
@@ -2198,10 +2220,11 @@ PTransform.register_urn(
     common_urns.primitives.FLATTEN.urn, None, Flatten.from_runner_api_parameter)
 
 
-class Create(PTransform):
+class Create(PTransform[None, T_]):
   """A transform that creates a PCollection from an iterable."""
 
   def __init__(self, values, reshuffle=True):
+    # type: (Iterable[T], bool) -> None
     """Initializes a Create transform.
 
     Args:
@@ -2231,6 +2254,7 @@ class Create(PTransform):
             self.infer_output_type(None))
 
   def expand(self, pbegin):
+    # type: (pvalue.PBegin) -> pvalue.PCollection[T_]
     assert isinstance(pbegin, pvalue.PBegin)
     # Must guard against this as some legacy runners don't implement impulse.
     debug_options = pbegin.pipeline._options.view_as(DebugOptions)
@@ -2274,15 +2298,17 @@ class Create(PTransform):
 
   @staticmethod
   def _create_source(serialized_values, coder):
+    # type: (Any, Any) -> create_source._CreateSource
     from apache_beam.transforms.create_source import _CreateSource
 
     return _CreateSource(serialized_values, coder)
 
 
-class Impulse(PTransform):
+class Impulse(PTransform[None, None]):
   """Impulse primitive."""
 
   def expand(self, pbegin):
+    # type: (pvalue.PBegin) -> pvalue.PCollection[None]
     if not isinstance(pbegin, pvalue.PBegin):
       raise TypeError(
           'Input to Impulse transform must be a PBegin but found %s' % pbegin)

@@ -22,8 +22,10 @@ from __future__ import absolute_import
 import argparse
 import logging
 import re
+import typing
 
-from past.builtins import unicode
+if not typing.TYPE_CHECKING:
+  from past.builtins import unicode
 
 import apache_beam as beam
 from apache_beam.io import ReadFromText
@@ -33,8 +35,14 @@ from apache_beam.metrics.metric import MetricsFilter
 from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.options.pipeline_options import SetupOptions
 
+from typing import Any, AnyStr, Iterable, List, Optional, Sequence, Tuple, TypeVar
 
-class WordExtractingDoFn(beam.DoFn):
+T = TypeVar('T')
+K = TypeVar('K')
+V = TypeVar('V')
+
+
+class WordExtractingDoFn(beam.DoFn[unicode, unicode]):
   """Parse each line of input text into words."""
 
   def __init__(self):
@@ -44,7 +52,8 @@ class WordExtractingDoFn(beam.DoFn):
         self.__class__, 'word_len_dist')
     self.empty_line_counter = Metrics.counter(self.__class__, 'empty_lines')
 
-  def process(self, element):
+  def process(self, element, *args, **kwargs):
+    # type: (unicode, *Any, **Any) -> List[unicode]
     """Returns an iterator over the words of this element.
 
     The element is a line of text.  If the line is blank, note that, too.
@@ -65,8 +74,12 @@ class WordExtractingDoFn(beam.DoFn):
       self.word_lengths_dist.update(len(w))
     return words
 
+  def to_runner_api_parameter(self, unused_context):
+    pass
+
 
 def run(argv=None):
+  # type: (Optional[Sequence[str]]) -> None
   """Main entry point; defines and runs the wordcount pipeline."""
   parser = argparse.ArgumentParser()
   parser.add_argument('--input',
@@ -85,23 +98,45 @@ def run(argv=None):
   pipeline_options.view_as(SetupOptions).save_main_session = True
   p = beam.Pipeline(options=pipeline_options)
 
+  reveal_type(p)
+  _read = ReadFromText(known_args.input)
+  reveal_type(_read)
+  read = 'read' >> _read
+  reveal_type(read)
   # Read the text file[pattern] into a PCollection.
-  lines = p | 'read' >> ReadFromText(known_args.input)
+  lines = p | read
+
+  reveal_type(lines)
+
+  def make_ones(x):
+    # type: (T) -> Tuple[T, int]
+    return (x, 1)
 
   # Count the occurrences of each word.
   def count_ones(word_ones):
+    # type: (Tuple[K, Iterable[int]]) -> Tuple[K, int]
     (word, ones) = word_ones
     return (word, sum(ones))
 
-  counts = (lines
-            | 'split' >> (beam.ParDo(WordExtractingDoFn())
-                          .with_output_types(unicode))
-            | 'pair_with_one' >> beam.Map(lambda x: (x, 1))
-            | 'group' >> beam.GroupByKey()
-            | 'count' >> beam.Map(count_ones))
+  split = lines | 'split' >> beam.ParDo(WordExtractingDoFn())
+  reveal_type(split)
+
+  makemap = beam.Map(make_ones)
+  reveal_type(makemap)
+  # breaks here:  we want the type of split to affect the TypeVar in make_ones
+  # but it doesn't...
+  pair = split | 'pair_with_one' >> beam.Map(make_ones)
+  reveal_type(pair)
+
+  group = pair | 'group' >> beam.GroupByKey()
+  reveal_type(group)
+
+  counts = group | 'count' >> beam.Map(count_ones)
+  reveal_type(counts)
 
   # Format the counts into a PCollection of strings.
   def format_result(word_count):
+    # type: (Tuple[T, int]) -> str
     (word, count) = word_count
     return '%s: %d' % (word, count)
 
