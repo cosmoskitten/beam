@@ -249,6 +249,26 @@ class MeasureTime(beam.DoFn):
     yield element
 
 
+class MeasureBytes(beam.DoFn):
+  def __init__(self, namespace):
+    self.namespace = namespace
+    self.counter = Metrics.counter(self.namespace, 'total_bytes')
+
+  def process(self, element):
+    self.counter.inc(len(element))
+    yield element
+
+
+class CountMessages(beam.DoFn):
+  def __init__(self, namespace):
+    self.namespace = namespace
+    self.counter = Metrics.counter(self.namespace, 'messages')
+
+  def process(self, element):
+    self.counter.inc(1)
+    yield element
+
+
 def count_bytes(f):
   def repl(*args):
     namespace = args[2]
