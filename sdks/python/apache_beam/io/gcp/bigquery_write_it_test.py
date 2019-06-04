@@ -44,6 +44,9 @@ except ImportError:
 
 
 class BigQueryWriteIntegrationTests(unittest.TestCase):
+  # Enable nose tests running in parallel
+  _multiprocess_can_split_ = True
+
   BIG_QUERY_DATASET_ID = 'python_write_to_table_'
 
   def setUp(self):
@@ -55,6 +58,8 @@ class BigQueryWriteIntegrationTests(unittest.TestCase):
     self.dataset_id = '%s%s%d' % (self.BIG_QUERY_DATASET_ID,
                                   str(int(time.time())),
                                   random.randint(0, 10000))
+    logging.warning(
+        'Creating bigquery dataset %s.%s' % (self.project, self.dataset_id))
     self.bigquery_client.get_or_create_dataset(self.project, self.dataset_id)
     logging.info("Created dataset %s in project %s",
                  self.dataset_id, self.project)

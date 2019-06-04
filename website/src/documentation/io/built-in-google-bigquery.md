@@ -163,6 +163,22 @@ table that you want to write to, unless you specify a [create
 disposition](#create-disposition) of `CREATE_NEVER`. [Creating a table
 schema](#creating-a-table-schema) covers schemas in more detail.
 
+### Data types
+
+BigQuery supports the following data types: STRING, BYTES, INTEGER, FLOAT, NUMERIC,
+BOOLEAN, TIMESTAMP, DATE, TIME, DATETIME and GEOGRAPHY. BigQueryIO allows you to use
+all of these data types. The following examples shows the correct data types used
+when reading from and writing to BigQuery:
+
+```java
+{% github_sample /apache/beam/blob/master/examples/java/src/main/java/org/apache/beam/examples/snippets/Snippets.java tag:BigQueryTableSpec
+%}```
+```py
+{% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/snippets.py tag:model_bigqueryio_data_types
+%}```
+
+Note that bytes can only be written to BigQuery when they are encoded using base64 encoding.
+When bytes are read from BigQuery they are returned as base64 encoded bytes.
 
 ## Reading from BigQuery
 

@@ -228,5 +228,6 @@ fi
 echo ">>> RUNNING integration tests with pipeline options: $PIPELINE_OPTS"
 echo ">>>   test options: $TEST_OPTS"
 python setup.py nosetests \
+  --nocapture
   --test-pipeline-options="$PIPELINE_OPTS" \
   $TEST_OPTS
