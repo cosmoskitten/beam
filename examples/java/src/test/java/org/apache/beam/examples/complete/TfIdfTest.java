@@ -42,7 +42,6 @@ public class TfIdfTest {
 
   /** Test that the example runs. */
   @Test
-  @Category(ValidatesRunner.class)
   public void testTfIdf() throws Exception {
 
     pipeline.getCoderRegistry().registerCoderForClass(URI.class, StringDelegateCoder.of(URI.class));
