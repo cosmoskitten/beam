@@ -44,6 +44,9 @@ except ImportError:
 
 
 class BigQueryWriteIntegrationTests(unittest.TestCase):
+  # Enable nose tests running in parallel
+  _multiprocess_can_split_ = True
+
   BIG_QUERY_DATASET_ID = 'python_write_to_table_'
 
   def setUp(self):

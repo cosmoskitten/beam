@@ -356,6 +356,8 @@ class TestBigQueryFileLoads(_TestCaseWithTempDirCleanUp):
 
 @unittest.skipIf(HttpError is None, 'GCP dependencies are not installed')
 class BigQueryFileLoadsIT(unittest.TestCase):
+  # Enable nose tests running in parallel
+  _multiprocess_can_split_ = True
 
   BIG_QUERY_DATASET_ID = 'python_bq_file_loads_'
   BIG_QUERY_SCHEMA = (
