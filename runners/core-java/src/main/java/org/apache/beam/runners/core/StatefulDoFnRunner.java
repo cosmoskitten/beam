@@ -49,21 +49,29 @@ public class StatefulDoFnRunner<InputT, OutputT, W extends BoundedWindow>
   public static final String DROPPED_DUE_TO_LATENESS_COUNTER = "StatefulParDoDropped";
 
   private final DoFnRunner<InputT, OutputT> doFnRunner;
+  private final StepContext stepContext;
   private final WindowingStrategy<?, ?> windowingStrategy;
   private final Counter droppedDueToLateness =
       Metrics.counter(StatefulDoFnRunner.class, DROPPED_DUE_TO_LATENESS_COUNTER);
   private final CleanupTimer<InputT> cleanupTimer;
   private final StateCleaner stateCleaner;
+  private final boolean requiresTimeSortedInput;
 
   public StatefulDoFnRunner(
       DoFnRunner<InputT, OutputT> doFnRunner,
+      StepContext stepContext,
       WindowingStrategy<?, ?> windowingStrategy,
       CleanupTimer<InputT> cleanupTimer,
       StateCleaner<W> stateCleaner) {
     this.doFnRunner = doFnRunner;
+    this.stepContext = stepContext;
     this.windowingStrategy = windowingStrategy;
     this.cleanupTimer = cleanupTimer;
     this.stateCleaner = stateCleaner;
+    this.requiresTimeSortedInput =
+        DoFnSignatures.getSignature(doFnRunner.getFn().getClass())
+            .processElement()
+            .requiresTimeSortedInput();
     WindowFn<?, ?> windowFn = windowingStrategy.getWindowFn();
     rejectMergingWindowFn(windowFn);
   }
