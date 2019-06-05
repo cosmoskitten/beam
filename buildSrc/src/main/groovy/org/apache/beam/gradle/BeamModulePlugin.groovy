@@ -300,7 +300,11 @@ class BeamModulePlugin implements Plugin<Project> {
   }
 
   def archivesBaseName(Project p) {
-    'beam' + p.path.replace(':', '-')
+    if (p.hasProperty("archivesBaseName")) {
+      return p.archivesBaseName
+    } else {
+      return 'beam' + p.path.replace(':', '-')
+    }
   }
 
   void apply(Project project) {
