@@ -90,6 +90,7 @@ class StatusServer(object):
 
 def main(unused_argv):
   """Main entry point for SDK Fn Harness."""
+
   if 'LOGGING_API_SERVICE_DESCRIPTOR' in os.environ:
     logging_service_descriptor = endpoints_pb2.ApiServiceDescriptor()
     text_format.Merge(os.environ['LOGGING_API_SERVICE_DESCRIPTOR'],
@@ -123,6 +124,16 @@ def main(unused_argv):
 
   logging.info('semi_persistent_directory: %s', semi_persistent_directory)
 
+  if 'WORKER_ID' in os.environ:
+    _worker_id = os.environ['WORKER_ID']
+  else:
+    _worker_id = None
+
+  if 'WORKER_COUNT' in os.environ:
+    worker_count = int(os.environ['WORKER_COUNT'])
+  else:
+    worker_count = _get_worker_count(sdk_pipeline_options)
+
   try:
     _load_main_session(semi_persistent_directory)
   except Exception:  # pylint: disable=broad-except
@@ -136,14 +147,18 @@ def main(unused_argv):
     service_descriptor = endpoints_pb2.ApiServiceDescriptor()
     text_format.Merge(os.environ['CONTROL_API_SERVICE_DESCRIPTOR'],
                       service_descriptor)
+
     # TODO(robertwb): Support credentials.
     assert not service_descriptor.oauth2_client_credentials_grant.url
+
     SdkHarness(
         control_address=service_descriptor.url,
-        worker_count=_get_worker_count(sdk_pipeline_options),
+        worker_count=worker_count,
+        worker_id=_worker_id,
         profiler_factory=profiler.Profile.factory_from_options(
             sdk_pipeline_options.view_as(pipeline_options.ProfilingOptions))
     ).run()
+
     logging.info('Python sdk harness exiting.')
   except:  # pylint: disable=broad-except
     logging.exception('Python sdk harness failed: ')
@@ -196,6 +211,24 @@ def _get_worker_count(pipeline_options):
 
   return 12
 
+def _get_worker_id(pipeline_options):
+  """worker id for each worker.
+
+  Returns:
+    a string identifier of each worker
+  """
+  # experiments = pipeline_options.view_as(DebugOptions).experiments
+  #
+  # experiments = experiments if experiments else []
+  #
+  # for experiment in experiments:
+  #   # There should only be 1 match so returning from the loop
+  #   if re.match(r'worker_threads=', experiment):
+  #     return str()
+
+  print('----------- pipeline_options = ', pipeline_options)
+
+  return None
 
 def _load_main_session(semi_persistent_directory):
   """Loads a pickled main session from the path specified."""
