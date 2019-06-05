@@ -426,9 +426,6 @@ class GrpcStateHandlerFactory(StateHandlerFactory):
     self._throwing_state_handler = ThrowingStateHandler()
     self._credentials = credentials
 
-  # def __reduce__(self):
-  #   return (self.__class__, (self._state_handler_cache, self._credentials, self._throwing_state_handler))
-
   def create_state_handler(self, api_service_descriptor):
     if not api_service_descriptor:
       return self._throwing_state_handler
