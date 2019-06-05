@@ -23,6 +23,7 @@ import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Precondi
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 import javax.annotation.Nullable;
 import org.apache.beam.runners.core.DoFnRunners.OutputManager;
@@ -98,6 +99,8 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
   // Because of setKey(Object), we really must refresh stateInternals() at each access
   private final StepContext stepContext;
 
+  private final Coder<InputT> inputCoder;
+
   @Nullable private final SchemaCoder<InputT> schemaCoder;
 
   @Nullable final SchemaCoder<OutputT> mainOutputSchemaCoder;
@@ -115,7 +118,7 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
       TupleTag<OutputT> mainOutputTag,
       List<TupleTag<?>> additionalOutputTags,
       StepContext stepContext,
-      @Nullable Coder<InputT> inputCoder,
+      Coder<InputT> inputCoder,
       Map<TupleTag<?>, Coder<?>> outputCoders,
       WindowingStrategy<?, ?> windowingStrategy,
       DoFnSchemaInformation doFnSchemaInformation) {
@@ -125,10 +128,9 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
     this.observesWindow = signature.processElement().observesWindow() || !sideInputReader.isEmpty();
     this.invoker = DoFnInvokers.invokerFor(fn);
     this.sideInputReader = sideInputReader;
+    this.inputCoder = Objects.requireNonNull(inputCoder);
     this.schemaCoder =
-        (inputCoder != null && inputCoder instanceof SchemaCoder)
-            ? (SchemaCoder<InputT>) inputCoder
-            : null;
+        (inputCoder instanceof SchemaCoder) ? (SchemaCoder<InputT>) inputCoder : null;
     this.outputCoders = outputCoders;
     if (outputCoders != null && !outputCoders.isEmpty()) {
       Coder<OutputT> outputCoder = (Coder<OutputT>) outputCoders.get(mainOutputTag);
@@ -982,5 +984,10 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
               String.format("Timer created for unknown time domain %s", spec.getTimeDomain()));
       }
     }
+  }
+
+  @Override
+  public Coder<InputT> getInputCoder() {
+    return inputCoder;
   }
 }

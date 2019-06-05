@@ -58,7 +58,7 @@ public class DoFnRunners {
       TupleTag<OutputT> mainOutputTag,
       List<TupleTag<?>> additionalOutputTags,
       StepContext stepContext,
-      @Nullable Coder<InputT> inputCoder,
+      Coder<InputT> inputCoder,
       Map<TupleTag<?>, Coder<?>> outputCoders,
       WindowingStrategy<?, ?> windowingStrategy,
       DoFnSchemaInformation doFnSchemaInformation) {

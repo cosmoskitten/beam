@@ -17,18 +17,25 @@
  */
 package org.apache.beam.runners.core;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
 import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.coders.InstantCoder;
 import org.apache.beam.sdk.metrics.Counter;
 import org.apache.beam.sdk.metrics.Metrics;
+import org.apache.beam.sdk.state.BagState;
 import org.apache.beam.sdk.state.State;
 import org.apache.beam.sdk.state.StateSpec;
 import org.apache.beam.sdk.state.TimeDomain;
+import org.apache.beam.sdk.state.ValueState;
+import org.apache.beam.sdk.state.WatermarkHoldState;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignatures;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.NonMergingWindowFn;
+import org.apache.beam.sdk.transforms.windowing.TimestampCombiner;
 import org.apache.beam.sdk.transforms.windowing.WindowFn;
 import org.apache.beam.sdk.util.WindowTracing;
 import org.apache.beam.sdk.util.WindowedValue;
@@ -48,6 +55,10 @@ public class StatefulDoFnRunner<InputT, OutputT, W extends BoundedWindow>
     implements DoFnRunner<InputT, OutputT> {
 
   public static final String DROPPED_DUE_TO_LATENESS_COUNTER = "StatefulParDoDropped";
+  private static final String SORT_BUFFER_STATE = "sortBuffer";
+  private static final String SORT_BUFFER_MIN_STAMP = "sortBufferMinStamp";
+  private static final String SORT_FLUSH_TIMER = "__StatefulParDoSortFlushTimerId";
+  private static final String SORT_FLUSH_WATERMARK_HOLD = "flushWatermarkHold";
 
   private final DoFnRunner<InputT, OutputT> doFnRunner;
   private final StepContext stepContext;
@@ -57,6 +68,12 @@ public class StatefulDoFnRunner<InputT, OutputT, W extends BoundedWindow>
   private final CleanupTimer<InputT> cleanupTimer;
   private final StateCleaner stateCleaner;
   private final boolean requiresTimeSortedInput;
+  private final Coder<BoundedWindow> windowCoder;
+  private final StateTag<BagState<WindowedValue<InputT>>> sortBufferTag;
+  private final StateTag<ValueState<Instant>> sortBufferMinStampTag =
+      StateTags.makeSystemTagInternal(StateTags.value(SORT_BUFFER_MIN_STAMP, InstantCoder.of()));
+  private final StateTag<WatermarkHoldState> watermarkHold =
+      StateTags.watermarkStateInternal(SORT_FLUSH_WATERMARK_HOLD, TimestampCombiner.LATEST);
 
   public StatefulDoFnRunner(
       DoFnRunner<InputT, OutputT> doFnRunner,
@@ -70,10 +87,20 @@ public class StatefulDoFnRunner<InputT, OutputT, W extends BoundedWindow>
     this.cleanupTimer = cleanupTimer;
     this.stateCleaner = stateCleaner;
     this.requiresTimeSortedInput =
-        DoFnSignatures.getSignature(doFnRunner.getFn().getClass())
+        DoFnSignatures.signatureForDoFn(doFnRunner.getFn())
             .processElement()
             .requiresTimeSortedInput();
     WindowFn<?, ?> windowFn = windowingStrategy.getWindowFn();
+    @SuppressWarnings("unchecked")
+    Coder<BoundedWindow> untypedCoder = (Coder<BoundedWindow>) windowFn.windowCoder();
+    this.windowCoder = untypedCoder;
+
+    this.sortBufferTag =
+        StateTags.makeSystemTagInternal(
+            StateTags.bag(
+                SORT_BUFFER_STATE,
+                WindowedValue.getFullCoder(doFnRunner.getInputCoder(), windowCoder)));
+
     rejectMergingWindowFn(windowFn);
   }
 
@@ -95,26 +122,57 @@ public class StatefulDoFnRunner<InputT, OutputT, W extends BoundedWindow>
   }
 
   @Override
+  public void finishBundle() {
+    doFnRunner.finishBundle();
+  }
+
+  @Override
+  public Coder<InputT> getInputCoder() {
+    return doFnRunner.getInputCoder();
+  }
+
+  @Override
   public void processElement(WindowedValue<InputT> input) {
 
     // StatefulDoFnRunner always observes windows, so we need to explode
     for (WindowedValue<InputT> value : input.explodeWindows()) {
-
       BoundedWindow window = value.getWindows().iterator().next();
-
       if (isLate(window)) {
         // The element is too late for this window.
         droppedDueToLateness.inc();
         WindowTracing.debug(
             "StatefulDoFnRunner.processElement: Dropping element at {}; window:{} "
                 + "since too far behind inputWatermark:{}",
-            input.getTimestamp(),
+            value.getTimestamp(),
             window,
             cleanupTimer.currentInputWatermarkTime());
+      } else if (requiresTimeSortedInput) {
+        processElementOrdered(window, value);
       } else {
-        cleanupTimer.setForWindow(value.getValue(), window);
-        doFnRunner.processElement(value);
+        processElementUnordered(window, value);
       }
+    }
+  }
+
+  private void processElementUnordered(BoundedWindow window, WindowedValue<InputT> value) {
+    cleanupTimer.setForWindow(value.getValue(), window);
+    doFnRunner.processElement(value);
+  }
+
+  private void processElementOrdered(BoundedWindow window, WindowedValue<InputT> value) {
+
+    StateInternals stateInternals = stepContext.stateInternals();
+
+    StateNamespace namespace = StateNamespaces.window(windowCoder, window);
+    BagState<WindowedValue<InputT>> sortBuffer = stateInternals.state(namespace, sortBufferTag);
+    ValueState<Instant> minStampState = stateInternals.state(namespace, sortBufferMinStampTag);
+    sortBuffer.add(value);
+    Instant minStamp =
+        MoreObjects.firstNonNull(minStampState.read(), BoundedWindow.TIMESTAMP_MAX_VALUE);
+    if (value.getTimestamp().isBefore(minStamp)) {
+      minStamp = value.getTimestamp();
+      minStampState.write(minStamp);
+      setupFlushTimerAndWatermarkHold(namespace, minStamp);
     }
   }
 
@@ -127,12 +185,15 @@ public class StatefulDoFnRunner<InputT, OutputT, W extends BoundedWindow>
   @Override
   public void onTimer(
       String timerId, BoundedWindow window, Instant timestamp, TimeDomain timeDomain) {
-    if (cleanupTimer.isForWindow(timerId, window, timestamp, timeDomain)) {
+
+    if (timerId.equals(SORT_FLUSH_TIMER)) {
+      onSortFlushTimer(window, timestamp);
+    } else if (cleanupTimer.isForWindow(timerId, window, timestamp, timeDomain)) {
       stateCleaner.clearForWindow(window);
       // There should invoke the onWindowExpiration of DoFn
     } else {
       // An event-time timer can never be late because we don't allow setting timers after GC time.
-      // Ot can happen that a processing-time time fires for a late window, we need to ignore
+      // It can happen that a processing-time timer fires for a late window, we need to ignore
       // this.
       if (!timeDomain.equals(TimeDomain.EVENT_TIME) && isLate(window)) {
         // don't increment the dropped counter, only do that for elements
@@ -148,9 +209,49 @@ public class StatefulDoFnRunner<InputT, OutputT, W extends BoundedWindow>
     }
   }
 
-  @Override
-  public void finishBundle() {
-    doFnRunner.finishBundle();
+  // this needs to be optimized (Sorted Map State)
+  private void onSortFlushTimer(BoundedWindow window, Instant timestamp) {
+    StateInternals stateInternals = stepContext.stateInternals();
+    StateNamespace namespace = StateNamespaces.window(windowCoder, window);
+    BagState<WindowedValue<InputT>> sortBuffer = stateInternals.state(namespace, sortBufferTag);
+    ValueState<Instant> minStampState = stateInternals.state(namespace, sortBufferMinStampTag);
+    List<WindowedValue<InputT>> keep = new ArrayList<>();
+    List<WindowedValue<InputT>> flush = new ArrayList<>();
+    Instant newMinStamp = BoundedWindow.TIMESTAMP_MAX_VALUE;
+    for (WindowedValue<InputT> e : sortBuffer.read()) {
+      if (!e.getTimestamp().isAfter(timestamp)) {
+        flush.add(e);
+      } else {
+        keep.add(e);
+        if (e.getTimestamp().isBefore(newMinStamp)) {
+          newMinStamp = e.getTimestamp();
+        }
+      }
+    }
+    flush.stream()
+        .sorted((a, b) -> a.getTimestamp().compareTo(b.getTimestamp()))
+        .forEachOrdered(e -> processElementUnordered(window, e));
+    sortBuffer.clear();
+    keep.forEach(sortBuffer::add);
+    minStampState.write(newMinStamp);
+    if (newMinStamp.isBefore(BoundedWindow.TIMESTAMP_MAX_VALUE)) {
+      setupFlushTimerAndWatermarkHold(namespace, newMinStamp);
+    } else {
+      clearWatermarkHold(namespace);
+    }
+  }
+
+  private void setupFlushTimerAndWatermarkHold(StateNamespace namespace, Instant flush) {
+    WatermarkHoldState watermark = stepContext.stateInternals().state(namespace, watermarkHold);
+    stepContext
+        .timerInternals()
+        .setTimer(namespace, SORT_FLUSH_TIMER, flush, TimeDomain.EVENT_TIME);
+    watermark.clear();
+    watermark.add(flush);
+  }
+
+  private void clearWatermarkHold(StateNamespace namespace) {
+    stepContext.stateInternals().state(namespace, watermarkHold).clear();
   }
 
   /**

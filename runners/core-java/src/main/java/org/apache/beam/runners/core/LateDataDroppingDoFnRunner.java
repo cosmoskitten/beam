@@ -19,6 +19,7 @@ package org.apache.beam.runners.core;
 
 import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
+import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.metrics.Counter;
 import org.apache.beam.sdk.metrics.Metrics;
 import org.apache.beam.sdk.state.TimeDomain;
@@ -89,6 +90,11 @@ public class LateDataDroppingDoFnRunner<K, InputT, OutputT, W extends BoundedWin
   @Override
   public void finishBundle() {
     doFnRunner.finishBundle();
+  }
+
+  @Override
+  public Coder<KeyedWorkItem<K, InputT>> getInputCoder() {
+    return doFnRunner.getInputCoder();
   }
 
   /** It filters late data in a {@link KeyedWorkItem}. */
