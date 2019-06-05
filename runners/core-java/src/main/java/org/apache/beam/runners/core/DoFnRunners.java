@@ -58,7 +58,7 @@ public class DoFnRunners {
       TupleTag<OutputT> mainOutputTag,
       List<TupleTag<?>> additionalOutputTags,
       StepContext stepContext,
-      @Nullable Coder<InputT> inputCoder,
+      Coder<InputT> inputCoder,
       Map<TupleTag<?>, Coder<?>> outputCoders,
       WindowingStrategy<?, ?> windowingStrategy,
       DoFnSchemaInformation doFnSchemaInformation) {
@@ -98,11 +98,14 @@ public class DoFnRunners {
   public static <InputT, OutputT, W extends BoundedWindow>
       DoFnRunner<InputT, OutputT> defaultStatefulDoFnRunner(
           DoFn<InputT, OutputT> fn,
+          Coder<InputT> inputCoder,
           DoFnRunner<InputT, OutputT> doFnRunner,
+          StepContext stepContext,
           WindowingStrategy<?, ?> windowingStrategy,
           CleanupTimer<InputT> cleanupTimer,
           StateCleaner<W> stateCleaner) {
-    return new StatefulDoFnRunner<>(doFnRunner, windowingStrategy, cleanupTimer, stateCleaner);
+    return new StatefulDoFnRunner<>(
+        doFnRunner, inputCoder, stepContext, windowingStrategy, cleanupTimer, stateCleaner);
   }
 
   public static <InputT, OutputT, RestrictionT>

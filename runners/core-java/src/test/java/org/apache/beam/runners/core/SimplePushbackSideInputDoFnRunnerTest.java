@@ -28,6 +28,8 @@ import static org.mockito.Mockito.when;
 import java.util.ArrayList;
 import java.util.List;
 import org.apache.beam.runners.core.TimerInternals.TimerData;
+import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.coders.VarIntCoder;
 import org.apache.beam.sdk.state.TimeDomain;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
@@ -71,7 +73,7 @@ public class SimplePushbackSideInputDoFnRunnerTest {
             .apply(Window.into(new IdentitySideInputWindowFn()))
             .apply(Sum.integersGlobally().asSingletonView());
 
-    underlying = new TestDoFnRunner<>();
+    underlying = new TestDoFnRunner<>(VarIntCoder.of());
   }
 
   private SimplePushbackSideInputDoFnRunner<Integer, Integer> createRunner(
@@ -238,10 +240,15 @@ public class SimplePushbackSideInputDoFnRunnerTest {
   }
 
   private static class TestDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, OutputT> {
+    private final Coder<InputT> inputCoder;
     List<WindowedValue<InputT>> inputElems;
     List<TimerData> firedTimers;
     private boolean started = false;
     private boolean finished = false;
+
+    TestDoFnRunner(Coder<InputT> inputCoder) {
+      this.inputCoder = inputCoder;
+    }
 
     @Override
     public DoFn<InputT, OutputT> getFn() {
