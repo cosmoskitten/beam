@@ -49,6 +49,7 @@ import org.apache.beam.runners.core.StateNamespace;
 import org.apache.beam.runners.core.StateNamespaces;
 import org.apache.beam.runners.core.StateTag;
 import org.apache.beam.runners.core.StateTags;
+import org.apache.beam.runners.core.StepContext;
 import org.apache.beam.runners.core.StatefulDoFnRunner;
 import org.apache.beam.runners.core.TimerInternals;
 import org.apache.beam.runners.core.construction.Timer;
@@ -443,7 +444,7 @@ public class ExecutableStageDoFnOperator<InputT, OutputT> extends DoFnOperator<I
 
   @Override
   protected DoFnRunner<InputT, OutputT> createWrappingDoFnRunner(
-      DoFnRunner<InputT, OutputT> wrappedRunner) {
+      DoFnRunner<InputT, OutputT> wrappedRunner, StepContext stepContext) {
     sdkHarnessRunner =
         new SdkHarnessDoFnRunner<>(
             executableStage.getInputPCollection().getId(),
@@ -456,7 +457,7 @@ public class ExecutableStageDoFnOperator<InputT, OutputT> extends DoFnOperator<I
             this::setTimer,
             () -> FlinkKeyUtils.decodeKey(getCurrentKey(), keyCoder));
 
-    return ensureStateCleanup(sdkHarnessRunner);
+    return ensureStateDoFnRunner(sdkHarnessRunner, stepContext);
   }
 
   @Override
@@ -688,8 +689,8 @@ public class ExecutableStageDoFnOperator<InputT, OutputT> extends DoFnOperator<I
     }
   }
 
-  private DoFnRunner<InputT, OutputT> ensureStateCleanup(
-      SdkHarnessDoFnRunner<InputT, OutputT> sdkHarnessRunner) {
+  private DoFnRunner<InputT, OutputT> ensureStateDoFnRunner(
+      SdkHarnessDoFnRunner<InputT, OutputT> sdkHarnessRunner, StepContext stepContext) {
     if (keyCoder == null) {
       // There won't be any state to clean up
       // (stateful functions have to be keyed)
@@ -716,7 +717,7 @@ public class ExecutableStageDoFnOperator<InputT, OutputT> extends DoFnOperator<I
         new StateCleaner(userStates, windowCoder, () -> stateBackend.getCurrentKey());
 
     return new StatefulDoFnRunner<InputT, OutputT, BoundedWindow>(
-        sdkHarnessRunner, windowingStrategy, cleanupTimer, stateCleaner) {
+        sdkHarnessRunner, stepContext, windowingStrategy, cleanupTimer, stateCleaner) {
       @Override
       public void finishBundle() {
         // Before cleaning up state, first finish bundle for all underlying DoFnRunners

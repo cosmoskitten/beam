@@ -497,7 +497,7 @@ public class ApexParDoOperator<InputT, OutputT> extends BaseOperator
 
       doFnRunner =
           DoFnRunners.defaultStatefulDoFnRunner(
-              doFn, doFnRunner, windowingStrategy, cleanupTimer, stateCleaner);
+              doFn, doFnRunner, stepContext, windowingStrategy, cleanupTimer, stateCleaner);
     }
 
     pushbackDoFnRunner =
