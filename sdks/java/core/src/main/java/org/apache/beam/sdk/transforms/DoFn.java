@@ -649,6 +649,24 @@ public abstract class DoFn<InputT, OutputT> implements Serializable, HasDisplayD
   public @interface RequiresStableInput {}
 
   /**
+   * <b><i>Experimental - no backwards compatibility guarantees. The exact name or usage of this
+   * feature may change.</i></b>
+   *
+   * <p>Annotation that may be added to a {@link ProcessElement} method to indicate that the runner
+   * must ensure that the observable contents of the input {@link PCollection} is sorted by time, in
+   * ascending order. The time ordering is generally defined by element's timestamp, but an
+   * alternative user supplied ordering function can be supplied.
+   *
+   * <p>Note that this annotation makes sense only for stateful {@code ParDo}s, because outcome of
+   * stateless functions cannot depend on the ordering.
+   */
+  @Documented
+  @Experimental
+  @Retention(RetentionPolicy.RUNTIME)
+  @Target(ElementType.METHOD)
+  public @interface RequiresTimeSortedInput {}
+
+  /**
    * Annotation for the method to use to finish processing a batch of elements. The method annotated
    * with this must satisfy the following constraints:
    *
