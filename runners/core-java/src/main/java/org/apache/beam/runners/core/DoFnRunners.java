@@ -99,10 +99,12 @@ public class DoFnRunners {
       DoFnRunner<InputT, OutputT> defaultStatefulDoFnRunner(
           DoFn<InputT, OutputT> fn,
           DoFnRunner<InputT, OutputT> doFnRunner,
+          StepContext stepContext,
           WindowingStrategy<?, ?> windowingStrategy,
           CleanupTimer<InputT> cleanupTimer,
           StateCleaner<W> stateCleaner) {
-    return new StatefulDoFnRunner<>(doFnRunner, windowingStrategy, cleanupTimer, stateCleaner);
+    return new StatefulDoFnRunner<>(
+        doFnRunner, stepContext, windowingStrategy, cleanupTimer, stateCleaner);
   }
 
   public static <InputT, OutputT, RestrictionT>

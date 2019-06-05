@@ -102,6 +102,7 @@ public class StatefulDoFnRunnerTest {
         DoFnRunners.defaultStatefulDoFnRunner(
             fn,
             getDoFnRunner(fn),
+            mockStepContext,
             WINDOWING_STRATEGY,
             new StatefulDoFnRunner.TimeInternalsCleanupTimer(timerInternals, WINDOWING_STRATEGY),
             new StatefulDoFnRunner.StateInternalsStateCleaner<>(
@@ -137,6 +138,7 @@ public class StatefulDoFnRunnerTest {
         DoFnRunners.defaultStatefulDoFnRunner(
             fn,
             getDoFnRunner(fn),
+            mockStepContext,
             WINDOWING_STRATEGY,
             new StatefulDoFnRunner.TimeInternalsCleanupTimer(timerInternals, WINDOWING_STRATEGY),
             new StatefulDoFnRunner.StateInternalsStateCleaner<>(
