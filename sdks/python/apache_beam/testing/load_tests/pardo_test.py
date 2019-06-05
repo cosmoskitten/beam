@@ -122,6 +122,7 @@ import unittest
 import apache_beam as beam
 from apache_beam.testing import synthetic_pipeline
 from apache_beam.testing.load_tests.load_test import LoadTest
+from apache_beam.testing.load_tests.load_test_metrics_utils import MeasureBytes
 from apache_beam.testing.load_tests.load_test_metrics_utils import MeasureTime
 
 load_test_enabled = False
@@ -132,17 +133,16 @@ if os.environ.get('LOAD_TEST_ENABLED') == 'true':
 @unittest.skipIf(not load_test_enabled, 'Enabled only for phrase triggering.')
 class ParDoTest(LoadTest):
   def setUp(self):
+    super(ParDoTest, self).setUp()
     self.output = self.pipeline.get_option('output')
     self.iterations = self.pipeline.get_option('number_of_counter_operations')
 
   def testParDo(self):
-    class _GetElement(beam.DoFn):
-      from apache_beam.testing.load_tests.load_test_metrics_utils import count_bytes
-
-      @count_bytes
-      def process(self, element, namespace, is_returning):
+    def extractor(element, is_returning):
+      _, value = element
+      for i in value:
         if is_returning:
-          yield element
+          yield i
 
     if not self.iterations:
       num_runs = 1
@@ -161,8 +161,8 @@ class ParDoTest(LoadTest):
     for i in range(num_runs):
       is_returning = (i == (num_runs-1))
       pc = (pc
-            | 'Step: %d' % i >> beam.ParDo(
-                _GetElement(), self.metrics_namespace, is_returning)
+            | 'Step: %d' % i >> beam.ParDo(MeasureBytes(
+                self.metrics_namespace, extractor), is_returning)
            )
 
     if self.output:

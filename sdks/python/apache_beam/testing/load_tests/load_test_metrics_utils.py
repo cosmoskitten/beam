@@ -48,7 +48,6 @@ except ImportError:
   NotFound = None
 
 RUNTIME_METRIC = 'runtime'
-COUNTER_LABEL = 'total_bytes_count'
 
 ID_LABEL = 'test_id'
 SUBMIT_TIMESTAMP_LABEL = 'timestamp'
@@ -251,6 +250,7 @@ class MeasureTime(beam.DoFn):
 
 class MeasureBytes(beam.DoFn):
   LABEL = 'total_bytes'
+
   def __init__(self, namespace, extractor=None):
     self.namespace = namespace
     self.counter = Metrics.counter(self.namespace, self.LABEL)
@@ -264,6 +264,7 @@ class MeasureBytes(beam.DoFn):
 
 class CountMessages(beam.DoFn):
   LABEL = 'total_messages'
+
   def __init__(self, namespace):
     self.namespace = namespace
     self.counter = Metrics.counter(self.namespace, self.LABEL)
@@ -271,16 +272,3 @@ class CountMessages(beam.DoFn):
   def process(self, element):
     self.counter.inc(1)
     yield element
-
-
-def count_bytes(f):
-  def repl(*args):
-    namespace = args[2]
-    counter = Metrics.counter(namespace, COUNTER_LABEL)
-    element = args[1]
-    _, value = element
-    for i in range(len(value)):
-      counter.inc(i)
-    return f(*args)
-
-  return repl
