@@ -135,16 +135,15 @@ class BigQueryReadPerfTest(LoadTest):
   def test(self):
     def extract_values(row):
       """Extracts value from a row."""
-      return row.values()[0]
+      yield base64.b64decode(row.values()[0])
 
     self.result = (self.pipeline
                    | 'Read from BigQuery' >> Read(BigQuerySource(
                        dataset=self.input_dataset, table=self.input_table))
-                   | 'Extract values' >> Map(extract_values)
                    | 'Measure bytes' >> ParDo(MeasureBytes(
-                       self.metrics_namespace))
+                       self.metrics_namespace, extract_values))
                    | 'Count messages' >> ParDo(CountMessages(
-                      self.metrics_namespace))
+                       self.metrics_namespace))
                    | 'Measure time: Start' >> ParDo(MeasureTime(
                        self.metrics_namespace))
                    | 'Measure time: End' >> ParDo(MeasureTime(
