@@ -555,7 +555,6 @@ class FnApiRunner(runner.PipelineRunner):
             controller, lambda pcoll_id: [], get_input_coder_impl,
             process_bundle_descriptor, self._progress_frequency, k
         ).process_bundle(data_input, data_output)
-
       finally:
         controller.state.restore()
 
@@ -1185,9 +1184,7 @@ class WorkerHandlerManager(object):
       worker_handler = self._cached_handlers[
           environment_id] = WorkerHandler.create(
               environment, self._state, self._job_provision_info)
-
       worker_handler.start_worker()
-
     return worker_handler
 
   def close_all(self):
@@ -1279,7 +1276,6 @@ class BundleManager(object):
         instruction_id=process_bundle_id,
         process_bundle=beam_fn_api_pb2.ProcessBundleRequest(
             process_bundle_descriptor_reference=self._bundle_descriptor.id))
-
     result_future = self._controller.control_handler.push(process_bundle)
 
     # send process bundle request first, then send data because we need to know

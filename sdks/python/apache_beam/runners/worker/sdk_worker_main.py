@@ -90,7 +90,6 @@ class StatusServer(object):
 
 def main(unused_argv):
   """Main entry point for SDK Fn Harness."""
-
   if 'LOGGING_API_SERVICE_DESCRIPTOR' in os.environ:
     logging_service_descriptor = endpoints_pb2.ApiServiceDescriptor()
     text_format.Merge(os.environ['LOGGING_API_SERVICE_DESCRIPTOR'],
@@ -147,10 +146,8 @@ def main(unused_argv):
     service_descriptor = endpoints_pb2.ApiServiceDescriptor()
     text_format.Merge(os.environ['CONTROL_API_SERVICE_DESCRIPTOR'],
                       service_descriptor)
-
     # TODO(robertwb): Support credentials.
     assert not service_descriptor.oauth2_client_credentials_grant.url
-
     SdkHarness(
         control_address=service_descriptor.url,
         worker_count=worker_count,
@@ -158,7 +155,6 @@ def main(unused_argv):
         profiler_factory=profiler.Profile.factory_from_options(
             sdk_pipeline_options.view_as(pipeline_options.ProfilingOptions))
     ).run()
-
     logging.info('Python sdk harness exiting.')
   except:  # pylint: disable=broad-except
     logging.exception('Python sdk harness failed: ')
@@ -210,25 +206,6 @@ def _get_worker_count(pipeline_options):
                    experiment).group('worker_threads'))
 
   return 12
-
-def _get_worker_id(pipeline_options):
-  """worker id for each worker.
-
-  Returns:
-    a string identifier of each worker
-  """
-  # experiments = pipeline_options.view_as(DebugOptions).experiments
-  #
-  # experiments = experiments if experiments else []
-  #
-  # for experiment in experiments:
-  #   # There should only be 1 match so returning from the loop
-  #   if re.match(r'worker_threads=', experiment):
-  #     return str()
-
-  print('----------- pipeline_options = ', pipeline_options)
-
-  return None
 
 def _load_main_session(semi_persistent_directory):
   """Loads a pickled main session from the path specified."""

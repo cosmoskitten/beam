@@ -112,7 +112,8 @@ class SdkHarness(object):
       # same function is reused by different process bundle calls and
       # potentially get executed by different worker. Hence we need a
       # centralized function list shared among all the workers.
-      self.workers.put(SdkWorker(self._bundle_processor_cache,
+      self.workers.put(
+          SdkWorker(self._bundle_processor_cache,
                     profiler_factory=self._profiler_factory))
 
     def get_responses():
@@ -219,7 +220,7 @@ class SdkHarness(object):
                 'Process bundle request not yet scheduled for instruction {}' if
                 instruction_reference in self._unscheduled_process_bundle else
                 'Unknown process bundle instruction {}').format(
-                  instruction_reference)), request)
+                    instruction_reference)), request)
 
     self._progress_thread_pool.submit(task)
 
@@ -261,26 +262,6 @@ class SdkHarness(object):
 
 
 class BundleProcessorCache(object):
-  """A cache for ``BundleProcessor``s.
-
-  ``BundleProcessor`` objects are cached by the id of their
-  ``beam_fn_api_pb2.ProcessBundleDescriptor``.
-
-  Attributes:
-    fns (dict): A dictionary that maps bundle descriptor IDs to instances of
-      ``beam_fn_api_pb2.ProcessBundleDescriptor``.
-    state_handler_factory (``StateHandlerFactory``): Used to create state
-      handlers to be used by a ``bundle_processor.BundleProcessor`` during
-      processing.
-    data_channel_factory (``data_plane.DataChannelFactory``)
-    active_bundle_processors (dict): A dictionary, indexed by instruction IDs,
-      containing ``bundle_processor.BundleProcessor`` objects that are currently
-      active processing the corresponding instruction.
-    cached_bundle_processors (dict): A dictionary, indexed by bundle processor
-      id, of cached ``bundle_processor.BundleProcessor`` that are not currently
-      performing processing.
-  """
-
   def __init__(self, state_handler_factory, data_channel_factory, fns):
     self.fns = fns
     self.state_handler_factory = state_handler_factory
@@ -289,7 +270,6 @@ class BundleProcessorCache(object):
     self.cached_bundle_processors = collections.defaultdict(list)
 
   def register(self, bundle_descriptor):
-    """Register a ``beam_fn_api_pb2.ProcessBundleDescriptor`` by its id."""
     self.fns[bundle_descriptor.id] = bundle_descriptor
 
   def get(self, instruction_id, bundle_descriptor_id):
@@ -304,14 +284,12 @@ class BundleProcessorCache(object):
           self.data_channel_factory)
     self.active_bundle_processors[
         instruction_id] = bundle_descriptor_id, processor
-
     return processor
 
   def lookup(self, instruction_id):
     return self.active_bundle_processors.get(instruction_id, (None, None))[-1]
 
   def discard(self, instruction_id):
-    self.active_bundle_processors[instruction_id][1].shutdown()
     del self.active_bundle_processors[instruction_id]
 
   def release(self, instruction_id):
@@ -319,13 +297,6 @@ class BundleProcessorCache(object):
     processor.reset()
     self.cached_bundle_processors[descriptor_id].append(processor)
 
-  def shutdown(self):
-    for instruction_id in self.active_bundle_processors:
-      self.active_bundle_processors[instruction_id][1].shutdown()
-      del self.active_bundle_processors[instruction_id]
-    for cached_bundle_processors in self.cached_bundle_processors.values():
-      while len(cached_bundle_processors) > 0:
-        cached_bundle_processors.pop().shutdown()
 
 
 class SdkWorker(object):
@@ -344,12 +315,6 @@ class SdkWorker(object):
       raise NotImplementedError
 
   def register(self, request, instruction_id):
-    """Registers a set of ``beam_fn_api_pb2.ProcessBundleDescriptor``s.
-
-    This set of ``beam_fn_api_pb2.ProcessBundleDescriptor`` come as part of a
-    ``beam_fn_api_pb2.RegisterRequest``, which the runner sends to the SDK
-    worker before starting processing to register stages.
-    """
 
     for process_bundle_descriptor in request.process_bundle_descriptor:
       self.bundle_processor_cache.register(process_bundle_descriptor)
@@ -373,7 +338,6 @@ class SdkWorker(object):
                   metrics=bundle_processor.metrics(),
                   monitoring_infos=bundle_processor.monitoring_infos(),
                   requires_finalization=requests_finalization))
-
       # Don't release here if finalize is needed.
       if not requests_finalization:
         self.bundle_processor_cache.release(instruction_id)
@@ -422,9 +386,6 @@ class SdkWorker(object):
       return beam_fn_api_pb2.InstructionResponse(
           instruction_id=instruction_id,
           error='Instruction not running: %s' % instruction_id)
-
-  def stop(self):
-    self.bundle_processor_cache.shutdown()
 
   @contextlib.contextmanager
   def maybe_profile(self, instruction_id):

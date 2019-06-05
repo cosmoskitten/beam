@@ -262,7 +262,6 @@ class _GrpcDataChannel(DataChannel):
       if data[-1] is self._WRITES_FINISHED:
         done = True
         data.pop()
-
       if data:
         yield beam_fn_api_pb2.Elements(data=data)
 
@@ -399,8 +398,6 @@ class GrpcClientDataChannelFactory(DataChannelFactory):
       logging.info('Using secure channel creds.')
       self._credentials = credentials
 
-  # def __reduce__(self):
-  #   return (self.__class__, (self._data_channel_cache, self._credentials))
 
   def create_data_channel(self, remote_grpc_port):
     url = remote_grpc_port.api_service_descriptor.url
