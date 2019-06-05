@@ -92,6 +92,7 @@ public class SamzaDoFnRunners {
       timerInternals = timerInternalsFactory.timerInternalsForKey(null);
     }
 
+    final StepContext stepContext = createStepContext(stateInternals, timerInternals);
     final DoFnRunner<InT, FnOutT> underlyingRunner =
         DoFnRunners.simpleRunner(
             pipelineOptions,
@@ -100,7 +101,7 @@ public class SamzaDoFnRunners {
             outputManager,
             mainOutputTag,
             sideOutputTags,
-            createStepContext(stateInternals, timerInternals),
+            stepContext,
             inputCoder,
             outputCoders,
             windowingStrategy,
@@ -117,6 +118,7 @@ public class SamzaDoFnRunners {
           DoFnRunners.defaultStatefulDoFnRunner(
               doFn,
               doFnRunnerWithMetrics,
+              stepContext,
               windowingStrategy,
               new StatefulDoFnRunner.TimeInternalsCleanupTimer(timerInternals, windowingStrategy),
               createStateCleaner(doFn, windowingStrategy, keyedInternals.stateInternals()));
