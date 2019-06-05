@@ -300,7 +300,12 @@ class BeamModulePlugin implements Plugin<Project> {
   }
 
   def archivesBaseName(Project p) {
-    'beam' + p.path.replace(':', '-')
+    // HACK: if it looks like the project tried to override the base name, then go with what it did
+    if (p.hasProperty("archivesBaseName") && p.archivesBaseName.startsWith("beam-")) {
+      return p.archivesBaseName
+    } else {
+      return 'beam' + p.path.replace(':', '-')
+    }
   }
 
   void apply(Project project) {
