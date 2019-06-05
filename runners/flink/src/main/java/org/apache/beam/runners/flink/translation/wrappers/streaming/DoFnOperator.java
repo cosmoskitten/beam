@@ -277,7 +277,7 @@ public class DoFnOperator<InputT, OutputT> extends AbstractStreamOperator<Window
   // stateful DoFn runner because ProcessFn, which is used for executing a Splittable DoFn
   // doesn't play by the normal DoFn rules and WindowDoFnOperator uses LateDataDroppingDoFnRunner
   protected DoFnRunner<InputT, OutputT> createWrappingDoFnRunner(
-      DoFnRunner<InputT, OutputT> wrappedRunner) {
+      DoFnRunner<InputT, OutputT> wrappedRunner, StepContext stepContext) {
 
     if (keyCoder != null) {
       StatefulDoFnRunner.CleanupTimer cleanupTimer =
@@ -293,7 +293,7 @@ public class DoFnOperator<InputT, OutputT> extends AbstractStreamOperator<Window
               doFn, keyedStateInternals, windowCoder);
 
       return DoFnRunners.defaultStatefulDoFnRunner(
-          doFn, wrappedRunner, windowingStrategy, cleanupTimer, stateCleaner);
+          doFn, wrappedRunner, stepContext, windowingStrategy, cleanupTimer, stateCleaner);
 
     } else {
       return doFnRunner;
@@ -405,6 +405,7 @@ public class DoFnOperator<InputT, OutputT> extends AbstractStreamOperator<Window
     doFnInvoker.invokeSetup();
 
     FlinkPipelineOptions options = serializedOptions.get().as(FlinkPipelineOptions.class);
+    StepContext stepContext = new FlinkStepContext();
     doFnRunner =
         DoFnRunners.simpleRunner(
             options,
@@ -413,7 +414,7 @@ public class DoFnOperator<InputT, OutputT> extends AbstractStreamOperator<Window
             outputManager,
             mainOutputTag,
             additionalOutputTags,
-            new FlinkStepContext(),
+            stepContext,
             inputCoder,
             outputCoders,
             windowingStrategy,
@@ -431,7 +432,7 @@ public class DoFnOperator<InputT, OutputT> extends AbstractStreamOperator<Window
                   getOperatorStateBackend(),
                   getKeyedStateBackend());
     }
-    doFnRunner = createWrappingDoFnRunner(doFnRunner);
+    doFnRunner = createWrappingDoFnRunner(doFnRunner, stepContext);
 
     if (options.getEnableMetrics()) {
       doFnRunner = new DoFnRunnerWithMetricsUpdate<>(stepName, doFnRunner, getRuntimeContext());
