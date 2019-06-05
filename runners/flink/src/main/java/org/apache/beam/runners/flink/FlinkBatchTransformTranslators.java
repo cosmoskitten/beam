@@ -667,7 +667,6 @@ class FlinkBatchTransformTranslators {
     public Instant getKey(WindowedValue<KV<K, V>> in) throws Exception {
       return in.getTimestamp();
     }
-
   }
 
   private static class FlattenPCollectionTranslatorBatch<T>
@@ -768,5 +767,4 @@ class FlinkBatchTransformTranslators {
   }
 
   private FlinkBatchTransformTranslators() {}
-
 }
