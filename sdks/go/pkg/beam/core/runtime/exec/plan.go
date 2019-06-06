@@ -87,6 +87,11 @@ func (p *Plan) ID() string {
 	return p.id
 }
 
+// ID returns the plan identifier.
+func (p *Plan) Source() *DataSource {
+	return p.source
+}
+
 // Execute executes the plan with the given data context and bundle id. Units
 // are brought up on the first execution. If a bundle fails, the plan cannot
 // be reused for further bundles. Does not panic. Blocking.
