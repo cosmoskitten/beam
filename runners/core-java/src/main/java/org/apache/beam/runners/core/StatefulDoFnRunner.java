@@ -98,8 +98,13 @@ public class StatefulDoFnRunner<InputT, OutputT, W extends BoundedWindow>
     this.windowCoder = untypedCoder;
 
     // FIXME: need coder of input
-    this.sortBufferTag = StateTags.makeSystemTagInternal(StateTags.bag(SORT_BUFFER_STATE,
-        (Coder) WindowedValue.getFullCoder(SerializableCoder.of(Serializable.class), windowCoder)));
+    this.sortBufferTag =
+        StateTags.makeSystemTagInternal(
+            StateTags.bag(
+                SORT_BUFFER_STATE,
+                (Coder)
+                    WindowedValue.getFullCoder(
+                        SerializableCoder.of(Serializable.class), windowCoder)));
 
     rejectMergingWindowFn(windowFn);
   }
