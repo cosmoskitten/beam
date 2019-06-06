@@ -1354,7 +1354,8 @@ public class WatermarkManager<ExecutableT, CollectionT> {
       Map<StructuralKey<?>, Collection<TimerData>> timersPerKey =
           groupFiredTimers(eventTimeTimers, processingTimers, synchronizedTimers);
       Collection<FiredTimers<ExecutableT>> keyFiredTimers = new ArrayList<>(timersPerKey.size());
-      for (Map.Entry<StructuralKey<?>, Collection<TimerData>> firedTimers : timersPerKey.entrySet()) {
+      for (Map.Entry<StructuralKey<?>, Collection<TimerData>> firedTimers :
+          timersPerKey.entrySet()) {
         keyFiredTimers.add(
             new FiredTimers<>(executable, firedTimers.getKey(), firedTimers.getValue()));
       }
@@ -1368,8 +1369,9 @@ public class WatermarkManager<ExecutableT, CollectionT> {
       for (Map<StructuralKey<?>, List<TimerData>> subGroup : timersToGroup) {
         for (Map.Entry<StructuralKey<?>, List<TimerData>> newTimers : subGroup.entrySet()) {
           Collection<TimerData> grouped =
-              groupedTimers.computeIfAbsent(newTimers.getKey(), k ->
-                  new PriorityQueue<>((a, b) -> a.getTimestamp().compareTo(b.getTimestamp())));
+              groupedTimers.computeIfAbsent(
+                  newTimers.getKey(),
+                  k -> new PriorityQueue<>((a, b) -> a.getTimestamp().compareTo(b.getTimestamp())));
           grouped.addAll(newTimers.getValue());
         }
       }
