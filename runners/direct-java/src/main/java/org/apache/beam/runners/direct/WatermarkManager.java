@@ -1388,8 +1388,7 @@ public class WatermarkManager<ExecutableT, CollectionT> {
       Map<StructuralKey<?>, Collection<TimerData>> timersPerKey =
           groupFiredTimers(eventTimeTimers, processingTimers, synchronizedTimers);
       Collection<FiredTimers<ExecutableT>> keyFiredTimers = new ArrayList<>(timersPerKey.size());
-      for (Map.Entry<StructuralKey<?>, Collection<TimerData>> firedTimers :
-          timersPerKey.entrySet()) {
+      for (Map.Entry<StructuralKey<?>, Collection<TimerData>> firedTimers : timersPerKey.entrySet()) {
         keyFiredTimers.add(
             new FiredTimers<>(executable, firedTimers.getKey(), firedTimers.getValue()));
       }
