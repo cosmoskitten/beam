@@ -257,14 +257,18 @@ public class StatefulDoFnRunnerTest {
     if (ordered) {
       assertEquals(
           Arrays.asList(
-              KV.of(outputTag, WindowedValue.of(2, elementTime.minus(1), WINDOW_1, PaneInfo.NO_FIRING)),
+              KV.of(
+                  outputTag,
+                  WindowedValue.of(2, elementTime.minus(1), WINDOW_1, PaneInfo.NO_FIRING)),
               KV.of(outputTag, WindowedValue.of(3, elementTime, WINDOW_1, PaneInfo.NO_FIRING))),
           outputs);
     } else {
       assertEquals(
           Arrays.asList(
               KV.of(outputTag, WindowedValue.of(1, elementTime, WINDOW_1, PaneInfo.NO_FIRING)),
-              KV.of(outputTag, WindowedValue.of(3, elementTime.minus(1), WINDOW_1, PaneInfo.NO_FIRING))),
+              KV.of(
+                  outputTag,
+                  WindowedValue.of(3, elementTime.minus(1), WINDOW_1, PaneInfo.NO_FIRING))),
           outputs);
     }
     outputs.clear();
@@ -272,22 +276,13 @@ public class StatefulDoFnRunnerTest {
     // another window
     elementTime = elementTime.plus(WINDOW_SIZE);
     runner.processElement(
-        WindowedValue.of(
-            KV.of("hello", 1), elementTime, WINDOW_2, PaneInfo.NO_FIRING));
+        WindowedValue.of(KV.of("hello", 1), elementTime, WINDOW_2, PaneInfo.NO_FIRING));
 
     runner.processElement(
-        WindowedValue.of(
-            KV.of("hello", 2),
-            elementTime.minus(1),
-            WINDOW_2,
-            PaneInfo.NO_FIRING));
+        WindowedValue.of(KV.of("hello", 2), elementTime.minus(1), WINDOW_2, PaneInfo.NO_FIRING));
 
     runner.processElement(
-        WindowedValue.of(
-            KV.of("hello", 3),
-            elementTime.minus(2),
-            WINDOW_2,
-            PaneInfo.NO_FIRING));
+        WindowedValue.of(KV.of("hello", 3), elementTime.minus(2), WINDOW_2, PaneInfo.NO_FIRING));
 
     if (ordered) {
       // move forward in time to so that the input might get flushed
@@ -299,16 +294,24 @@ public class StatefulDoFnRunnerTest {
     if (ordered) {
       assertEquals(
           Arrays.asList(
-              KV.of(outputTag, WindowedValue.of(3, elementTime.minus(2), WINDOW_2, PaneInfo.NO_FIRING)),
-              KV.of(outputTag, WindowedValue.of(5, elementTime.minus(1), WINDOW_2, PaneInfo.NO_FIRING)),
+              KV.of(
+                  outputTag,
+                  WindowedValue.of(3, elementTime.minus(2), WINDOW_2, PaneInfo.NO_FIRING)),
+              KV.of(
+                  outputTag,
+                  WindowedValue.of(5, elementTime.minus(1), WINDOW_2, PaneInfo.NO_FIRING)),
               KV.of(outputTag, WindowedValue.of(6, elementTime, WINDOW_2, PaneInfo.NO_FIRING))),
           outputs);
     } else {
       assertEquals(
           Arrays.asList(
               KV.of(outputTag, WindowedValue.of(1, elementTime, WINDOW_2, PaneInfo.NO_FIRING)),
-              KV.of(outputTag, WindowedValue.of(3, elementTime.minus(1), WINDOW_2, PaneInfo.NO_FIRING)),
-              KV.of(outputTag, WindowedValue.of(6, elementTime.minus(2), WINDOW_2, PaneInfo.NO_FIRING))),
+              KV.of(
+                  outputTag,
+                  WindowedValue.of(3, elementTime.minus(1), WINDOW_2, PaneInfo.NO_FIRING)),
+              KV.of(
+                  outputTag,
+                  WindowedValue.of(6, elementTime.minus(2), WINDOW_2, PaneInfo.NO_FIRING))),
           outputs);
     }
   }
