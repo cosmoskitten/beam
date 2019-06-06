@@ -1350,10 +1350,10 @@ public class WatermarkManager<ExecutableT, CollectionT> {
           synchronizedProcessingInputWatermark.extractFiredDomainTimers(
               TimeDomain.SYNCHRONIZED_PROCESSING_TIME, getSynchronizedProcessingInputTime());
 
-      Map<StructuralKey<?>, List<TimerData>> timersPerKey =
+      Map<StructuralKey<?>, Collection<TimerData>> timersPerKey =
           groupFiredTimers(eventTimeTimers, processingTimers, synchronizedTimers);
       Collection<FiredTimers<ExecutableT>> keyFiredTimers = new ArrayList<>(timersPerKey.size());
-      for (Map.Entry<StructuralKey<?>, List<TimerData>> firedTimers : timersPerKey.entrySet()) {
+      for (Map.Entry<StructuralKey<?>, Collection<TimerData>> firedTimers : timersPerKey.entrySet()) {
         keyFiredTimers.add(
             new FiredTimers<>(executable, firedTimers.getKey(), firedTimers.getValue()));
       }
@@ -1361,13 +1361,14 @@ public class WatermarkManager<ExecutableT, CollectionT> {
     }
 
     @SafeVarargs
-    private final Map<StructuralKey<?>, List<TimerData>> groupFiredTimers(
+    private final Map<StructuralKey<?>, Collection<TimerData>> groupFiredTimers(
         Map<StructuralKey<?>, List<TimerData>>... timersToGroup) {
-      Map<StructuralKey<?>, List<TimerData>> groupedTimers = new HashMap<>();
+      Map<StructuralKey<?>, Collection<TimerData>> groupedTimers = new HashMap<>();
       for (Map<StructuralKey<?>, List<TimerData>> subGroup : timersToGroup) {
         for (Map.Entry<StructuralKey<?>, List<TimerData>> newTimers : subGroup.entrySet()) {
-          List<TimerData> grouped =
-              groupedTimers.computeIfAbsent(newTimers.getKey(), k -> new ArrayList<>());
+          Collection<TimerData> grouped =
+              groupedTimers.computeIfAbsent(newTimers.getKey(), k ->
+                  new PriorityQueue<>((a, b) -> a.getTimestamp().compareTo(b.getTimestamp())));
           grouped.addAll(newTimers.getValue());
         }
       }
