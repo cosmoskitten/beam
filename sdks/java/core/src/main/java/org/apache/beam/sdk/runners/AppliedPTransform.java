@@ -72,13 +72,10 @@ public abstract class AppliedPTransform<
 
   public abstract Pipeline getPipeline();
 
-  /**
-   * @return map of {@link TupleTag TupleTags} which are not side inputs.
-   */
+  /** @return map of {@link TupleTag TupleTags} which are not side inputs. */
   public Map<TupleTag<?>, PValue> getMainInputs() {
     Map<TupleTag<?>, PValue> sideInputs = getTransform().getAdditionalInputs();
-    return getInputs().entrySet()
-        .stream()
+    return getInputs().entrySet().stream()
         .filter(e -> !sideInputs.containsKey(e.getKey()))
         .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
   }
