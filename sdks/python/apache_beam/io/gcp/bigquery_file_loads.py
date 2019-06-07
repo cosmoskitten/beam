@@ -43,7 +43,7 @@ from apache_beam import pvalue
 from apache_beam.io import filesystems as fs
 from apache_beam.io.gcp import bigquery_tools
 from apache_beam.options import value_provider as vp
-from apache_beam.options.pipeline_options import GoogleCloudOptions
+from apache_beam.options.pipeline_options import StandardOptions
 
 ONE_TERABYTE = (1 << 40)
 
@@ -542,7 +542,7 @@ class BigQueryBatchFileLoads(beam.PTransform):
 
     self._custom_gcs_temp_location = (
         self._custom_gcs_temp_location
-        or p.options.view_as(GoogleCloudOptions).temp_location)
+        or p.options.view_as(StandardOptions).temp_location)
 
     load_job_name_pcv = pvalue.AsSingleton(
         p

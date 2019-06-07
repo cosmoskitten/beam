@@ -229,12 +229,13 @@ def pipeline_options_remote(argv):
 
   # For Cloud execution, set the Cloud Platform project, job_name,
   # staging location, temp_location and specify DataflowRunner.
+  standard_options = options.view_as(StandardOptions)
+  standard_options.runner = 'DataflowRunner'
+  standard_options.temp_location = 'gs://my-bucket/temp'
   google_cloud_options = options.view_as(GoogleCloudOptions)
   google_cloud_options.project = 'my-project-id'
   google_cloud_options.job_name = 'myjob'
   google_cloud_options.staging_location = 'gs://my-bucket/binaries'
-  google_cloud_options.temp_location = 'gs://my-bucket/temp'
-  options.view_as(StandardOptions).runner = 'DataflowRunner'
 
   # Create the Pipeline with the specified options.
   p = Pipeline(options=options)
@@ -414,12 +415,13 @@ def examples_wordcount_minimal(renames):
 
   # [START examples_wordcount_minimal_options]
   options = PipelineOptions()
+  standard_options = options.view_as(StandardOptions)
+  standard_options.runner = 'DataflowRunner'
+  standard_options.temp_location = 'gs://your-bucket-name-here/temp'
   google_cloud_options = options.view_as(GoogleCloudOptions)
   google_cloud_options.project = 'my-project-id'
   google_cloud_options.job_name = 'myjob'
   google_cloud_options.staging_location = 'gs://your-bucket-name-here/staging'
-  google_cloud_options.temp_location = 'gs://your-bucket-name-here/temp'
-  options.view_as(StandardOptions).runner = 'DataflowRunner'
   # [END examples_wordcount_minimal_options]
 
   # Run it locally for testing.

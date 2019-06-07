@@ -140,7 +140,7 @@ class Environment(object):
     self.proto.dataset = '{}/cloud_dataflow'.format(
         GoogleCloudOptions.BIGQUERY_API_SERVICE)
     self.proto.tempStoragePrefix = (
-        self.google_cloud_options.temp_location.replace(
+        self.standard_options.temp_location.replace(
             'gs:/',
             GoogleCloudOptions.STORAGE_API_SERVICE))
     # User agent information.
@@ -384,9 +384,9 @@ class Job(object):
 
     if not self.google_cloud_options.staging_location:
       logging.info('Defaulting to the temp_location as staging_location: %s',
-                   self.google_cloud_options.temp_location)
+                   self.standard_options.temp_location)
       (self.google_cloud_options
-       .staging_location) = self.google_cloud_options.temp_location
+       .staging_location) = self.standard_options.temp_location
 
     # Make the staging and temp locations job name and time specific. This is
     # needed to avoid clashes between job submissions using the same staging
@@ -399,8 +399,8 @@ class Job(object):
       path_suffix = '%s.%f' % (self.google_cloud_options.job_name, time.time())
       self.google_cloud_options.staging_location = FileSystems.join(
           self.google_cloud_options.staging_location, path_suffix)
-      self.google_cloud_options.temp_location = FileSystems.join(
-          self.google_cloud_options.temp_location, path_suffix)
+      self.standard_options.temp_location = FileSystems.join(
+          self.standard_options.temp_location, path_suffix)
 
     self.proto = dataflow.Job(name=self.google_cloud_options.job_name)
     if self.options.view_as(StandardOptions).streaming:
@@ -475,10 +475,11 @@ class DataflowApplicationClient(object):
       self.stage_file(to_folder, to_name, f)
 
   def _stage_resources(self, options):
+    standard_options = options.view_as(StandardOptions)
     google_cloud_options = options.view_as(GoogleCloudOptions)
     if google_cloud_options.staging_location is None:
       raise RuntimeError('The --staging_location option must be specified.')
-    if google_cloud_options.temp_location is None:
+    if standard_options.temp_location is None:
       raise RuntimeError('The --temp_location option must be specified.')
 
     resource_stager = _LegacyDataflowStager(self)
