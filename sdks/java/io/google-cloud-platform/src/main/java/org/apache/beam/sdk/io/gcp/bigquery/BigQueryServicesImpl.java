@@ -56,6 +56,8 @@ import com.google.cloud.bigquery.storage.v1beta1.Storage.CreateReadSessionReques
 import com.google.cloud.bigquery.storage.v1beta1.Storage.ReadRowsRequest;
 import com.google.cloud.bigquery.storage.v1beta1.Storage.ReadRowsResponse;
 import com.google.cloud.bigquery.storage.v1beta1.Storage.ReadSession;
+import com.google.cloud.bigquery.storage.v1beta1.Storage.SplitReadStreamRequest;
+import com.google.cloud.bigquery.storage.v1beta1.Storage.SplitReadStreamResponse;
 import com.google.cloud.hadoop.util.ApiErrorExtractor;
 import com.google.cloud.hadoop.util.ChainingHttpRequestInitializer;
 import java.io.IOException;
@@ -1013,6 +1015,11 @@ class BigQueryServicesImpl implements BigQueryServices {
     @Override
     public Iterable<ReadRowsResponse> readRows(ReadRowsRequest request) {
       return client.readRowsCallable().call(request);
+    }
+
+    @Override
+    public SplitReadStreamResponse splitReadStream(SplitReadStreamRequest request) {
+      return client.splitReadStream(request);
     }
 
     @Override

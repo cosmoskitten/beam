@@ -21,12 +21,19 @@ import static org.apache.beam.sdk.io.gcp.bigquery.BigQueryHelpers.fromJsonString
 import static org.apache.beam.sdk.io.gcp.bigquery.BigQueryHelpers.toJsonString;
 import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkNotNull;
 
+import com.google.api.gax.rpc.FailedPreconditionException;
 import com.google.api.services.bigquery.model.TableSchema;
 import com.google.cloud.bigquery.storage.v1beta1.Storage.ReadRowsRequest;
 import com.google.cloud.bigquery.storage.v1beta1.Storage.ReadRowsResponse;
 import com.google.cloud.bigquery.storage.v1beta1.Storage.ReadSession;
+import com.google.cloud.bigquery.storage.v1beta1.Storage.SplitReadStreamRequest;
+import com.google.cloud.bigquery.storage.v1beta1.Storage.SplitReadStreamResponse;
 import com.google.cloud.bigquery.storage.v1beta1.Storage.Stream;
 import com.google.cloud.bigquery.storage.v1beta1.Storage.StreamPosition;
+import com.google.protobuf.FloatValue;
+import com.google.protobuf.UnknownFieldSet;
+import io.grpc.Status;
+import io.grpc.StatusRuntimeException;
 import java.io.IOException;
 import java.util.Iterator;
 import java.util.List;
@@ -46,7 +53,9 @@ import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableList;
 
-/** A {@link org.apache.beam.sdk.io.Source} representing a single stream in a read session. */
+/**
+ * A {@link org.apache.beam.sdk.io.Source} representing a single stream in a read session.
+ */
 @Experimental(Experimental.Kind.SOURCE_SINK)
 public class BigQueryStorageStreamSource<T> extends BoundedSource<T> {
 
@@ -61,6 +70,20 @@ public class BigQueryStorageStreamSource<T> extends BoundedSource<T> {
         readSession,
         stream,
         toJsonString(checkNotNull(tableSchema, "tableSchema")),
+        parseFn,
+        outputCoder,
+        bqServices);
+  }
+
+  /**
+   * Creates a new source with the same properties as this one, except with a different
+   * {@link Stream}.
+   */
+  public <T> BigQueryStorageStreamSource<T> fromExisting(Stream newStream) {
+    return new BigQueryStorageStreamSource(
+        readSession,
+        newStream,
+        jsonTableSchema,
         parseFn,
         outputCoder,
         bqServices);
@@ -124,7 +147,9 @@ public class BigQueryStorageStreamSource<T> extends BoundedSource<T> {
     return new BigQueryStorageStreamReader<>(this, options.as(BigQueryOptions.class));
   }
 
-  /** A {@link org.apache.beam.sdk.io.Source.Reader} which reads records from a stream. */
+  /**
+   * A {@link org.apache.beam.sdk.io.Source.Reader} which reads records from a stream.
+   */
   @Experimental(Experimental.Kind.SOURCE_SINK)
   public static class BigQueryStorageStreamReader<T> extends BoundedSource.BoundedReader<T> {
 
@@ -152,7 +177,7 @@ public class BigQueryStorageStreamSource<T> extends BoundedSource<T> {
     }
 
     @Override
-    public boolean start() throws IOException {
+    public synchronized boolean start() throws IOException {
       BigQueryStorageStreamSource<T> source = getCurrentSource();
 
       ReadRowsRequest request =
@@ -166,12 +191,12 @@ public class BigQueryStorageStreamSource<T> extends BoundedSource<T> {
     }
 
     @Override
-    public boolean advance() throws IOException {
+    public synchronized boolean advance() throws IOException {
       currentOffset++;
       return readNextRecord();
     }
 
-    private boolean readNextRecord() throws IOException {
+    private synchronized boolean readNextRecord() throws IOException {
       while (decoder == null || decoder.isEnd()) {
         if (!responseIterator.hasNext()) {
           return false;
@@ -196,7 +221,7 @@ public class BigQueryStorageStreamSource<T> extends BoundedSource<T> {
     }
 
     @Override
-    public void close() {
+    public synchronized void close() {
       storageClient.close();
     }
 
@@ -207,7 +232,43 @@ public class BigQueryStorageStreamSource<T> extends BoundedSource<T> {
 
     @Override
     public BoundedSource<T> splitAtFraction(double fraction) {
-      return null;
+      SplitReadStreamRequest splitRequest = SplitReadStreamRequest.newBuilder()
+          .setOriginalStream(source.stream)
+          // TODO(aryann): Once we rebuild the generated client code, we should change this to
+          // use setFraction().
+          .setUnknownFields(UnknownFieldSet.newBuilder().addField(2,
+              UnknownFieldSet.Field.newBuilder()
+                  .addFixed32(java.lang.Float.floatToIntBits((float) fraction)).build()).build())
+          .build();
+      SplitReadStreamResponse splitResponse = storageClient.splitReadStream(splitRequest);
+
+      if (!splitResponse.hasPrimaryStream() || !splitResponse.hasRemainderStream()) {
+        // No more splits are possible!
+        return null;
+      }
+
+      // We may be able to split this source. Before continuing, we pause the reader thread and
+      // replace its current source with the primary stream iff the reader has not moved past
+      // the split point.
+      synchronized (this) {
+        Iterable<ReadRowsResponse> readResponse;
+        try {
+           readResponse = storageClient.readRows(ReadRowsRequest.newBuilder().setReadPosition(
+              StreamPosition.newBuilder().setStream(splitResponse.getPrimaryStream())
+                  .setOffset(currentOffset).build()).build());
+        } catch (FailedPreconditionException e) {
+          // The current source has already moved past the split point, so this split attempt
+          // is unsuccessful.
+          return null;
+        } catch (Exception e) {
+          throw e;
+        }
+
+        source = source.fromExisting(splitResponse.getPrimaryStream());
+        responseIterator = readResponse.iterator();
+      }
+
+      return source.fromExisting(splitResponse.getRemainderStream());
     }
   }
 }

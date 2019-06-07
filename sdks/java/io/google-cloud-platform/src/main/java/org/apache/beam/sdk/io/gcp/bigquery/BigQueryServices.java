@@ -32,6 +32,8 @@ import com.google.cloud.bigquery.storage.v1beta1.Storage.CreateReadSessionReques
 import com.google.cloud.bigquery.storage.v1beta1.Storage.ReadRowsRequest;
 import com.google.cloud.bigquery.storage.v1beta1.Storage.ReadRowsResponse;
 import com.google.cloud.bigquery.storage.v1beta1.Storage.ReadSession;
+import com.google.cloud.bigquery.storage.v1beta1.Storage.SplitReadStreamRequest;
+import com.google.cloud.bigquery.storage.v1beta1.Storage.SplitReadStreamResponse;
 import java.io.IOException;
 import java.io.Serializable;
 import java.util.List;
@@ -172,6 +174,8 @@ public interface BigQueryServices extends Serializable {
 
     /** Read rows in the context of a specific read stream. */
     Iterable<ReadRowsResponse> readRows(ReadRowsRequest request);
+
+    SplitReadStreamResponse splitReadStream(SplitReadStreamRequest request);
 
     /**
      * Close the client object.
