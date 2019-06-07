@@ -1191,12 +1191,20 @@ class BundleManager(object):
     self._registered = skip_registration
     self._progress_frequency = progress_frequency
 
-  def process_bundle(self, inputs, expected_outputs):
-    # Unique id for the instruction processing this bundle.
-    BundleManager._uid_counter += 1
-    process_bundle_id = 'bundle_%s' % BundleManager._uid_counter
+  def _send_input_to_worker(self,
+                            process_bundle_id,
+                            read_transform_id,
+                            name,
+                            byte_streams):
+    data_out = self._controller.data_plane_handler.output_stream(
+        process_bundle_id,
+        beam_fn_api_pb2.Target(
+            primitive_transform_reference=read_transform_id, name=name))
+    for byte_stream in byte_streams:
+      data_out.write(byte_stream)
+    data_out.close()
 
-    # Register the bundle descriptor, if needed.
+  def _register_bundle_descriptor(self):
     if self._registered:
       registration_future = None
     else:
@@ -1207,6 +1215,10 @@ class BundleManager(object):
           process_bundle_registration)
       self._registered = True
 
+    return registration_future
+
+  def _select_split_manager(self):
+    """TODO(pabloem) WHAT DOES THIS DO"""
     unique_names = set(
         t.unique_name for t in self._bundle_descriptor.transforms.values())
     for stage_name, candidate in reversed(_split_managers):
@@ -1217,18 +1229,25 @@ class BundleManager(object):
     else:
       split_manager = None
 
+    return split_manager
+
+  def process_bundle(self, inputs, expected_outputs):
+    # Unique id for the instruction processing this bundle.
+    BundleManager._uid_counter += 1
+    process_bundle_id = 'bundle_%s' % BundleManager._uid_counter
+
+    # Register the bundle descriptor, if needed - noop if already registered.
+    registration_future = self._register_bundle_descriptor()
+
+    split_manager = self._select_split_manager()
+
     if not split_manager:
       # Write all the input data to the channel immediately.
       for (transform_id, name), elements in inputs.items():
-        data_out = self._controller.data_plane_handler.output_stream(
-            process_bundle_id, beam_fn_api_pb2.Target(
-                primitive_transform_reference=transform_id, name=name))
-        for element_data in elements:
-          data_out.write(element_data)
-        data_out.close()
+        self._send_input_to_worker(
+            process_bundle_id, transform_id, name, elements)
 
     split_results = []
-
     # Actually start the bundle.
     if registration_future and registration_future.get().error:
       raise RuntimeError(registration_future.get().error)
@@ -1242,9 +1261,11 @@ class BundleManager(object):
         self._controller, process_bundle_id, self._progress_frequency):
       if split_manager:
         (read_transform_id, name), buffer_data = only_element(inputs.items())
+
+        byte_stream = b''.join(buffer_data)
         num_elements = len(list(
             self._get_input_coder_impl(read_transform_id).decode_all(
-                b''.join(buffer_data))))
+                byte_stream)))
 
         # Start the split manager in case it wants to set any breakpoints.
         split_manager_generator = split_manager(num_elements)
@@ -1254,13 +1275,8 @@ class BundleManager(object):
         except StopIteration:
           done = True
 
-        # Send all the data.
-        data_out = self._controller.data_plane_handler.output_stream(
-            process_bundle_id,
-            beam_fn_api_pb2.Target(
-                primitive_transform_reference=read_transform_id, name=name))
-        data_out.write(b''.join(buffer_data))
-        data_out.close()
+        self._send_input_to_worker(
+            process_bundle_id, read_transform_id, name, [byte_stream])
 
         # Execute the requested splits.
         while not done:
@@ -1333,6 +1349,11 @@ class BundleManager(object):
 
 
 class ProgressRequester(threading.Thread):
+  """ Thread that asks SDK Worker for progress reports with a certain frequency.
+
+  A callback can be passed to call with progress updates.
+  """
+
   def __init__(self, controller, instruction_id, frequency, callback=None):
     super(ProgressRequester, self).__init__()
     self._controller = controller
