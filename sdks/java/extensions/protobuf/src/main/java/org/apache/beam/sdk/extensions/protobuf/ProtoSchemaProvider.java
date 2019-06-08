@@ -30,6 +30,8 @@ import org.apache.beam.sdk.schemas.SchemaProvider;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TypeDescriptor;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Schema provider for Protobuf messages. The provider is able to handle pre compiled Message file
@@ -41,11 +43,20 @@ import org.apache.beam.sdk.values.TypeDescriptor;
  */
 @Experimental(Experimental.Kind.SCHEMAS)
 public class ProtoSchemaProvider implements SchemaProvider {
+  private static final Logger LOG = LoggerFactory.getLogger(ProtoSchemaProvider.class);
 
+  private static final ProtoDomain STATIC_COMPILED_DOMAIN = new ProtoDomain();
+  private ProtoDomain domain;
   private Map<String, SchemaCoder> cache = new HashMap<>();
   private Map<String, Class> overlayClasses = new HashMap<>();
 
-  public ProtoSchemaProvider() {}
+  public ProtoSchemaProvider() {
+    this.domain = STATIC_COMPILED_DOMAIN;
+  }
+
+  public ProtoSchemaProvider(ProtoDomain domain) {
+    this.domain = domain;
+  }
 
   private SchemaCoder ensure(Class rawType) {
     String urn = "class:" + rawType.getName();
@@ -58,14 +69,27 @@ public class ProtoSchemaProvider implements SchemaProvider {
 
   private SchemaCoder add(String urn, Class rawType) {
     ProtoSchema protoSchema =
-        new ProtoSchema(rawType, ProtobufUtil.getDescriptorForClass(rawType), overlayClasses);
+        new ProtoSchema(
+            rawType,
+            ProtobufUtil.getDescriptorForClass(rawType),
+            STATIC_COMPILED_DOMAIN,
+            overlayClasses);
     SchemaCoder<Message> schemaCoder = protoSchema.getSchemaCoder();
     cache.put(urn, schemaCoder);
     return schemaCoder;
   }
 
   public SchemaCoder add(String urn, Descriptors.Descriptor descriptor) {
-    ProtoSchema protoSchema = new ProtoSchema(DynamicMessage.class, descriptor, overlayClasses);
+    ProtoDomain scope = domain;
+    if (scope == null) {
+      LOG.warn("No domain specified, creating self containing domain");
+      scope = ProtoDomain.buildFrom(descriptor);
+    }
+    if (!scope.contains(descriptor)) {
+      throw new RuntimeException("The domain doesn't contain the descriptor");
+    }
+    ProtoSchema protoSchema =
+        new ProtoSchema(DynamicMessage.class, descriptor, scope, overlayClasses);
     SchemaCoder<Message> schemaCoder = protoSchema.getSchemaCoder();
     cache.put(urn, schemaCoder);
     return schemaCoder;

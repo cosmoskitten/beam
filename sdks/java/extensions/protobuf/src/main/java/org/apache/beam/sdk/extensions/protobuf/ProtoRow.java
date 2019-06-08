@@ -40,7 +40,7 @@ import org.joda.time.Instant;
  * it relies on the SchemaCoder to (de)serialize the message over the wire.
  *
  * <p>Each row has a FieldOverlay that handles specific field conversions, as well has special
- * overlays for Well Know Types, Repeatables, Maps and Nullables.
+ * overlays for Well Know Types, Repeatable, Map and Nullable.
  */
 @Experimental(Experimental.Kind.SCHEMAS)
 class ProtoRow extends Row {
@@ -151,7 +151,7 @@ class ProtoRow extends Row {
     @Override
     public void set(Message.Builder message, Object value) {
       if (value != null && ((byte[]) value).length > 0) {
-        // Protobuf messages BYTES doesn't like emptry bytes?!
+        // Protobuf messages BYTES doesn't like empty bytes?!
         message.setField(fieldDescriptor, convertSetObject(value));
       }
     }
@@ -183,7 +183,6 @@ class ProtoRow extends Row {
     @Override
     public ValueT get(Message message) {
       if (message.hasField(fieldDescriptor)) {
-
         Message wrapper = (Message) message.getField(fieldDescriptor);
         return (ValueT) value.get(wrapper);
       }
@@ -289,6 +288,7 @@ class ProtoRow extends Row {
           new ProtoSchema(
               DynamicMessage.class,
               fieldDescriptor.getMessageType(),
+              rootProtoSchema.getDomain(),
               rootProtoSchema.getRegisteredTypeMapping());
       SchemaCoder<Message> schemaCoder = protoSchema.getSchemaCoder();
       toRowFunction = schemaCoder.getToRowFunction();
