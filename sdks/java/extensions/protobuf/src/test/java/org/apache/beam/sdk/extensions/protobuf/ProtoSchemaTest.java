@@ -295,7 +295,9 @@ public class ProtoSchemaTest {
 
   @Test
   public void testCoder() throws Exception {
-    ProtoSchemaProvider provider = new ProtoSchemaProvider();
+    ProtoSchemaProvider provider =
+        new ProtoSchemaProvider(
+            ProtoDomain.buildFrom(Proto3SchemaMessages.Complex.getDescriptor()));
     TypeDescriptor typeDescriptor = TypeDescriptor.of(Proto3SchemaMessages.Complex.class);
     SchemaCoder<Message> schemaCoder =
         SchemaCoder.of(
@@ -338,7 +340,7 @@ public class ProtoSchemaTest {
     Descriptors.FieldDescriptor oneofString = descriptor.findFieldByName("oneof_string");
     Descriptors.FieldDescriptor specialEnum = descriptor.findFieldByName("special_enum");
 
-    ProtoSchemaProvider provider = new ProtoSchemaProvider();
+    ProtoSchemaProvider provider = new ProtoSchemaProvider(ProtoDomain.buildFrom(descriptor));
     SchemaCoder<Message> schemaCoder = provider.add("", descriptor);
     RowCoder rowCoder = RowCoder.of(schemaCoder.getSchema());
 
