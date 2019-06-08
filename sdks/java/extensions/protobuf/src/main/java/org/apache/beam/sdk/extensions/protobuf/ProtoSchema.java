@@ -28,10 +28,10 @@ import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.SchemaCoder;
@@ -71,18 +71,26 @@ import org.apache.beam.sdk.values.Row;
  */
 @Experimental(Experimental.Kind.SCHEMAS)
 public class ProtoSchema implements Serializable {
-  private Class rawType;
-  private Map<String, Class> typeMapping = new HashMap<>();
+  public static final long serialVersionUID = 1L;
+
+  private final Class rawType;
+  private final Map<String, Class> typeMapping;
+  private final ProtoDomain domain;
 
   private transient Descriptors.Descriptor descriptor;
   private transient Schema schema;
   private transient Method fnNewBuilder;
   private transient ArrayList<ProtoRow.FieldOverlay> getters;
 
-  ProtoSchema(Class rawType, Descriptors.Descriptor descriptor, Map<String, Class> overlayClasses) {
+  ProtoSchema(
+      Class rawType,
+      Descriptors.Descriptor descriptor,
+      ProtoDomain domain,
+      Map<String, Class> overlayClasses) {
     this.rawType = rawType;
     this.descriptor = descriptor;
     this.typeMapping = overlayClasses;
+    this.domain = domain;
     init();
   }
 
@@ -197,13 +205,12 @@ public class ProtoSchema implements Serializable {
 
   private ArrayList<ProtoRow.FieldOverlay> createFieldLayer(Descriptors.Descriptor descriptor) {
     // Oneof fields are nullable, even as they are primitive or enums
-    List<Descriptors.FieldDescriptor> oneofMap = new ArrayList<>();
-    descriptor
-        .getOneofs()
-        .forEach(oneof -> oneof.getFields().forEach(field -> oneofMap.add(field)));
+    List<Descriptors.FieldDescriptor> oneofMap =
+        descriptor.getOneofs().stream()
+            .flatMap(oneofDescriptor -> oneofDescriptor.getFields().stream())
+            .collect(Collectors.toList());
 
     ArrayList<ProtoRow.FieldOverlay> fieldOverlays = new ArrayList<>();
-
     Iterator<Descriptors.FieldDescriptor> protoFields = descriptor.getFields().iterator();
     for (int i = 0; i < descriptor.getFields().size(); i++) {
       Descriptors.FieldDescriptor protoField = protoFields.next();
@@ -258,22 +265,27 @@ public class ProtoSchema implements Serializable {
       if (this.descriptor == null) {
         throw new RuntimeException("DynamicMessages require provider a Descriptor to the coder.");
       }
-      ProtoDescriptorSerializer.writeObject(oos, this.descriptor);
+      oos.writeUTF(descriptor.getFile().getName());
+      oos.writeUTF(descriptor.getName());
     }
   }
 
   private void readObject(ObjectInputStream ois) throws ClassNotFoundException, IOException {
     ois.defaultReadObject();
-    if (DynamicMessage.class.equals(this.rawType)) {
-      this.descriptor = ProtoDescriptorSerializer.readObject(ois);
+    if (DynamicMessage.class.equals(rawType)) {
+      descriptor = domain.getDescriptor(ois.readUTF(), ois.readUTF());
     } else {
-      this.descriptor = ProtobufUtil.getDescriptorForClass(this.rawType);
+      descriptor = ProtobufUtil.getDescriptorForClass(rawType);
     }
     init();
   }
 
   public Map<String, Class> getRegisteredTypeMapping() {
     return typeMapping;
+  }
+
+  public ProtoDomain getDomain() {
+    return domain;
   }
 
   private static class MessageToRowFunction implements SerializableFunction<Message, Row> {
