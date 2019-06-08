@@ -38,6 +38,7 @@ import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Count;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.POutput;
 import org.joda.time.Duration;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
@@ -71,8 +72,9 @@ public class DynamoDBIOTest implements Serializable {
   // Test cases for Reader.
   @Test
   public void testLimit10AndSplit1() {
-    // final PCollection<Map<String, AttributeValue>> actual =
-    pipeline.apply(
+
+    //PCollection<ScanRequest> output =
+        pipeline.apply(
         DynamoDBIO.read()
             .withScanRequestFn(v -> new ScanRequest(tableName).withTotalSegments(1))
             .withRowMapper(new DynamoDBIOTestHelper.RowMapperTest())

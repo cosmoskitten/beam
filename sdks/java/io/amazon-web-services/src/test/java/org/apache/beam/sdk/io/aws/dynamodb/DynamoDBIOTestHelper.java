@@ -174,11 +174,10 @@ class DynamoDBIOTestHelper implements Serializable {
   }
 
   // Client RowMapper for testing
-  static class RowMapperTest implements DynamoDBIO.RowMapper<Map<String, AttributeValue>> {
+  static class RowMapperTest implements DynamoDBIO.RowMapper<ScanResult> {
     @Override
-    public Map<String, AttributeValue> extract(ScanResult scanResult) {
-      // TODO: How to extract each item from ScanResult and return? (the Map represent for one item)
-      return null;
+    public ScanResult extract(ScanResult scanResult) {
+      return scanResult;
     }
   }
 }
