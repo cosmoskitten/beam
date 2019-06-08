@@ -22,6 +22,7 @@ This module implements IO class to read and write data on MongoDB.
 """
 from __future__ import absolute_import
 
+from apache_beam.testing.test_pipeline import TestPipeline
 from bson import objectid
 from pymongo import MongoClient
 from pymongo import ReplaceOne
@@ -51,18 +52,18 @@ class _BoundedMongoSource(iobase.BoundedSource):
     self._coll = coll
     self._filter = filter
     self._projection = projection
-    self._client = MongoClient(host=uri, **kwargs)
-    self._avg_size = self.client[self._db].command('collstats',
-                                                   self._coll)['avgObjSize']
-    self._count = self.client[self._db][self._coll].count_documents(
-        self._filter)
+    # self._client = MongoClient(host=uri, **kwargs)
+    # self._avg_size = self.client[self._db].command('collstats',
+    #                                                self._coll)['avgObjSize']
+    # self._count = self.client[self._db][self._coll].count_documents(
+    #     self._filter)
 
-  @property
-  def client(self):
-    return self._client
 
   def estimate_size(self):
-    return self._avg_size * self._count
+    with MongoClient(self._uri) as client:
+      avg_size = client[self._db].command('collstats', self._coll)['avgObjSize']
+      count = client[self._db][self._coll].count_documents(self._filter)
+      return avg_size * count
 
   def split(self, desired_bundle_size, start_position=None, stop_position=None):
     # use document index as the start and stop position
@@ -72,7 +73,8 @@ class _BoundedMongoSource(iobase.BoundedSource):
       stop_position = self._count
 
     # get an estimate on how many documents should be included in a split batch
-    desired_bundle_count = desired_bundle_size // self._avg_size
+    # desired_bundle_count = desired_bundle_size // self._avg_size
+    desired_bundle_count = desired_bundle_size // 10
 
     bundle_start = start_position
     while bundle_start < stop_position:
@@ -87,18 +89,20 @@ class _BoundedMongoSource(iobase.BoundedSource):
     if start_position is None:
       start_position = 0
     if stop_position is None:
-      stop_position = self._count
+      # stop_position = self._count
+      stop_position = 39
     return OffsetRangeTracker(start_position, stop_position)
 
   def read(self, range_tracker):
     print('trying to read')
     if range_tracker.try_claim(range_tracker.start_position()):
-      docs = self.client[self._db][self._coll].find(
-          filter=self._filter, projection=self._projection
-      )[range_tracker.start_position():range_tracker.stop_position()]
-      for doc in docs:
-        print(doc)
-        yield doc
+      with MongoClient(self._uri) as client:
+        docs = client[self._db][self._coll].find(
+            filter=self._filter, projection=self._projection
+        )[range_tracker.start_position():range_tracker.stop_position()]
+        for doc in docs:
+          print(doc)
+          yield doc
 
 
 class ReadFromMongoDB(PTransform):
@@ -122,7 +126,7 @@ class ReadFromMongoDB(PTransform):
 
 class WriteToMongoDB(PTransform):
   def __init__(self,
-               uri='mongodb://localhost:27071',
+               uri='mongodb://localhost:27017',
                db=None,
                coll=None,
                batch_size=1,
@@ -212,3 +216,14 @@ class _MongoSink(object):
 
   def close(self):
     self.client.close()
+
+
+if __name__ == '__main__':
+  pipeline = TestPipeline()
+
+
+  mongo_source = _BoundedMongoSource(uri='mongodb://localhost:27017', db='test', coll='testData')
+  pipeline | iobase.Read(mongo_source)
+  res = pipeline.run()
+  res.wait_until_finish()
+
