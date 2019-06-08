@@ -625,10 +625,11 @@ public class ProtoSchemaValuesTest {
   }
 
   private void setupForDynamicMessage() {
-    ProtoSchemaProvider protoSchemaProvider = new ProtoSchemaProvider();
+    ProtoSchemaProvider protoSchemaProvider =
+        new ProtoSchemaProvider(ProtoDomain.buildFrom(proto.getDescriptorForType()));
 
     String urn = "topic:fake";
-    protoSchemaProvider.add(urn, this.proto.getDescriptorForType());
+    protoSchemaProvider.add(urn, proto.getDescriptorForType());
 
     TypeDescriptor typeDescriptor = TypeDescriptor.of(DynamicMessage.class);
 
