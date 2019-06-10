@@ -36,7 +36,8 @@ import org.apache.hadoop.hive.metastore.api.NoSuchObjectException;
  * <p>Loads a table schema from Hive Metastore specified in properties map, similar to {@link
  * HCatalogIO}.
  *
- * <p>One of the use cases is to perform the schema conversion without leaking any HCatalog types.
+ * <p>PartitionSplitterFn of the use cases is to perform the schema conversion without leaking any
+ * HCatalog types.
  */
 @Experimental
 public class HCatalogBeamSchema {
