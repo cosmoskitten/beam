@@ -36,6 +36,8 @@ import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Lists;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * A base class for {@link BoundedSource} implementations which read from BigQuery using the
@@ -43,6 +45,9 @@ import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Lists;
  */
 @Experimental(Experimental.Kind.SOURCE_SINK)
 abstract class BigQueryStorageSourceBase<T> extends BoundedSource<T> {
+
+  private static final Logger LOGGER = LoggerFactory.getLogger(BigQueryStorageSourceBase.class);
+
 
   /**
    * The maximum number of streams which will be requested when creating a read session, regardless
@@ -114,7 +119,10 @@ abstract class BigQueryStorageSourceBase<T> extends BoundedSource<T> {
 
     ReadSession readSession;
     try (StorageClient client = bqServices.getStorageClient(bqOptions)) {
-      readSession = client.createReadSession(requestBuilder.build());
+      CreateReadSessionRequest request = requestBuilder.build();
+      readSession = client.createReadSession(request);
+      LOGGER.info("Sent CreateReadSession request '{}'; received response '{}'.", request,
+          readSession);
     }
 
     if (readSession.getStreamsList().isEmpty()) {

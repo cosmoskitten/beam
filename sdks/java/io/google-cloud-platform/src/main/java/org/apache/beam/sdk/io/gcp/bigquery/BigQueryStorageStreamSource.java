@@ -52,12 +52,16 @@ import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableList;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * A {@link org.apache.beam.sdk.io.Source} representing a single stream in a read session.
  */
 @Experimental(Experimental.Kind.SOURCE_SINK)
 public class BigQueryStorageStreamSource<T> extends BoundedSource<T> {
+
+  private static final Logger LOGGER = LoggerFactory.getLogger(BigQueryStorageStreamSource.class);
 
   public static <T> BigQueryStorageStreamSource<T> create(
       ReadSession readSession,
@@ -76,10 +80,10 @@ public class BigQueryStorageStreamSource<T> extends BoundedSource<T> {
   }
 
   /**
-   * Creates a new source with the same properties as this one, except with a different
-   * {@link Stream}.
+   * Creates a new source with the same properties as this one, except with a different {@link
+   * Stream}.
    */
-  public <T> BigQueryStorageStreamSource<T> fromExisting(Stream newStream) {
+  public BigQueryStorageStreamSource<T> fromExisting(Stream newStream) {
     return new BigQueryStorageStreamSource(
         readSession,
         newStream,
@@ -187,6 +191,7 @@ public class BigQueryStorageStreamSource<T> extends BoundedSource<T> {
               .build();
 
       responseIterator = storageClient.readRows(request).iterator();
+      LOGGER.info("Started read from stream '{}'.", source.stream.getName());
       return readNextRecord();
     }
 
@@ -232,6 +237,9 @@ public class BigQueryStorageStreamSource<T> extends BoundedSource<T> {
 
     @Override
     public BoundedSource<T> splitAtFraction(double fraction) {
+      LOGGER.info("Received split request for stream '{}' at fraction {}.", source.stream.getName(),
+          fraction);
+
       SplitReadStreamRequest splitRequest = SplitReadStreamRequest.newBuilder()
           .setOriginalStream(source.stream)
           // TODO(aryann): Once we rebuild the generated client code, we should change this to
@@ -244,6 +252,7 @@ public class BigQueryStorageStreamSource<T> extends BoundedSource<T> {
 
       if (!splitResponse.hasPrimaryStream() || !splitResponse.hasRemainderStream()) {
         // No more splits are possible!
+        LOGGER.info("Stream '{}' cannot be split at {}.", source.stream.getName(), fraction);
         return null;
       }
 
@@ -253,12 +262,16 @@ public class BigQueryStorageStreamSource<T> extends BoundedSource<T> {
       synchronized (this) {
         Iterable<ReadRowsResponse> readResponse;
         try {
-           readResponse = storageClient.readRows(ReadRowsRequest.newBuilder().setReadPosition(
+          readResponse = storageClient.readRows(ReadRowsRequest.newBuilder().setReadPosition(
               StreamPosition.newBuilder().setStream(splitResponse.getPrimaryStream())
                   .setOffset(currentOffset).build()).build());
         } catch (FailedPreconditionException e) {
           // The current source has already moved past the split point, so this split attempt
           // is unsuccessful.
+          LOGGER.info(
+              "Split of stream '{}' abandoned because the primary stream is to the left of " +
+                  "the split fraction {}.",
+              source.stream.getName(), fraction);
           return null;
         } catch (Exception e) {
           throw e;
@@ -268,6 +281,7 @@ public class BigQueryStorageStreamSource<T> extends BoundedSource<T> {
         responseIterator = readResponse.iterator();
       }
 
+      LOGGER.info("Successfully split stream. Split response: {}", splitResponse);
       return source.fromExisting(splitResponse.getRemainderStream());
     }
   }
