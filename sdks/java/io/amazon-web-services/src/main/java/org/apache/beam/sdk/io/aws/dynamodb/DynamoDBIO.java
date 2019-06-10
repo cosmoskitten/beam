@@ -103,8 +103,12 @@ import org.slf4j.LoggerFactory;
  */
 @Experimental(Experimental.Kind.SOURCE_SINK)
 public final class DynamoDBIO {
-  public static Read read() {
+  public static <T> Read<T> read() {
     return new AutoValue_DynamoDBIO_Read.Builder().build();
+  }
+
+  public static <ParameterT, OutputT> ReadAll<ParameterT, OutputT> readAll() {
+    return new AutoValue_DynamoDBIO_ReadAll.Builder<ParameterT, OutputT>().build();
   }
 
   public static Write write() {
@@ -181,56 +185,116 @@ public final class DynamoDBIO {
           (getScanRequestFn().apply(null).getTotalSegments() != null
               && getScanRequestFn().apply(null).getTotalSegments() > 0),
           "TotalSegments is required with withScanRequestFn() and greater zero");
-
-      return input.apply(Create.of((Void) null)).apply(ParDo.of(new ReadFn<>(this))).setCoder(getCoder());
-      // return input.apply(Create.of((Void) null)).apply(DynamoDBIO.<Void, T>readAll());
+      /*return input
+      .apply(Create.of((Void) null))
+      .apply(ParDo.of(new ReadFn<>(this)))
+      .setCoder(getCoder());*/
+      return input
+          .apply(Create.of((Void) null))
+          .apply(
+              DynamoDBIO.<Void, T>readAll()
+                  .withAwsClientsProvider(getAwsClientsProvider())
+                  .withScanRequestFn(getScanRequestFn())
+                  .withRowMapper(getRowMapper())
+                  .withCoder(getCoder()));
     }
   }
 
-  /*public static <Void, OutputT> ReadAll<Void, OutputT> readAll() {
-    return new AutoValue_DynamoDBIO_ReadAll.Builder<Void, OutputT>().build();
-  }
-
+  /** Will doc it later. */
   @AutoValue
-  public abstract static class ReadAll<Void, OutputT>
-      extends PTransform<PCollection<Void>, PCollection<OutputT>> {
+  public abstract static class ReadAll<ParameterT, OutputT>
+      extends PTransform<PCollection<ParameterT>, PCollection<OutputT>> {
 
-    private final DynamoDBIO.Read<OutputT> reader;
+    @Nullable
+    abstract AwsClientsProvider getAwsClientsProvider();
 
-    public ReadAll(Read reader) {
-      this.reader = reader;
+    @Nullable
+    abstract SerializableFunction<Void, ScanRequest> getScanRequestFn();
+
+    @Nullable
+    abstract RowMapper<OutputT> getRowMapper();
+
+    @Nullable
+    abstract Coder<OutputT> getCoder();
+
+    abstract Builder<ParameterT, OutputT> toBuilder();
+
+    @AutoValue.Builder
+    abstract static class Builder<ParameterT, OutputT> {
+      abstract Builder<ParameterT, OutputT> setAwsClientsProvider(
+          AwsClientsProvider awsClientsProvider);
+
+      abstract Builder<ParameterT, OutputT> setScanRequestFn(
+          SerializableFunction<Void, ScanRequest> fn);
+
+      abstract Builder<ParameterT, OutputT> setRowMapper(RowMapper<OutputT> rowMapper);
+
+      abstract Builder<ParameterT, OutputT> setCoder(Coder<OutputT> coder);
+
+      abstract ReadAll<ParameterT, OutputT> build();
+    }
+
+    public ReadAll<ParameterT, OutputT> withAwsClientsProvider(
+        AwsClientsProvider awsClientsProvider) {
+      return toBuilder().setAwsClientsProvider(awsClientsProvider).build();
+    }
+
+    public ReadAll<ParameterT, OutputT> withScanRequestFn(
+        SerializableFunction<Void, ScanRequest> fn) {
+      return toBuilder().setScanRequestFn(fn).build();
+    }
+
+    public ReadAll<ParameterT, OutputT> withRowMapper(RowMapper<OutputT> rowMapper) {
+      checkArgument(rowMapper != null, "withRowMapper() can't be null");
+      return toBuilder().setRowMapper(rowMapper).build();
+    }
+
+    public ReadAll<ParameterT, OutputT> withCoder(Coder<OutputT> coder) {
+      checkArgument(coder != null, "withCoder(coder) can't be null");
+      return toBuilder().setCoder(coder).build();
     }
 
     @Override
-    public PCollection<OutputT> expand(PCollection<Void> input) {
-      // PCollection<OutputT> output =
-      // input.apply(ParDo.of(new ReadFn<>(reader)));
+    public PCollection<OutputT> expand(PCollection<ParameterT> input) {
+      PCollection<OutputT> output =
+          input
+              .apply(
+                  ParDo.of(
+                      new ReadFn<>(getAwsClientsProvider(), getScanRequestFn(), getRowMapper())))
+              .setCoder(getCoder());
 
-      return null;
+      return output;
     }
-  }*/
+  }
 
   /** A {@link DoFn} executing the ScanRequest to read from DynamoDB. */
-  private static class ReadFn<OutputT> extends DoFn<Void, OutputT> {
+  private static class ReadFn<ParameterT, OutputT> extends DoFn<ParameterT, OutputT> {
 
-    private final DynamoDBIO.Read<OutputT> reader;
+    private final AwsClientsProvider clientsProvider;
+    private final SerializableFunction<Void, ScanRequest> scanRequestFn;
+    private final RowMapper<OutputT> rowMapper;
 
     private AmazonDynamoDB client;
 
-    private ReadFn(DynamoDBIO.Read<OutputT> reader) {
-      this.reader = reader;
+    private ReadFn(
+        AwsClientsProvider clientsProvider,
+        SerializableFunction<Void, ScanRequest> scanRequestFn,
+        RowMapper<OutputT> rowMapper) {
+      this.clientsProvider = clientsProvider;
+      this.scanRequestFn = scanRequestFn;
+      this.rowMapper = rowMapper;
     }
 
     @Setup
     public void setup() {
-      client = reader.getAwsClientsProvider().createDynamoDB();
+      client = clientsProvider.createDynamoDB();
     }
 
     @ProcessElement
     public void processElement(ProcessContext context) throws Exception {
-      ScanRequest scanRequest = (ScanRequest) read().getScanRequestFn().apply(null);
+      ScanRequest scanRequest = scanRequestFn.apply(null);
       ScanResult scanResult = client.scan(scanRequest);
-      context.output(reader.getRowMapper().extract(scanResult));
+      context.output(rowMapper.extract(scanResult));
     }
 
     @Teardown

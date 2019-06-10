@@ -26,19 +26,20 @@ import com.amazonaws.services.dynamodbv2.model.AttributeValue;
 import com.amazonaws.services.dynamodbv2.model.BatchWriteItemRequest;
 import com.amazonaws.services.dynamodbv2.model.BatchWriteItemResult;
 import com.amazonaws.services.dynamodbv2.model.ScanRequest;
+import com.amazonaws.services.dynamodbv2.model.ScanResult;
 import java.io.Serializable;
 import java.util.List;
 import java.util.Map;
 import org.apache.beam.sdk.Pipeline;
-import org.apache.beam.sdk.coders.MapCoder;
-import org.apache.beam.sdk.coders.StringUtf8Coder;
+import org.apache.beam.sdk.coders.SerializableCoder;
 import org.apache.beam.sdk.testing.ExpectedLogs;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Count;
 import org.apache.beam.sdk.transforms.Create;
+import org.apache.beam.sdk.transforms.MapElements;
+import org.apache.beam.sdk.transforms.SimpleFunction;
 import org.apache.beam.sdk.values.PCollection;
-import org.apache.beam.sdk.values.POutput;
 import org.joda.time.Duration;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
@@ -73,16 +74,22 @@ public class DynamoDBIOTest implements Serializable {
   @Test
   public void testLimit10AndSplit1() {
 
-    //PCollection<ScanRequest> output =
+    PCollection<List<Map<String, AttributeValue>>> actual =
         pipeline.apply(
-        DynamoDBIO.read()
-            .withScanRequestFn(v -> new ScanRequest(tableName).withTotalSegments(1))
-            .withRowMapper(new DynamoDBIOTestHelper.RowMapperTest())
-            .withCoder(MapCoder.of(StringUtf8Coder.of(), AttributeValueCoder.of()))
-            .withAwsClientsProvider(
-                AwsClientsProviderMock.of(DynamoDBIOTestHelper.getDynamoDBClient())));
-    // TODO: How to do the assertion for PCollection<Map<String, AttributeValue> or PCollection<ScanResult>, which returns from RowMapperTest
-    // PAssert.that(actual).containsInAnyOrder(expected);
+            DynamoDBIO.<ScanResult>read()
+                .withScanRequestFn(v -> new ScanRequest(tableName).withTotalSegments(1))
+                .withRowMapper(new DynamoDBIOTestHelper.RowMapperTest())
+                .withCoder(SerializableCoder.of(ScanResult.class))
+                .withAwsClientsProvider(
+                    AwsClientsProviderMock.of(DynamoDBIOTestHelper.getDynamoDBClient())))
+            .apply(MapElements.via(new SimpleFunction<ScanResult, List<Map<String, AttributeValue>>>() {
+              @Override
+              public List<Map<String, AttributeValue>> apply(ScanResult scanResult) {
+                return scanResult.getItems();
+              }
+            }));
+
+    PAssert.that(actual).containsInAnyOrder(expected);
     pipeline.run().waitUntilFinish();
   }
 
