@@ -1,6 +1,6 @@
-import mock
-
 from unittest import TestCase
+
+import mock
 
 
 class Test_BoundedMongoSource(TestCase):
@@ -21,6 +21,6 @@ class Test_BoundedMongoSource(TestCase):
 
 
 class TestReadFromMongoDB(TestCase):
-  @mock.patch('apache_beam.')
+  @mock.patch('apache_beam')
   def test_expand(self):
     self.fail()
