@@ -1,4 +1,3 @@
-<<<<<<< HEAD
 #
 # Licensed to the Apache Software Foundation (ASF) under one or more
 # contributor license agreements.  See the NOTICE file distributed with
@@ -26,14 +25,6 @@ import subprocess as sp
 def parse_example(argv=None):
   """Parse the command line arguments and return it as a string function call.
 
-=======
-import argparse
-import subprocess as sp
-
-
-def parse_example():
-  """Parse the command line arguments and return it as a string function call.
->>>>>>> Add common code infrastructure for element-wise snippets
   Examples:
     python path/to/snippets.py function_name
     python path/to/snippets.py function_name arg1
@@ -43,15 +34,9 @@ def parse_example():
   parser.add_argument('example', help='Name of the example to run.')
   parser.add_argument('args', nargs=argparse.REMAINDER,
                       help='Arguments for example.')
-<<<<<<< HEAD
   args = parser.parse_args(argv)
 
   # Return the example as a string representing the Python function call.
-=======
-  args = parser.parse_args()
-
-  # Return the example as a function call.
->>>>>>> Add common code infrastructure for element-wise snippets
   example_args = ', '.join([repr(arg) for arg in args.args])
   return '{}({})'.format(args.example, example_args)
 
@@ -61,7 +46,6 @@ def run_shell_commands(commands, **kwargs):
 
   Lines starting with `#` are ignored as comments.
   Lines starting with `!` are run as commands.
-<<<<<<< HEAD
   Variables like `{variable}` are substituted with **kwargs.
   """
   for cmd in commands:
@@ -70,13 +54,3 @@ def run_shell_commands(commands, **kwargs):
     if sp_cmd:
       sp.call(sp_cmd)
       yield sp_cmd
-=======
-  Variables surrounded by `{variable}` are substituted with **kwargs.
-  """
-  for cmd in commands:
-    cmd = cmd.strip().lstrip('!')
-    if not cmd or cmd.startswith('#'):
-      continue
-    cmd = cmd.format(**kwargs)
-    sp.call(cmd.split())
->>>>>>> Add common code infrastructure for element-wise snippets
