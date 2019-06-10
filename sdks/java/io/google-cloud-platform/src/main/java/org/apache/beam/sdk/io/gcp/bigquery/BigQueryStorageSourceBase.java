@@ -24,6 +24,7 @@ import com.google.cloud.bigquery.storage.v1beta1.ReadOptions.TableReadOptions;
 import com.google.cloud.bigquery.storage.v1beta1.Storage.CreateReadSessionRequest;
 import com.google.cloud.bigquery.storage.v1beta1.Storage.ReadSession;
 import com.google.cloud.bigquery.storage.v1beta1.Storage.Stream;
+import com.google.protobuf.UnknownFieldSet;
 import java.io.IOException;
 import java.util.List;
 import javax.annotation.Nullable;
@@ -100,7 +101,12 @@ abstract class BigQueryStorageSourceBase<T> extends BoundedSource<T> {
         CreateReadSessionRequest.newBuilder()
             .setParent("projects/" + bqOptions.getProject())
             .setTableReference(BigQueryHelpers.toTableRefProto(targetTable.getTableReference()))
-            .setRequestedStreams(streamCount);
+            .setRequestedStreams(streamCount)
+            // TODO(aryann): Once we rebuild the generated client code, we should change this to
+            // use setShardingStrategy().
+            .setUnknownFields(UnknownFieldSet.newBuilder().addField(7,
+                UnknownFieldSet.Field.newBuilder()
+                    .addVarint(2).build()).build());
 
     if (tableReadOptions != null) {
       requestBuilder.setReadOptions(tableReadOptions);
