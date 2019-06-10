@@ -21,19 +21,20 @@ import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Precondi
 
 import com.amazonaws.services.dynamodbv2.AmazonDynamoDB;
 import com.amazonaws.services.dynamodbv2.model.AmazonDynamoDBException;
-import com.amazonaws.services.dynamodbv2.model.AttributeValue;
 import com.amazonaws.services.dynamodbv2.model.BatchWriteItemRequest;
 import com.amazonaws.services.dynamodbv2.model.BatchWriteItemResult;
 import com.amazonaws.services.dynamodbv2.model.ScanRequest;
+import com.amazonaws.services.dynamodbv2.model.ScanResult;
 import com.google.auto.value.AutoValue;
 import java.io.IOException;
 import java.io.Serializable;
-import java.util.Map;
 import java.util.function.Predicate;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Experimental;
+import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.metrics.Counter;
 import org.apache.beam.sdk.metrics.Metrics;
+import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
@@ -102,37 +103,59 @@ import org.slf4j.LoggerFactory;
  */
 @Experimental(Experimental.Kind.SOURCE_SINK)
 public final class DynamoDBIO {
-  public static Read read() {
+  public static <T> Read<T> read() {
     return new AutoValue_DynamoDBIO_Read.Builder().build();
+  }
+
+  public static <ParameterT, OutputT> ReadAll<ParameterT, OutputT> readAll() {
+    return new AutoValue_DynamoDBIO_ReadAll.Builder<ParameterT, OutputT>().build();
   }
 
   public static Write write() {
     return new AutoValue_DynamoDBIO_Write.Builder().build();
   }
 
+  /**
+   * An interface used by {@link DynamoDBIO.Read} for converting each row of the {@link ScanResult}
+   * into an element of the resulting {@link PCollection}.
+   */
+  @FunctionalInterface
+  public interface RowMapper<T> extends Serializable {
+    T extract(ScanResult scanResult) throws Exception;
+  }
+
   /** Read data from DynamoDB and return PCollection<Map<String, AttributeValue>>. */
   @AutoValue
-  public abstract static class Read
-      extends PTransform<PBegin, PCollection<Map<String, AttributeValue>>> {
+  public abstract static class Read<T> extends PTransform<PBegin, PCollection<T>> {
     @Nullable
     abstract AwsClientsProvider getAwsClientsProvider();
 
     @Nullable
     abstract SerializableFunction<Void, ScanRequest> getScanRequestFn();
 
-    abstract Builder toBuilder();
+    @Nullable
+    abstract RowMapper<T> getRowMapper();
+
+    @Nullable
+    abstract Coder<T> getCoder();
+
+    abstract Builder<T> toBuilder();
 
     @AutoValue.Builder
-    abstract static class Builder {
+    abstract static class Builder<T> {
 
-      abstract Builder setAwsClientsProvider(AwsClientsProvider awsClientsProvider);
+      abstract Builder<T> setAwsClientsProvider(AwsClientsProvider awsClientsProvider);
 
-      abstract Builder setScanRequestFn(SerializableFunction<Void, ScanRequest> fn);
+      abstract Builder<T> setScanRequestFn(SerializableFunction<Void, ScanRequest> fn);
 
-      abstract Read build();
+      abstract Builder<T> setRowMapper(RowMapper<T> rowMapper);
+
+      abstract Builder<T> setCoder(Coder<T> coder);
+
+      abstract Read<T> build();
     }
 
-    public Read withAwsClientsProvider(AwsClientsProvider awsClientsProvider) {
+    public Read<T> withAwsClientsProvider(AwsClientsProvider awsClientsProvider) {
       return toBuilder().setAwsClientsProvider(awsClientsProvider).build();
     }
 
@@ -140,12 +163,22 @@ public final class DynamoDBIO {
      * Can't pass ScanRequest object directly from client since this object is not full
      * serializable.
      */
-    public Read withScanRequestFn(SerializableFunction<Void, ScanRequest> fn) {
+    public Read<T> withScanRequestFn(SerializableFunction<Void, ScanRequest> fn) {
       return toBuilder().setScanRequestFn(fn).build();
     }
 
+    public Read<T> withRowMapper(RowMapper<T> rowMapper) {
+      checkArgument(rowMapper != null, "rowMapper can not be null");
+      return toBuilder().setRowMapper(rowMapper).build();
+    }
+
+    public Read<T> withCoder(Coder<T> coder) {
+      checkArgument(coder != null, "coder can not be null");
+      return toBuilder().setCoder(coder).build();
+    }
+
     @Override
-    public PCollection<Map<String, AttributeValue>> expand(PBegin input) {
+    public PCollection<T> expand(PBegin input) {
       checkArgument((getScanRequestFn() != null), "withScanRequestFn() is required");
       checkArgument((getAwsClientsProvider() != null), "withAwsClientsProvider() is required");
       checkArgument(
@@ -153,7 +186,120 @@ public final class DynamoDBIO {
               && getScanRequestFn().apply(null).getTotalSegments() > 0),
           "TotalSegments is required with withScanRequestFn() and greater zero");
 
-      return input.apply(org.apache.beam.sdk.io.Read.from(new DynamoDBBoundedSource(this, 0)));
+      return input
+          .apply(Create.of((Void) null))
+          .apply(
+              DynamoDBIO.<Void, T>readAll()
+                  .withAwsClientsProvider(getAwsClientsProvider())
+                  .withScanRequestFn(getScanRequestFn())
+                  .withRowMapper(getRowMapper())
+                  .withCoder(getCoder()));
+    }
+  }
+
+  /** Will doc it later. */
+  @AutoValue
+  public abstract static class ReadAll<ParameterT, OutputT>
+      extends PTransform<PCollection<ParameterT>, PCollection<OutputT>> {
+
+    @Nullable
+    abstract AwsClientsProvider getAwsClientsProvider();
+
+    @Nullable
+    abstract SerializableFunction<Void, ScanRequest> getScanRequestFn();
+
+    @Nullable
+    abstract RowMapper<OutputT> getRowMapper();
+
+    @Nullable
+    abstract Coder<OutputT> getCoder();
+
+    abstract Builder<ParameterT, OutputT> toBuilder();
+
+    @AutoValue.Builder
+    abstract static class Builder<ParameterT, OutputT> {
+      abstract Builder<ParameterT, OutputT> setAwsClientsProvider(
+          AwsClientsProvider awsClientsProvider);
+
+      abstract Builder<ParameterT, OutputT> setScanRequestFn(
+          SerializableFunction<Void, ScanRequest> fn);
+
+      abstract Builder<ParameterT, OutputT> setRowMapper(RowMapper<OutputT> rowMapper);
+
+      abstract Builder<ParameterT, OutputT> setCoder(Coder<OutputT> coder);
+
+      abstract ReadAll<ParameterT, OutputT> build();
+    }
+
+    public ReadAll<ParameterT, OutputT> withAwsClientsProvider(
+        AwsClientsProvider awsClientsProvider) {
+      return toBuilder().setAwsClientsProvider(awsClientsProvider).build();
+    }
+
+    public ReadAll<ParameterT, OutputT> withScanRequestFn(
+        SerializableFunction<Void, ScanRequest> fn) {
+      return toBuilder().setScanRequestFn(fn).build();
+    }
+
+    public ReadAll<ParameterT, OutputT> withRowMapper(RowMapper<OutputT> rowMapper) {
+      checkArgument(rowMapper != null, "withRowMapper() can't be null");
+      return toBuilder().setRowMapper(rowMapper).build();
+    }
+
+    public ReadAll<ParameterT, OutputT> withCoder(Coder<OutputT> coder) {
+      checkArgument(coder != null, "withCoder(coder) can't be null");
+      return toBuilder().setCoder(coder).build();
+    }
+
+    @Override
+    public PCollection<OutputT> expand(PCollection<ParameterT> input) {
+      PCollection<OutputT> output =
+          input
+              .apply(
+                  ParDo.of(
+                      new ReadFn<>(getAwsClientsProvider(), getScanRequestFn(), getRowMapper())))
+              .setCoder(getCoder());
+
+      return output;
+    }
+  }
+
+  /** A {@link DoFn} executing the ScanRequest to read from DynamoDB. */
+  private static class ReadFn<ParameterT, OutputT> extends DoFn<ParameterT, OutputT> {
+
+    private final AwsClientsProvider clientsProvider;
+    private final SerializableFunction<Void, ScanRequest> scanRequestFn;
+    private final RowMapper<OutputT> rowMapper;
+
+    private AmazonDynamoDB client;
+
+    private ReadFn(
+        AwsClientsProvider clientsProvider,
+        SerializableFunction<Void, ScanRequest> scanRequestFn,
+        RowMapper<OutputT> rowMapper) {
+      this.clientsProvider = clientsProvider;
+      this.scanRequestFn = scanRequestFn;
+      this.rowMapper = rowMapper;
+    }
+
+    @Setup
+    public void setup() {
+      client = clientsProvider.createDynamoDB();
+    }
+
+    @ProcessElement
+    public void processElement(ProcessContext context) throws Exception {
+      ScanRequest scanRequest = scanRequestFn.apply(null);
+      ScanResult scanResult = client.scan(scanRequest);
+      context.output(rowMapper.extract(scanResult));
+    }
+
+    @Teardown
+    public void teardown() {
+      if (client != null) {
+        client.shutdown();
+        client = null;
+      }
     }
   }
 
@@ -324,8 +470,8 @@ public final class DynamoDBIO {
         while (true) {
           attempt++;
           try {
-            BatchWriteItemResult batchWriteItemResult = client.batchWriteItem(writeRequest);
-            context.output(batchWriteItemResult);
+            BatchWriteItemResult result = client.batchWriteItem(writeRequest);
+            context.output(result);
             break;
           } catch (Exception ex) {
             // Fail right away if there is no retry configuration

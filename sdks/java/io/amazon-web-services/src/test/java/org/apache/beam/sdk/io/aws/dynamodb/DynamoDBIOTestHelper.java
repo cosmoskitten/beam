@@ -172,4 +172,12 @@ class DynamoDBIOTestHelper implements Serializable {
 
     return dynamoDBClient.createTable(request);
   }
+
+  // Client RowMapper for testing
+  static class RowMapperTest implements DynamoDBIO.RowMapper<ScanResult> {
+    @Override
+    public ScanResult extract(ScanResult scanResult) {
+      return scanResult;
+    }
+  }
 }
