@@ -118,6 +118,7 @@ import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.extensions.gcp.util.Transport;
 import org.apache.beam.sdk.fn.IdGenerator;
 import org.apache.beam.sdk.fn.IdGenerators;
+import org.apache.beam.sdk.fn.JvmInitializers;
 import org.apache.beam.sdk.io.FileSystems;
 import org.apache.beam.sdk.util.BackOff;
 import org.apache.beam.sdk.util.BackOffUtils;
@@ -126,6 +127,7 @@ import org.apache.beam.sdk.util.Sleeper;
 import org.apache.beam.sdk.util.UserCodeException;
 import org.apache.beam.sdk.util.WindowedValue.WindowedValueCoder;
 import org.apache.beam.vendor.grpc.v1p13p1.com.google.protobuf.ByteString;
+import org.apache.beam.vendor.grpc.v1p13p1.com.google.protobuf.TextFormat;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Optional;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions;
@@ -241,6 +243,8 @@ public class StreamingDataflowWorker {
   }
 
   public static void main(String[] args) throws Exception {
+    JvmInitializers.runOnStartup();
+
     DataflowWorkerHarnessHelper.initializeLogging(StreamingDataflowWorker.class);
     DataflowWorkerHarnessOptions options =
         DataflowWorkerHarnessHelper.initializeGlobalStateAndPipelineOptions(
@@ -261,6 +265,7 @@ public class StreamingDataflowWorker {
     StreamingDataflowWorker worker =
         StreamingDataflowWorker.fromDataflowWorkerHarnessOptions(options, sdkHarnessRegistry);
 
+    JvmInitializers.runBeforeProcessing(options);
     worker.startStatusPages();
     worker.start();
   }
@@ -698,15 +703,12 @@ public class StreamingDataflowWorker {
     LOG.debug("maxWorkItemCommitBytes: {}", maxWorkItemCommitBytes);
   }
 
-  private Node createPortNode(String predecessorId, String successorId) {
+  private Node createPortNode() {
     return RemoteGrpcPortNode.create(
         RemoteGrpcPort.newBuilder()
             .setApiServiceDescriptor(sdkHarnessRegistry.beamFnDataApiServiceDescriptor())
             .build(),
-        idGenerator.getId(),
-        idGenerator.getId(),
-        predecessorId,
-        successorId);
+        idGenerator.getId());
   }
 
   private int chooseMaximumNumberOfThreads() {
@@ -1123,7 +1125,7 @@ public class StreamingDataflowWorker {
     final ByteString key = workItem.getKey();
     work.setState(State.PROCESSING);
     DataflowWorkerLoggingMDC.setWorkId(
-        key.toStringUtf8() + "-" + Long.toString(workItem.getWorkToken()));
+        TextFormat.escapeBytes(key) + "-" + Long.toString(workItem.getWorkToken()));
     DataflowWorkerLoggingMDC.setStageName(computationId);
     LOG.debug("Starting processing for {}:\n{}", computationId, work);
 
@@ -1459,7 +1461,9 @@ public class StreamingDataflowWorker {
     Commit commit = null;
     while (running.get()) {
       // Batch commits as long as there are more and we can fit them in the current request.
-      CommitWorkStream commitStream = streamPool.getStream();
+      // We lazily initialize the commit stream to make sure that we only create one after
+      // we have a commit.
+      CommitWorkStream commitStream = null;
       int commits = 0;
       while (running.get()) {
         // There may be a commit left over from the previous iteration but if not, pull one.
@@ -1487,6 +1491,9 @@ public class StreamingDataflowWorker {
         final Windmill.WorkItemCommitRequest request = commit.getRequest();
         final int size = commit.getSize();
         commit.getWork().setState(State.COMMITTING);
+        if (commitStream == null) {
+          commitStream = streamPool.getStream();
+        }
         if (commitStream.commitWorkItem(
             state.computationId,
             request,
@@ -1508,8 +1515,10 @@ public class StreamingDataflowWorker {
           break;
         }
       }
-      commitStream.flush();
-      streamPool.releaseStream(commitStream);
+      if (commitStream != null) {
+        commitStream.flush();
+        streamPool.releaseStream(commitStream);
+      }
     }
   }
 

@@ -22,6 +22,9 @@ aljoscha:
 altay:
     name: Ahmet Altay
     email: altay@apache.org
+angoenka:
+    name: Ankur Goenka
+    email: goenka@apache.org
 ccy:
     name: Charles Chen
     email: ccy@apache.org
@@ -40,6 +43,14 @@ fjp:
     name: Frances Perry
     email: frances@apache.org
     twitter: francesjperry
+harshithdwivedi:
+    name: Harshit Dwivedi
+    email: harshithdwivedi@gmail.com
+    twitter: harshithdwivedi
+henryken:
+    name: Henry Suryawirawan
+    email: henry.ken@gmail.com
+    twitter: henry_ken
 iemejia:
     name: Ismaël Mejía
     email: iemejia@apache.org

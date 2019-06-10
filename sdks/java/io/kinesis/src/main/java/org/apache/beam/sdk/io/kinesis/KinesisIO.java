@@ -23,7 +23,6 @@ import com.amazonaws.regions.Regions;
 import com.amazonaws.services.cloudwatch.AmazonCloudWatch;
 import com.amazonaws.services.kinesis.AmazonKinesis;
 import com.amazonaws.services.kinesis.clientlibrary.lib.worker.InitialPositionInStream;
-import com.amazonaws.services.kinesis.model.DescribeStreamResult;
 import com.amazonaws.services.kinesis.producer.Attempt;
 import com.amazonaws.services.kinesis.producer.IKinesisProducer;
 import com.amazonaws.services.kinesis.producer.KinesisProducerConfiguration;
@@ -125,6 +124,52 @@ import org.slf4j.LoggerFactory;
  *  .apply( ... ) // other transformations
  * }</pre>
  *
+ * <p>Kinesis IO uses ArrivalTimeWatermarkPolicy by default. To use Processing time as event time:
+ *
+ * <pre>{@code
+ * p.apply(KinesisIO.read()
+ *    .withStreamName("streamName")
+ *    .withInitialPositionInStream(InitialPositionInStream.LATEST)
+ *    .withProcessingTimeWatermarkPolicy())
+ * }</pre>
+ *
+ * <p>It is also possible to specify a custom watermark policy to control watermark computation.
+ * Below is an example
+ *
+ * <pre>{@code
+ * // custom policy
+ * class MyCustomPolicy implements WatermarkPolicy {
+ *     private WatermarkPolicyFactory.CustomWatermarkPolicy customWatermarkPolicy;
+ *
+ *     MyCustomPolicy() {
+ *       this.customWatermarkPolicy = new WatermarkPolicyFactory.CustomWatermarkPolicy(WatermarkParameters.create());
+ *     }
+ *
+ *     @Override
+ *     public Instant getWatermark() {
+ *       return customWatermarkPolicy.getWatermark();
+ *     }
+ *
+ *     @Override
+ *     public void update(KinesisRecord record) {
+ *       customWatermarkPolicy.update(record);
+ *     }
+ *   }
+ *
+ * // custom factory
+ * class MyCustomPolicyFactory implements WatermarkPolicyFactory {
+ *     @Override
+ *     public WatermarkPolicy createWatermarkPolicy() {
+ *       return new MyCustomPolicy();
+ *     }
+ * }
+ *
+ * p.apply(KinesisIO.read()
+ *    .withStreamName("streamName")
+ *    .withInitialPositionInStream(InitialPositionInStream.LATEST)
+ *    .withCustomWatermarkPolicy(new MyCustomPolicyFactory())
+ * }</pre>
+ *
  * <h3>Writing to Kinesis</h3>
  *
  * <p>Example usage:
@@ -190,6 +235,7 @@ public final class KinesisIO {
     return new AutoValue_KinesisIO_Read.Builder()
         .setMaxNumRecords(Long.MAX_VALUE)
         .setUpToDateThreshold(Duration.ZERO)
+        .setWatermarkPolicyFactory(WatermarkPolicyFactory.withArrivalTimePolicy())
         .build();
   }
 
@@ -221,6 +267,8 @@ public final class KinesisIO {
     @Nullable
     abstract Integer getRequestRecordsLimit();
 
+    abstract WatermarkPolicyFactory getWatermarkPolicyFactory();
+
     abstract Builder toBuilder();
 
     @AutoValue.Builder
@@ -239,6 +287,8 @@ public final class KinesisIO {
       abstract Builder setUpToDateThreshold(Duration upToDateThreshold);
 
       abstract Builder setRequestRecordsLimit(Integer limit);
+
+      abstract Builder setWatermarkPolicyFactory(WatermarkPolicyFactory watermarkPolicyFactory);
 
       abstract Read build();
     }
@@ -330,6 +380,43 @@ public final class KinesisIO {
       return toBuilder().setRequestRecordsLimit(limit).build();
     }
 
+    /** Specifies the {@code WatermarkPolicyFactory} as ArrivalTimeWatermarkPolicyFactory. */
+    public Read withArrivalTimeWatermarkPolicy() {
+      return toBuilder()
+          .setWatermarkPolicyFactory(WatermarkPolicyFactory.withArrivalTimePolicy())
+          .build();
+    }
+
+    /**
+     * Specifies the {@code WatermarkPolicyFactory} as ArrivalTimeWatermarkPolicyFactory.
+     *
+     * <p>{@param watermarkIdleDurationThreshold} Denotes the duration for which the watermark can
+     * be idle.
+     */
+    public Read withArrivalTimeWatermarkPolicy(Duration watermarkIdleDurationThreshold) {
+      return toBuilder()
+          .setWatermarkPolicyFactory(
+              WatermarkPolicyFactory.withArrivalTimePolicy(watermarkIdleDurationThreshold))
+          .build();
+    }
+
+    /** Specifies the {@code WatermarkPolicyFactory} as ProcessingTimeWatermarkPolicyFactory. */
+    public Read withProcessingTimeWatermarkPolicy() {
+      return toBuilder()
+          .setWatermarkPolicyFactory(WatermarkPolicyFactory.withProcessingTimePolicy())
+          .build();
+    }
+
+    /**
+     * Specifies the {@code WatermarkPolicyFactory} as a custom watermarkPolicyFactory.
+     *
+     * @param watermarkPolicyFactory Custom Watermark policy factory.
+     */
+    public Read withCustomWatermarkPolicy(WatermarkPolicyFactory watermarkPolicyFactory) {
+      checkArgument(watermarkPolicyFactory != null, "watermarkPolicyFactory cannot be null");
+      return toBuilder().setWatermarkPolicyFactory(watermarkPolicyFactory).build();
+    }
+
     @Override
     public PCollection<KinesisRecord> expand(PBegin input) {
       Unbounded<KinesisRecord> unbounded =
@@ -339,6 +426,7 @@ public final class KinesisIO {
                   getStreamName(),
                   getInitialPosition(),
                   getUpToDateThreshold(),
+                  getWatermarkPolicyFactory(),
                   getRequestRecordsLimit()));
 
       PTransform<PBegin, PCollection<KinesisRecord>> transform = unbounded;
@@ -492,6 +580,7 @@ public final class KinesisIO {
           getPartitionKey() == null || (getPartitioner() == null),
           "only one of either withPartitionKey() or withPartitioner() is possible");
       checkArgument(getAWSClientsProvider() != null, "withAWSClientsProvider() is required");
+
       input.apply(ParDo.of(new KinesisWriterFn(this)));
       return PDone.in(input.getPipeline());
     }
@@ -512,11 +601,6 @@ public final class KinesisIO {
 
       @Setup
       public void setup() throws Exception {
-        checkArgument(
-            streamExists(spec.getAWSClientsProvider().getKinesisClient(), spec.getStreamName()),
-            "Stream %s does not exist",
-            spec.getStreamName());
-
         // Init producer config
         Properties props = spec.getProducerProperties();
         if (props == null) {
@@ -681,17 +765,6 @@ public final class KinesisIO {
         }
       }
     }
-  }
-
-  private static boolean streamExists(AmazonKinesis client, String streamName) {
-    try {
-      DescribeStreamResult describeStreamResult = client.describeStream(streamName);
-      return (describeStreamResult != null
-          && describeStreamResult.getSdkHttpMetadata().getHttpStatusCode() == 200);
-    } catch (Exception e) {
-      LOG.warn("Error checking whether stream {} exists.", streamName, e);
-    }
-    return false;
   }
 
   /** An exception that puts information about the failed record. */
