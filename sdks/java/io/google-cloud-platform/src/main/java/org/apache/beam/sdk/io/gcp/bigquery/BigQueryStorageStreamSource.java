@@ -22,6 +22,7 @@ import static org.apache.beam.sdk.io.gcp.bigquery.BigQueryHelpers.toJsonString;
 import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkNotNull;
 
 import com.google.api.gax.rpc.FailedPreconditionException;
+import com.google.api.gax.rpc.ServerStream;
 import com.google.api.services.bigquery.model.TableSchema;
 import com.google.cloud.bigquery.storage.v1beta1.Storage.ReadRowsRequest;
 import com.google.cloud.bigquery.storage.v1beta1.Storage.ReadRowsResponse;
@@ -151,6 +152,11 @@ public class BigQueryStorageStreamSource<T> extends BoundedSource<T> {
     return new BigQueryStorageStreamReader<>(this, options.as(BigQueryOptions.class));
   }
 
+  @Override
+  public String toString() {
+    return stream.toString();
+  }
+
   /**
    * A {@link org.apache.beam.sdk.io.Source.Reader} which reads records from a stream.
    */
@@ -264,7 +270,9 @@ public class BigQueryStorageStreamSource<T> extends BoundedSource<T> {
         try {
           readResponse = storageClient.readRows(ReadRowsRequest.newBuilder().setReadPosition(
               StreamPosition.newBuilder().setStream(splitResponse.getPrimaryStream())
-                  .setOffset(currentOffset).build()).build());
+                  .setOffset(currentOffset)).build());
+          readResponse.iterator().hasNext();
+          ((ServerStream) readResponse).cancel();
         } catch (FailedPreconditionException e) {
           // The current source has already moved past the split point, so this split attempt
           // is unsuccessful.
@@ -277,6 +285,7 @@ public class BigQueryStorageStreamSource<T> extends BoundedSource<T> {
           throw e;
         }
 
+        // TODO(aryann): Cancel the parent read stream.
         source = source.fromExisting(splitResponse.getPrimaryStream());
         responseIterator = readResponse.iterator();
       }
