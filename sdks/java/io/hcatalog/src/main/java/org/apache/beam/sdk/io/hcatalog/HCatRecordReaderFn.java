@@ -19,20 +19,18 @@ package org.apache.beam.sdk.io.hcatalog;
 
 import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkArgument;
 
-import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import org.apache.beam.sdk.io.hcatalog.HCatalogIO.Read;
 import org.apache.beam.sdk.io.range.OffsetRange;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.DoFn.BoundedPerElement;
-import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.splittabledofn.OffsetRangeTracker;
 import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableList;
-import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hive.conf.HiveConf;
 import org.apache.hadoop.hive.metastore.IMetaStoreClient;
 import org.apache.hadoop.hive.metastore.api.Partition;
@@ -52,39 +50,15 @@ import org.slf4j.LoggerFactory;
 
 /** Unbounded reader for doing reads from Hcat. */
 @BoundedPerElement
-class HCatRecordReaderFn extends DoFn<HCatRecordReaderFn.PartitionWrapper, HCatRecord> {
+class HCatRecordReaderFn extends DoFn<Read, HCatRecord> {
 
   private static final Logger LOG = LoggerFactory.getLogger(HCatRecordReaderFn.class);
 
-  /** Wrapper class for partition data. */
-  public static class PartitionWrapper implements Serializable {
-    final Partition partition;
-    final HCatalogIO.Read readSpec;
-    final String watermarkPartitionColumn;
-    final ImmutableList<String> partitionCols;
-    final SerializableFunction<String, Instant> watermarkerFn;
-
-    public PartitionWrapper(
-        Partition partition,
-        HCatalogIO.Read readSpec,
-        String watermarkPartitionColumn,
-        ImmutableList<String> partitionCols,
-        SerializableFunction<String, Instant> watermarkerFn) {
-
-      this.partition = partition;
-      this.readSpec = readSpec;
-      this.watermarkPartitionColumn = watermarkPartitionColumn;
-      this.partitionCols = partitionCols;
-      this.watermarkerFn = watermarkerFn;
-    }
-  }
-
-  private ReaderContext getReaderContext(PartitionWrapper wrapper, long desiredSplitCount)
+  private ReaderContext getReaderContext(Read readRequest, long desiredSplitCount)
       throws HCatException {
-    final HCatalogIO.Read spec = wrapper.readSpec;
-    final Partition partition = wrapper.partition;
+    final Partition partition = readRequest.getPartitionToRead();
     final List<String> values = partition.getValues();
-    final ImmutableList<String> partitionCols = wrapper.partitionCols;
+    final ImmutableList<String> partitionCols = readRequest.getPartitionCols();
     checkArgument(
         values.size() == partitionCols.size(),
         "Number of input partitions should be equal to the values of list partition values.");
@@ -97,37 +71,26 @@ class HCatRecordReaderFn extends DoFn<HCatRecordReaderFn.PartitionWrapper, HCatR
 
     ReadEntity entity =
         new ReadEntity.Builder()
-            .withDatabase(spec.getDatabase())
+            .withDatabase(readRequest.getDatabase())
             .withFilter(filterString)
-            .withTable(spec.getTable())
+            .withTable(readRequest.getTable())
             .build();
     // pass the 'desired' split count as an hint to the API
-    Map<String, String> configProps = new HashMap<>(spec.getConfigProperties());
+    Map<String, String> configProps = new HashMap<>(readRequest.getConfigProperties());
     configProps.put(
         HCatConstants.HCAT_DESIRED_PARTITION_NUM_SPLITS, String.valueOf(desiredSplitCount));
     return DataTransferFactory.getHCatReader(entity, configProps).prepareRead();
   }
 
-  private long getFileSizeForPartitions(PartitionWrapper partitionWrapper) throws Exception {
+  private long getFileSizeForPartitions(Read readRequest) throws Exception {
     IMetaStoreClient client = null;
-    Configuration conf = new Configuration();
-    for (Map.Entry<String, String> entry :
-        partitionWrapper.readSpec.getConfigProperties().entrySet()) {
-      conf.set(entry.getKey(), entry.getValue());
-    }
     try {
-      HiveConf hiveConf = HCatUtil.getHiveConf(conf);
-      client = HCatUtil.getHiveMetastoreClient(hiveConf);
+      HiveConf hiveConf = HCatalogUtils.createHiveConf(readRequest);
+      client = HCatalogUtils.createMetaStoreClient(hiveConf);
       List<org.apache.hadoop.hive.ql.metadata.Partition> p = new ArrayList<>();
-
-      Table table =
-          HCatUtil.getTable(
-              client,
-              partitionWrapper.readSpec.getDatabase(),
-              partitionWrapper.readSpec.getTable());
-
+      Table table = HCatUtil.getTable(client, readRequest.getDatabase(), readRequest.getTable());
       final org.apache.hadoop.hive.ql.metadata.Partition partition =
-          new org.apache.hadoop.hive.ql.metadata.Partition(table, partitionWrapper.partition);
+          new org.apache.hadoop.hive.ql.metadata.Partition(table, readRequest.getPartitionToRead());
       p.add(partition);
       final List<Long> fileSizeForPartitions = StatsUtils.getFileSizeForPartitions(hiveConf, p);
       return fileSizeForPartitions.get(0);
@@ -145,16 +108,15 @@ class HCatRecordReaderFn extends DoFn<HCatRecordReaderFn.PartitionWrapper, HCatR
   public void processElement(
       ProcessContext processContext, RestrictionTracker<OffsetRange, Long> tracker)
       throws Exception {
-    final PartitionWrapper element = processContext.element();
-    final ImmutableList<String> partitionCols = element.partitionCols;
-    final List<String> values = element.partition.getValues();
-    final String watermarkPartitionColumn = element.watermarkPartitionColumn;
+    final Read readRequest = processContext.element();
+    final List<String> values = readRequest.getPartitionToRead().getValues();
+    final String watermarkPartitionColumn = readRequest.getWatermarkPartitionColumn();
     final int indexOfPartitionColumnWithWaterMark =
         watermarkPartitionColumn.indexOf(watermarkPartitionColumn);
     final String partitionWaterMark = values.get(indexOfPartitionColumnWithWaterMark);
 
     final Instant partitionWatermarkTimeStamp =
-        processContext.element().watermarkerFn.apply(partitionWaterMark);
+        readRequest.getWatermarkTimestampConverter().apply(partitionWaterMark);
 
     int desiredSplitCount = 1;
     long estimatedSizeBytes = getFileSizeForPartitions(processContext.element());
@@ -179,14 +141,13 @@ class HCatRecordReaderFn extends DoFn<HCatRecordReaderFn.PartitionWrapper, HCatR
 
   @GetInitialRestriction
   @SuppressWarnings("unused")
-  public OffsetRange getInitialRestriction(PartitionWrapper request) throws Exception {
-    final Partition partition = request.partition;
+  public OffsetRange getInitialRestriction(Read readRequest) throws Exception {
     int desiredSplitCount = 1;
-    long estimatedSizeBytes = getFileSizeForPartitions(request);
+    long estimatedSizeBytes = getFileSizeForPartitions(readRequest);
     if (estimatedSizeBytes > 0) {
       desiredSplitCount = (int) Math.ceil((double) estimatedSizeBytes / Integer.MAX_VALUE);
     }
-    ReaderContext readerContext = getReaderContext(request, desiredSplitCount);
+    ReaderContext readerContext = getReaderContext(readRequest, desiredSplitCount);
     // process the splits returned by native API
     // this could be different from 'desiredSplitCount' calculated above
     LOG.info(
