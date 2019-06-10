@@ -21,12 +21,10 @@ import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Precondi
 
 import com.google.auto.value.AutoValue;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
-import java.util.Map.Entry;
 import java.util.NoSuchElementException;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Experimental;
@@ -46,7 +44,6 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PDone;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableList;
-import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hive.conf.HiveConf;
 import org.apache.hadoop.hive.metastore.IMetaStoreClient;
 import org.apache.hadoop.hive.metastore.api.Partition;
@@ -245,7 +242,7 @@ public class HCatalogIO {
       checkArgument(
           readSpec.getPartitionComparator() != null, "withPartitionComparator() is required");
       return input
-          .apply("ConvertToReadRequest", Create.of(new ArrayList<>(Arrays.asList(readSpec))))
+          .apply("ConvertToReadRequest", Create.of(readSpec))
           .apply(
               "PollForNewPartitions",
               ParDo.of(
@@ -262,6 +259,17 @@ public class HCatalogIO {
   @VisibleForTesting
   @AutoValue
   public abstract static class Read extends PTransform<PBegin, PCollection<HCatRecord>> {
+
+    public Partition getPartitionToRead() {
+      return partitionToRead;
+    }
+
+    public void setPartitionToRead(Partition partitionToRead) {
+      this.partitionToRead = partitionToRead;
+    }
+
+    Partition partitionToRead;
+
     @Nullable
     abstract Map<String, String> getConfigProperties();
 
@@ -444,14 +452,10 @@ public class HCatalogIO {
      */
     @Override
     public long getEstimatedSizeBytes(PipelineOptions pipelineOptions) throws Exception {
-      Configuration conf = new Configuration();
-      for (Entry<String, String> entry : spec.getConfigProperties().entrySet()) {
-        conf.set(entry.getKey(), entry.getValue());
-      }
       IMetaStoreClient client = null;
       try {
-        HiveConf hiveConf = HCatUtil.getHiveConf(conf);
-        client = HCatUtil.getHiveMetastoreClient(hiveConf);
+        HiveConf hiveConf = HCatalogUtils.createHiveConf(spec);
+        client = HCatalogUtils.createMetaStoreClient(hiveConf);
         Table table = HCatUtil.getTable(client, spec.getDatabase(), spec.getTable());
         return StatsUtils.getFileSizeForTable(hiveConf, table);
       } finally {

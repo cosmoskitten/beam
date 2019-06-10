@@ -30,13 +30,12 @@ import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableLis
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hive.metastore.IMetaStoreClient;
 import org.apache.hadoop.hive.metastore.api.Partition;
-import org.apache.hive.hcatalog.common.HCatUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /** Unbounded poller to listen for new partitions. */
 @UnboundedPerElement
-class PartitionPollerFn extends DoFn<Read, HCatRecordReaderFn.PartitionWrapper> {
+class PartitionPollerFn extends DoFn<Read, Read> {
 
   private static final Logger LOG = LoggerFactory.getLogger(PartitionPollerFn.class);
   private transient IMetaStoreClient metaStoreClient;
@@ -79,13 +78,9 @@ class PartitionPollerFn extends DoFn<Read, HCatRecordReaderFn.PartitionWrapper> 
 
     for (int i = trueStart; i < forSort.size(); i++) {
       if (tracker.tryClaim(forSort.get(i))) {
-        c.output(
-            new HCatRecordReaderFn.PartitionWrapper(
-                forSort.get(i),
-                readRequest,
-                readRequest.getWatermarkPartitionColumn(),
-                readRequest.getPartitionCols(),
-                readRequest.getWatermarkTimestampConverter()));
+        Read readRequestWithPartition = readRequest;
+        readRequestWithPartition.setPartitionToRead(forSort.get(i));
+        c.output(readRequestWithPartition);
       }
     }
 
@@ -105,7 +100,7 @@ class PartitionPollerFn extends DoFn<Read, HCatRecordReaderFn.PartitionWrapper> 
     for (Map.Entry<String, String> entry : configProperties.entrySet()) {
       conf.set(entry.getKey(), entry.getValue());
     }
-    metaStoreClient = HCatUtil.getHiveMetastoreClient(HCatUtil.getHiveConf(conf));
+    metaStoreClient = HCatalogUtils.createMetaStoreClient(conf);
   }
 
   @Teardown
