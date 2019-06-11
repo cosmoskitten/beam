@@ -79,22 +79,45 @@ class ReadFromMongoDB(PTransform):
                filter=None,
                projection=None,
                **kwargs):
+    # """Initialize a :class:`ReadFromMongoDB`
+    #
+    # Args:
+    #   uri (str): The MongoDB connection string following the URI format
+    #   db (str): The MongoDB database name
+    #   coll (str): The MongoDB collection name
+    #   filter: A ``bson.SON`` [1]_ object specifying elements which must be
+    #     present for a document to be included in the result set
+    #   projection: A list of field names that should be returned in the result
+    #     set or a dict specifying the fields to include or exclude
+    #   **kwargs: Optional ``MongoClient`` [2]_ parameters as keyword arguments
+    #
+    # Returns:
+    #   :class:`~apache_beam.transforms.ptransform.PTransform`
+    #
+    # [1] `bson.SON <https://api.mongodb.com/python/current/api/bson/son.html>`_
+    #
+    # [2] `MongoClient <https://api.mongodb.com/python/current/api/pymongo
+    # /mongo_client.html>`_
+    #
+    # """
     """Initialize a :class:`ReadFromMongoDB`
 
     Args:
       uri (str): The MongoDB connection string following the URI format
       db (str): The MongoDB database name
       coll (str): The MongoDB collection name
-      filter: A :class:`~bson.SON` object specifying elements
-        which must be present for a document to be included in the result set
-      projection (list): A list of field names that should be
-        returned in the result set or a dict specifying the fields to include or
-        exclude
-      **kwargs: Optional :class:`~pymongo.mongo_client.MongoClient`
+      filter: A `bson.SON
+        <https://api.mongodb.com/python/current/api/bson/son.html>`_ object
+        specifying elements which must be present for a document to be included
+        in the result set
+      projection: A list of field names that should be returned in the result
+        set or a dict specifying the fields to include or exclude
+      **kwargs: Optional `MongoClient
+        <https://api.mongodb.com/python/current/api/pymongo/mongo_client.html>`_
         parameters as keyword arguments
 
     Returns:
-      :class:`~apache_beam.transforms.PTransform`
+      :class:`~apache_beam.transforms.ptransform.PTransform`
 
     """
     self._mongo_source = _BoundedMongoSource(uri=uri,
@@ -200,11 +223,12 @@ class WriteToMongoDB(PTransform):
       db (str): The MongoDB database name
       coll (str): The MongoDB collection name
       batch_size(int): Number of documents per bulk_write to  MongoDB
-      **kwargs: Optional :class:`~pymongo.mongo_client.MongoClient`
-        parameters as keyword arguments
+      **kwargs: Optional `MongoClient
+       <https://api.mongodb.com/python/current/api/pymongo/mongo_client.html>`_
+       parameters as keyword arguments
 
     Returns:
-      :class:`~apache_beam.transforms.PTransform`
+      :class:`~apache_beam.transforms.ptransform.PTransform`
 
     """
     self._uri = uri
@@ -235,9 +259,9 @@ class _GenerateObjectIdFn(DoFn):
 
 class _WriteMongoFn(DoFn):
   def __init__(self, uri=None, db=None, coll=None, batch_size=1, **kwargs):
-    self.uri=uri
-    self.db=db
-    self.coll=coll
+    self.uri = uri
+    self.db = db
+    self.coll = coll
     self.spec = kwargs
     self.batch_size = batch_size
     self.batch = []
@@ -274,8 +298,9 @@ class _MongoSink(object):
       # match document based on _id field, if not found in current collection,
       # insert new one, otherwise overwrite it.
       requests.append(
-          ReplaceOne(filter={'_id': doc.get('_id', None)}, replacement=doc,
-                                                               upsert=True))
+          ReplaceOne(filter={'_id': doc.get('_id', None)},
+                     replacement=doc,
+                     upsert=True))
     self.client[self.db][self.coll].bulk_write(requests)
 
   def __enter__(self):

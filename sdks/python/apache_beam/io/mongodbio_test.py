@@ -13,8 +13,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
+
+from __future__ import absolute_import
+
 import logging
 import unittest
+
 import mock
 
 import apache_beam as beam
@@ -133,8 +137,8 @@ class Test_WriteMongoFn(unittest.TestCase):
   def test_process(self, mock_sink):
     docs = [{'x': 1}, {'x': 2}, {'x': 3}]
     with TestPipeline() as p:
-      (p | "Create" >> beam.Create(docs)
-       | "Write" >> beam.ParDo(_WriteMongoFn(batch_size=2)))
+      _ = (p | "Create" >> beam.Create(docs)
+           | "Write" >> beam.ParDo(_WriteMongoFn(batch_size=2)))
       p.run()
 
       self.assertEqual(
@@ -155,8 +159,8 @@ class TestWriteToMongoDB(unittest.TestCase):
   def test_write_to_mongodb(self, mock_client):
     docs = [{'x': 1}, {'x': 2}, {'x': 3}]
     with TestPipeline() as p:
-      (p | "Create" >> beam.Create(docs)
-       | "Write" >> WriteToMongoDB(db='test', coll='test'))
+      _ = (p | "Create" >> beam.Create(docs)
+           | "Write" >> WriteToMongoDB(db='test', coll='test'))
       p.run()
       self.assertTrue(mock_client.return_value.__getitem__.return_value.
                       __getitem__.return_value.bulk_write.called)
