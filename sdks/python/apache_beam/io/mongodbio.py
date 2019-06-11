@@ -52,6 +52,7 @@ No backward compatibility guarantees. Everything in this module is experimental.
 
 from __future__ import absolute_import
 
+from apache_beam.testing.test_pipeline import TestPipeline
 from bson import objectid
 from pymongo import MongoClient
 from pymongo import ReplaceOne
@@ -118,27 +119,28 @@ class _BoundedMongoSource(iobase.BoundedSource):
                **kwargs):
     if filter is None:
       filter = {}
-    self._uri = uri
-    self._db = db
-    self._coll = coll
-    self._filter = filter
-    self._projection = projection
-    self._spec = kwargs
-    self._doc_count = self._get_document_count()
-    self._avg_doc_size = self._get_avg_document_size()
+    self.uri = uri
+    self.db = db
+    self.coll = coll
+    self.filter = filter
+    self.projection = projection
+    self.spec = kwargs
+    self.doc_count = self._get_document_count()
+    self.avg_doc_size = self._get_avg_document_size()
+    self.client = None
 
   def estimate_size(self):
-    return self._avg_doc_size * self._doc_count
+    return self.avg_doc_size * self.doc_count
 
   def split(self, desired_bundle_size, start_position=None, stop_position=None):
     # use document cursor index as the start and stop positions
     if start_position is None:
       start_position = 0
     if stop_position is None:
-      stop_position = self._doc_count
+      stop_position = self.doc_count
 
     # get an estimate on how many documents should be included in a split batch
-    desired_bundle_count = desired_bundle_size // self._avg_doc_size
+    desired_bundle_count = desired_bundle_size // self.avg_doc_size
 
     bundle_start = start_position
     while bundle_start < stop_position:
@@ -153,25 +155,35 @@ class _BoundedMongoSource(iobase.BoundedSource):
     if start_position is None:
       start_position = 0
     if stop_position is None:
-      stop_position = self._doc_count
+      stop_position = self.doc_count
     return OffsetRangeTracker(start_position, stop_position)
 
   def read(self, range_tracker):
     if range_tracker.try_claim(range_tracker.start_position()):
-      with MongoClient(self._uri, **self._spec) as client:
-        docs = client[self._db][self._coll].find(
-            filter=self._filter, projection=self._projection
+      with MongoClient(self.uri, **self.spec) as client:
+        docs = client[self.db][self.coll].find(
+            filter=self.filter, projection=self.projection
         )[range_tracker.start_position():range_tracker.stop_position()]
         for doc in docs:
           yield doc
 
+  def display_data(self):
+    res = super(_BoundedMongoSource, self).display_data()
+    res['uri'] = self.uri
+    res['database'] = self.db
+    res['collection'] = self.coll
+    res['filter'] = self.filter
+    res['project'] = self.projection
+    res['mongo_client_spec'] = self.spec
+    return res
+
   def _get_avg_document_size(self):
-    with MongoClient(self._uri, **self._spec) as client:
-      return client[self._db].command('collstats', self._coll)['avgObjSize']
+    with MongoClient(self.uri, **self.spec) as client:
+      return client[self.db].command('collstats', self.coll)['avgObjSize']
 
   def _get_document_count(self):
-    with MongoClient(self._uri, **self._spec) as client:
-      return client[self._db][self._coll].count_documents(self._filter)
+    with MongoClient(self.uri, **self.spec) as client:
+      return client[self.db][self.coll].count_documents(self.filter)
 
 
 @experimental()
@@ -191,6 +203,10 @@ class WriteToMongoDB(PTransform):
       batch_size(int): Number of documents per bulk_write to  MongoDB
       **kwargs: Optional :class:`~pymongo.mongo_client.MongoClient`
         parameters as keyword arguments
+
+    Returns:
+      :class:`~apache_beam.transforms.PTransform`
+
     """
     self._uri = uri
     self._db = db
@@ -200,7 +216,7 @@ class WriteToMongoDB(PTransform):
 
   def expand(self, pcoll):
     return pcoll \
-           | beam.ParDo(_GenerateObjectIdFn(self._reserve_id)) \
+           | beam.ParDo(_GenerateObjectIdFn()) \
            | Reshuffle() \
            | beam.ParDo(_WriteMongoFn(self._uri, self._db, self._coll,
                                       self._batch_size, **self._spec))
@@ -210,51 +226,64 @@ class _GenerateObjectIdFn(DoFn):
   def process(self, element, *args, **kwargs):
     # if _id field already exist we keep it as it is, otherwise the ptransform
     # generates a new _id field to achieve idempotent write to mongodb.
+    result = element.copy()
+
     if '_id' not in element:
-      result = element.copy()
       result['_id'] = objectid.ObjectId()
-      yield result
-    yield element
+
+    yield result
 
 
 class _WriteMongoFn(DoFn):
   def __init__(self, uri=None, db=None, coll=None, batch_size=1, **kwargs):
-    self._batch_size = batch_size
-    self._spec = kwargs
-    self._mongo_sink = _MongoSink(uri, db, coll, **self._spec)
-    self._batch = None
-
-  def start_bundle(self):
-    self._batch = []
+    self.uri=uri
+    self.db=db
+    self.coll=coll
+    self.spec = kwargs
+    self.batch_size = batch_size
+    self.batch = []
 
   def finish_bundle(self):
     self._flush()
 
   def process(self, element, *args, **kwargs):
-    self._batch.append(element)
-    if len(self._batch) >= self._batch_size:
+    self.batch.append(element)
+    if len(self.batch) >= self.batch_size:
       self._flush()
 
   def _flush(self):
-    if len(self._batch) == 0:
+    if len(self.batch) == 0:
       return
-    self._mongo_sink.write(self._batch)
-    self._batch = []
+    with _MongoSink(self.uri, self.db, self.coll, **self.spec) as sink:
+      sink.write(self.batch)
+      self.batch = []
 
 
 class _MongoSink(object):
   def __init__(self, uri=None, db=None, coll=None, **kwargs):
-    self._uri = uri
-    self._db = db
-    self._coll = coll
-    self._spec = kwargs
+    self.uri = uri
+    self.db = db
+    self.coll = coll
+    self.spec = kwargs
+    self.client = None
 
   def write(self, documents):
+    if self.client is None:
+      self.client = MongoClient(host=self.uri, **self.spec)
     requests = []
     for doc in documents:
       # match document based on _id field, if not found in current collection,
       # insert new one, otherwise overwrite it.
       requests.append(
-          ReplaceOne(filter={'_id': doc['_id']}, replacement=doc, upsert=True))
-    with MongoClient(self._uri, **self._spec) as client:
-      client[self._db][self._coll].bulk_write(requests)
+          ReplaceOne(filter={'_id': doc.get('_id', None)}, replacement=doc,
+                                                               upsert=True))
+    self.client[self.db][self.coll].bulk_write(requests)
+
+  def __enter__(self):
+    if self.client is None:
+      self.client = MongoClient(host=self.uri, **self.spec)
+    return self
+
+  def __exit__(self, exc_type, exc_val, exc_tb):
+    if self.client is not None:
+      self.client.close()
