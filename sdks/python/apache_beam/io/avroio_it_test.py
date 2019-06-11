@@ -55,7 +55,7 @@ import uuid
 from fastavro import parse_schema
 from nose.plugins.attrib import attr
 
-from apache_beam.io.avroio import ReadAllFromAvro
+from apache_beam.io.avroio import ReadFromAvro
 from apache_beam.io.avroio import WriteToAvro
 from apache_beam.runners.runner import PipelineState
 from apache_beam.testing.test_pipeline import TestPipeline
@@ -64,13 +64,13 @@ from apache_beam.testing.util import BeamAssertException
 from apache_beam.transforms.core import Create
 from apache_beam.transforms.core import FlatMap
 from apache_beam.transforms.core import Map
-from apache_beam.transforms.util import CoGroupByKey
+from apache_beam.transforms.combiners import Mean
 
 # pylint: disable=wrong-import-order, wrong-import-position
 try:
-  from avro.schema import Parse # avro-python3 library for python3
+  from avro.schema import Parse  # avro-python3 library for python3
 except ImportError:
-  from avro.schema import parse as Parse # avro library for python2
+  from avro.schema import parse as Parse  # avro library for python2
 # pylint: enable=wrong-import-order, wrong-import-position
 
 LABELS = ['abc', 'def', 'ghi', 'jkl', 'mno', 'pqr', 'stu', 'vwx']
@@ -86,42 +86,38 @@ def record(i):
   }
 
 
-@unittest.skipIf(sys.version_info[0] >= 3 and
-                 os.environ.get('RUN_SKIPPED_PY3_TESTS') != '1',
-                 'Due to a known issue in avro-python3 package, this'
-                 'test is skipped until BEAM-6522 is addressed. ')
-class FastavroIT(unittest.TestCase):
-
-  SCHEMA_STRING = '''
-    {"namespace": "example.avro",
-     "type": "record",
-     "name": "User",
-     "fields": [
-         {"name": "label", "type": "string"},
-         {"name": "number",  "type": ["int", "null"]},
-         {"name": "number_str", "type": ["string", "null"]},
-         {"name": "color", "type": ["string", "null"]}
-     ]
-    }
-    '''
+class AvroITTestBase(object):
 
   def setUp(self):
-    self.test_pipeline = TestPipeline(is_integration_test=True)
+    self.SCHEMA_STRING = '''
+      {"namespace": "example.avro",
+       "type": "record",
+       "name": "User",
+       "fields": [
+           {"name": "label", "type": "string"},
+           {"name": "number",  "type": ["int", "null"]},
+           {"name": "number_str", "type": ["string", "null"]},
+           {"name": "color", "type": ["string", "null"]}
+       ]
+      }
+      '''
     self.uuid = str(uuid.uuid4())
-    self.output = '/'.join([
-        self.test_pipeline.get_option('output'),
-        self.uuid
-    ])
 
   @attr('IT')
-  def test_avro_it(self):
-    num_records = self.test_pipeline.get_option('records')
+  def avro_it_test(self):
+    write_pipeline = TestPipeline(is_integration_test=True)
+    read_pipeline = TestPipeline(is_integration_test=True)
+    output = '/'.join([write_pipeline.get_option('output'),
+                       self.uuid, 'avro-files'])
+    files_output = '/'.join([output, 'avro'])
+
+    num_records = write_pipeline.get_option('records')
     num_records = int(num_records) if num_records else 1000000
 
     # Seed a `PCollection` with indices that will each be FlatMap'd into
     # `batch_size` records, to avoid having a too-large list in memory at
     # the outset
-    batch_size = self.test_pipeline.get_option('batch-size')
+    batch_size = write_pipeline.get_option('batch-size')
     batch_size = int(batch_size) if batch_size else 10000
 
     # pylint: disable=range-builtin-not-iterating
@@ -132,73 +128,54 @@ class FastavroIT(unittest.TestCase):
       return range(start * batch_size, (start + 1) * batch_size)
 
     # A `PCollection` with `num_records` avro records
-    records_pcoll = \
-        self.test_pipeline \
-        | 'create-batches' >> Create(batches) \
-        | 'expand-batches' >> FlatMap(batch_indices) \
-        | 'create-records' >> Map(record)
+    _ = (write_pipeline
+         | 'CreateBatches' >> Create(batches)
+         | 'ExpandBatches' >> FlatMap(batch_indices)
+         | 'CreateRecords' >> Map(record)
+         | 'WriteAvro' >> WriteToAvro(files_output,
+                                      self.SCHEMA,
+                                      file_name_suffix=".avro",
+                                      use_fastavro=self.use_fastavro)
+        )
 
-    fastavro_output = '/'.join([self.output, 'fastavro'])
-    avro_output = '/'.join([self.output, 'avro'])
+    write_result = write_pipeline.run()
+    write_result.wait_until_finish()
+    assert write_result.state == PipelineState.DONE
 
-    # pylint: disable=expression-not-assigned
-    records_pcoll \
-    | 'write_fastavro' >> WriteToAvro(
-        fastavro_output,
-        parse_schema(json.loads(self.SCHEMA_STRING)),
-        use_fastavro=True
-    )
+    def check(x, mean):
+      if not x == mean:
+        raise BeamAssertException('Assertion failed: %s == %s' % (x, mean))
 
-    # pylint: disable=expression-not-assigned
-    records_pcoll \
-    | 'write_avro' >> WriteToAvro(
-        avro_output,
-        Parse(self.SCHEMA_STRING),
-        use_fastavro=False
-    )
+    _ = (read_pipeline
+         | "ReadAvro" >> ReadFromAvro(files_output + '*')
+         | 'ExtractNumber' >> Map(lambda x: x['number'])
+         | 'CalculateMean' >> Mean.Globally()
+         | 'MeanIsCorrect' >> Map(
+             lambda x: check(float(x),
+                             (float(len(batches) * batch_size) / 2) - .5))
+        )
 
-    result = self.test_pipeline.run()
-    result.wait_until_finish()
-    assert result.state == PipelineState.DONE
+    self.addCleanup(delete_files, [output])
+    read_result = read_pipeline.run()
+    read_result.wait_until_finish()
 
-    fastavro_read_pipeline = TestPipeline(is_integration_test=True)
 
-    fastavro_records = \
-        fastavro_read_pipeline \
-        | 'create-fastavro' >> Create(['%s*' % fastavro_output]) \
-        | 'read-fastavro' >> ReadAllFromAvro(use_fastavro=True) \
-        | Map(lambda rec: (rec['number'], rec))
+@unittest.skipIf(sys.version_info[0] >= 3 and
+                 os.environ.get('RUN_SKIPPED_PY3_TESTS') != '1',
+                 'Due to a known issue in avro-python3 package, this'
+                 'test is skipped until BEAM-6522 is addressed. ')
+class AvroITTest(AvroITTestBase, unittest.TestCase):
+  def setUp(self):
+    super(AvroITTest, self).setUp()
+    self.SCHEMA = Parse(self.SCHEMA_STRING)
+    self.use_fastavro = False
 
-    avro_records = \
-        fastavro_read_pipeline \
-        | 'create-avro' >> Create(['%s*' % avro_output]) \
-        | 'read-avro' >> ReadAllFromAvro(use_fastavro=False) \
-        | Map(lambda rec: (rec['number'], rec))
 
-    def check(elem):
-      v = elem[1]
-
-      def assertEqual(l, r):
-        if l != r:
-          raise BeamAssertException('Assertion failed: %s == %s' % (l, r))
-
-      assertEqual(v.keys(), ['avro', 'fastavro'])
-      avro_values = v['avro']
-      fastavro_values = v['fastavro']
-      assertEqual(avro_values, fastavro_values)
-      assertEqual(len(avro_values), 1)
-
-    # pylint: disable=expression-not-assigned
-    {
-        'avro': avro_records,
-        'fastavro': fastavro_records
-    } \
-    | CoGroupByKey() \
-    | Map(check)
-
-    self.addCleanup(delete_files, [self.output])
-    fastavro_read_pipeline.run().wait_until_finish()
-    assert result.state == PipelineState.DONE
+class FastAvroITTest(AvroITTestBase, unittest.TestCase):
+  def setUp(self):
+    super(FastAvroITTest, self).setUp()
+    self.SCHEMA = parse_schema(json.loads(self.SCHEMA_STRING))
+    self.use_fastavro = True
 
 
 if __name__ == '__main__':
