@@ -79,27 +79,6 @@ class ReadFromMongoDB(PTransform):
                filter=None,
                projection=None,
                **kwargs):
-    # """Initialize a :class:`ReadFromMongoDB`
-    #
-    # Args:
-    #   uri (str): The MongoDB connection string following the URI format
-    #   db (str): The MongoDB database name
-    #   coll (str): The MongoDB collection name
-    #   filter: A ``bson.SON`` [1]_ object specifying elements which must be
-    #     present for a document to be included in the result set
-    #   projection: A list of field names that should be returned in the result
-    #     set or a dict specifying the fields to include or exclude
-    #   **kwargs: Optional ``MongoClient`` [2]_ parameters as keyword arguments
-    #
-    # Returns:
-    #   :class:`~apache_beam.transforms.ptransform.PTransform`
-    #
-    # [1] `bson.SON <https://api.mongodb.com/python/current/api/bson/son.html>`_
-    #
-    # [2] `MongoClient <https://api.mongodb.com/python/current/api/pymongo
-    # /mongo_client.html>`_
-    #
-    # """
     """Initialize a :class:`ReadFromMongoDB`
 
     Args:
