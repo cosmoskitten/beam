@@ -25,6 +25,7 @@ import org.apache.beam.sdk.extensions.sql.impl.rel.BeamEnumerableConverter;
 import org.apache.beam.sdk.extensions.sql.impl.rel.BeamIOSinkRel;
 import org.apache.beam.sdk.extensions.sql.impl.rel.BeamIOSourceRel;
 import org.apache.beam.sdk.extensions.sql.impl.utils.CalciteUtils;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableMap;
 import org.apache.calcite.adapter.java.AbstractQueryableTable;
 import org.apache.calcite.linq4j.QueryProvider;
@@ -32,10 +33,7 @@ import org.apache.calcite.linq4j.Queryable;
 import org.apache.calcite.plan.RelOptCluster;
 import org.apache.calcite.plan.RelOptTable;
 import org.apache.calcite.prepare.Prepare;
-import org.apache.calcite.rel.RelCollation;
-import org.apache.calcite.rel.RelDistribution;
 import org.apache.calcite.rel.RelNode;
-import org.apache.calcite.rel.RelReferentialConstraint;
 import org.apache.calcite.rel.core.TableModify;
 import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.rel.type.RelDataTypeFactory;
@@ -45,7 +43,6 @@ import org.apache.calcite.schema.SchemaPlus;
 import org.apache.calcite.schema.Statistic;
 import org.apache.calcite.schema.Statistics;
 import org.apache.calcite.schema.TranslatableTable;
-import org.apache.calcite.util.ImmutableBitSet;
 
 /** Adapter from {@link BeamSqlTable} to a calcite Table. */
 public class BeamCalciteTable extends AbstractQueryableTable
@@ -70,35 +67,11 @@ public class BeamCalciteTable extends AbstractQueryableTable
 
   @Override
   public Statistic getStatistic() {
-    return new Statistic() {
-      @Override
-      public Double getRowCount() {
-        Double rc =
-            beamTable.getRowCount(BeamEnumerableConverter.createPipelineOptions(pipelineOptions));
-        rc = (rc == null) ? Statistics.UNKNOWN.getRowCount() : rc;
-        return rc;
-      }
-
-      @Override
-      public boolean isKey(ImmutableBitSet columns) {
-        return Statistics.UNKNOWN.isKey(columns);
-      }
-
-      @Override
-      public List<RelReferentialConstraint> getReferentialConstraints() {
-        return Statistics.UNKNOWN.getReferentialConstraints();
-      }
-
-      @Override
-      public List<RelCollation> getCollations() {
-        return Statistics.UNKNOWN.getCollations();
-      }
-
-      @Override
-      public RelDistribution getDistribution() {
-        return Statistics.UNKNOWN.getDistribution();
-      }
-    };
+    BeamRowCountStatistics beamStatistics =
+        beamTable.getRowCount(BeamEnumerableConverter.createPipelineOptions(pipelineOptions));
+    return beamStatistics.isUnknown()
+        ? Statistics.UNKNOWN
+        : Statistics.of(beamStatistics.getRowCount().doubleValue(), ImmutableList.of());
   }
 
   @Override

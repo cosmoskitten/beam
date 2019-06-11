@@ -22,17 +22,23 @@ import static org.apache.beam.sdk.schemas.Schema.FieldType.STRING;
 import static org.apache.beam.sdk.schemas.Schema.toSchema;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertNull;
+import static org.junit.Assert.assertTrue;
 
+import com.google.api.services.bigquery.model.TableFieldSchema;
+import com.google.api.services.bigquery.model.TableRow;
+import com.google.api.services.bigquery.model.TableSchema;
+import java.math.BigInteger;
 import java.util.stream.Stream;
 import org.apache.beam.sdk.extensions.sql.BeamSqlTable;
-import org.apache.beam.sdk.extensions.sql.impl.BeamSqlEnv;
-import org.apache.beam.sdk.extensions.sql.impl.rel.BeamSqlRelUtils;
+import org.apache.beam.sdk.extensions.sql.impl.BeamRowCountStatistics;
 import org.apache.beam.sdk.extensions.sql.meta.Table;
+import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO;
+import org.apache.beam.sdk.io.gcp.bigquery.TableRowJsonCoder;
 import org.apache.beam.sdk.io.gcp.bigquery.TestBigQuery;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.testing.TestPipeline;
-import org.joda.time.Duration;
+import org.apache.beam.sdk.transforms.Create;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableList;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -52,42 +58,40 @@ public class BigQueryRowCountIT {
     BigQueryTableProvider provider = new BigQueryTableProvider();
     Table table = getTable("testTable", bigQuery.tableSpec());
     BeamSqlTable sqlTable = provider.buildBeamSqlTable(table);
-    Double size = sqlTable.getRowCount(TestPipeline.testingPipelineOptions());
+    BeamRowCountStatistics size = sqlTable.getRowCount(TestPipeline.testingPipelineOptions());
     assertNotNull(size);
-    assertEquals(0, size, 0.1);
+    assertEquals(BigInteger.ZERO, size.getRowCount());
   }
 
   @Test
   public void testNonEmptyTable() {
     BigQueryTableProvider provider = new BigQueryTableProvider();
     Table table = getTable("testTable", bigQuery.tableSpec());
-    BeamSqlEnv sqlEnv = BeamSqlEnv.inMemory(provider);
 
-    String createTableStatement =
-        "CREATE EXTERNAL TABLE TEST( \n"
-            + "   id INTEGER, \n"
-            + "   name VARCHAR \n"
-            + ") \n"
-            + "TYPE 'bigquery' \n"
-            + "LOCATION '"
-            + bigQuery.tableSpec()
-            + "'";
-    sqlEnv.executeDdl(createTableStatement);
-
-    String insertStatement = "INSERT INTO TEST VALUES (" + "1, " + "'some name'" + ")";
+    pipeline
+        .apply(
+            Create.of(
+                    new TableRow().set("id", 1).set("name", "name1"),
+                    new TableRow().set("id", 2).set("name", "name2"),
+                    new TableRow().set("id", 3).set("name", "name3"))
+                .withCoder(TableRowJsonCoder.of()))
+        .apply(
+            BigQueryIO.writeTableRows()
+                .to(bigQuery.tableSpec())
+                .withSchema(
+                    new TableSchema()
+                        .setFields(
+                            ImmutableList.of(
+                                new TableFieldSchema().setName("id").setType("INTEGER"),
+                                new TableFieldSchema().setName("name").setType("STRING"))))
+                .withoutValidation());
+    pipeline.run().waitUntilFinish();
 
     BeamSqlTable sqlTable = provider.buildBeamSqlTable(table);
-    Double size0 = sqlTable.getRowCount(TestPipeline.testingPipelineOptions());
+    BeamRowCountStatistics size1 = sqlTable.getRowCount(TestPipeline.testingPipelineOptions());
 
-    BeamSqlRelUtils.toPCollection(pipeline, sqlEnv.parseQuery(insertStatement));
-    pipeline.run().waitUntilFinish(Duration.standardMinutes(5));
-
-    sqlTable = provider.buildBeamSqlTable(table);
-    Double size1 = sqlTable.getRowCount(TestPipeline.testingPipelineOptions());
-
-    assertNotNull(size0);
     assertNotNull(size1);
-    assertEquals(1, size1 - size0, 0.1);
+    assertEquals(BigInteger.valueOf(3), size1.getRowCount());
   }
 
   @Test
@@ -96,8 +100,12 @@ public class BigQueryRowCountIT {
     Table table = getTable("fakeTable", "project:dataset.table");
 
     BeamSqlTable sqlTable = provider.buildBeamSqlTable(table);
-    Double size = sqlTable.getRowCount(TestPipeline.testingPipelineOptions());
-    assertNull(size);
+    BeamRowCountStatistics size = sqlTable.getRowCount(TestPipeline.testingPipelineOptions());
+    assertTrue(size.isUnknown());
+  }
+
+  private static String insertStatement(String tableName, int id, String name) {
+    return String.format("INSERT INTO %s VALUES ( %d, '%s')", tableName, id, name);
   }
 
   private static Table getTable(String name, String location) {

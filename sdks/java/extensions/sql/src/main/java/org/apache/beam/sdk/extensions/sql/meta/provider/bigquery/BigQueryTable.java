@@ -21,6 +21,7 @@ import java.io.IOException;
 import java.io.Serializable;
 import java.math.BigInteger;
 import org.apache.beam.sdk.annotations.Experimental;
+import org.apache.beam.sdk.extensions.sql.impl.BeamRowCountStatistics;
 import org.apache.beam.sdk.extensions.sql.impl.schema.BaseBeamTable;
 import org.apache.beam.sdk.extensions.sql.meta.Table;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryHelpers;
@@ -35,6 +36,7 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.POutput;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.annotations.VisibleForTesting;
+import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
@@ -45,7 +47,8 @@ import org.slf4j.LoggerFactory;
 class BigQueryTable extends BaseBeamTable implements Serializable {
   @VisibleForTesting final String bqLocation;
   private final ConversionOptions conversionOptions;
-  private Double tableSize = -1.;
+  private BeamRowCountStatistics rowCountStatistics = null;
+  private static final Logger LOGGER = LoggerFactory.getLogger(BigQueryTable.class);
 
   BigQueryTable(Table table, BigQueryUtils.ConversionOptions options) {
     super(table.getSchema());
@@ -54,25 +57,13 @@ class BigQueryTable extends BaseBeamTable implements Serializable {
   }
 
   @Override
-  public Double getRowCount(PipelineOptions options) {
-    if (tableSize == -1.) {
-      tableSize = null;
-      try {
-        BigInteger tSize =
-            BigQueryHelpers.getNumRows(
-                options.as(BigQueryOptions.class), BigQueryHelpers.parseTableSpec(bqLocation));
-        if (tSize != null) {
-          tableSize = tSize.doubleValue();
-        }
-      } catch (IOException e) {
-        LoggerFactory.getLogger(BigQueryTable.class)
-            .warn("IOException: Could not get the row count for the table " + bqLocation);
-      } catch (InterruptedException e) {
-        LoggerFactory.getLogger(BigQueryTable.class)
-            .warn("InterruptedException: Could not get the row count for the table " + bqLocation);
-      }
+  public BeamRowCountStatistics getRowCount(PipelineOptions options) {
+
+    if (rowCountStatistics == null) {
+      rowCountStatistics = getRowCountFromBQ(options, bqLocation);
     }
-    return tableSize;
+
+    return rowCountStatistics;
   }
 
   @Override
@@ -100,5 +91,24 @@ class BigQueryTable extends BaseBeamTable implements Serializable {
             .withSchema(BigQueryUtils.toTableSchema(getSchema()))
             .withFormatFunction(BigQueryUtils.toTableRow())
             .to(bqLocation));
+  }
+
+  private static BeamRowCountStatistics getRowCountFromBQ(PipelineOptions o, String bqLocation) {
+    try {
+      BigInteger rowCount =
+          BigQueryHelpers.getNumRows(
+              o.as(BigQueryOptions.class), BigQueryHelpers.parseTableSpec(bqLocation));
+
+      if (rowCount == null) {
+        return BeamRowCountStatistics.UNKNOWN;
+      }
+
+      return BeamRowCountStatistics.createBoundedTableStatistics(rowCount);
+
+    } catch (IOException | InterruptedException e) {
+      LOGGER.warn("Could not get the row count for the table " + bqLocation, e);
+    }
+
+    return BeamRowCountStatistics.UNKNOWN;
   }
 }
