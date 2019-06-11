@@ -1,19 +1,12 @@
 from unittest import TestCase
 
 import mock
-import mongomock
-import pymongo
-
-from apache_beam.io import iobase
-
-from apache_beam.testing.util import equal_to
-
-from apache_beam.testing.util import assert_that
 
 from apache_beam.io import ReadFromMongoDB
-from apache_beam.testing.test_pipeline import TestPipeline
-
 from apache_beam.io.mongodbio import _BoundedMongoSource
+from apache_beam.testing.test_pipeline import TestPipeline
+from apache_beam.testing.util import assert_that
+from apache_beam.testing.util import equal_to
 
 
 class Test_BoundedMongoSource(TestCase):
@@ -25,7 +18,7 @@ class Test_BoundedMongoSource(TestCase):
     mock_size.return_value = 10
     mock_count.return_value = 30
     self.mongo_source = _BoundedMongoSource('mongodb://test', 'testdb',
-                                          'testcoll')
+                                            'testcoll')
 
   def test_estimate_size(self):
     self.assertEqual(self.mongo_source.estimate_size(), 300)
@@ -48,22 +41,21 @@ class Test_BoundedMongoSource(TestCase):
   @mock.patch('apache_beam.io.mongodbio.MongoClient')
   def test_read(self, mock_client):
     mock_tracker = mock.MagicMock()
-    mock_tracker.try_claim.return_value=True
-    mock_tracker.start_position.return_value=0
-    mock_tracker.stop_position.return_value=2
+    mock_tracker.try_claim.return_value = True
+    mock_tracker.start_position.return_value = 0
+    mock_tracker.stop_position.return_value = 2
 
-    mock_client.return_value.__enter__.return_value.__getitem__.return_value\
-      .__getitem__.return_value.find.return_value = [{'x':1}, {'x':2}]
+    mock_client.return_value.__enter__.return_value.__getitem__.return_value \
+      .__getitem__.return_value.find.return_value = [{'x': 1}, {'x': 2}]
 
     result = []
     for i in self.mongo_source.read(mock_tracker):
       result.append(i)
-    self.assertListEqual([{'x':1}, {'x':2}], result)
-
+    self.assertListEqual([{'x': 1}, {'x': 2}], result)
 
   @mock.patch('apache_beam.io.mongodbio.MongoClient')
   def test__get_avg_document_size(self, mock_client):
-    mock_client.return_value.__enter__.return_value.__getitem__\
+    mock_client.return_value.__enter__.return_value.__getitem__ \
       .return_value.command.return_value = {'avgObjSize': 5}
     self.assertEqual(5, self.mongo_source._get_avg_document_size())
 
@@ -76,17 +68,19 @@ class Test_BoundedMongoSource(TestCase):
 
 
 class TestReadFromMongoDB(TestCase):
-  @mongomock.patch()
-  def test_read_from_mongodb(self):
-    objects = [{'x':1}, {'x':2}, {'x':3}]
-    client = pymongo.MongoClient('mongodb://localhost')
-    client.db.collection.insert_many(objects)
+
+  @mock.patch('apache_beam.io.mongodbio.MongoClient')
+  def test_read_from_mongodb(self, mock_client):
+    objects = [{'x': 1}, {'x': 2}]
+    mock_client.return_value.__enter__.return_value.__getitem__.return_value. \
+      command.return_value = {'avgObjSize': 1}
+    mock_client.return_value.__enter__.return_value.__getitem__.return_value. \
+      __getitem__.return_value.find.return_value = objects
+    mock_client.return_value.__enter__.return_value.__getitem__.return_value. \
+      __getitem__.return_value.count_documents.return_value = 2
 
     with TestPipeline() as p:
-      docs = p | 'ReadFromMongoDB' >> \
-             ReadFromMongoDB(uri='mongodb://localhost', db='db',
-                             coll='collection')
-      # assert_that(docs, equal_to([{'x':1}, {'x':2}, {'x':3}]))
-
-
-
+      docs = p | 'ReadFromMongoDB' >> ReadFromMongoDB(uri='mongodb://test',
+                                                      db='db',
+                                                      coll='collection')
+      assert_that(docs, equal_to(objects))
