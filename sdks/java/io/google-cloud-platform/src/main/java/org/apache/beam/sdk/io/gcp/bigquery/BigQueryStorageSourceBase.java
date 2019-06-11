@@ -48,7 +48,6 @@ abstract class BigQueryStorageSourceBase<T> extends BoundedSource<T> {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(BigQueryStorageSourceBase.class);
 
-
   /**
    * The maximum number of streams which will be requested when creating a read session, regardless
    * of the desired bundle size.
@@ -109,9 +108,10 @@ abstract class BigQueryStorageSourceBase<T> extends BoundedSource<T> {
             .setRequestedStreams(streamCount)
             // TODO(aryann): Once we rebuild the generated client code, we should change this to
             // use setShardingStrategy().
-            .setUnknownFields(UnknownFieldSet.newBuilder().addField(7,
-                UnknownFieldSet.Field.newBuilder()
-                    .addVarint(2).build()).build());
+            .setUnknownFields(
+                UnknownFieldSet.newBuilder()
+                    .addField(7, UnknownFieldSet.Field.newBuilder().addVarint(2).build())
+                    .build());
 
     if (tableReadOptions != null) {
       requestBuilder.setReadOptions(tableReadOptions);
@@ -121,8 +121,8 @@ abstract class BigQueryStorageSourceBase<T> extends BoundedSource<T> {
     try (StorageClient client = bqServices.getStorageClient(bqOptions)) {
       CreateReadSessionRequest request = requestBuilder.build();
       readSession = client.createReadSession(request);
-      LOGGER.info("Sent CreateReadSession request '{}'; received response '{}'.", request,
-          readSession);
+      LOGGER.info(
+          "Sent CreateReadSession request '{}'; received response '{}'.", request, readSession);
     }
 
     if (readSession.getStreamsList().isEmpty()) {
