@@ -166,6 +166,10 @@ public interface BigQueryServices extends Serializable {
         throws IOException, InterruptedException;
   }
 
+  interface BigQueryServerStream<T> extends Iterable<T>, Serializable {
+    void cancel();
+  }
+
   /** An interface representing a client object for making calls to the BigQuery Storage API. */
   @Experimental(Experimental.Kind.SOURCE_SINK)
   interface StorageClient extends AutoCloseable {
@@ -173,7 +177,7 @@ public interface BigQueryServices extends Serializable {
     ReadSession createReadSession(CreateReadSessionRequest request);
 
     /** Read rows in the context of a specific read stream. */
-    Iterable<ReadRowsResponse> readRows(ReadRowsRequest request);
+    BigQueryServerStream<ReadRowsResponse> readRows(ReadRowsRequest request);
 
     SplitReadStreamResponse splitReadStream(SplitReadStreamRequest request);
 

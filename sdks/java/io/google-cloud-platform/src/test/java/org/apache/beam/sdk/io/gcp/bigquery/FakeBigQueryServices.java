@@ -23,6 +23,7 @@ import com.google.api.services.bigquery.model.TableRow;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.util.Iterator;
 import java.util.List;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.coders.KvCoder;
@@ -66,6 +67,23 @@ public class FakeBigQueryServices implements BigQueryServices {
   @Override
   public StorageClient getStorageClient(BigQueryOptions bqOptions) {
     return storageClient;
+  }
+
+  public static class FakeBigQueryServerStream<T> implements BigQueryServerStream<T> {
+
+    private final List<T> items;
+
+    public FakeBigQueryServerStream(List<T> items) {
+      this.items = items;
+    }
+
+    @Override
+    public Iterator<T> iterator() {
+      return items.iterator();
+    }
+
+    @Override
+    public void cancel() {}
   }
 
   static String encodeQueryResult(Table table) throws IOException {

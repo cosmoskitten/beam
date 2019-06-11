@@ -22,7 +22,6 @@ import static org.apache.beam.sdk.io.gcp.bigquery.BigQueryHelpers.toJsonString;
 import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkNotNull;
 
 import com.google.api.gax.rpc.FailedPreconditionException;
-import com.google.api.gax.rpc.ServerStream;
 import com.google.api.services.bigquery.model.TableSchema;
 import com.google.cloud.bigquery.storage.v1beta1.Storage.ReadRowsRequest;
 import com.google.cloud.bigquery.storage.v1beta1.Storage.ReadRowsResponse;
@@ -31,10 +30,7 @@ import com.google.cloud.bigquery.storage.v1beta1.Storage.SplitReadStreamRequest;
 import com.google.cloud.bigquery.storage.v1beta1.Storage.SplitReadStreamResponse;
 import com.google.cloud.bigquery.storage.v1beta1.Storage.Stream;
 import com.google.cloud.bigquery.storage.v1beta1.Storage.StreamPosition;
-import com.google.protobuf.FloatValue;
 import com.google.protobuf.UnknownFieldSet;
-import io.grpc.Status;
-import io.grpc.StatusRuntimeException;
 import java.io.IOException;
 import java.util.Iterator;
 import java.util.List;
@@ -48,6 +44,7 @@ import org.apache.avro.io.DecoderFactory;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.io.BoundedSource;
+import org.apache.beam.sdk.io.gcp.bigquery.BigQueryServices.BigQueryServerStream;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryServices.StorageClient;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.SerializableFunction;
@@ -56,9 +53,7 @@ import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableLis
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-/**
- * A {@link org.apache.beam.sdk.io.Source} representing a single stream in a read session.
- */
+/** A {@link org.apache.beam.sdk.io.Source} representing a single stream in a read session. */
 @Experimental(Experimental.Kind.SOURCE_SINK)
 public class BigQueryStorageStreamSource<T> extends BoundedSource<T> {
 
@@ -86,12 +81,7 @@ public class BigQueryStorageStreamSource<T> extends BoundedSource<T> {
    */
   public BigQueryStorageStreamSource<T> fromExisting(Stream newStream) {
     return new BigQueryStorageStreamSource(
-        readSession,
-        newStream,
-        jsonTableSchema,
-        parseFn,
-        outputCoder,
-        bqServices);
+        readSession, newStream, jsonTableSchema, parseFn, outputCoder, bqServices);
   }
 
   private final ReadSession readSession;
@@ -157,9 +147,7 @@ public class BigQueryStorageStreamSource<T> extends BoundedSource<T> {
     return stream.toString();
   }
 
-  /**
-   * A {@link org.apache.beam.sdk.io.Source.Reader} which reads records from a stream.
-   */
+  /** A {@link org.apache.beam.sdk.io.Source.Reader} which reads records from a stream. */
   @Experimental(Experimental.Kind.SOURCE_SINK)
   public static class BigQueryStorageStreamReader<T> extends BoundedSource.BoundedReader<T> {
 
@@ -243,17 +231,25 @@ public class BigQueryStorageStreamSource<T> extends BoundedSource<T> {
 
     @Override
     public BoundedSource<T> splitAtFraction(double fraction) {
-      LOGGER.info("Received split request for stream '{}' at fraction {}.", source.stream.getName(),
+      LOGGER.info(
+          "Received split request for stream '{}' at fraction {}.",
+          source.stream.getName(),
           fraction);
 
-      SplitReadStreamRequest splitRequest = SplitReadStreamRequest.newBuilder()
-          .setOriginalStream(source.stream)
-          // TODO(aryann): Once we rebuild the generated client code, we should change this to
-          // use setFraction().
-          .setUnknownFields(UnknownFieldSet.newBuilder().addField(2,
-              UnknownFieldSet.Field.newBuilder()
-                  .addFixed32(java.lang.Float.floatToIntBits((float) fraction)).build()).build())
-          .build();
+      SplitReadStreamRequest splitRequest =
+          SplitReadStreamRequest.newBuilder()
+              .setOriginalStream(source.stream)
+              // TODO(aryann): Once we rebuild the generated client code, we should change this to
+              // use setFraction().
+              .setUnknownFields(
+                  UnknownFieldSet.newBuilder()
+                      .addField(
+                          2,
+                          UnknownFieldSet.Field.newBuilder()
+                              .addFixed32(java.lang.Float.floatToIntBits((float) fraction))
+                              .build())
+                      .build())
+              .build();
       SplitReadStreamResponse splitResponse = storageClient.splitReadStream(splitRequest);
 
       if (!splitResponse.hasPrimaryStream() || !splitResponse.hasRemainderStream()) {
@@ -266,20 +262,26 @@ public class BigQueryStorageStreamSource<T> extends BoundedSource<T> {
       // replace its current source with the primary stream iff the reader has not moved past
       // the split point.
       synchronized (this) {
-        Iterable<ReadRowsResponse> readResponse;
+        BigQueryServerStream<ReadRowsResponse> readResponse;
         try {
-          readResponse = storageClient.readRows(ReadRowsRequest.newBuilder().setReadPosition(
-              StreamPosition.newBuilder().setStream(splitResponse.getPrimaryStream())
-                  .setOffset(currentOffset)).build());
+          readResponse =
+              storageClient.readRows(
+                  ReadRowsRequest.newBuilder()
+                      .setReadPosition(
+                          StreamPosition.newBuilder()
+                              .setStream(splitResponse.getPrimaryStream())
+                              .setOffset(currentOffset))
+                      .build());
           readResponse.iterator().hasNext();
-          ((ServerStream) readResponse).cancel();
+          readResponse.cancel();
         } catch (FailedPreconditionException e) {
           // The current source has already moved past the split point, so this split attempt
           // is unsuccessful.
           LOGGER.info(
-              "Split of stream '{}' abandoned because the primary stream is to the left of " +
-                  "the split fraction {}.",
-              source.stream.getName(), fraction);
+              "Split of stream '{}' abandoned because the primary stream is to the left of "
+                  + "the split fraction {}.",
+              source.stream.getName(),
+              fraction);
           return null;
         } catch (Exception e) {
           throw e;
