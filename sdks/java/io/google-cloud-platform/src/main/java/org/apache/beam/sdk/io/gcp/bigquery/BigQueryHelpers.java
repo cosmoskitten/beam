@@ -552,6 +552,8 @@ public class BigQueryHelpers {
 
     DatasetService datasetService = new BigQueryServicesImpl().getDatasetService(options);
     Table table = datasetService.getTable(tableRef);
+    if (table == null)
+      return null;
     return table.getNumRows();
   }
 

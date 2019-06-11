@@ -56,6 +56,7 @@ class BigQueryTable extends BaseBeamTable implements Serializable {
   @Override
   public Double getRowCount(PipelineOptions options) {
     if (tableSize == -1.) {
+      tableSize = null;
       try {
         BigInteger tSize =
             BigQueryHelpers.getNumRows(
@@ -64,11 +65,9 @@ class BigQueryTable extends BaseBeamTable implements Serializable {
           tableSize = tSize.doubleValue();
         }
       } catch (IOException e) {
-        tableSize = null;
         LoggerFactory.getLogger(BigQueryTable.class)
             .warn("IOException: Could not get the row count for the table " + bqLocation);
       } catch (InterruptedException e) {
-        tableSize = null;
         LoggerFactory.getLogger(BigQueryTable.class)
             .warn("InterruptedException: Could not get the row count for the table " + bqLocation);
       }
