@@ -17,19 +17,25 @@
  */
 package org.apache.beam.sdk.extensions.sql.meta.provider.bigquery;
 
+import java.io.IOException;
 import java.io.Serializable;
+import java.math.BigInteger;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.extensions.sql.impl.schema.BaseBeamTable;
 import org.apache.beam.sdk.extensions.sql.meta.Table;
+import org.apache.beam.sdk.io.gcp.bigquery.BigQueryHelpers;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO;
+import org.apache.beam.sdk.io.gcp.bigquery.BigQueryOptions;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryUtils;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryUtils.ConversionOptions;
+import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.schemas.SchemaCoder;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.POutput;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.annotations.VisibleForTesting;
+import org.slf4j.LoggerFactory;
 
 /**
  * {@code BigQueryTable} represent a BigQuery table as a target. This provider does not currently
@@ -39,11 +45,35 @@ import org.apache.beam.vendor.guava.v20_0.com.google.common.annotations.VisibleF
 class BigQueryTable extends BaseBeamTable implements Serializable {
   @VisibleForTesting final String bqLocation;
   private final ConversionOptions conversionOptions;
+  private Double tableSize = -1.;
 
   BigQueryTable(Table table, BigQueryUtils.ConversionOptions options) {
     super(table.getSchema());
     this.conversionOptions = options;
     this.bqLocation = table.getLocation();
+  }
+
+  @Override
+  public Double getRowCount(PipelineOptions options) {
+    if (tableSize == -1.) {
+      try {
+        BigInteger tSize =
+            BigQueryHelpers.getNumRows(
+                options.as(BigQueryOptions.class), BigQueryHelpers.parseTableSpec(bqLocation));
+        if (tSize != null) {
+          tableSize = tSize.doubleValue();
+        }
+      } catch (IOException e) {
+        tableSize = null;
+        LoggerFactory.getLogger(BigQueryTable.class)
+            .warn("IOException: Could not get the row count for the table " + bqLocation);
+      } catch (InterruptedException e) {
+        tableSize = null;
+        LoggerFactory.getLogger(BigQueryTable.class)
+            .warn("InterruptedException: Could not get the row count for the table " + bqLocation);
+      }
+    }
+    return tableSize;
   }
 
   @Override

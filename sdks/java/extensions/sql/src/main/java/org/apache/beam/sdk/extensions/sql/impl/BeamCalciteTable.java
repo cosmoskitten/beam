@@ -21,6 +21,7 @@ import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import org.apache.beam.sdk.extensions.sql.BeamSqlTable;
+import org.apache.beam.sdk.extensions.sql.impl.rel.BeamEnumerableConverter;
 import org.apache.beam.sdk.extensions.sql.impl.rel.BeamIOSinkRel;
 import org.apache.beam.sdk.extensions.sql.impl.rel.BeamIOSourceRel;
 import org.apache.beam.sdk.extensions.sql.impl.utils.CalciteUtils;
@@ -31,14 +32,20 @@ import org.apache.calcite.linq4j.Queryable;
 import org.apache.calcite.plan.RelOptCluster;
 import org.apache.calcite.plan.RelOptTable;
 import org.apache.calcite.prepare.Prepare;
+import org.apache.calcite.rel.RelCollation;
+import org.apache.calcite.rel.RelDistribution;
 import org.apache.calcite.rel.RelNode;
+import org.apache.calcite.rel.RelReferentialConstraint;
 import org.apache.calcite.rel.core.TableModify;
 import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.rel.type.RelDataTypeFactory;
 import org.apache.calcite.rex.RexNode;
 import org.apache.calcite.schema.ModifiableTable;
 import org.apache.calcite.schema.SchemaPlus;
+import org.apache.calcite.schema.Statistic;
+import org.apache.calcite.schema.Statistics;
 import org.apache.calcite.schema.TranslatableTable;
+import org.apache.calcite.util.ImmutableBitSet;
 
 /** Adapter from {@link BeamSqlTable} to a calcite Table. */
 public class BeamCalciteTable extends AbstractQueryableTable
@@ -59,6 +66,39 @@ public class BeamCalciteTable extends AbstractQueryableTable
   @Override
   public RelDataType getRowType(RelDataTypeFactory typeFactory) {
     return CalciteUtils.toCalciteRowType(this.beamTable.getSchema(), typeFactory);
+  }
+
+  @Override
+  public Statistic getStatistic() {
+    return new Statistic() {
+      @Override
+      public Double getRowCount() {
+        Double rc =
+            beamTable.getRowCount(BeamEnumerableConverter.createPipelineOptions(pipelineOptions));
+        rc = (rc == null) ? Statistics.UNKNOWN.getRowCount() : rc;
+        return rc;
+      }
+
+      @Override
+      public boolean isKey(ImmutableBitSet columns) {
+        return Statistics.UNKNOWN.isKey(columns);
+      }
+
+      @Override
+      public List<RelReferentialConstraint> getReferentialConstraints() {
+        return Statistics.UNKNOWN.getReferentialConstraints();
+      }
+
+      @Override
+      public List<RelCollation> getCollations() {
+        return Statistics.UNKNOWN.getCollations();
+      }
+
+      @Override
+      public RelDistribution getDistribution() {
+        return Statistics.UNKNOWN.getDistribution();
+      }
+    };
   }
 
   @Override
