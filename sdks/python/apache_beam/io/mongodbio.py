@@ -14,19 +14,17 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
-"""MongoDB IO
-
-This module implements IO class to read and write data on MongoDB.
-
-ReadFromMongoDB is a ``PTransform`` that reads from configured MongoDB source
-and returns ``PCollection`` of dict representing MongoDB document. To configure
-MongoDB source, the URI, database name, collection name needs to be provided.
+"""This module implements IO classes to read and write data on MongoDB.
 
 
 Read from MongoDB
 -----------------
+:class:`ReadFromMongoDB` is a ``PTransform`` that reads from configured MongoDB
+source and returns ``PCollection`` of dict representing MongoDB document.
+To configure MongoDB source, the URI, database name, collection name needs to be
+provided.
 
-Example usage:
+Example usage::
 
   pipeline | ReadFromMongoDB(uri='mongodb://localhost:27017',
                              db='testdb',
@@ -35,17 +33,18 @@ Example usage:
 
 Write to MongoDB:
 -----------------
-WriteToMongoDB is a ``PTransform`` that writes MongoDB documents to configured
-sink, and the write is conducted through a mongodb bulk_write of ``ReplaceOne``
-operations, if the document's _id field already existed in the MongoDB
-collection, it results in an overwrite.
+:class:`WriteToMongoDB` is a ``PTransform`` that writes MongoDB documents to
+configured sink, and the write is conducted through a mongodb bulk_write of
+``ReplaceOne`` operations. If the document's _id field already existed in the
+MongoDB collection, it results in an overwrite, otherwise, a new document
+will be inserted.
 
-Example usage:
+Example usage::
 
   pipeline | WriteToMongoDB(uri='mongodb://localhost:27017',
-                             db='testdb',
-                             coll='output',
-                             batch_size=10)
+                            db='testdb',
+                            coll='output',
+                            batch_size=10)
 
 
 No backward compatibility guarantees. Everything in this module is experimental.
@@ -70,6 +69,9 @@ __all__ = ['ReadFromMongoDB', 'WriteToMongoDB']
 
 @experimental()
 class ReadFromMongoDB(PTransform):
+  """A ``PTransfrom`` to read MongoDB documents into a ``PCollection``.
+  """
+
   def __init__(self,
                uri='mongodb://localhost:27017',
                db=None,
@@ -77,6 +79,24 @@ class ReadFromMongoDB(PTransform):
                filter=None,
                projection=None,
                **kwargs):
+    """Initialize a :class:`ReadFromMongoDB`
+
+    Args:
+      uri (str): The MongoDB connection string following the URI format
+      db (str): The MongoDB database name
+      coll (str): The MongoDB collection name
+      filter: A :class:`~bson.SON` object specifying elements
+        which must be present for a document to be included in the result set
+      projection (list): A list of field names that should be
+        returned in the result set or a dict specifying the fields to include or
+        exclude
+      **kwargs: Optional :class:`~pymongo.mongo_client.MongoClient`
+        parameters as keyword arguments
+
+    Returns:
+      :class:`~apache_beam.transforms.PTransform`
+
+    """
     self._mongo_source = _BoundedMongoSource(uri=uri,
                                              db=db,
                                              coll=coll,
@@ -108,12 +128,10 @@ class _BoundedMongoSource(iobase.BoundedSource):
     self._avg_doc_size = self._get_avg_document_size()
 
   def estimate_size(self):
-    avg_size = self._get_avg_document_size()
-    count = self._get_document_count()
-    return avg_size * count
+    return self._avg_doc_size * self._doc_count
 
   def split(self, desired_bundle_size, start_position=None, stop_position=None):
-    # use document index as the start and stop position
+    # use document cursor index as the start and stop positions
     if start_position is None:
       start_position = 0
     if stop_position is None:
@@ -124,7 +142,7 @@ class _BoundedMongoSource(iobase.BoundedSource):
 
     bundle_start = start_position
     while bundle_start < stop_position:
-      bundle_end = max(stop_position, bundle_start + desired_bundle_count)
+      bundle_end = min(stop_position, bundle_start + desired_bundle_count)
       yield iobase.SourceBundle(weight=bundle_end - bundle_start,
                                 source=self,
                                 start_position=bundle_start,
@@ -164,6 +182,16 @@ class WriteToMongoDB(PTransform):
                coll=None,
                batch_size=1,
                **kwargs):
+    """
+
+    Args:
+      uri (str): The MongoDB connection string following the URI format
+      db (str): The MongoDB database name
+      coll (str): The MongoDB collection name
+      batch_size(int): Number of documents per bulk_write to  MongoDB
+      **kwargs: Optional :class:`~pymongo.mongo_client.MongoClient`
+        parameters as keyword arguments
+    """
     self._uri = uri
     self._db = db
     self._coll = coll
@@ -181,7 +209,7 @@ class WriteToMongoDB(PTransform):
 class _GenerateObjectIdFn(DoFn):
   def process(self, element, *args, **kwargs):
     # if _id field already exist we keep it as it is, otherwise the ptransform
-    # generates a new _id field to achieve idempotent write to mongodb
+    # generates a new _id field to achieve idempotent write to mongodb.
     if '_id' not in element:
       result = element.copy()
       result['_id'] = objectid.ObjectId()
@@ -224,6 +252,8 @@ class _MongoSink(object):
   def write(self, documents):
     requests = []
     for doc in documents:
+      # match document based on _id field, if not found in current collection,
+      # insert new one, otherwise overwrite it.
       requests.append(
           ReplaceOne(filter={'_id': doc['_id']}, replacement=doc, upsert=True))
     with MongoClient(self._uri, **self._spec) as client:
