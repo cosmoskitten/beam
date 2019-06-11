@@ -157,6 +157,7 @@ public class BigQueryStorageStreamSource<T> extends BoundedSource<T> {
     private final TableSchema tableSchema;
 
     private BigQueryStorageStreamSource<T> source;
+    private BigQueryServerStream<ReadRowsResponse> responseStream;
     private Iterator<ReadRowsResponse> responseIterator;
     private BinaryDecoder decoder;
     private GenericRecord record;
@@ -184,7 +185,8 @@ public class BigQueryStorageStreamSource<T> extends BoundedSource<T> {
                   StreamPosition.newBuilder().setStream(source.stream).setOffset(currentOffset))
               .build();
 
-      responseIterator = storageClient.readRows(request).iterator();
+      responseStream = storageClient.readRows(request);
+      responseIterator = responseStream.iterator();
       LOGGER.info("Started read from stream '{}'.", source.stream.getName());
       return readNextRecord();
     }
@@ -287,8 +289,11 @@ public class BigQueryStorageStreamSource<T> extends BoundedSource<T> {
           throw e;
         }
 
-        // TODO(aryann): Cancel the parent read stream.
+        // Cancels the parent stream before replacing it with the primary stream.
+        responseStream.cancel();
+
         source = source.fromExisting(splitResponse.getPrimaryStream());
+        responseStream = readResponse;
         responseIterator = readResponse.iterator();
       }
 
