@@ -270,18 +270,19 @@ public class BigQueryStorageStreamSource<T> extends BoundedSource<T> {
       // replace its current source with the primary stream iff the reader has not moved past
       // the split point.
       synchronized (this) {
-        BigQueryServerStream<ReadRowsResponse> readResponse;
+        BigQueryServerStream<ReadRowsResponse> newResponseStream;
+        Iterator<ReadRowsResponse> newResponseIterator;
         try {
-          readResponse =
+          newResponseStream =
               storageClient.readRows(
                   ReadRowsRequest.newBuilder()
                       .setReadPosition(
                           StreamPosition.newBuilder()
                               .setStream(splitResponse.getPrimaryStream())
-                              .setOffset(currentOffset))
+                              .setOffset(currentOffset + 1))
                       .build());
-          readResponse.iterator().hasNext();
-          readResponse.cancel();
+          newResponseIterator = newResponseStream.iterator();
+          newResponseIterator.hasNext();
         } catch (FailedPreconditionException e) {
           // The current source has already moved past the split point, so this split attempt
           // is unsuccessful.
@@ -306,9 +307,11 @@ public class BigQueryStorageStreamSource<T> extends BoundedSource<T> {
         // Cancels the parent stream before replacing it with the primary stream.
         responseStream.cancel();
 
+        currentOffset++;
         source = source.fromExisting(splitResponse.getPrimaryStream());
-        responseStream = readResponse;
-        responseIterator = readResponse.iterator();
+        responseStream = newResponseStream;
+        responseIterator = newResponseIterator;
+        decoder = null;
       }
 
       Metrics.counter(BigQueryStorageStreamReader.class, "split-at-fraction-calls-successful")

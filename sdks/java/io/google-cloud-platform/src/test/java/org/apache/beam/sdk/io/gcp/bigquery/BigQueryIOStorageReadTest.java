@@ -758,7 +758,9 @@ public class BigQueryIOStorageReadTest {
                 .setReadPosition(
                     StreamPosition.newBuilder()
                         .setStream(Stream.newBuilder().setName("primary"))
-                        .setOffset(1))
+                        // This test will read rows 0 and 1 from the parent before calling split,
+                        // so we expect the primary read to start at offset 2.
+                        .setOffset(2))
                 .build()))
         .thenReturn(new FakeBigQueryServerStream<>(parentResponses.subList(1, 2)));
     when(fakeStorageClient.readRows(
@@ -934,7 +936,9 @@ public class BigQueryIOStorageReadTest {
                 .setReadPosition(
                     StreamPosition.newBuilder()
                         .setStream(Stream.newBuilder().setName("primary"))
-                        .setOffset(1))
+                        // This test will read rows 0 and 1 from the parent before calling split,
+                        // so we expect the primary read to start at offset 2.
+                        .setOffset(2))
                 .build()))
         .thenThrow(
             new FailedPreconditionException(
