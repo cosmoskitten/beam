@@ -52,7 +52,6 @@ No backward compatibility guarantees. Everything in this module is experimental.
 
 from __future__ import absolute_import
 
-from apache_beam.testing.test_pipeline import TestPipeline
 from bson import objectid
 from pymongo import MongoClient
 from pymongo import ReplaceOne
