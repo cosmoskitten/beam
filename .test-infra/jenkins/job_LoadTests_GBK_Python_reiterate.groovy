@@ -24,7 +24,7 @@ import CronJobBuilder
 
 def now = new Date().format("MMddHHmmss", TimeZone.getTimeZone('UTC'))
 
-def loadTestConfigurations = [
+def loadTestConfigurations = {context -> [
         [
                 title        : 'GroupByKey Python Load test: reiterate 4 times 10kB values',
                 itClass      :  'apache_beam.testing.load_tests.group_by_key_test:GroupByKeyTest.testGroupByKey',
@@ -34,7 +34,7 @@ def loadTestConfigurations = [
                         job_name             : 'load-tests-python-dataflow-batch-gbk-6-' + now,
                         temp_location        : 'gs://temp-storage-for-perf-tests/loadtests',
                         publish_to_big_query : true,
-                        metrics_dataset      : 'load_test',
+                        metrics_dataset      : loadTestsBuilder.setContextualDatasetName('load_test', context),
                         metrics_table        : "python_dataflow_batch_gbk_6",
                         input_options        : '\'{"num_records": 20000000,' +
                                 '"key_size": 10,' +
@@ -71,13 +71,13 @@ def loadTestConfigurations = [
                         autoscaling_algorithm: 'NONE'
                 ]
         ]
-]
+]}
 
 def batchLoadTestJob = { scope, triggeringContext ->
     scope.description('Runs Python GBK reiterate load tests on Dataflow runner in batch mode')
     commonJobProperties.setTopLevelMainJobProperties(scope, 'master', 240)
 
-    for (testConfiguration in loadTestConfigurations) {
+    for (testConfiguration in loadTestConfigurations(triggeringContext)) {
         loadTestsBuilder.loadTest(scope, testConfiguration.title, testConfiguration.runner, CommonTestProperties.SDK.PYTHON, testConfiguration.jobProperties, testConfiguration.itClass, triggeringContext)
     }
 }
