@@ -72,20 +72,12 @@ class LoadTestsBuilder {
     }.join(' ')
   }
 
-  private static String setContextualDatasetName(String baseName, TriggeringContext triggeringContext) {
+  static String setContextualDatasetName(String baseName, TriggeringContext triggeringContext) {
     if (triggeringContext == TriggeringContext.PR) {
       return baseName + '_PRs'
     } else {
       return baseName
     }
-  }
-
-  private static String getContextualDatasetKey(SDK sdk) {
-    String datasetKey = 'bigQueryDataset'
-    if (sdk == SDK.PYTHON) {
-      datasetKey = 'metrics_dataset'
-    }
-    return datasetKey
   }
 }
 
