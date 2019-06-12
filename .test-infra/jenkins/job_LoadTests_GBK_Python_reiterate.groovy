@@ -34,8 +34,8 @@ def loadTestConfigurations = { context -> [
                         job_name             : 'load-tests-python-dataflow-batch-gbk-6-' + now,
                         temp_location        : 'gs://temp-storage-for-perf-tests/loadtests',
                         publish_to_big_query : true,
-                        metrics_dataset      : loadTestsBuilder.setContextualDatasetName('load_test', context),
-                        metrics_table        : "python_dataflow_batch_gbk_6",
+                        metrics_bq_dataset   : loadTestsBuilder.setContextualDatasetName('load_test', context),
+                        metrics_bq_table     : "python_dataflow_batch_gbk_6",
                         input_options        : '\'{"num_records": 20000000,' +
                                 '"key_size": 10,' +
                                 '"value_size": 90,' +
@@ -57,8 +57,8 @@ def loadTestConfigurations = { context -> [
                         job_name             : 'load-tests-python-dataflow-batch-gbk-7-' + now,
                         temp_location        : 'gs://temp-storage-for-perf-tests/loadtests',
                         publish_to_big_query : true,
-                        metrics_dataset      : 'load_test',
-                        metrics_table        : 'python_dataflow_batch_gbk_7',
+                        metrics_bq_dataset   : loadTestsBuilder.setContextualDatasetName('load_test', context),
+                        metrics_bq_table     : 'python_dataflow_batch_gbk_7',
                         input_options        : '\'{"num_records": 20000000,' +
                                 '"key_size": 10,' +
                                 '"value_size": 90,' +

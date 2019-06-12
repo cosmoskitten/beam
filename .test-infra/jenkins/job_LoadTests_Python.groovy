@@ -32,8 +32,8 @@ def loadTestConfigurations = { context -> [
                         project              : 'apache-beam-testing',
                         temp_location        : 'gs://temp-storage-for-perf-tests/loadtests',
                         publish_to_big_query : true,
-                        metrics_dataset      : loadTestsBuilder.setContextualDatasetName('load_test', context),
-                        metrics_table        : 'python_dataflow_batch_gbk_1',
+                        metrics_bq_dataset   : loadTestsBuilder.setContextualDatasetName('load_test', context),
+                        metrics_bq_table     : 'python_dataflow_batch_gbk_1',
                         input_options        : '\'{"num_records": 200000000,' +
                                 '"key_size": 1,' +
                                 '"value_size": 9}\'',
@@ -54,8 +54,8 @@ def loadTestConfigurations = { context -> [
                         project              : 'apache-beam-testing',
                         temp_location        : 'gs://temp-storage-for-perf-tests/loadtests',
                         publish_to_big_query : true,
-                        metrics_dataset      : loadTestsBuilder.setContextualDatasetName('load_test', context),
-                        metrics_table        : 'python_dataflow_batch_gbk_2',
+                        metrics_bq_dataset   : loadTestsBuilder.setContextualDatasetName('load_test', context),
+                        metrics_bq_table     : 'python_dataflow_batch_gbk_2',
                         input_options        : '\'{"num_records": 20000000,' +
                                 '"key_size": 10,' +
                                 '"value_size": 90}\'',
@@ -76,8 +76,8 @@ def loadTestConfigurations = { context -> [
                         project              : 'apache-beam-testing',
                         temp_location        : 'gs://temp-storage-for-perf-tests/loadtests',
                         publish_to_big_query : true,
-                        metrics_dataset      : loadTestsBuilder.setContextualDatasetName('load_test', context),
-                        metrics_table        : 'python_dataflow_batch_gbk_3',
+                        metrics_bq_dataset   : loadTestsBuilder.setContextualDatasetName('load_test', context),
+                        metrics_bq_table     : 'python_dataflow_batch_gbk_3',
                         input_options        : '\'{"num_records": 2000,' +
                                 '"key_size": 100000,' +
                                 '"value_size": 900000}\'',
@@ -98,8 +98,8 @@ def loadTestConfigurations = { context -> [
                         project              : 'apache-beam-testing',
                         temp_location        : 'gs://temp-storage-for-perf-tests/loadtests',
                         publish_to_big_query : true,
-                        metrics_dataset      : loadTestsBuilder.setContextualDatasetName('load_test', context),
-                        metrics_table        : 'python_dataflow_batch_gbk_4',
+                        metrics_bq_dataset   : loadTestsBuilder.setContextualDatasetName('load_test', context),
+                        metrics_bq_table     : 'python_dataflow_batch_gbk_4',
                         input_options        : '\'{"num_records": 5000000,' +
                                 '"key_size": 10,' +
                                 '"value_size": 90}\'',
@@ -120,8 +120,8 @@ def loadTestConfigurations = { context -> [
                         project              : 'apache-beam-testing',
                         temp_location        : 'gs://temp-storage-for-perf-tests/loadtests',
                         publish_to_big_query : true,
-                        metrics_dataset      : loadTestsBuilder.setContextualDatasetName('load_test', context),
-                        metrics_table        : 'python_dataflow_batch_gbk_5',
+                        metrics_bq_dataset   : loadTestsBuilder.setContextualDatasetName('load_test', context),
+                        metrics_bq_table     : 'python_dataflow_batch_gbk_5',
                         input_options        : '\'{"num_records": 2500000,' +
                                 '"key_size": 10,' +
                                 '"value_size": 90}\'',
