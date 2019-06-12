@@ -20,6 +20,8 @@
 from __future__ import absolute_import
 from __future__ import print_function
 
+import logging
+
 from apache_beam.internal import pickler
 from apache_beam.options.pipeline_options import StandardOptions
 from apache_beam.options.pipeline_options import TestOptions
