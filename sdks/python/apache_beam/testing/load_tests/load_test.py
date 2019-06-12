@@ -52,7 +52,7 @@ class LoadTest(unittest.TestCase):
     self.project_id = self.pipeline.get_option('project')
 
     self.publish_to_big_query = self.pipeline.get_option('publish_to_big_query')
-    self.metrics_namespace = self.pipeline.get_option('metrics_table')
+    self.metrics_namespace = self.pipeline.get_option('metrics_bq_table')
 
     if not self.publish_to_big_query or self.publish_to_big_query != 'true':
       logging.info('Metrics will not be collected')
@@ -61,7 +61,7 @@ class LoadTest(unittest.TestCase):
       self.metrics_monitor = MetricsReader(
           project_name=self.pipeline.get_option('project'),
           bq_table=self.metrics_namespace,
-          bq_dataset=self.pipeline.get_option('metrics_dataset'),
+          bq_dataset=self.pipeline.get_option('metrics_bq_dataset'),
       )
 
   def tearDown(self):

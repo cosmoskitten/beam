@@ -24,7 +24,7 @@ it is required to specify project of runner),
 * publish_to_big_query - if metrics should be published in big query,
 * metrics_namespace (optional) - name of BigQuery dataset where metrics
 will be stored,
-* metrics_table (optional) - name of BigQuery table where metrics
+* metrics_bq_table (optional) - name of BigQuery table where metrics
 will be stored,
 * input_options - options for Synthetic Sources.
 
@@ -34,8 +34,8 @@ python setup.py nosetests \
     --test-pipeline-options="
     --project=big-query-project
     --publish_to_big_query=true
-    --metrics_dataset=python_load_tests
-    --metrics_table=side_input
+    --metrics_bq_dataset=python_load_tests
+    --metrics_bq_table=side_input
     --number_of_counter_operations=1000
     --input_options='{
     \"num_records\": 300,
@@ -53,8 +53,8 @@ or:
 ./gradlew -PloadTest.args='
     --publish_to_big_query=true
     --project=...
-    --metrics_dataset=python_load_tests
-    --metrics_table=side_input
+    --metrics_bq_dataset=python_load_tests
+    --metrics_bq_table=side_input
     --input_options=\'
       {"num_records": 1,
       "key_size": 1,
@@ -74,8 +74,8 @@ python setup.py nosetests \
         --runner=TestDataflowRunner
         --project=...
         --publish_to_big_query=true
-        --metrics_dataset=python_load_tests
-        --metrics_table=side_input
+        --metrics_bq_dataset=python_load_tests
+        --metrics_bq_table=side_input
         --staging_location=gs://...
         --temp_location=gs://...
         --sdk_location=./dist/apache-beam-x.x.x.dev0.tar.gz
@@ -96,8 +96,8 @@ or:
 ./gradlew -PloadTest.args='
     --publish_to_big_query=true
     --project=...
-    --metrics_dataset=python_load_tests
-    --metrics_table=side_input
+    --metrics_bq_dataset=python_load_tests
+    --metrics_bq_table=side_input
     --temp_location=gs://...
     --input_options=\'
       {"num_records": 1,

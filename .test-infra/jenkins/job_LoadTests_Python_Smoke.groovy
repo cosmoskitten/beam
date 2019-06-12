@@ -30,8 +30,8 @@ def smokeTestConfigurations = { context -> [
                 jobProperties: [
                         publish_to_big_query: true,
                         project             : 'apache-beam-testing',
-                        metrics_dataset     : loadTestsBuilder.setContextualDatasetName('load_test_SMOKE', context),
-                        metrics_table       : 'python_direct_gbk',
+                        metrics_bq_dataset  : loadTestsBuilder.setContextualDatasetName('load_test_SMOKE', context),
+                        metrics_bq_table    : 'python_direct_gbk',
                         input_options       : '\'{"num_records": 100000,' +
                                 '"key_size": 1,' +
                                 '"value_size":1}\'',
@@ -48,8 +48,8 @@ def smokeTestConfigurations = { context -> [
                         project             : 'apache-beam-testing',
                         temp_location       : 'gs://temp-storage-for-perf-tests/smoketests',
                         publish_to_big_query: true,
-                        metrics_dataset     : loadTestsBuilder.setContextualDatasetName('load_test_SMOKE', context),
-                        metrics_table       : 'python_dataflow_gbk',
+                        metrics_bq_dataset  : loadTestsBuilder.setContextualDatasetName('load_test_SMOKE', context),
+                        metrics_bq_table    : 'python_dataflow_gbk',
                         input_options       : '\'{"num_records": 100000,' +
                                 '"key_size": 1,' +
                                 '"value_size":1}\'',
