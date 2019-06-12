@@ -22,7 +22,13 @@ import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Precondi
 import com.google.api.client.util.BackOff;
 import com.google.api.client.util.BackOffUtils;
 import com.google.api.client.util.Sleeper;
-import com.google.api.services.bigquery.model.*;
+import com.google.api.services.bigquery.model.Dataset;
+import com.google.api.services.bigquery.model.Job;
+import com.google.api.services.bigquery.model.JobStatus;
+import com.google.api.services.bigquery.model.Table;
+import com.google.api.services.bigquery.model.TableReference;
+import com.google.api.services.bigquery.model.TableSchema;
+import com.google.api.services.bigquery.model.TimePartitioning;
 import com.google.cloud.bigquery.storage.v1beta1.TableReferenceProto;
 import com.google.cloud.hadoop.util.ApiErrorExtractor;
 import java.io.IOException;
@@ -548,16 +554,15 @@ public class BigQueryHelpers {
    */
   @Nullable
   public static BigInteger getNumRows(BigQueryOptions options, TableReference tableRef)
-          throws InterruptedException, IOException{
+      throws InterruptedException, IOException {
 
     DatasetService datasetService = new BigQueryServicesImpl().getDatasetService(options);
     Table table = datasetService.getTable(tableRef);
-    if (table == null)
+    if (table == null) {
       return null;
+    }
     return table.getNumRows();
   }
-
-
 
   static String getDatasetLocation(
       DatasetService datasetService, String projectId, String datasetId) {
