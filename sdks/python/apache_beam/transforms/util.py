@@ -24,6 +24,8 @@ from __future__ import division
 import collections
 import contextlib
 import random
+import re
+import sys
 import time
 from builtins import object
 from builtins import range
@@ -60,6 +62,7 @@ __all__ = [
     'Keys',
     'KvSwap',
     'RemoveDuplicates',
+    'Regex',
     'Reshuffle',
     'ToString',
     'Values',
@@ -724,3 +727,337 @@ class ToString(object):
           Map(lambda x: self.delimiter.join(str(_x) for _x in x)))
                        .with_input_types(input_type)
                        .with_output_types(output_type)))
+
+
+class Regex(object):
+  """
+  PTransform  to use Regular Expression to process the elements in a
+  PCollection.
+  """
+
+  class Matches(PTransform):
+    """
+    Returns the matches if the entire line matched the Regex. Returns the
+    entire line (group 0 by default) as a PCollection. Group can be integer
+    value and a string value.
+
+    Args:
+      regex: the regular expression string or (re.compile) pattern.
+      group: (optional) name of the group, it can be integer or a string value.
+    """
+
+    def __init__(self, regex, group=None):
+      self.regex = regex
+      self.group = group or 0
+
+    def expand(self, pcoll):
+      return pcoll | ParDo(_RegexMatches(regex=self.regex, group=self.group))
+
+  class AllMatches(PTransform):
+    """
+    Returns the matches if the entire line matches the Regex. Returns all
+    groups in a PCollection.
+
+    Args:
+      regex: the regular expression string or (re.compile) pattern.
+    """
+
+    def __init__(self, regex):
+      self.regex = regex
+
+    def expand(self, pcoll):
+      return pcoll | ParDo(_RegexAllMatches(regex=self.regex))
+
+  class MatchesKV(PTransform):
+    """
+    Returns the matches if the entire line matches the Regex. Returns the
+    specified groups as the key and value pair.
+
+    Args:
+      regex: the regular expression string or (re.compile) pattern.
+      keyGroup: The Regex group to use as the key. Can be int or str.
+      valueGroup: The Regex group to use the value. Can be int or str.
+    """
+
+    def __init__(self, regex, keyGroup, valueGroup):
+      self.regex = regex
+      self.keyGroup = keyGroup
+      self.valueGroup = valueGroup
+
+    def expand(self, pcoll):
+      return pcoll | ParDo(_RegexMatchesKV(
+          regex=self.regex, keyGroup=self.keyGroup, valueGroup=self.valueGroup))
+
+  class Find(PTransform):
+    """
+    Returns the matches if a portion of the line matches the Regex. Returns
+    the entire line (group 0 by default). Group can be integer value and a
+    string value.
+
+    Args:
+      regex: the regular expression string or (re.compile) pattern.
+      group: (optional) name of the group, it can be integer or a string value.
+    """
+
+    def __init__(self, regex, group=None):
+      self.regex = regex
+      self.group = group or 0
+
+    def expand(self, pcoll):
+      return pcoll | ParDo(_RegexFind(regex=self.regex, group=self.group))
+
+  class FindAll(PTransform):
+    """
+    Returns the matches if a portion of the line matches the Regex. Returns all
+    the groups as a List of string.
+
+    Args:
+      regex: the regular expression string or (re.compile) pattern.
+      keyGroup: The Regex group to use as the key. Can be int or str.
+      valueGroup: The Regex group to use the value. Can be int or str.
+    """
+
+    def __init__(self, regex):
+      self.regex = regex
+
+    def expand(self, pcoll):
+      return pcoll | ParDo(_RegexAllMatches(regex=self.regex))
+
+  class FindKV(PTransform):
+    """
+    Returns the matches if a portion of the line matches the Regex. Returns the
+    specified groups as the key and value pair.
+
+    Args:
+      regex: the regular expression string or (re.compile) pattern.
+      keyGroup: The Regex group to use as the key. Can be int or str.
+      valueGroup: The Regex group to use the value. Can be int or str.
+    """
+
+    def __init__(self, regex, keyGroup, valueGroup):
+      self.regex = regex
+      self.keyGroup = keyGroup
+      self.valueGroup = valueGroup
+
+    def expand(self, pcoll):
+      return pcoll | ParDo(_RegexMatchesKV(
+          regex=self.regex, keyGroup=self.keyGroup, valueGroup=self.valueGroup))
+
+  class ReplaceAll(PTransform):
+    """
+    Returns the matches if a portion of the line  matches the Regex and
+    replaces all matches with the replacement String. Returns the group as a
+    PCollection.
+
+    Args:
+      regex: the regular expression string or (re.compile) pattern.
+      replacement: the string to be substituted for each match.
+    """
+
+    def __init__(self, regex, replacement):
+      self.regex = regex
+      self.replacement = replacement
+
+    def expand(self, pcoll):
+      return pcoll | ParDo(_RegexReplaceAll(
+          regex=self.regex, replacement=self.replacement))
+
+  class ReplaceFirst(PTransform):
+    """
+    Returns the matches if a portion of the line matches the Regex and replaces
+    the first match with the replacement String. Returns the group as a
+    PCollection.
+
+    Args:
+      regex: the regular expression string or (re.compile) pattern.
+      replacement: the string to be substituted for each match.
+    """
+
+    def __init__(self, regex, replacement):
+      self.regex = regex
+      self.replacement = replacement
+
+    def expand(self, pcoll):
+      return pcoll | ParDo(_RegexReplaceFirst(
+          regex=self.regex, replacement=self.replacement))
+
+  class Split(PTransform):
+    """
+    Returns the PCollection in whic string was splited on the basis of regular
+    expression and then outputs each item. It will not output empty items.
+
+    Args:
+      regex: the regular expression string or (re.compile) pattern.
+      outputEmpty: (optional) Should empty be output. True to output empties and
+          false if not.
+    """
+
+    def __init__(self, regex, outputEmpty=False):
+      self.regex = regex
+      self.outputEmpty = bool(outputEmpty)
+
+    def expand(self, pcoll):
+      return pcoll | ParDo(_RegexSplit(regex=self.regex,
+                                       outputEmpty=self.outputEmpty))
+
+
+def _regex_compile(regex):
+  """Return re.compile if the regex has a string value"""
+  if isinstance(regex, str):
+    regex = re.compile(regex)
+  return regex
+
+
+@typehints.with_input_types(str)
+@typehints.with_output_types(typehints.List[str])
+class _RegexFind(DoFn):
+  """
+  Runs a Regex on the entire input line. If a portion of the line does not
+  match the Regex, the line will not be output. If it does match a portion of
+  the line, the group in the Regex will be used. The output will be the Regex
+  group.
+  """
+
+  def __init__(self, regex, group=None):
+    self.regex = regex
+    self.group = group
+
+  def process(self, element):
+    r = _regex_compile(self.regex).search(element)
+    if r:
+      return [r.group(self.group)]
+    else:
+      return None
+
+
+@typehints.with_input_types(str)
+@typehints.with_output_types(typehints.List[typehints.Any])
+class _RegexMatches(DoFn):
+  """
+  Runs a Regex on the entire input line. If the entire line does not match the
+  Regex, the line will not be output. If it does match the entire line, the
+  group in the Regex will be used. The output will be the Regex group.
+  """
+
+  def __init__(self, regex, group=None):
+    self.regex = regex
+    self.group = group
+
+  def process(self, element):
+    r = _regex_compile(self.regex).match(element)
+    if r:
+      return [r.group(self.group)]
+    else:
+      return None
+
+
+@typehints.with_input_types(str)
+@typehints.with_output_types(typehints.List[typehints.List[typehints.Any]])
+class _RegexAllMatches(DoFn):
+  """
+  Runs a Regex on the entire input line. If the entire line does not match the
+  Regex, the line will not be output. If it does match the entire line, the
+  groups in the Regex will be used. The output will be all of the Regex groups.
+  """
+
+  def __init__(self, regex):
+    self.regex = regex
+
+  def process(self, element):
+    matches = _regex_compile(self.regex).finditer(element)
+    results = list()
+
+    for _, match in enumerate(matches, start=1):
+      results.append(match.group())
+      for groupNum in range(0, len(match.groups())):
+        results.append(match.group(groupNum + 1))
+
+    if results:
+      return [results]
+    return None
+
+
+@typehints.with_input_types(str)
+@typehints.with_output_types(typehints.KV[typehints.Any, typehints.Any])
+class _RegexMatchesKV(DoFn):
+  """
+  Runs a Regex on the entire input line. If the entire line does not match the
+  Regex, the line will not be output. If it does match the entire line, the
+  groups in the Regex will be used. The key will be the key's group and the
+  value will be the value's group.
+  """
+
+  def __init__(self, regex, keyGroup, valueGroup):
+    self.regex = regex
+    self.keyGroup = keyGroup
+    self.valueGroup = valueGroup
+
+  def process(self, element):
+    r = _regex_compile(self.regex).match(element)
+    if r:
+      return [(r.group(self.keyGroup), r.group(self.valueGroup))]
+
+    return None
+
+
+@typehints.with_input_types(str)
+@typehints.with_output_types(typehints.List[typehints.Any])
+class _RegexReplaceAll(DoFn):
+  """
+   Runs a Regex on the entire input line. If a portion of the line does not
+   match the Regex, the line will be output without changes. If it does match a
+   portion of the line, all portions matching the Regex will be replaced with
+   the replacement String.
+  """
+
+  def __init__(self, regex, replacement):
+    self.regex = regex
+    self.replacement = replacement
+
+  def process(self, element):
+    sub_str = _regex_compile(self.regex).sub(self.replacement, element)
+    return [sub_str]
+
+
+@typehints.with_input_types(str)
+@typehints.with_output_types(typehints.List[typehints.Any])
+class _RegexReplaceFirst(DoFn):
+  """
+  Runs a Regex on the entire input line. If a portion of the line does not
+  match the Regex, the line will be output without changes. If it does match a
+  portion of the line, the first portion matching the Regex will be replaced
+  with the replacement String.
+  """
+
+  def __init__(self, regex, replacement):
+    self.regex = regex
+    self.replacement = replacement
+
+  def process(self, element):
+    sub_str = _regex_compile(self.regex).sub(self.replacement, element, 1)
+    return [sub_str]
+
+
+@typehints.with_input_types(str)
+@typehints.with_output_types(typehints.List[typehints.Any])
+class _RegexSplit(DoFn):
+  """
+  Runs a Regex as part of a split the entire input line. The split gives back
+  an array of items. Each item is output as a separate item in the PCollection.
+  Depending on the Regex, a split can be an empty or "" string. You can pass in
+  a parameter if you want empty strings or not.
+  """
+
+  def __init__(self, regex, outputEmpty):
+    self.regex = regex
+    self.outputEmpty = outputEmpty
+
+  def process(self, element):
+    r = _regex_compile(self.regex).split(element)
+    if r and not self.outputEmpty:
+      r = filter(None, r)
+      if sys.version_info[0] >= 3:
+        # Python 3 returns an iterator from filter, so should be wrapped in a
+        # call to list()
+        r = list(r)
+    return r
