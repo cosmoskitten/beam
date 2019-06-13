@@ -17,12 +17,13 @@
  */
 package org.apache.beam.runners.flink;
 
-import static org.junit.Assert.assertNotNull;
+import static org.hamcrest.MatcherAssert.assertThat;
 
 import java.io.Serializable;
 import java.lang.reflect.Method;
 import java.net.URI;
 import java.util.Collections;
+import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutionException;
@@ -64,30 +65,35 @@ import org.apache.flink.runtime.jobgraph.SavepointRestoreSettings;
 import org.apache.flink.runtime.minicluster.MiniCluster;
 import org.apache.flink.runtime.minicluster.MiniClusterConfiguration;
 import org.apache.flink.streaming.util.TestStreamEnvironment;
+import org.hamcrest.Matchers;
+import org.hamcrest.core.IsIterableContaining;
 import org.joda.time.Duration;
 import org.junit.After;
-import org.junit.AfterClass;
-import org.junit.BeforeClass;
+import org.junit.Before;
 import org.junit.ClassRule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-/** Tests that Flink's Savepoints work with the Flink Runner. */
+/**
+ * Tests that Flink's Savepoints work with the Flink Runner. This includes taking a savepoint of a
+ * running pipeline, shutting down the pipeline, and restarting the pipeline from the savepoint with
+ * a different parallelism.
+ */
 public class FlinkSavepointTest implements Serializable {
 
   private static final Logger LOG = LoggerFactory.getLogger(FlinkSavepointTest.class);
 
   /** Static for synchronization between the pipeline state and the test. */
-  private static CountDownLatch oneShotLatch;
+  private static volatile CountDownLatch oneShotLatch;
 
   @ClassRule public static transient TemporaryFolder tempFolder = new TemporaryFolder();
 
-  private static transient MiniCluster flinkCluster;
+  private transient MiniCluster flinkCluster;
 
-  @BeforeClass
-  public static void beforeClass() throws Exception {
+  @Before
+  public void beforeTest() throws Exception {
     final int parallelism = 4;
 
     Configuration config = new Configuration();
@@ -117,19 +123,16 @@ public class FlinkSavepointTest implements Serializable {
     TestStreamEnvironment.setAsContext(flinkCluster, parallelism);
   }
 
-  @AfterClass
-  public static void afterClass() throws Exception {
-    TestStreamEnvironment.unsetAsContext();
-    flinkCluster.close();
-  }
-
   @After
   public void afterTest() throws Exception {
+    TestStreamEnvironment.unsetAsContext();
     for (JobStatusMessage jobStatusMessage : flinkCluster.listJobs().get()) {
       if (jobStatusMessage.getJobState() == JobStatus.RUNNING) {
         flinkCluster.cancelJob(jobStatusMessage.getJobId()).get();
       }
     }
+    flinkCluster.close();
+    flinkCluster = null;
   }
 
   @Test(timeout = 60_000)
@@ -145,8 +148,8 @@ public class FlinkSavepointTest implements Serializable {
   private void runSavepointAndRestore(boolean isPortablePipeline) throws Exception {
     FlinkPipelineOptions options = PipelineOptionsFactory.as(FlinkPipelineOptions.class);
     options.setStreaming(true);
-    // savepoint assumes local file system
-    options.setParallelism(1);
+    // Initial parallelism
+    options.setParallelism(2);
     options.setRunner(FlinkRunner.class);
 
     oneShotLatch = new CountDownLatch(1);
@@ -163,6 +166,8 @@ public class FlinkSavepointTest implements Serializable {
     String savepointDir = takeSavepointAndCancelJob(jobID);
 
     oneShotLatch = new CountDownLatch(1);
+    // Increase parallelism
+    options.setParallelism(4);
     pipeline = Pipeline.create(options);
     createStreamingJob(pipeline, true, isPortablePipeline);
 
@@ -282,13 +287,16 @@ public class FlinkSavepointTest implements Serializable {
                       new InferableFunction<byte[], KV<String, Void>>() {
                         @Override
                         public KV<String, Void> apply(byte[] input) throws Exception {
+                          // This only writes data to one of the two initial partitions.
+                          // We want to test this due to
+                          // https://jira.apache.org/jira/browse/BEAM-7144
                           return KV.of("key", null);
                         }
                       }))
               .apply(
                   ParDo.of(
                       new DoFn<KV<String, Void>, KV<String, Long>>() {
-                        @StateId("valueState")
+                        @StateId("nextInteger")
                         private final StateSpec<ValueState<Long>> valueStateSpec =
                             StateSpecs.value();
 
@@ -306,15 +314,15 @@ public class FlinkSavepointTest implements Serializable {
                         @OnTimer("timer")
                         public void onTimer(
                             OnTimerContext context,
-                            @StateId("valueState") ValueState<Long> intValueState,
+                            @StateId("nextInteger") ValueState<Long> nextInteger,
                             @TimerId("timer") Timer timer) {
-                          Long current = intValueState.read();
+                          Long current = nextInteger.read();
                           if (current == null) {
                             current = -1L;
                           }
                           long next = current + 1;
+                          nextInteger.write(next);
                           context.output(KV.of("key", next));
-                          intValueState.write(next);
                           timer.offset(Duration.millis(100)).setRelative();
                         }
                       }));
@@ -347,12 +355,9 @@ public class FlinkSavepointTest implements Serializable {
                     ProcessContext context,
                     @StateId("valueState") ValueState<Integer> intValueState,
                     @StateId("bagState") BagState<Integer> intBagState) {
-                  Integer read = intValueState.read();
-                  assertNotNull(read);
-                  if (read == 42) {
-                    intValueState.write(0);
-                    oneShotLatch.countDown();
-                  }
+                  assertThat(intValueState.read(), Matchers.is(42));
+                  assertThat(intBagState.read(), IsIterableContaining.hasItems(40, 1, 1));
+                  oneShotLatch.countDown();
                 }
               }));
     } else {
@@ -371,8 +376,7 @@ public class FlinkSavepointTest implements Serializable {
                     ProcessContext context,
                     @StateId("valueState") ValueState<Integer> intValueState,
                     @StateId("bagState") BagState<Integer> intBagState) {
-                  Long value = context.element().getValue();
-                  assertNotNull(value);
+                  Long value = Objects.requireNonNull(context.element().getValue());
                   if (value == 0L) {
                     intValueState.write(42);
                     intBagState.add(40);
