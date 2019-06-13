@@ -90,8 +90,9 @@ class BigQueryReadPerfTest(LoadTest):
     wrapper = BigQueryWrapper()
     try:
       wrapper.get_table(self.project_id, self.input_dataset, self.input_table)
-    except HttpError:
-      self._create_input_data()
+    except HttpError as exn:
+      if exn.status_code == 404:
+        self._create_input_data()
 
   def _create_input_data(self):
     """
