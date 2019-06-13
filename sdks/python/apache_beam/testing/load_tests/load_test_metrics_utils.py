@@ -247,16 +247,3 @@ class MeasureTime(beam.DoFn):
 
   def process(self, element):
     yield element
-
-
-def count_bytes(f):
-  def repl(*args):
-    namespace = args[2]
-    counter = Metrics.counter(namespace, COUNTER_LABEL)
-    element = args[1]
-    _, value = element
-    for i in range(len(value)):
-      counter.inc(i)
-    return f(*args)
-
-  return repl
