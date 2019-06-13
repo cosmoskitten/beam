@@ -316,6 +316,15 @@ class _WriteMongoFn(DoFn):
       sink.write(self.batch)
       self.batch = []
 
+  def display_data(self):
+    res = super(_WriteMongoFn, self).display_data()
+    res['uri'] = self.uri
+    res['database'] = self.db
+    res['collection'] = self.coll
+    res['mongo_client_params'] = self.spec
+    res['batch_size'] = self.batch_size
+    return res
+
 
 class _MongoSink(object):
   def __init__(self, uri=None, db=None, coll=None, extra_params=None):

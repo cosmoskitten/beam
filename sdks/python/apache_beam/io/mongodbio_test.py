@@ -156,6 +156,10 @@ class WriteMongoFnTest(unittest.TestCase):
       self.assertEqual(
           2, mock_sink.return_value.__enter__.return_value.write.call_count)
 
+  def test_display_data(self):
+    data = _WriteMongoFn(batch_size=10).display_data()
+    self.assertEqual(10, data['batch_size'])
+
 
 class MongoSinkTest(unittest.TestCase):
   @mock.patch('apache_beam.io.mongodbio.MongoClient')
