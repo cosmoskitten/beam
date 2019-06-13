@@ -24,6 +24,7 @@ import mock
 import apache_beam as beam
 from apache_beam.io import ReadFromMongoDB
 from apache_beam.io import WriteToMongoDB
+from apache_beam.io import source_test_utils
 from apache_beam.io.mongodbio import _BoundedMongoSource
 from apache_beam.io.mongodbio import _GenerateObjectIdFn
 from apache_beam.io.mongodbio import _MongoSink
@@ -40,29 +41,40 @@ class MongoSourceTest(unittest.TestCase):
               '._get_avg_document_size')
   def setUp(self, mock_size, mock_count):
     mock_size.return_value = 10
-    mock_count.return_value = 30
+    mock_count.return_value = 5
     self.mongo_source = _BoundedMongoSource('mongodb://test', 'testdb',
                                             'testcoll')
 
   def test_estimate_size(self):
-    self.assertEqual(self.mongo_source.estimate_size(), 300)
+    self.assertEqual(self.mongo_source.estimate_size(), 50)
 
   def test_split(self):
-    # desired bundle size is 3 times of avg doc size, each bundle contains 3
+    # desired bundle size is 1 times of avg doc size, each bundle contains 1
     # documents
     for bundle in self.mongo_source.split(start_position=0,
-                                          stop_position=30,
-                                          desired_bundle_size=30):
-      self.assertEqual(3, bundle.weight)
+                                          stop_position=5,
+                                          desired_bundle_size=10):
+      self.assertEqual(1, bundle.weight)
 
-    # expect 4 documents in first 7 bundles and 2 document in last bundle
-    for bundle in self.mongo_source.split(40):
-      self.assertIn(bundle.weight, [4, 2])
+    # expect 2 documents in first 2 bundles and 1 document in last bundle
+    for bundle in self.mongo_source.split(20):
+      self.assertIn(bundle.weight, [2, 1])
+
+  @mock.patch('apache_beam.io.mongodbio.MongoClient')
+  def test_dynamic_work_rebalancing(self, mock_client):
+    splits = list(self.mongo_source.split(desired_bundle_size=3000))
+    mock_client.return_value.__enter__.return_value.__getitem__.return_value \
+      .__getitem__.return_value.find.return_value = [{'x': 1}, {'x': 2},
+                                                     {'x': 3}, {'x': 4},
+                                                     {'x': 5}]
+    assert len(splits) == 1
+    source_test_utils.assert_split_at_fraction_exhaustive(
+        splits[0].source, splits[0].start_position, splits[0].stop_position)
 
   @mock.patch('apache_beam.io.mongodbio.OffsetRangeTracker')
   def test_get_range_tracker(self, mock_tracker):
     self.mongo_source.get_range_tracker(None, None)
-    mock_tracker.assert_called_with(0, 30)
+    mock_tracker.assert_called_with(0, 5)
     self.mongo_source.get_range_tracker(10, 20)
     mock_tracker.assert_called_with(10, 20)
 

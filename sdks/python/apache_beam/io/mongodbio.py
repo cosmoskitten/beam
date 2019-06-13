@@ -172,13 +172,15 @@ class _BoundedMongoSource(iobase.BoundedSource):
 
   def read(self, range_tracker):
     with MongoClient(self.uri, **self.spec) as client:
+      # docs is a MongoDB Cursor
       docs = client[self.db][self.coll].find(
           filter=self.filter, projection=self.projection
       )[range_tracker.start_position():range_tracker.stop_position()]
-      for index in range(len(docs)):
-        if not range_tracker.try_claim(range_tracker.start_position() + index):
+      for index in range(range_tracker.start_position(),
+                         range_tracker.stop_position()):
+        if not range_tracker.try_claim(index):
           return
-        yield docs[index]
+        yield docs[index - range_tracker.start_position()]
 
   def display_data(self):
     res = super(_BoundedMongoSource, self).display_data()
@@ -205,7 +207,7 @@ class WriteToMongoDB(PTransform):
   mongodb document to the configured MongoDB server.
 
   In order to make the document writes idempotent so that the bundles are
-  retry-able without creating duplicates. The PTransfrom added 2 transformations
+  retry-able without creating duplicates. The PTransform added 2 transformations
   before final write call:
   a ``GenerateId`` transform and a ``Reshuffle`` transform.::
 
@@ -264,7 +266,7 @@ class WriteToMongoDB(PTransform):
            | beam.ParDo(_GenerateObjectIdFn()) \
            | Reshuffle() \
            | beam.ParDo(_WriteMongoFn(self._uri, self._db, self._coll,
-                                      self._batch_size, **self._spec))
+                                      self._batch_size, self._spec))
 
 
 class _GenerateObjectIdFn(DoFn):
@@ -276,8 +278,8 @@ class _GenerateObjectIdFn(DoFn):
       # default format, if _id is not present in document, mongodb server
       # generates it with this same function upon write. However the
       # uniqueness of generated id may not be guaranteed if the work load are
-      # distributed across too many processes. See more on the ObjectId document
-      # format https://docs.mongodb.com/manual/reference/bson-types/#objectid.
+      # distributed across too many processes. See more on the ObjectId format
+      # https://docs.mongodb.com/manual/reference/bson-types/#objectid.
       element['_id'] = objectid.ObjectId()
 
     yield element
