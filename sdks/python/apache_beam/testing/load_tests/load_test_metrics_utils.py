@@ -84,16 +84,18 @@ def get_element_by_schema(schema_name, insert_list):
 class MetricsReader(object):
   publishers = []
 
-  def __init__(self, project_name=None, bq_table=None, bq_dataset=None):
+  def __init__(self, project_name=None, bq_table=None, bq_dataset=None,
+               filters=None):
     self.publishers.append(ConsoleMetricsPublisher())
     check = project_name and bq_table and bq_dataset
     if check:
       bq_publisher = BigQueryMetricsPublisher(
           project_name, bq_table, bq_dataset)
       self.publishers.append(bq_publisher)
+    self.filters = filters
 
   def publish_metrics(self, result):
-    metrics = result.metrics().query()
+    metrics = result.metrics().query(self.filters)
     insert_dicts = self._prepare_all_metrics(metrics)
     if len(insert_dicts):
       for publisher in self.publishers:

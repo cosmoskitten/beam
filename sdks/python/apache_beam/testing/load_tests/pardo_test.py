@@ -124,6 +124,7 @@ import unittest
 
 import apache_beam as beam
 from apache_beam.metrics import Metrics
+from apache_beam.metrics import MetricsFilter
 from apache_beam.testing import synthetic_pipeline
 from apache_beam.testing.load_tests.load_test import LoadTest
 from apache_beam.testing.load_tests.load_test_metrics_utils import MeasureTime
@@ -137,10 +138,18 @@ if os.environ.get('LOAD_TEST_ENABLED') == 'true':
 class ParDoTest(LoadTest):
   def setUp(self):
     super(ParDoTest, self).setUp()
+    self._apply_filter()
     self.iterations = self._get_option_or_default('iterations')
     self.nb_of_counter = self._get_option_or_default('number_of_counters')
     self.nb_of_operations = self._get_option_or_default(
         'number_of_counter_operations')
+
+  def _apply_filter(self):
+    """Prevents metrics from namespace other than specified in pipeline
+    options from being published."""
+    if self.metrics_monitor is not None:
+      self.metrics_monitor.filters = MetricsFilter().with_namespace(
+          self.metrics_namespace)
 
   def _get_option_or_default(self, opt_name, default=1):
     option = self.pipeline.get_option(opt_name)
