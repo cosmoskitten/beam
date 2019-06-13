@@ -19,10 +19,11 @@
 
 Read from MongoDB
 -----------------
-:class:`ReadFromMongoDB` is a ``PTransform`` that reads from configured MongoDB
-source and returns ``PCollection`` of dict representing MongoDB document.
-To configure MongoDB source, the URI, database name, collection name needs to be
-provided.
+:class:`ReadFromMongoDB` is a ``PTransform`` that reads from a configured
+MongoDB source and returns a ``PCollection`` of dict representing MongoDB
+documents.
+To configure MongoDB source, the URI to connect to MongoDB server, database
+name, collection name needs to be provided.
 
 Example usage::
 
@@ -78,7 +79,7 @@ class ReadFromMongoDB(PTransform):
                coll=None,
                filter=None,
                projection=None,
-               **kwargs):
+               extra_client_params=None):
     """Initialize a :class:`ReadFromMongoDB`
 
     Args:
@@ -91,20 +92,28 @@ class ReadFromMongoDB(PTransform):
         in the result set
       projection: A list of field names that should be returned in the result
         set or a dict specifying the fields to include or exclude
-      **kwargs: Optional `MongoClient
+      extra_client_params(dict): Optional `MongoClient
         <https://api.mongodb.com/python/current/api/pymongo/mongo_client.html>`_
-        parameters as keyword arguments
+        parameters
 
     Returns:
       :class:`~apache_beam.transforms.ptransform.PTransform`
 
     """
-    self._mongo_source = _BoundedMongoSource(uri=uri,
-                                             db=db,
-                                             coll=coll,
-                                             filter=filter,
-                                             projection=projection,
-                                             **kwargs)
+    if extra_client_params is None:
+      extra_client_params = {}
+    if not isinstance(db, str):
+      raise ValueError('ReadFromMongDB db param must be specified as a string')
+    if not isinstance(coll, str):
+      raise ValueError('ReadFromMongDB coll param must be specified as a '
+                       'string')
+    self._mongo_source = _BoundedMongoSource(
+        uri=uri,
+        db=db,
+        coll=coll,
+        filter=filter,
+        projection=projection,
+        extra_client_params=extra_client_params)
 
   def expand(self, pcoll):
     return pcoll | iobase.Read(self._mongo_source)
@@ -117,7 +126,9 @@ class _BoundedMongoSource(iobase.BoundedSource):
                coll=None,
                filter=None,
                projection=None,
-               **kwargs):
+               extra_client_params=None):
+    if extra_client_params is None:
+      extra_client_params = {}
     if filter is None:
       filter = {}
     self.uri = uri
@@ -125,7 +136,7 @@ class _BoundedMongoSource(iobase.BoundedSource):
     self.coll = coll
     self.filter = filter
     self.projection = projection
-    self.spec = kwargs
+    self.spec = extra_client_params
     self.doc_count = self._get_document_count()
     self.avg_doc_size = self._get_avg_document_size()
     self.client = None
@@ -160,13 +171,14 @@ class _BoundedMongoSource(iobase.BoundedSource):
     return OffsetRangeTracker(start_position, stop_position)
 
   def read(self, range_tracker):
-    if range_tracker.try_claim(range_tracker.start_position()):
-      with MongoClient(self.uri, **self.spec) as client:
-        docs = client[self.db][self.coll].find(
-            filter=self.filter, projection=self.projection
-        )[range_tracker.start_position():range_tracker.stop_position()]
-        for doc in docs:
-          yield doc
+    with MongoClient(self.uri, **self.spec) as client:
+      docs = client[self.db][self.coll].find(
+          filter=self.filter, projection=self.projection
+      )[range_tracker.start_position():range_tracker.stop_position()]
+      for index in range(len(docs)):
+        if not range_tracker.try_claim(range_tracker.start_position() + index):
+          return
+        yield docs[index]
 
   def display_data(self):
     res = super(_BoundedMongoSource, self).display_data()
@@ -189,20 +201,41 @@ class _BoundedMongoSource(iobase.BoundedSource):
 
 @experimental()
 class WriteToMongoDB(PTransform):
+  """WriteToMongoDB is a ``PTransform`` that writes a ``PCollection`` of
+  mongodb document to the configured MongoDB server.
+
+  In order to make the document writes idempotent so that the bundles are
+  retry-able without creating duplicates. The PTransfrom added 2 transformations
+  before final write call:
+  a ``GenerateId`` transform and a ``Reshuffle`` transform.::
+                                  WriteToMongoDB
+                  -----------------------------------------------
+    Pipeline -->  |GenerateId --> Reshuffle --> WriteToMongoSink|
+                  -----------------------------------------------
+  The ``GenerateId`` transform adds a random *_id* field to the documents if
+  they don't already have one, it uses the same format as MongoDB default. The
+  ``Reshuffle`` transform makes sure that no fusion happens between
+  ``GenerateId`` and the final write stage transform, so that when the
+  documents are read to be written they must have _id field and duplications
+  are impossible.
+
+  """
+
   def __init__(self,
                uri='mongodb://localhost:27017',
                db=None,
                coll=None,
-               batch_size=1,
-               **kwargs):
+               batch_size=100,
+               extra_client_params=None):
     """
 
     Args:
       uri (str): The MongoDB connection string following the URI format
       db (str): The MongoDB database name
       coll (str): The MongoDB collection name
-      batch_size(int): Number of documents per bulk_write to  MongoDB
-      **kwargs: Optional `MongoClient
+      batch_size(int): Number of documents per bulk_write to  MongoDB,
+        default to 100
+      extra_client_params(dict): Optional `MongoClient
        <https://api.mongodb.com/python/current/api/pymongo/mongo_client.html>`_
        parameters as keyword arguments
 
@@ -210,11 +243,18 @@ class WriteToMongoDB(PTransform):
       :class:`~apache_beam.transforms.ptransform.PTransform`
 
     """
+    if extra_client_params is None:
+      extra_client_params = {}
+    if not isinstance(db, str):
+      raise ValueError('WriteToMongoDB db param must be specified as a string')
+    if not isinstance(coll, str):
+      raise ValueError('WriteToMongoDB coll param must be specified as a '
+                       'string')
     self._uri = uri
     self._db = db
     self._coll = coll
     self._batch_size = batch_size
-    self._spec = kwargs
+    self._spec = extra_client_params
 
   def expand(self, pcoll):
     return pcoll \
@@ -228,20 +268,31 @@ class _GenerateObjectIdFn(DoFn):
   def process(self, element, *args, **kwargs):
     # if _id field already exist we keep it as it is, otherwise the ptransform
     # generates a new _id field to achieve idempotent write to mongodb.
-    result = element.copy()
-
     if '_id' not in element:
-      result['_id'] = objectid.ObjectId()
+      # object.ObjectId() generates a unique identifier that follows mongodb
+      # default format, if _id is not present in document, mongodb server
+      # generates it with this same function upon write. However the
+      # uniqueness of generated id may not be guaranteed if the work load are
+      # distributed across too many processes. See more on the ObjectId document
+      # format https://docs.mongodb.com/manual/reference/bson-types/#objectid.
+      element['_id'] = objectid.ObjectId()
 
-    yield result
+    yield element
 
 
 class _WriteMongoFn(DoFn):
-  def __init__(self, uri=None, db=None, coll=None, batch_size=1, **kwargs):
+  def __init__(self,
+               uri=None,
+               db=None,
+               coll=None,
+               batch_size=100,
+               extra_params=None):
+    if extra_params is None:
+      extra_params = {}
     self.uri = uri
     self.db = db
     self.coll = coll
-    self.spec = kwargs
+    self.spec = extra_params
     self.batch_size = batch_size
     self.batch = []
 
@@ -256,17 +307,19 @@ class _WriteMongoFn(DoFn):
   def _flush(self):
     if len(self.batch) == 0:
       return
-    with _MongoSink(self.uri, self.db, self.coll, **self.spec) as sink:
+    with _MongoSink(self.uri, self.db, self.coll, self.spec) as sink:
       sink.write(self.batch)
       self.batch = []
 
 
 class _MongoSink(object):
-  def __init__(self, uri=None, db=None, coll=None, **kwargs):
+  def __init__(self, uri=None, db=None, coll=None, extra_params=None):
+    if extra_params is None:
+      extra_params = {}
     self.uri = uri
     self.db = db
     self.coll = coll
-    self.spec = kwargs
+    self.spec = extra_params
     self.client = None
 
   def write(self, documents):

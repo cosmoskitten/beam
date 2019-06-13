@@ -33,7 +33,7 @@ from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
 
 
-class Test_BoundedMongoSource(unittest.TestCase):
+class MongoSourceTest(unittest.TestCase):
   @mock.patch('apache_beam.io.mongodbio._BoundedMongoSource'
               '._get_document_count')
   @mock.patch('apache_beam.io.mongodbio._BoundedMongoSource'
@@ -101,7 +101,7 @@ class Test_BoundedMongoSource(unittest.TestCase):
     self.assertEqual(10, self.mongo_source._get_document_count())
 
 
-class TestReadFromMongoDB(unittest.TestCase):
+class ReadFromMongoDBTest(unittest.TestCase):
   @mock.patch('apache_beam.io.mongodbio.MongoClient')
   def test_read_from_mongodb(self, mock_client):
     objects = [{'x': 1}, {'x': 2}]
@@ -118,7 +118,7 @@ class TestReadFromMongoDB(unittest.TestCase):
       assert_that(docs, equal_to(objects))
 
 
-class Test_GenerateObjectIdFn(unittest.TestCase):
+class GenerateObjectIdFnTest(unittest.TestCase):
   def test_process(self):
     with TestPipeline() as p:
       output = (p | "Create" >> beam.Create([{
@@ -132,7 +132,7 @@ class Test_GenerateObjectIdFn(unittest.TestCase):
       assert_that(output, equal_to([True] * 2))
 
 
-class Test_WriteMongoFn(unittest.TestCase):
+class WriteMongoFnTest(unittest.TestCase):
   @mock.patch('apache_beam.io.mongodbio._MongoSink')
   def test_process(self, mock_sink):
     docs = [{'x': 1}, {'x': 2}, {'x': 3}]
@@ -145,7 +145,7 @@ class Test_WriteMongoFn(unittest.TestCase):
           2, mock_sink.return_value.__enter__.return_value.write.call_count)
 
 
-class Test_MongoSink(unittest.TestCase):
+class MongoSinkTest(unittest.TestCase):
   @mock.patch('apache_beam.io.mongodbio.MongoClient')
   def test_write(self, mock_client):
     docs = [{'x': 1}, {'x': 2}, {'x': 3}]
@@ -154,7 +154,7 @@ class Test_MongoSink(unittest.TestCase):
                     __getitem__.return_value.bulk_write.called)
 
 
-class TestWriteToMongoDB(unittest.TestCase):
+class WriteToMongoDBTest(unittest.TestCase):
   @mock.patch('apache_beam.io.mongodbio.MongoClient')
   def test_write_to_mongodb(self, mock_client):
     docs = [{'x': 1}, {'x': 2}, {'x': 3}]
