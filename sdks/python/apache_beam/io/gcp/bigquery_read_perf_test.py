@@ -66,7 +66,10 @@ from apache_beam.testing.test_pipeline import TestPipeline
 from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
 from apache_beam.transforms.combiners import Count
-from apitools.base.py.exceptions import HttpError
+try:
+  from apitools.base.py.exceptions import HttpError
+except ImportError:
+  HttpError = None
 
 load_test_enabled = False
 if os.environ.get('LOAD_TEST_ENABLED') == 'true':
