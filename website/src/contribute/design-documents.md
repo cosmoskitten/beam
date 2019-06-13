@@ -122,6 +122,7 @@ This is a collection of documents that may or may not be up to date.
 - Side Input in Universal Reference Runner [[doc](https://docs.google.com/document/d/13N0OJ7QJm81wcgu13pi9GuN29UUxN2iIFn_H8lKpDks)]
 - Spark Portable Runner Overview [[doc](https://docs.google.com/document/d/1j8GERTiHUuc6CzzCXZHc38rBn41uWfATBh2-5JN8hro)]
 - Cross-Language Pipelines & Legacy IO [[doc](https://s.apache.org/beam-cross-language-io)]
+- Artifact Staging in Cross-Language Pipelines [[doc](https://docs.google.com/document/d/1XaiNekAY2sptuQRIXpjGAyaYdSc-wlJ-VKjl04c8N48/)]
 
 ### Build / Testing
 - More Expressive PAsserts [[doc](https://docs.google.com/document/d/1fZUUbG2LxBtqCVabQshldXIhkMcXepsbv2vuuny8Ix4)]
@@ -138,6 +139,7 @@ This is a collection of documents that may or may not be up to date.
 - Automation For Beam Dependency Check [[doc](https://docs.google.com/document/d/1rqr_8a9NYZCgeiXpTIwWLCL7X8amPAVfRXsO72BpBwA)]
 - Test performance of core Apache Beam operations [[doc](https://s.apache.org/load-test-basic-operations)]
 - Add static code analysis quality gates to Beam [[doc](https://docs.google.com/document/d/1YbV18mrHujmiLBtadS1WzCVeiI3Lo7W6awWJDA4A98o)]
+- Portable batch & streaming load tests in all sdks [[doc](https://s.apache.org/portable-load-tests)]
 
 ### Python
 - Beam Python User State and Timer APIs [[doc](https://s.apache.org/beam-python-user-state-and-timers)]
