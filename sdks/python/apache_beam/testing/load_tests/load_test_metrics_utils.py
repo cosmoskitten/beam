@@ -251,6 +251,7 @@ class MeasureTime(beam.DoFn):
 
 class MeasureBytes(beam.DoFn):
   LABEL = 'total_bytes'
+
   def __init__(self, namespace, extractor=None):
     self.namespace = namespace
     self.counter = Metrics.counter(self.namespace, self.LABEL)
@@ -264,6 +265,7 @@ class MeasureBytes(beam.DoFn):
 
 class CountMessages(beam.DoFn):
   LABEL = 'total_messages'
+
   def __init__(self, namespace):
     self.namespace = namespace
     self.counter = Metrics.counter(self.namespace, self.LABEL)
