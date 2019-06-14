@@ -27,6 +27,7 @@ import random
 import re
 import sys
 import time
+from builtins import filter
 from builtins import object
 from builtins import range
 from builtins import zip
@@ -61,9 +62,9 @@ __all__ = [
     'Distinct',
     'Keys',
     'KvSwap',
+    'Regex',
     'Reify',
     'RemoveDuplicates',
-    'Regex',
     'Reshuffle',
     'ToString',
     'Values',
@@ -1043,7 +1044,7 @@ class _RegexAllMatches(DoFn):
 
 
 @typehints.with_input_types(str)
-@typehints.with_output_types(typehints.KV[typehints.Any, typehints.Any])
+@typehints.with_output_types(typehints.KV[K, V])
 class _RegexMatchesKV(DoFn):
   """
   Runs a Regex on the entire input line. If the entire line does not match the
@@ -1121,8 +1122,4 @@ class _RegexSplit(DoFn):
     r = _regex_compile(self.regex).split(element)
     if r and not self.outputEmpty:
       r = filter(None, r)
-      if sys.version_info[0] >= 3:
-        # Python 3 returns an iterator from filter, so should be wrapped in a
-        # call to list()
-        r = list(r)
     return r
