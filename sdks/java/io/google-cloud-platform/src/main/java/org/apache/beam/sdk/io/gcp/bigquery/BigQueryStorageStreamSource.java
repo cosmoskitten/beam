@@ -188,7 +188,7 @@ public class BigQueryStorageStreamSource<T> extends BoundedSource<T> {
 
       responseStream = storageClient.readRows(request);
       responseIterator = responseStream.iterator();
-      LOGGER.info("Started read from stream '{}'.", source.stream.getName());
+      LOGGER.info("Started BigQuery Storage API read from stream {}.", source.stream.getName());
       return readNextRecord();
     }
 
@@ -236,7 +236,7 @@ public class BigQueryStorageStreamSource<T> extends BoundedSource<T> {
     public BoundedSource<T> splitAtFraction(double fraction) {
       Metrics.counter(BigQueryStorageStreamReader.class, "split-at-fraction-calls").inc();
       LOGGER.info(
-          "Received split request for stream '{}' at fraction {}.",
+          "Received BigQuery Storage API split request for stream {} at fraction {}.",
           source.stream.getName(),
           fraction);
 
@@ -262,7 +262,10 @@ public class BigQueryStorageStreamSource<T> extends BoundedSource<T> {
                 BigQueryStorageStreamReader.class,
                 "split-at-fraction-calls-failed-due-to-impossible-split-point")
             .inc();
-        LOGGER.info("Stream '{}' cannot be split at {}.", source.stream.getName(), fraction);
+        LOGGER.info(
+            "BigQuery Storage API stream {} cannot be split at {}.",
+            source.stream.getName(),
+            fraction);
         return null;
       }
 
@@ -291,8 +294,8 @@ public class BigQueryStorageStreamSource<T> extends BoundedSource<T> {
                   "split-at-fraction-calls-failed-due-to-bad-split-point")
               .inc();
           LOGGER.info(
-              "Split of stream '{}' abandoned because the primary stream is to the left of "
-                  + "the split fraction {}.",
+              "BigQuery Storage API split of stream {} abandoned because the primary stream is to "
+                  + "the left of the split fraction {}.",
               source.stream.getName(),
               fraction);
           return null;
@@ -301,7 +304,8 @@ public class BigQueryStorageStreamSource<T> extends BoundedSource<T> {
                   BigQueryStorageStreamReader.class,
                   "split-at-fraction-calls-failed-due-to-other-reasons")
               .inc();
-          throw e;
+          LOGGER.error("BigQuery Storage API stream split failed.", e);
+          return null;
         }
 
         // Cancels the parent stream before replacing it with the primary stream.
@@ -316,7 +320,8 @@ public class BigQueryStorageStreamSource<T> extends BoundedSource<T> {
 
       Metrics.counter(BigQueryStorageStreamReader.class, "split-at-fraction-calls-successful")
           .inc();
-      LOGGER.info("Successfully split stream. Split response: {}", splitResponse);
+      LOGGER.info(
+          "Successfully split BigQuery Storage API stream. Split response: {}", splitResponse);
       return source.fromExisting(splitResponse.getRemainderStream());
     }
   }

@@ -122,7 +122,9 @@ abstract class BigQueryStorageSourceBase<T> extends BoundedSource<T> {
       CreateReadSessionRequest request = requestBuilder.build();
       readSession = client.createReadSession(request);
       LOGGER.info(
-          "Sent CreateReadSession request '{}'; received response '{}'.", request, readSession);
+          "Sent BigQuery Storage API CreateReadSession request '{}'; received response '{}'.",
+          request,
+          readSession);
     }
 
     if (readSession.getStreamsList().isEmpty()) {
