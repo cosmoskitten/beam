@@ -152,8 +152,8 @@ private void createPythonPerformanceTestJob(PerformanceTestConfigurations testCo
         beam_it_class           : testConfig.itClass,
         beam_it_module          : testConfig.itModule,
         beam_prebuilt           : 'true',   // Python benchmark don't need to prebuild repo before running
-        beam_python_sdk_location: getSDKLocationFromModule(testConfig.pythonSdkLocation,
-                                                           testConfig.itModule),
+        beam_python_sdk_location: commonJobProperties.getPythonSDKLocationFromModule(testConfig.pythonSdkLocation,
+                                                                                     testConfig.itModule),
         beam_runner             : testConfig.runner,
         beam_it_timeout         : testConfig.itTimeoutSec.toString(),
         beam_it_args            : joinPipelineArgs(testConfig.extraPipelineArgs),
@@ -171,13 +171,4 @@ private static String joinPipelineArgs(Map pipelineArgs) {
     key, value -> pipelineArgList.add("--$key=$value")
   })
   return pipelineArgList.join(',')
-}
-
-
-// Get relative path of sdk location based on itModule if the location is not provided.
-private static String getSDKLocationFromModule(String pythonSDKLocation, String itModule) {
-  if (!pythonSDKLocation && itModule.startsWith("sdks/python")) {
-    return (itModule.substring("sdks/python".length()) + "/build/apache-beam.tar.gz").substring(1)
-  }
-  return pythonSDKLocation
 }

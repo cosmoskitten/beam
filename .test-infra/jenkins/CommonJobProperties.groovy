@@ -282,6 +282,14 @@ class CommonJobProperties {
     return '"$WORKSPACE/' + "config-${namespace}" + '"'
   }
 
+  // Get relative path of Python sdk location based on itModule if the location is not provided.
+  static String getPythonSDKLocationFromModule(String pythonSDKLocation, String itModule) {
+    if (!pythonSDKLocation && itModule.startsWith("sdks/python")) {
+      return (itModule.substring("sdks/python".length()) + "/build/apache-beam.tar.gz").substring(1)
+    }
+    return pythonSDKLocation
+  }
+
   // Adds the standard performance test job steps.
   static def buildPerformanceTest(def context, def argMap) {
     def pkbArgs = genPerformanceArgs(argMap)
