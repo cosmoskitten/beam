@@ -85,6 +85,7 @@ dependencies {
   shadow project(path: ":sdks:java:core", configuration: "shadow")
   shadow project(":sdks:java:extensions:join-library")
   shadow library.java.slf4j_api
+  shadow "com.fasterxml.jackson.core:jackson-core:2.9.9"
   shadow library.java.commons_codec
   shadow library.java.commons_csv
   shadow library.java.commons_lang3

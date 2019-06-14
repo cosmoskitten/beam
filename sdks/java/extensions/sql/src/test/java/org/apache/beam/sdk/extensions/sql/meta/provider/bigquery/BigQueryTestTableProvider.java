@@ -51,18 +51,21 @@ public class BigQueryTestTableProvider extends BigQueryTableProvider {
   @Override
   public BeamSqlTable buildBeamSqlTable(Table table) {
     BeamSqlTable t = beamSqlTableMap.get(table.getLocation());
-    if (t == null) {
-      t =
-          new BigQueryTestTable(
-              table,
-              BigQueryUtils.ConversionOptions.builder()
-                  .setTruncateTimestamps(
-                      firstNonNull(table.getProperties().getBoolean("truncateTimestamps"), false)
-                          ? BigQueryUtils.ConversionOptions.TruncateTimestamps.TRUNCATE
-                          : BigQueryUtils.ConversionOptions.TruncateTimestamps.REJECT)
-                  .build());
-      beamSqlTableMap.put(table.getLocation(), t);
+    if (t != null) {
+      return t;
     }
+
+    t =
+        new BigQueryTestTable(
+            table,
+            BigQueryUtils.ConversionOptions.builder()
+                .setTruncateTimestamps(
+                    firstNonNull(table.getProperties().getBoolean("truncateTimestamps"), false)
+                        ? BigQueryUtils.ConversionOptions.TruncateTimestamps.TRUNCATE
+                        : BigQueryUtils.ConversionOptions.TruncateTimestamps.REJECT)
+                .build());
+    beamSqlTableMap.put(table.getLocation(), t);
+
     return t;
   }
 }

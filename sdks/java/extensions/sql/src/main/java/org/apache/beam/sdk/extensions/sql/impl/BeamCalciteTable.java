@@ -67,6 +67,10 @@ public class BeamCalciteTable extends AbstractQueryableTable
 
   @Override
   public Statistic getStatistic() {
+    /*
+     Changing class loader is required for the JDBC path. It is similar to what done in
+     {@link BeamEnumerableConverter#toRowList} and {@link BeamEnumerableConverter#toEnumerable }.
+    */
     final ClassLoader originalClassLoader = Thread.currentThread().getContextClassLoader();
     try {
       Thread.currentThread().setContextClassLoader(BeamEnumerableConverter.class.getClassLoader());

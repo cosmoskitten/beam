@@ -68,14 +68,26 @@ public class BeamSqlEnv {
     return new BeamSqlEnvBuilder(tableProvider);
   }
 
+  /**
+   * This method creates {@link org.apache.beam.sdk.extensions.sql.impl.BeamSqlEnv} using empty
+   * Pipeline Options. It should only be used in tests.
+   */
   public static BeamSqlEnv readOnly(String tableType, Map<String, BeamSqlTable> tables) {
     return withTableProvider(new ReadOnlyTableProvider(tableType, tables));
   }
 
+  /**
+   * This method creates {@link org.apache.beam.sdk.extensions.sql.impl.BeamSqlEnv} using empty
+   * Pipeline Options. It should only be used in tests.
+   */
   public static BeamSqlEnv withTableProvider(TableProvider tableProvider) {
-    return builder(tableProvider).build();
+    return builder(tableProvider).setPipelineOptions(PipelineOptionsFactory.create()).build();
   }
 
+  /**
+   * This method creates {@link org.apache.beam.sdk.extensions.sql.impl.BeamSqlEnv} using empty *
+   * Pipeline Options. It should only be used in tests.
+   */
   public static BeamSqlEnv inMemory(TableProvider... tableProviders) {
     InMemoryMetaStore inMemoryMetaStore = new InMemoryMetaStore();
     for (TableProvider tableProvider : tableProviders) {
@@ -136,7 +148,7 @@ public class BeamSqlEnv {
       functionSet = new HashSet<>();
       autoLoadUdfs = false;
       autoLoadBuiltinFunctions = false;
-      pipelineOptions = PipelineOptionsFactory.create();
+      pipelineOptions = null;
     }
 
     /** Add a top-level schema backed by the table provider. */
@@ -198,8 +210,9 @@ public class BeamSqlEnv {
       return this;
     }
 
-    public void setPipelineOptions(PipelineOptions pipelineOptions) {
+    public BeamSqlEnvBuilder setPipelineOptions(PipelineOptions pipelineOptions) {
       this.pipelineOptions = pipelineOptions;
+      return this;
     }
 
     /**
@@ -208,6 +221,7 @@ public class BeamSqlEnv {
      * @return BeamSqlEnv.
      */
     public BeamSqlEnv build() {
+      checkNotNull(pipelineOptions);
 
       JdbcConnection jdbcConnection = JdbcDriver.connect(defaultTableProvider, pipelineOptions);
 

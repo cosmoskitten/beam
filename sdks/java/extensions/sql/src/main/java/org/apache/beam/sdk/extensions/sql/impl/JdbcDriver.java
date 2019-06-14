@@ -20,6 +20,7 @@ package org.apache.beam.sdk.extensions.sql.impl;
 import static org.apache.calcite.config.CalciteConnectionProperty.SCHEMA_FACTORY;
 import static org.codehaus.commons.compiler.CompilerFactoryFactory.getDefaultCompilerFactory;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.auto.service.AutoService;
 import java.sql.Connection;
@@ -103,6 +104,8 @@ public class JdbcDriver extends Driver {
     INSTANCE.register();
   }
 
+  public static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
+
   @Override
   protected AvaticaFactory createFactory() {
     return JdbcFactory.wrap((CalciteFactory) super.createFactory());
@@ -161,17 +164,27 @@ public class JdbcDriver extends Driver {
 
   /** Converts {@link PipelineOptions} to its map format. */
   private static Map<String, String> getOptionsMap(PipelineOptions options) {
-    ObjectMapper objectMapper = new ObjectMapper();
-    Map map = objectMapper.convertValue(options, Map.class);
+    Map map = OBJECT_MAPPER.convertValue(options, Map.class);
+
     map = (Map) map.get("options");
     if (map == null) {
       map = new HashMap();
     }
-    Map<String, String> map2 = new HashMap<>();
+
+    Map<String, String> optionMap = new HashMap<>();
     for (Object entry : map.entrySet()) {
       Map.Entry ent = (Map.Entry) entry;
-      map2.put(ent.getKey().toString(), ent.getValue().toString());
+      String value;
+      try {
+        value =
+            (ent.getValue() instanceof String)
+                ? ent.getValue().toString()
+                : OBJECT_MAPPER.writeValueAsString(ent.getValue());
+      } catch (JsonProcessingException e) {
+        continue;
+      }
+      optionMap.put(ent.getKey().toString(), value);
     }
-    return map2;
+    return optionMap;
   }
 }
