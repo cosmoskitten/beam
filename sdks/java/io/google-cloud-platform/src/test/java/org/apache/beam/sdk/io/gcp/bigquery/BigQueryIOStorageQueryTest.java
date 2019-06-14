@@ -48,6 +48,7 @@ import com.google.cloud.bigquery.storage.v1beta1.Storage.ReadSession;
 import com.google.cloud.bigquery.storage.v1beta1.Storage.Stream;
 import com.google.cloud.bigquery.storage.v1beta1.Storage.StreamPosition;
 import com.google.protobuf.ByteString;
+import com.google.protobuf.UnknownFieldSet;
 import java.io.ByteArrayOutputStream;
 import java.util.Collection;
 import java.util.List;
@@ -359,6 +360,12 @@ public class BigQueryIOStorageQueryTest {
             .setParent("projects/" + options.getProject())
             .setTableReference(BigQueryHelpers.toTableRefProto(tempTableReference))
             .setRequestedStreams(requestedStreamCount)
+            // TODO(aryann): Once we rebuild the generated client code, we should change this to
+            // use setShardingStrategy().
+            .setUnknownFields(
+                UnknownFieldSet.newBuilder()
+                    .addField(7, UnknownFieldSet.Field.newBuilder().addVarint(2).build())
+                    .build())
             .build();
 
     ReadSession.Builder builder = ReadSession.newBuilder();
@@ -429,6 +436,12 @@ public class BigQueryIOStorageQueryTest {
             .setParent("projects/" + options.getProject())
             .setTableReference(BigQueryHelpers.toTableRefProto(tempTableReference))
             .setRequestedStreams(1024)
+            // TODO(aryann): Once we rebuild the generated client code, we should change this to
+            // use setShardingStrategy().
+            .setUnknownFields(
+                UnknownFieldSet.newBuilder()
+                    .addField(7, UnknownFieldSet.Field.newBuilder().addVarint(2).build())
+                    .build())
             .build();
 
     ReadSession.Builder builder = ReadSession.newBuilder();
@@ -562,6 +575,12 @@ public class BigQueryIOStorageQueryTest {
             .setParent("projects/" + options.getProject())
             .setTableReference(BigQueryHelpers.toTableRefProto(tempTableReference))
             .setRequestedStreams(10)
+            // TODO(aryann): Once we rebuild the generated client code, we should change this to
+            // use setShardingStrategy().
+            .setUnknownFields(
+                UnknownFieldSet.newBuilder()
+                    .addField(7, UnknownFieldSet.Field.newBuilder().addVarint(2).build())
+                    .build())
             .build();
 
     ReadSession emptyReadSession = ReadSession.newBuilder().build();
