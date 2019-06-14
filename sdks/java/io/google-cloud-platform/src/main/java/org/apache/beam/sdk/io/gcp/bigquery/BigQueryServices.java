@@ -166,7 +166,16 @@ public interface BigQueryServices extends Serializable {
         throws IOException, InterruptedException;
   }
 
+  /**
+   * Container for reading data from streaming endpoints.
+   *
+   * <p>An implementation does not need to be thread-safe.
+   */
   interface BigQueryServerStream<T> extends Iterable<T>, Serializable {
+    /**
+     * Cancels the stream, releasing any client- and server-side resources. This method may be
+     * called multiple times and from any thread.
+     */
     void cancel();
   }
 
