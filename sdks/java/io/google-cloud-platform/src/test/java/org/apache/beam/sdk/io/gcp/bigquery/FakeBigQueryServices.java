@@ -69,6 +69,10 @@ public class FakeBigQueryServices implements BigQueryServices {
     return storageClient;
   }
 
+  /**
+   * An implementation of {@link BigQueryServerStream} which takes a {@link List} as the
+   * {@link Iterable} to simulate a server stream. {@link #FakeBigQueryServerStream} is a no-op.
+   */
   public static class FakeBigQueryServerStream<T> implements BigQueryServerStream<T> {
 
     private final List<T> items;
