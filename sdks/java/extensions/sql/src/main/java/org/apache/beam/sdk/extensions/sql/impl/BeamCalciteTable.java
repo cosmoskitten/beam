@@ -67,11 +67,17 @@ public class BeamCalciteTable extends AbstractQueryableTable
 
   @Override
   public Statistic getStatistic() {
-    BeamRowCountStatistics beamStatistics =
-        beamTable.getRowCount(BeamEnumerableConverter.createPipelineOptions(pipelineOptions));
-    return beamStatistics.isUnknown()
-        ? Statistics.UNKNOWN
-        : Statistics.of(beamStatistics.getRowCount().doubleValue(), ImmutableList.of());
+    final ClassLoader originalClassLoader = Thread.currentThread().getContextClassLoader();
+    try {
+      Thread.currentThread().setContextClassLoader(BeamEnumerableConverter.class.getClassLoader());
+      BeamRowCountStatistics beamStatistics =
+          beamTable.getRowCount(BeamEnumerableConverter.createPipelineOptions(pipelineOptions));
+      return beamStatistics.isUnknown()
+          ? Statistics.UNKNOWN
+          : Statistics.of(beamStatistics.getRowCount().doubleValue(), ImmutableList.of());
+    } finally {
+      Thread.currentThread().setContextClassLoader(originalClassLoader);
+    }
   }
 
   @Override

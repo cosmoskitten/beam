@@ -30,6 +30,7 @@ import com.google.api.services.bigquery.model.TableSchema;
 import java.math.BigInteger;
 import java.util.stream.Stream;
 import org.apache.beam.sdk.extensions.sql.BeamSqlTable;
+import org.apache.beam.sdk.extensions.sql.SqlTransform;
 import org.apache.beam.sdk.extensions.sql.impl.BeamRowCountStatistics;
 import org.apache.beam.sdk.extensions.sql.meta.Table;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO;
@@ -49,8 +50,10 @@ import org.junit.runners.JUnit4;
 public class BigQueryRowCountIT {
   private static final Schema SOURCE_SCHEMA =
       Schema.builder().addNullableField("id", INT64).addNullableField("name", STRING).build();
+  private static final String FAKE_JOB_NAME = "testPipelineOptionInjectionFakeJobName";
 
   @Rule public transient TestPipeline pipeline = TestPipeline.create();
+  @Rule public transient TestPipeline readingPipeline = TestPipeline.create();
   @Rule public transient TestBigQuery bigQuery = TestBigQuery.create(SOURCE_SCHEMA);
 
   @Test
@@ -94,6 +97,46 @@ public class BigQueryRowCountIT {
     assertEquals(BigInteger.valueOf(3), size1.getRowCount());
   }
 
+  /** This tests if the pipeline options are injected in the path of SQL Transform. */
+  @Test
+  public void testPipelineOptionInjection() {
+    BigQueryTestTableProvider provider = new BigQueryTestTableProvider();
+    Table table = getTable("testTable", bigQuery.tableSpec());
+    provider.addTable("testTable", table);
+
+    pipeline
+        .apply(
+            Create.of(
+                    new TableRow().set("id", 1).set("name", "name1"),
+                    new TableRow().set("id", 2).set("name", "name2"),
+                    new TableRow().set("id", 3).set("name", "name3"))
+                .withCoder(TableRowJsonCoder.of()))
+        .apply(
+            BigQueryIO.writeTableRows()
+                .to(bigQuery.tableSpec())
+                .withSchema(
+                    new TableSchema()
+                        .setFields(
+                            ImmutableList.of(
+                                new TableFieldSchema().setName("id").setType("INTEGER"),
+                                new TableFieldSchema().setName("name").setType("STRING"))))
+                .withoutValidation());
+    pipeline.run().waitUntilFinish();
+
+    // changing pipeline options
+    readingPipeline.getOptions().setJobName(FAKE_JOB_NAME);
+
+    // Reading from the table should update the statistics of bigQuery table
+    readingPipeline.apply(
+        SqlTransform.query(" select * from testTable ")
+            .withDefaultTableProvider("bigquery", provider));
+
+    readingPipeline.run().waitUntilFinish();
+
+    BigQueryTestTable sqlTable = (BigQueryTestTable) provider.buildBeamSqlTable(table);
+    assertEquals(FAKE_JOB_NAME, sqlTable.getJobName());
+  }
+
   @Test
   public void testFakeTable() {
     BigQueryTableProvider provider = new BigQueryTableProvider();
@@ -102,10 +145,6 @@ public class BigQueryRowCountIT {
     BeamSqlTable sqlTable = provider.buildBeamSqlTable(table);
     BeamRowCountStatistics size = sqlTable.getRowCount(TestPipeline.testingPipelineOptions());
     assertTrue(size.isUnknown());
-  }
-
-  private static String insertStatement(String tableName, int id, String name) {
-    return String.format("INSERT INTO %s VALUES ( %d, '%s')", tableName, id, name);
   }
 
   private static Table getTable(String name, String location) {

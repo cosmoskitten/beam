@@ -20,11 +20,14 @@ package org.apache.beam.sdk.extensions.sql.impl;
 import static org.apache.calcite.config.CalciteConnectionProperty.SCHEMA_FACTORY;
 import static org.codehaus.commons.compiler.CompilerFactoryFactory.getDefaultCompilerFactory;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.auto.service.AutoService;
 import java.sql.Connection;
 import java.sql.SQLException;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Properties;
 import java.util.function.Consumer;
 import org.apache.beam.sdk.extensions.sql.SqlTransform;
@@ -141,7 +144,7 @@ public class JdbcDriver extends Driver {
    * not this path. The CLI ends up using the schema factory that populates the default schema with
    * all table providers it can find. See {@link BeamCalciteSchemaFactory}.
    */
-  public static JdbcConnection connect(TableProvider tableProvider) {
+  public static JdbcConnection connect(TableProvider tableProvider, PipelineOptions options) {
     try {
       Properties properties = new Properties();
       properties.setProperty(
@@ -149,9 +152,26 @@ public class JdbcDriver extends Driver {
       JdbcConnection connection =
           (JdbcConnection) INSTANCE.connect(CONNECT_STRING_PREFIX, properties);
       connection.setSchema(TOP_LEVEL_BEAM_SCHEMA, tableProvider);
+      connection.setPipelineOptionsMap(getOptionsMap(options));
       return connection;
     } catch (SQLException e) {
       throw new RuntimeException(e);
     }
+  }
+
+  /** Converts {@link PipelineOptions} to its map format. */
+  private static Map<String, String> getOptionsMap(PipelineOptions options) {
+    ObjectMapper objectMapper = new ObjectMapper();
+    Map map = objectMapper.convertValue(options, Map.class);
+    map = (Map) map.get("options");
+    if (map == null) {
+      map = new HashMap();
+    }
+    Map<String, String> map2 = new HashMap<>();
+    for (Object entry : map.entrySet()) {
+      Map.Entry ent = (Map.Entry) entry;
+      map2.put(ent.getKey().toString(), ent.getValue().toString());
+    }
+    return map2;
   }
 }
