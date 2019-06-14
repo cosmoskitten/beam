@@ -207,8 +207,8 @@ class WriteToMongoDB(PTransform):
   mongodb document to the configured MongoDB server.
 
   In order to make the document writes idempotent so that the bundles are
-  retry-able without creating duplicates. The PTransform added 2 transformations
-  before final write call:
+  retry-able without creating duplicates, the PTransform added 2 transformations
+  before final write stage:
   a ``GenerateId`` transform and a ``Reshuffle`` transform.::
 
                   -----------------------------------------------
@@ -222,7 +222,6 @@ class WriteToMongoDB(PTransform):
   ``GenerateId`` and the final write stage transform, so that when the
   documents are read to be written they must have _id field and duplications
   are impossible.
-
 
   """
 
