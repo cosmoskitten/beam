@@ -182,25 +182,32 @@ class MongoSinkTest(unittest.TestCase):
 
 class WriteToMongoDBTest(unittest.TestCase):
   @mock.patch('apache_beam.io.mongodbio.MongoClient')
-  def test_write_to_mongodb(self, mock_client):
+  def test_write_to_mongodb_with_existing_id(self, mock_client):
     id = objectid.ObjectId()
-    docs = [{'x': 1}, {'x': 2, '_id': id}]
+    docs = [{'x': 1, '_id': id}]
+    expected_update = [ReplaceOne({'_id': id}, {'x': 1, '_id': id}, True, None)]
+    with TestPipeline() as p:
+      _ = (p | "Create" >> beam.Create(docs)
+           | "Write" >> WriteToMongoDB(db='test', coll='test'))
+      p.run()
+      mock_client.return_value.__getitem__.return_value.__getitem__.\
+        return_value.bulk_write.assert_called_with(expected_update)
+
+  @mock.patch('apache_beam.io.mongodbio.MongoClient')
+  def test_write_to_mongodb_with_generated_id(self, mock_client):
+    docs = [{'x': 1}]
     expected_update = [
         ReplaceOne({'_id': mock.ANY}, {
             'x': 1,
             '_id': mock.ANY
-        }, True, None),
-        ReplaceOne({'_id': id}, {
-            'x': 2,
-            '_id': id
         }, True, None)
     ]
     with TestPipeline() as p:
       _ = (p | "Create" >> beam.Create(docs)
            | "Write" >> WriteToMongoDB(db='test', coll='test'))
       p.run()
-      mock_client.return_value.__getitem__.return_value.__getitem__.\
-        return_value.bulk_write.assert_called_with( expected_update)
+      mock_client.return_value.__getitem__.return_value.__getitem__. \
+        return_value.bulk_write.assert_called_with(expected_update)
 
 
 if __name__ == '__main__':
