@@ -17,8 +17,9 @@
  */
 
 
+// Set the correct Python version
 project.ext {
-  pythonVersion = '3.5'
+  pythonVersion = '3.6'
 }
 
 def basePath = '..'
