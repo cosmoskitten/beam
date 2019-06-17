@@ -205,7 +205,6 @@ task pythonPreCommit() {
 
 task pythonPostCommit() {
   dependsOn ":sdks:python:postCommit"
-}
 
 task python3PostCommit() {
   dependsOn ":sdks:python:test-suites:dataflow:py35:postCommitIT"
