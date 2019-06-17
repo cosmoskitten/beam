@@ -16,18 +16,16 @@
  * limitations under the License.
  */
 
+plugins { id 'org.apache.beam.module' }
+project.buildDir = '../../..'
+applyPythonNature()
+
+// Set the correct Python version
 project.ext {
-  pythonVersion = '3.5'
+  pythonVersion = '3.7'
 }
 
-addPortableWordCountTasks()
 
-task portablePreCommitPy35() {
-    dependsOn ':runners:flink:1.5:job-server-container:docker'
-    dependsOn ':sdks:python:container:py3:docker'
-    dependsOn portableWordCountBatch
-    dependsOn portableWordCountStreaming
-}
 
 def basePath = '..'
 apply from: "$basePath/build.gradle"
