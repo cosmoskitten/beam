@@ -17,6 +17,7 @@
 
 """Unit tests for BigQuery sources and sinks."""
 from __future__ import absolute_import
+from __future__ import unicode_literals
 
 import base64
 import logging
@@ -91,7 +92,9 @@ class BigQueryReadIntegrationTests(unittest.TestCase):
     self.bigquery_client.client.tables.Insert(request)
     table_data = [
         {'number': 1, 'str': 'abc'},
-        {'number': 2, 'str': 'def'}
+        {'number': 2, 'str': 'def'},
+        {'number': 3, 'str': '你好'},
+        {'number': 4, 'str': 'привет'}
     ]
     self.bigquery_client.insert_rows(
         self.project, self.dataset_id, tablename, table_data)
@@ -145,7 +148,9 @@ class BigQueryReadIntegrationTests(unittest.TestCase):
           query='SELECT number, str FROM `%s`' % table_id,
           use_standard_sql=True)))
       assert_that(result, equal_to([{'number': 1, 'str': 'abc'},
-                                    {'number': 2, 'str': 'def'}]))
+                                    {'number': 2, 'str': 'def'},
+                                    {'number': 3, 'str': '你好'},
+                                    {'number': 4, 'str': 'привет'}]))
 
   @attr('IT')
   def test_big_query_read_new_types(self):
