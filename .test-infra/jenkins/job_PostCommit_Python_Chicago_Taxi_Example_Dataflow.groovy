@@ -18,7 +18,6 @@
 
 import CommonJobProperties as commonJobProperties
 import PostcommitJobBuilder
-import CronJobBuilder
 
 
 // This job runs the Chicao Taxi Example script on Dataflow
@@ -26,6 +25,10 @@ PostcommitJobBuilder.postCommitJob('beam_PostCommit_Python_Chicago_Taxi_Dataflow
         'Run Chicago Taxi on Dataflow', 'Google Cloud Dataflow Runner Chicago Taxi Example', this) {
 
     description('Runs the Chicago Taxi Example on the Dataflow runner.')
+
+    // Set common parameters.
+    commonJobProperties.setTopLevelMainJobProperties(delegate)
+
     // Publish all test results to Jenkins
     publishers {
         archiveJunit('**/build/test-results/**/*.xml')
