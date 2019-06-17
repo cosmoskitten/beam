@@ -18,7 +18,8 @@
 
 import org.apache.tools.ant.taskdefs.condition.Os
 
-plugins { id 'org.apache.beam.module' }
+# plugins { id 'org.apache.beam.module' }
+apply plugin: org.apache.beam.module
 applyPythonNature()
 enablePythonPerformanceTest()
 
@@ -311,8 +312,13 @@ task flinkCompatibilityMatrixLoopback() {
   dependsOn flinkCompatibilityMatrix(streaming: true, workerType: CompatibilityMatrixConfig.SDK_WORKER_TYPE.LOOPBACK, preOptimize: true)
 }
 
+
+
 task flinkValidatesRunner() {
-  dependsOn 'flinkCompatibilityMatrixLoopback'
+  dependsOn ':sdks:python:test-suites:portable:flinkCompatibilityMatrixLoopback'
+  dependsOn ':sdks:python:test-suites:portable:py35:flinkCompatibilityMatrixLoopback'
+  dependsOn ':sdks:python:test-suites:portable:py36:flinkCompatibilityMatrixLoopback'
+  dependsOn ':sdks:python:test-suites:portable:py37:flinkCompatibilityMatrixLoopback'
 }
 
 task postCommit() {
