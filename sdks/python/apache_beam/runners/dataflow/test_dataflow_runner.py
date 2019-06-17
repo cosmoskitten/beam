@@ -22,6 +22,7 @@ from __future__ import print_function
 
 import logging
 import time
+import warnings
 
 from apache_beam.internal import pickler
 from apache_beam.options.pipeline_options import GoogleCloudOptions
@@ -43,6 +44,7 @@ class TestDataflowRunner(DataflowRunner):
     test_options = options.view_as(TestOptions)
     on_success_matcher = test_options.on_success_matcher
     wait_duration = test_options.wait_until_finish_duration
+    warnings.warn('wait duration {}'.format(wait_duration))
     is_streaming = options.view_as(StandardOptions).streaming
 
     # [BEAM-1889] Do not send this to remote workers also, there is no need to
