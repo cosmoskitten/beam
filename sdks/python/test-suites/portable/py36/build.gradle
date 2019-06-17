@@ -16,18 +16,10 @@
  * limitations under the License.
  */
 
+
+// Set the correct Python version
 project.ext {
-  pythonVersion = '3.5'
-}
-
-plugins { id 'org.apache.beam.module' }
-addPortableWordCountTasks()
-
-task portablePreCommitPy35() {
-    dependsOn ':runners:flink:1.5:job-server-container:docker'
-    dependsOn ':sdks:python:container:py3:docker'
-    dependsOn portableWordCountBatch
-    dependsOn portableWordCountStreaming
+  pythonVersion = '3.6'
 }
 
 def basePath = '..'
