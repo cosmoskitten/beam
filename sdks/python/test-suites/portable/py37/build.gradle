@@ -16,19 +16,11 @@
  * limitations under the License.
  */
 
-apply plugin: org.apache.beam.gradle.BeamModulePlugin
+plugins { id 'org.apache.beam.module' }
 applyPythonNature()
-// Required to setup a Python 3.5 virtualenv.
-pythonVersion = '3.5'
 
-addPortableWordCountTasks()
-
-task portablePreCommitPy35() {
-    dependsOn ':runners:flink:1.5:job-server-container:docker'
-    dependsOn ':sdks:python:container:py3:docker'
-    dependsOn portableWordCountBatch
-    dependsOn portableWordCountStreaming
-}
+// Required to setup a Python 3 virtualenv.
+pythonVersion = '3.7'
 
 class CompatibilityMatrixConfig {
   // Execute batch or streaming pipelines.
@@ -85,4 +77,3 @@ task flinkCompatibilityMatrixLoopback() {
   dependsOn flinkCompatibilityMatrix(streaming: true, workerType: CompatibilityMatrixConfig.SDK_WORKER_TYPE.LOOPBACK)
   dependsOn flinkCompatibilityMatrix(streaming: true, workerType: CompatibilityMatrixConfig.SDK_WORKER_TYPE.LOOPBACK, preOptimize: true)
 }
-
