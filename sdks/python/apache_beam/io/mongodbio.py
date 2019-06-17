@@ -194,11 +194,16 @@ class _BoundedMongoSource(iobase.BoundedSource):
 
   def _get_avg_document_size(self):
     with MongoClient(self.uri, **self.spec) as client:
-      return client[self.db].command('collstats', self.coll)['avgObjSize']
+      size = client[self.db].command('collstats', self.coll).get('avgObjSize')
+      if size is None or size <= 0:
+        raise ValueError(
+            'Collection %s not found or average doc size is '
+            'incorrect', self.coll)
+      return size
 
   def _get_document_count(self):
     with MongoClient(self.uri, **self.spec) as client:
-      return client[self.db][self.coll].count_documents(self.filter)
+      return max(client[self.db][self.coll].count_documents(self.filter), 0)
 
 
 @experimental()
@@ -216,12 +221,13 @@ class WriteToMongoDB(PTransform):
                   -----------------------------------------------
                                   (WriteToMongoDB)
 
-  The ``GenerateId`` transform adds a random *_id* field to the documents if
-  they don't already have one, it uses the same format as MongoDB default. The
-  ``Reshuffle`` transform makes sure that no fusion happens between
-  ``GenerateId`` and the final write stage transform, so that when the
-  documents are read to be written they must have _id field and duplications
-  are impossible.
+  The ``GenerateId`` transform adds a random and unique*_id* field to the
+  documents if they don't already have one, it uses the same format as MongoDB
+  default. The ``Reshuffle`` transform makes sure that no fusion happens between
+  ``GenerateId`` and the final write stage transform,so that the set of
+  documents and their unique IDs are not regenerated if final write step is
+  retried due to a failure. This prevents duplicate writes of the same document
+  with different unique IDs.
 
   """
 

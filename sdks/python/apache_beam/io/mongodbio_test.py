@@ -20,6 +20,8 @@ import logging
 import unittest
 
 import mock
+from bson import objectid
+from pymongo import ReplaceOne
 
 import apache_beam as beam
 from apache_beam.io import ReadFromMongoDB
@@ -48,17 +50,25 @@ class MongoSourceTest(unittest.TestCase):
   def test_estimate_size(self):
     self.assertEqual(self.mongo_source.estimate_size(), 50)
 
-  def test_split(self):
+  @mock.patch('apache_beam.io.mongodbio.MongoClient')
+  def test_split(self, mock_client):
     # desired bundle size is 1 times of avg doc size, each bundle contains 1
     # documents
-    for bundle in self.mongo_source.split(start_position=0,
-                                          stop_position=5,
-                                          desired_bundle_size=10):
-      self.assertEqual(1, bundle.weight)
+    mock_client.return_value.__enter__.return_value.__getitem__.return_value \
+      .__getitem__.return_value.find.return_value = [{'x': 1}, {'x': 2},
+                                                     {'x': 3}, {'x': 4},
+                                                     {'x': 5}]
+    for size in [10, 20, 100]:
+      splits = list(
+          self.mongo_source.split(start_position=0,
+                                  stop_position=5,
+                                  desired_bundle_size=size))
 
-    # expect 2 documents in first 2 bundles and 1 document in last bundle
-    for bundle in self.mongo_source.split(20):
-      self.assertIn(bundle.weight, [2, 1])
+      reference_info = (self.mongo_source, None, None)
+      sources_info = ([(split.source, split.start_position, split.stop_position)
+                       for split in splits])
+      source_test_utils.assert_sources_equal_reference_source(
+          reference_info, sources_info)
 
   @mock.patch('apache_beam.io.mongodbio.MongoClient')
   def test_dynamic_work_rebalancing(self, mock_client):
@@ -173,13 +183,24 @@ class MongoSinkTest(unittest.TestCase):
 class WriteToMongoDBTest(unittest.TestCase):
   @mock.patch('apache_beam.io.mongodbio.MongoClient')
   def test_write_to_mongodb(self, mock_client):
-    docs = [{'x': 1}, {'x': 2}, {'x': 3}]
+    id = objectid.ObjectId()
+    docs = [{'x': 1}, {'x': 2, '_id': id}]
+    expected_update = [
+        ReplaceOne({'_id': mock.ANY}, {
+            'x': 1,
+            '_id': mock.ANY
+        }, True, None),
+        ReplaceOne({'_id': id}, {
+            'x': 2,
+            '_id': id
+        }, True, None)
+    ]
     with TestPipeline() as p:
       _ = (p | "Create" >> beam.Create(docs)
            | "Write" >> WriteToMongoDB(db='test', coll='test'))
       p.run()
-      self.assertTrue(mock_client.return_value.__getitem__.return_value.
-                      __getitem__.return_value.bulk_write.called)
+      mock_client.return_value.__getitem__.return_value.__getitem__.\
+        return_value.bulk_write.assert_called_with( expected_update)
 
 
 if __name__ == '__main__':
