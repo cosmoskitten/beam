@@ -18,7 +18,7 @@
 
 
 project.ext {
-  pythonVersion = '3.5'
+  pythonVersion = '2.7'
 }
 
 def basePath = '..'
