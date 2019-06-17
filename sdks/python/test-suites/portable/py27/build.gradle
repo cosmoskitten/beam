@@ -21,15 +21,18 @@ applyPythonNature()
 addPortableWordCountTasks()
 
 project.ext {
-  pythonVersion = '3.5'
+  pythonVersion = '2.7'
 }
 
 task portablePreCommitPy() {
   dependsOn ':runners:flink:1.5:job-server-container:docker'
-  dependsOn ':sdks:python:container:py3:docker'
-  dependsOn portableWordCountBatch35
-  dependsOn portableWordCountStreaming35
+  dependsOn ':sdks:python:container:docker'
+  dependsOn portableWordCountBatch27
+  dependsOn portableWordCountStreaming27
 }
 
 def basePath = '..'
 apply from: "$basePath/build.gradle"
+
+
+
