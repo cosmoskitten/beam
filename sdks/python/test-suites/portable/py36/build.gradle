@@ -20,7 +20,7 @@ plugins { id 'org.apache.beam.module' }
 applyPythonNature()
 
 // Required to setup a Python 3 virtualenv.
-pythonVersion = '3.5'
+pythonVersion = '3.6'
 
 class CompatibilityMatrixConfig {
   // Execute batch or streaming pipelines.
