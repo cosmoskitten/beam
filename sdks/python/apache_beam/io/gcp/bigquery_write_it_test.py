@@ -103,6 +103,8 @@ class BigQueryWriteIntegrationTests(unittest.TestCase):
     input_data = [
         {'number': 1, 'str': 'abc'},
         {'number': 2, 'str': 'def'},
+        {'number': 3, 'str': '你好'},
+        {'number': 4, 'str': 'привет'},
     ]
     table_schema = {"fields": [
         {"name": "number", "type": "INTEGER"},
@@ -112,7 +114,7 @@ class BigQueryWriteIntegrationTests(unittest.TestCase):
         BigqueryFullResultMatcher(
             project=self.project,
             query="SELECT number, str FROM %s" % table_id,
-            data=[(1, 'abc',), (2, 'def',)])]
+            data=[(1, 'abc',), (2, 'def',), (3, '你好',), (4, 'привет',)])]
 
     args = self.test_pipeline.get_full_options_as_args(
         on_success_matcher=hc.all_of(*pipeline_verifiers))
