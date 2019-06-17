@@ -16,10 +16,9 @@
  * limitations under the License.
  */
 
-plugins { id 'org.apache.beam.module' }
 
 project.ext {
-  pythonVersion = '3.5'
+  pythonVersion = '2.7'
 }
 
 def basePath = '..'
