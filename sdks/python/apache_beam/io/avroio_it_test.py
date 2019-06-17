@@ -61,10 +61,13 @@ from apache_beam.runners.runner import PipelineState
 from apache_beam.testing.test_pipeline import TestPipeline
 from apache_beam.testing.test_utils import delete_files
 from apache_beam.testing.util import BeamAssertException
+from apache_beam.transforms import CombineGlobally
 from apache_beam.transforms.core import Create
 from apache_beam.transforms.core import FlatMap
 from apache_beam.transforms.core import Map
 from apache_beam.transforms.combiners import Mean
+from apache_beam.transforms.combiners import Count
+from apache_beam.transforms.combiners import ToList
 
 # pylint: disable=wrong-import-order, wrong-import-position
 try:
@@ -79,10 +82,10 @@ COLORS = ['RED', 'ORANGE', 'YELLOW', 'GREEN', 'BLUE', 'PURPLE', None]
 
 def record(i):
   return {
-      'label': LABELS[i % len(LABELS)],
-      'number': i,
-      'number_str': str(i),
-      'color': COLORS[i % len(COLORS)]
+    'label': LABELS[i % len(LABELS)],
+    'number': i,
+    'number_str': str(i),
+    'color': COLORS[i % len(COLORS)]
   }
 
 
@@ -112,14 +115,15 @@ class AvroITTestBase(object):
     files_output = '/'.join([output, 'avro'])
 
     num_records = write_pipeline.get_option('records')
-    num_records = int(num_records) if num_records else 1000000
+    num_records = int(num_records) if num_records else 10000
 
     # Seed a `PCollection` with indices that will each be FlatMap'd into
     # `batch_size` records, to avoid having a too-large list in memory at
     # the outset
     batch_size = write_pipeline.get_option('batch-size')
-    batch_size = int(batch_size) if batch_size else 10000
+    batch_size = int(batch_size) if batch_size else 1000
 
+    assert batch_size < num_records
     # pylint: disable=range-builtin-not-iterating
     batches = range(int(num_records / batch_size))
 
@@ -131,12 +135,13 @@ class AvroITTestBase(object):
     _ = (write_pipeline
          | 'CreateBatches' >> Create(batches)
          | 'ExpandBatches' >> FlatMap(batch_indices)
+         | 'Double' >> Map(lambda x: 2 * x)
          | 'CreateRecords' >> Map(record)
          | 'WriteAvro' >> WriteToAvro(files_output,
                                       self.SCHEMA,
                                       file_name_suffix=".avro",
                                       use_fastavro=self.use_fastavro)
-        )
+         )
 
     write_result = write_pipeline.run()
     write_result.wait_until_finish()
@@ -146,14 +151,63 @@ class AvroITTestBase(object):
       if not x == mean:
         raise BeamAssertException('Assertion failed: %s == %s' % (x, mean))
 
-    _ = (read_pipeline
-         | "ReadAvro" >> ReadFromAvro(files_output + '*')
+    def check_distr(list):
+      if not len(set(list)) == 1:
+        raise BeamAssertException(
+          'Labels should be equally distributed: %s ' % (list))
+
+    def check_concat(concatenated_string):
+      split_concatenated_string = concatenated_string.split(" ")
+      for i in range(len(batches) * batch_size):
+        if str(2 * i) not in split_concatenated_string:
+          raise BeamAssertException(
+            'String should be in concatenation: %s' % str(2 * i))
+
+    def check_for_none(list):
+      has_none = False
+      for element in list:
+        if element is None:
+          has_none = True
+      if not has_none:
+        raise BeamAssertException('None value was not preserved: %s ' % (list))
+
+    def concat_strings(values):
+      return " ".join(values)
+
+    read_pcol = (read_pipeline
+                 | 'ReadAvro' >> ReadFromAvro(files_output + '*')
+                 )
+
+    _ = (read_pcol
+         | 'ExtractLabel' >> Map(lambda x: x['label'])
+         | 'MakeLabelsKV' >> Map(lambda x: (x, 1))
+         | 'CountLabels' >> Count.PerKey()
+         | 'ExtractLabelCounts' >> Map(lambda x: x[1])
+         | 'LabelsToList' >> ToList()
+         | 'CheckEqualDistributionLabels' >> Map(lambda x: check_distr(x))
+         )
+
+    _ = (read_pcol
          | 'ExtractNumber' >> Map(lambda x: x['number'])
          | 'CalculateMean' >> Mean.Globally()
          | 'MeanIsCorrect' >> Map(
-             lambda x: check(float(x),
-                             (float(len(batches) * batch_size) / 2) - .5))
-        )
+              lambda x: check(x, (len(batches) * batch_size) - 1))
+         )
+
+    _ = (read_pcol
+         | 'ExtractNumberStr' >> Map(lambda x: x['number_str'])
+         | 'Concatenate' >> CombineGlobally(concat_strings)
+         | 'CheckConcatenation' >> Map(lambda x: check_concat(x))
+         )
+
+    _ = (read_pcol
+         | 'ExtractNumberColor' >> Map(lambda x: x['color'])
+         | 'MakeColorsKV' >> Map(lambda x: (x, 1))
+         | 'CountColors' >> Count.PerKey()
+         | 'ExtractColorCounts' >> Map(lambda x: x[0])
+         | 'ColorsToList' >> ToList()
+         | 'CheckEqualDistributionColors' >> Map(lambda x: check_for_none(x))
+         )
 
     self.addCleanup(delete_files, [output])
     read_result = read_pipeline.run()
