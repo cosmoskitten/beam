@@ -17,16 +17,24 @@
  */
 
 
+
+apply plugin: org.apache.beam.gradle.BeamModulePlugin
+applyPythonNature()
+addPortableWordCountTasks()
+
 project.ext {
-  pythonVersion = '3.5'
+  pythonVersion = '2.7'
 }
 
 task portablePreCommitPy() {
-    dependsOn ':runners:flink:1.5:job-server-container:docker'
-    dependsOn ':sdks:python:container:py3:docker'
-    dependsOn portableWordCountBatch
-    dependsOn portableWordCountStreaming
+  dependsOn ':runners:flink:1.5:job-server-container:docker'
+  dependsOn ':sdks:python:container:docker'
+  dependsOn portableWordCountBatch
+  dependsOn portableWordCountStreaming
 }
 
 def basePath = '..'
 apply from: "$basePath/build.gradle"
+
+
+
