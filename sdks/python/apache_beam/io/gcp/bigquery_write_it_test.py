@@ -127,6 +127,36 @@ class BigQueryWriteIntegrationTests(unittest.TestCase):
            write_disposition=beam.io.BigQueryDisposition.WRITE_EMPTY))
 
   @attr('IT')
+  def test_big_query_write_non_ascii(self):
+    table_name = 'python_write_table_non_ascii'
+    table_id = '{}.{}'.format(self.dataset_id, table_name)
+
+    input_data = [
+        {'str': '你好'},
+        {'str': 'привет'},
+        {'str': 'សួស្តី'}
+    ]
+    table_schema = {"fields": [{"name": "str", "type": "STRING"}]}
+
+    pipeline_verifiers = [
+        BigqueryFullResultMatcher(
+            project=self.project,
+            query="SELECT str FROM %s" % table_id,
+            data=[('你好',), ('привет',), ('សួស្តី',)])]
+
+    args = self.test_pipeline.get_full_options_as_args(
+        on_success_matcher=hc.all_of(*pipeline_verifiers))
+
+    with beam.Pipeline(argv=args) as p:
+      # pylint: disable=expression-not-assigned
+      (p | 'create' >> beam.Create(input_data)
+       | 'write' >> beam.io.WriteToBigQuery(
+           table_id,
+           schema=table_schema,
+           create_disposition=beam.io.BigQueryDisposition.CREATE_IF_NEEDED,
+           write_disposition=beam.io.BigQueryDisposition.WRITE_EMPTY))
+
+  @attr('IT')
   def test_big_query_write_schema_autodetect(self):
     if self.runner_name == 'TestDataflowRunner':
       self.skipTest('DataflowRunner does not support schema autodetection')
