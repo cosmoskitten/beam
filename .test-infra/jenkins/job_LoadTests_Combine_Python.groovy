@@ -29,21 +29,19 @@ def loadTestConfigurations = [
                 runner       : CommonTestProperties.Runner.DATAFLOW,
                 sdk          : CommonTestProperties.SDK.PYTHON,
                 jobProperties: [
-                        job_name            : 'load-tests-python-dataflow-batch-combine-1-' + now,
-                        project             : 'apache-beam-testing',
-                        temp_location       : 'gs://temp-storage-for-perf-tests/smoketests',
-                        publish_to_big_query: true,
-                        metrics_dataset     : 'load_test',
-                        metrics_table       : 'python_dataflow_batch_combine_1',
-                        input_options       : '\'{"num_records": 200000000,' +
+                        job_name             : 'load-tests-python-dataflow-batch-combine-1-' + now,
+                        project              : 'apache-beam-testing',
+                        temp_location        : 'gs://temp-storage-for-perf-tests/smoketests',
+                        publish_to_big_query : true,
+                        metrics_dataset      : 'load_test',
+                        metrics_table        : 'python_dataflow_batch_combine_1',
+                        input_options        : '\'{"num_records": 200000000,' +
                                 '"key_size": 1,' +
-                                '"value_size": 9,' +
-                                '"bundle_size_distribution_type": "const",' +
-                                '"bundle_size_distribution_param": 1,' +
-                                '"force_initial_num_bundles": 1}\'',
-                        max_num_workers     : 5,
-                        num_workers         : 5,
-                        top_count           : 20,
+                                '"value_size": 9}\'',
+                        max_num_workers      : 5,
+                        num_workers          : 5,
+                        autoscaling_algorithm: "NONE",
+                        top_count            : 20,
                 ]
         ],
         [
@@ -52,21 +50,19 @@ def loadTestConfigurations = [
                 runner       : CommonTestProperties.Runner.DATAFLOW,
                 sdk          : CommonTestProperties.SDK.PYTHON,
                 jobProperties: [
-                        job_name            : 'load-tests-python-dataflow-batch-combine-2-' + now,
-                        project             : 'apache-beam-testing',
-                        temp_location       : 'gs://temp-storage-for-perf-tests/smoketests',
-                        publish_to_big_query: true,
-                        metrics_dataset     : 'load_test',
-                        metrics_table       : 'python_dataflow_batch_combine_2',
-                        input_options       : '\'{"num_records": 20000000,' +
+                        job_name             : 'load-tests-python-dataflow-batch-combine-2-' + now,
+                        project              : 'apache-beam-testing',
+                        temp_location        : 'gs://temp-storage-for-perf-tests/smoketests',
+                        publish_to_big_query : true,
+                        metrics_dataset      : 'load_test',
+                        metrics_table        : 'python_dataflow_batch_combine_2',
+                        input_options        : '\'{"num_records": 20000000,' +
                                 '"key_size": 10,' +
-                                '"value_size": 90,' +
-                                '"bundle_size_distribution_type": "const",' +
-                                '"bundle_size_distribution_param": 1,' +
-                                '"force_initial_num_bundles": 1}\'',
-                        max_num_workers     : 5,
-                        num_workers         : 5,
-                        top_count           : 20,
+                                '"value_size": 90}\'',
+                        max_num_workers      : 5,
+                        num_workers          : 5,
+                        autoscaling_algorithm: "NONE",
+                        top_count            : 20,
                 ]
         ],
         [
@@ -75,21 +71,19 @@ def loadTestConfigurations = [
                 runner       : CommonTestProperties.Runner.DATAFLOW,
                 sdk          : CommonTestProperties.SDK.PYTHON,
                 jobProperties: [
-                        job_name            : 'load-tests-python-dataflow-batch-combine-3-' + now,
-                        project             : 'apache-beam-testing',
-                        temp_location       : 'gs://temp-storage-for-perf-tests/smoketests',
-                        publish_to_big_query: true,
-                        metrics_dataset     : 'load_test',
-                        metrics_table       : 'python_dataflow_batch_combine_3',
-                        input_options       : '\'{"num_records": 2000,' +
+                        job_name             : 'load-tests-python-dataflow-batch-combine-3-' + now,
+                        project              : 'apache-beam-testing',
+                        temp_location        : 'gs://temp-storage-for-perf-tests/smoketests',
+                        publish_to_big_query : true,
+                        metrics_dataset      : 'load_test',
+                        metrics_table        : 'python_dataflow_batch_combine_3',
+                        input_options        : '\'{"num_records": 2000,' +
                                 '"key_size": 100000,' +
-                                '"value_size": 900000,' +
-                                '"bundle_size_distribution_type": "const",' +
-                                '"bundle_size_distribution_param": 1,' +
-                                '"force_initial_num_bundles": 1}\'',
-                        max_num_workers     : 5,
-                        num_workers         : 5,
-                        top_count           : 20,
+                                '"value_size": 90}\'',
+                        max_num_workers      : 5,
+                        num_workers          : 5,
+                        autoscaling_algorithm: "NONE",
+                        top_count            : 20,
                 ]
         ],
         [
@@ -98,22 +92,20 @@ def loadTestConfigurations = [
                 runner       : CommonTestProperties.Runner.DATAFLOW,
                 sdk          : CommonTestProperties.SDK.PYTHON,
                 jobProperties: [
-                        job_name            : 'load-tests-python-dataflow-batch-combine-4-' + now,
-                        project             : 'apache-beam-testing',
-                        temp_location       : 'gs://temp-storage-for-perf-tests/smoketests',
-                        publish_to_big_query: true,
-                        metrics_dataset     : 'load_test',
-                        metrics_table       : 'python_dataflow_batch_combine_4',
-                        input_options       : '\'{"num_records": 20000000,' +
+                        job_name             : 'load-tests-python-dataflow-batch-combine-4-' + now,
+                        project              : 'apache-beam-testing',
+                        temp_location        : 'gs://temp-storage-for-perf-tests/smoketests',
+                        publish_to_big_query : true,
+                        metrics_dataset      : 'load_test',
+                        metrics_table        : 'python_dataflow_batch_combine_4',
+                        input_options        : '\'{"num_records": 5000000,' +
                                 '"key_size": 10,' +
-                                '"value_size": 90,' +
-                                '"bundle_size_distribution_type": "const",' +
-                                '"bundle_size_distribution_param": 1,' +
-                                '"force_initial_num_bundles": 1}\'',
-                        max_num_workers     : 16,
-                        num_workers         : 16,
-                        fanout              : 4,
-                        top_count           : 20,
+                                '"value_size": 90}\'',
+                        max_num_workers      : 16,
+                        num_workers          : 16,
+                        autoscaling_algorithm: "NONE",
+                        fanout               : 4,
+                        top_count            : 20,
                 ]
         ],
         [
@@ -122,22 +114,20 @@ def loadTestConfigurations = [
                 runner       : CommonTestProperties.Runner.DATAFLOW,
                 sdk          : CommonTestProperties.SDK.PYTHON,
                 jobProperties: [
-                        job_name            : 'load-tests-python-dataflow-batch-combine-5-' + now,
-                        project             : 'apache-beam-testing',
-                        temp_location       : 'gs://temp-storage-for-perf-tests/smoketests',
-                        publish_to_big_query: true,
-                        metrics_dataset     : 'load_test',
-                        metrics_table       : 'python_dataflow_batch_combine_5',
-                        input_options       : '\'{"num_records": 20000000,' +
+                        job_name             : 'load-tests-python-dataflow-batch-combine-5-' + now,
+                        project              : 'apache-beam-testing',
+                        temp_location        : 'gs://temp-storage-for-perf-tests/smoketests',
+                        publish_to_big_query : true,
+                        metrics_dataset      : 'load_test',
+                        metrics_table        : 'python_dataflow_batch_combine_5',
+                        input_options        : '\'{"num_records": 2500000,' +
                                 '"key_size": 10,' +
-                                '"value_size": 90,' +
-                                '"bundle_size_distribution_type": "const",' +
-                                '"bundle_size_distribution_param": 1,' +
-                                '"force_initial_num_bundles": 1}\'',
-                        max_num_workers     : 16,
-                        num_workers         : 16,
-                        fanout              : 8,
-                        top_count           : 20,
+                                '"value_size": 90}\'',
+                        max_num_workers      : 16,
+                        num_workers          : 16,
+                        autoscaling_algorithm: "NONE",
+                        fanout               : 8,
+                        top_count            : 20,
                 ]
         ],
 ]

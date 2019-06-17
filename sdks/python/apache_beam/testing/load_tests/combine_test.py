@@ -143,10 +143,10 @@ class CombineTest(LoadTest):
     else:
       self.fanout = int(self.fanout)
 
-    self.top_count = self.pipeline.get_option('top_count')
-    if self.top_count is None:
-      self.fail('You should set \"--topCount\" option to use TOP combiners')
-    self.top_count = int(self.top_count)
+    try:
+      self.top_count = int(self.pipeline.get_option('top_count'))
+    except (TypeError, ValueError):
+      self.fail('You should set \"--top_count\" option to use TOP combiners')
 
   class _GetElement(beam.DoFn):
     def process(self, element):
