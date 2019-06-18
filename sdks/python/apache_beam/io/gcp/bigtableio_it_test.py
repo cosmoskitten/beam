@@ -158,6 +158,7 @@ class BigtableIOWriteTest(unittest.TestCase):
     if self.instance.exists():
       self.instance.delete()
 
+  @attr('IT')
   def test_bigtable_write(self):
     number = self.number
     pipeline_args = self.test_pipeline.options_list
