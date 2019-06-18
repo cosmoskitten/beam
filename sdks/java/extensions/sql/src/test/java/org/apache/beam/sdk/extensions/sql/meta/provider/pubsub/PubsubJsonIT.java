@@ -255,6 +255,7 @@ public class PubsubJsonIT implements Serializable {
   }
 
   @Test
+  @Ignore("https://jira.apache.org/jira/browse/BEAM-7582")
   public void testSQLLimit() throws Exception {
     String createTableString =
         "CREATE EXTERNAL TABLE message (\n"
@@ -348,7 +349,7 @@ public class PubsubJsonIT implements Serializable {
       inMemoryMetaStore.registerProvider(tableProvider);
     }
 
-    JdbcConnection connection = JdbcDriver.connect(inMemoryMetaStore, options);
+    JdbcConnection connection = JdbcDriver.connect(inMemoryMetaStore);
     connection.setPipelineOptionsMap(argsMap);
     return connection;
   }
