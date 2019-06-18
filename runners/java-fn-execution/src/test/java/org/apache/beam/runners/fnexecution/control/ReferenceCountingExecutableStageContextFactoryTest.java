@@ -15,50 +15,48 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.runners.flink.translation.functions;
+package org.apache.beam.runners.fnexecution.control;
 
-import static org.hamcrest.core.Is.is;
 import static org.junit.Assert.assertThat;
-import static org.mockito.Matchers.any;
-import static org.mockito.Mockito.doThrow;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.when;
 
 import java.io.ByteArrayOutputStream;
 import java.io.PrintStream;
-import org.apache.beam.runners.flink.translation.functions.ReferenceCountingFlinkExecutableStageContextFactory.Creator;
+import org.apache.beam.runners.fnexecution.control.ReferenceCountingExecutableStageContextFactory.Creator;
 import org.apache.beam.runners.fnexecution.provisioning.JobInfo;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Charsets;
+import org.hamcrest.core.Is;
 import org.junit.Assert;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
+import org.mockito.Matchers;
+import org.mockito.Mockito;
 
-/** Tests for {@link ReferenceCountingFlinkExecutableStageContextFactory}. */
+/** Tests for {@link ReferenceCountingExecutableStageContextFactory}. */
 @RunWith(JUnit4.class)
-public class ReferenceCountingFlinkExecutableStageContextFactoryTest {
+public class ReferenceCountingExecutableStageContextFactoryTest {
 
   @Test
   public void testCreateReuseReleaseCreate() throws Exception {
 
-    Creator creator = mock(Creator.class);
-    FlinkExecutableStageContext c1 = mock(FlinkExecutableStageContext.class);
-    FlinkExecutableStageContext c2 = mock(FlinkExecutableStageContext.class);
-    FlinkExecutableStageContext c3 = mock(FlinkExecutableStageContext.class);
-    FlinkExecutableStageContext c4 = mock(FlinkExecutableStageContext.class);
-    when(creator.apply(any(JobInfo.class)))
+    Creator creator = Mockito.mock(Creator.class);
+    ExecutableStageContext c1 = Mockito.mock(ExecutableStageContext.class);
+    ExecutableStageContext c2 = Mockito.mock(ExecutableStageContext.class);
+    ExecutableStageContext c3 = Mockito.mock(ExecutableStageContext.class);
+    ExecutableStageContext c4 = Mockito.mock(ExecutableStageContext.class);
+    Mockito.when(creator.apply(Matchers.any(JobInfo.class)))
         .thenReturn(c1)
         .thenReturn(c2)
         .thenReturn(c3)
         .thenReturn(c4);
-    ReferenceCountingFlinkExecutableStageContextFactory factory =
-        ReferenceCountingFlinkExecutableStageContextFactory.create(creator);
-    JobInfo jobA = mock(JobInfo.class);
-    when(jobA.jobId()).thenReturn("jobA");
-    JobInfo jobB = mock(JobInfo.class);
-    when(jobB.jobId()).thenReturn("jobB");
-    FlinkExecutableStageContext ac1A = factory.get(jobA); // 1 open jobA
-    FlinkExecutableStageContext ac2B = factory.get(jobB); // 1 open jobB
+    ReferenceCountingExecutableStageContextFactory factory =
+        ReferenceCountingExecutableStageContextFactory.create(creator, (caller) -> true);
+    JobInfo jobA = Mockito.mock(JobInfo.class);
+    Mockito.when(jobA.jobId()).thenReturn("jobA");
+    JobInfo jobB = Mockito.mock(JobInfo.class);
+    Mockito.when(jobB.jobId()).thenReturn("jobB");
+    ExecutableStageContext ac1A = factory.get(jobA); // 1 open jobA
+    ExecutableStageContext ac2B = factory.get(jobB); // 1 open jobB
     Assert.assertSame(
         "Context should be cached and reused.", ac1A, factory.get(jobA)); // 2 open jobA
     Assert.assertSame(
@@ -68,7 +66,7 @@ public class ReferenceCountingFlinkExecutableStageContextFactoryTest {
         "Context should be cached and reused.", ac1A, factory.get(jobA)); // 2 open jobA
     factory.release(ac1A); // 1 open jobA
     factory.release(ac1A); // 0 open jobA
-    FlinkExecutableStageContext ac3A = factory.get(jobA); // 1 open jobA
+    ExecutableStageContext ac3A = factory.get(jobA); // 1 open jobA
     Assert.assertNotSame("We should get a new instance.", ac1A, ac3A);
     Assert.assertSame(
         "Context should be cached and reused.", ac3A, factory.get(jobA)); // 2 open jobA
@@ -79,7 +77,7 @@ public class ReferenceCountingFlinkExecutableStageContextFactoryTest {
     factory.release(ac2B); // 2 open jobB
     factory.release(ac2B); // 1 open jobB
     factory.release(ac2B); // 0 open jobB
-    FlinkExecutableStageContext ac4B = factory.get(jobB); // 1 open jobB
+    ExecutableStageContext ac4B = factory.get(jobB); // 1 open jobB
     Assert.assertNotSame("We should get a new instance.", ac2B, ac4B);
     factory.release(ac4B); // 0 open jobB
   }
@@ -92,21 +90,21 @@ public class ReferenceCountingFlinkExecutableStageContextFactoryTest {
     PrintStream newErr = new PrintStream(baos);
     try {
       System.setErr(newErr);
-      Creator creator = mock(Creator.class);
-      FlinkExecutableStageContext c1 = mock(FlinkExecutableStageContext.class);
-      when(creator.apply(any(JobInfo.class))).thenReturn(c1);
+      Creator creator = Mockito.mock(Creator.class);
+      ExecutableStageContext c1 = Mockito.mock(ExecutableStageContext.class);
+      Mockito.when(creator.apply(Matchers.any(JobInfo.class))).thenReturn(c1);
       // throw an Throwable and ensure that it is caught and logged.
-      doThrow(new NoClassDefFoundError()).when(c1).close();
-      ReferenceCountingFlinkExecutableStageContextFactory factory =
-          ReferenceCountingFlinkExecutableStageContextFactory.create(creator);
-      JobInfo jobA = mock(JobInfo.class);
-      when(jobA.jobId()).thenReturn("jobA");
-      FlinkExecutableStageContext ac1A = factory.get(jobA);
+      Mockito.doThrow(new NoClassDefFoundError()).when(c1).close();
+      ReferenceCountingExecutableStageContextFactory factory =
+          ReferenceCountingExecutableStageContextFactory.create(creator, (caller) -> true);
+      JobInfo jobA = Mockito.mock(JobInfo.class);
+      Mockito.when(jobA.jobId()).thenReturn("jobA");
+      ExecutableStageContext ac1A = factory.get(jobA);
       factory.release(ac1A);
       newErr.flush();
       String output = new String(baos.toByteArray(), Charsets.UTF_8);
       // Ensure that the error is logged
-      assertThat(output.contains("Unable to close FlinkExecutableStageContext"), is(true));
+      assertThat(output.contains("Unable to close ExecutableStageContext"), Is.is(true));
     } finally {
       newErr.flush();
       System.setErr(oldErr);
