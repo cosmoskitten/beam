@@ -26,6 +26,7 @@ import unittest
 import uuid
 
 import pytz
+from nose.plugins.attrib import attr
 
 import apache_beam as beam
 from apache_beam.io.gcp.bigtableio import WriteToBigTable
