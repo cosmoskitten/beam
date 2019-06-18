@@ -64,7 +64,6 @@ __all__ = [
     'Regex',
     'Reify',
     'RemoveDuplicates',
-    'Regex',
     'Reshuffle',
     'ToString',
     'Values',
