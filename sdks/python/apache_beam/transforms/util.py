@@ -810,6 +810,7 @@ def matches_all_object(pcoll, regex, group=None):
       yield results
   return pcoll | FlatMap(_process)
 
+
 @ptransform_fn
 def matches_kv_object(pcoll, regex, keyGroup, valueGroup):
   """
@@ -835,7 +836,6 @@ class Regex(object):
       regex = re.compile(regex)
     return regex
 
-
   @staticmethod
   @ptransform_fn
   def matches(pcoll, regex, group=None):
@@ -850,12 +850,12 @@ class Regex(object):
     """
     regex = Regex._regex_compile(regex)
     group = group or 0
+
     def _process(element):
       m = regex.match(element)
       if m:
         yield m.group(group)
     return pcoll | FlatMap(_process)
-
 
   @staticmethod
   @ptransform_fn
@@ -886,7 +886,6 @@ class Regex(object):
     return pcoll | matches_kv_object(regex=regex, keyGroup=keyGroup,
                                      valueGroup=valueGroup)
 
-
   @staticmethod
   @ptransform_fn
   def find(pcoll, regex, group=None):
@@ -901,6 +900,7 @@ class Regex(object):
     """
     regex = Regex._regex_compile(regex)
     group = group or 0
+
     def _process(element):
       r = regex.search(element)
       if r:
@@ -950,6 +950,7 @@ class Regex(object):
       replacement: the string to be substituted for each match.
     """
     regex = Regex._regex_compile(regex)
+
     def _process(element):
       yield regex.sub(replacement, element)
 
@@ -967,11 +968,11 @@ class Regex(object):
       replacement: the string to be substituted for each match.
     """
     regex = Regex._regex_compile(regex)
+
     def _process(element):
       yield regex.sub(replacement, element, 1)
 
     return pcoll | FlatMap(_process)
-
 
   @staticmethod
   @ptransform_fn
@@ -987,6 +988,7 @@ class Regex(object):
     """
     regex = Regex._regex_compile(regex)
     outputEmpty = bool(outputEmpty)
+
     def _process(element):
       r = regex.split(element)
       if r and not outputEmpty:
