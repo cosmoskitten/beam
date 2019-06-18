@@ -1185,6 +1185,7 @@ class FnApiRunnerTestWithBundleRepeat(FnApiRunnerTest):
   def test_register_finalizations(self):
     raise unittest.SkipTest("TODO: Avoid bundle finalizations on repeat.")
 
+
 class FnApiRunnerTestWithMultiWorkers(FnApiRunnerTest):
 
   def create_pipeline(self):
@@ -1196,6 +1197,7 @@ class FnApiRunnerTestWithMultiWorkers(FnApiRunnerTest):
 
   def test_split_half(self):
     raise unittest.SkipTest("Multiworker doesn't support split request.")
+
 
 class FnApiRunnerTestWithMultiWorkersAndBundleRepeat(FnApiRunnerTest):
 
@@ -1211,6 +1213,7 @@ class FnApiRunnerTestWithMultiWorkersAndBundleRepeat(FnApiRunnerTest):
 
   def test_register_finalizations(self):
     raise unittest.SkipTest("TODO: Avoid bundle finalizations on repeat.")
+
 
 class FnApiRunnerSplitTest(unittest.TestCase):
 

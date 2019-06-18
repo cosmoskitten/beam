@@ -147,6 +147,7 @@ class _GroupingBuffer(object):
     self._pre_grouped_coder = pre_grouped_coder
     self._post_grouped_coder = post_grouped_coder
     self._table = collections.defaultdict(list)
+    self._table_count = 0
     self._windowing = windowing
     self._grouped_output = None
     self._lock = threading.Lock()
@@ -168,6 +169,7 @@ class _GroupingBuffer(object):
       self._table[key_coder_impl.encode(key)].append(
           value if is_trivial_windowing
           else windowed_key_value.with_value(value))
+      self._table_count = len(self._table)
 
   def __iter__(self):
     # use self._iter_flag to indicate _grouped_output process status.
@@ -187,7 +189,7 @@ class _GroupingBuffer(object):
       try:
         self._iter_flag = 1
         self._grouped_output = []
-        num_workers = min(self._num_workers, len(self._table))
+        num_workers = min(self._num_workers, self._table_count)
         output_stream_list = []
         for _ in range(num_workers):
           output_stream_list.append(create_OutputStream())
@@ -219,11 +221,11 @@ class _GroupingBuffer(object):
           self._grouped_output.append(b''.join([output_stream.get()]))
 
         self._iter_flag = 2
+        self._table = None
         return iter(self._grouped_output)
       except Exception as e:
         self._iter_flag = 99
         raise RuntimeError('Failed to generate an iterator from buffer. %s' % e)
-
 
 
 class _WindowGroupingBuffer(object):
@@ -1561,8 +1563,10 @@ class BundleManager(object):
 
     return result, split_results
 
+
 class ParallelBundleManager(BundleManager):
   _uid_counter = 0
+
   def process_bundle(self, inputs, expected_outputs, num_workers=1):
     input_value = list(inputs.values())[0]
     if isinstance(input_value, list):
@@ -1571,22 +1575,23 @@ class ParallelBundleManager(BundleManager):
           inputs, expected_outputs, ParallelBundleManager._uid_counter)
 
     elif isinstance(input_value, _GroupingBuffer):
-      input_count = len(input_value._table)
-      num_workers = min(num_workers, input_count)
+      num_workers = min(num_workers, input_value._table_count)
 
       merged_result = None
       split_result_list = []
-      future_list = []
-      with futures.ThreadPoolExecutor(max_workers=num_workers) as executor:
-        for i in range(num_workers):
-          ParallelBundleManager._uid_counter += 1
-          future = executor.submit(
-              super(ParallelBundleManager, self).process_bundle, inputs,
-              expected_outputs, ParallelBundleManager._uid_counter, i)
-          future_list.append(future)
 
-        for future in futures.as_completed(future_list):
-          result, split_result = future.result()
+      param_list = []
+      for i in range(num_workers):
+        ParallelBundleManager._uid_counter += 1
+        param_list.append((inputs, expected_outputs,
+                           ParallelBundleManager._uid_counter, i))
+
+      with futures.ThreadPoolExecutor(max_workers=num_workers) as executor:
+        for result, split_result in executor.map(lambda p: BundleManager(
+            self._controller, self._get_buffer, self._get_input_coder_impl,
+            self._bundle_descriptor, self._progress_frequency,
+            self._registered).process_bundle(*p), param_list):
+
           split_result_list += split_result
 
           if merged_result is None:
@@ -1604,6 +1609,7 @@ class ParallelBundleManager(BundleManager):
 
     else:
       raise NotImplementedError
+
 
 class ProgressRequester(threading.Thread):
   """ Thread that asks SDK Worker for progress reports with a certain frequency.
