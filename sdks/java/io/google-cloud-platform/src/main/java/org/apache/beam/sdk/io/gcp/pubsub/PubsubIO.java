@@ -675,8 +675,6 @@ public class PubsubIO {
 
       abstract Builder<T> setClock(@Nullable Clock clock);
 
-      abstract Builder<T> setClientFactory(PubsubClient.PubsubClientFactory factory);
-
       abstract Read<T> build();
     }
 
@@ -738,7 +736,7 @@ public class PubsubIO {
      * PubsubGrpcClientFactory}.
      */
     public Read<T> withClientFactory(PubsubClient.PubsubClientFactory factory) {
-      return toBuilder().setClientFactory(factory).build();
+      return toBuilder().setPubsubClientFactory(factory).build();
     }
 
     /**
@@ -794,16 +792,6 @@ public class PubsubIO {
      */
     private Read<T> withCoderAndParseFn(Coder<T> coder, SimpleFunction<PubsubMessage, T> parseFn) {
       return toBuilder().setCoder(coder).setParseFn(parseFn).build();
-    }
-
-    @VisibleForTesting
-    /**
-     * Set's the PubsubClientFactory.
-     *
-     * <p>Only for use by unit tests.
-     */
-    Read<T> withClientFactory(PubsubClient.PubsubClientFactory clientFactory) {
-      return toBuilder().setPubsubClientFactory(clientFactory).build();
     }
 
     @VisibleForTesting
