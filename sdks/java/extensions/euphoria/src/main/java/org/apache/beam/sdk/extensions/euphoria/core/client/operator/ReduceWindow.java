@@ -183,6 +183,16 @@ public class ReduceWindow<InputT, ValueT, AccT, OutputT>
     }
 
     /**
+     * Syntactic sugar to enable #combineBy to take only single argument and be used in helpers like
+     * #combineBy(Sums.ofLongs()).
+     */
+    @Deprecated("Remove the TypeDescriptor")
+    default WindowByBuilder<ValueT> combineBy(
+        ReduceByKey.CombineFunctionWithIdentity<ValueT> reduce, TypeDescriptor<ValueT> ignored) {
+      return combineBy(reduce.identity(), reduce, reduce.valueDesc());
+    }
+
+    /**
      * Define a function that reduces all values related to one key into one result object.
      *
      * @param identity zero (identity) element, must be {@link java.io.Serializable}.
