@@ -26,6 +26,7 @@ import javax.annotation.Nullable;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.net.HostAndPort;
 import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.api.common.ExecutionMode;
 import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.java.CollectionEnvironment;
 import org.apache.flink.api.java.ExecutionEnvironment;
@@ -40,6 +41,7 @@ import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.configuration.RestOptions;
 import org.apache.flink.runtime.jobgraph.SavepointRestoreSettings;
 import org.apache.flink.runtime.state.StateBackend;
+import org.apache.flink.streaming.api.CheckpointingMode;
 import org.apache.flink.streaming.api.TimeCharacteristic;
 import org.apache.flink.streaming.api.environment.CheckpointConfig.ExternalizedCheckpointCleanup;
 import org.apache.flink.streaming.api.environment.RemoteStreamEnvironment;
@@ -92,7 +94,9 @@ public class FlinkExecutionEnvironments {
     }
 
     // Set the execution more for data exchange.
-    flinkBatchEnv.getConfig().setExecutionMode(options.getExecutionModeForBatch());
+    flinkBatchEnv
+        .getConfig()
+        .setExecutionMode(ExecutionMode.valueOf(options.getExecutionModeForBatch()));
 
     // set the correct parallelism.
     if (options.getParallelism() != -1 && !(flinkBatchEnv instanceof CollectionEnvironment)) {
@@ -212,7 +216,8 @@ public class FlinkExecutionEnvironments {
       if (checkpointInterval < 1) {
         throw new IllegalArgumentException("The checkpoint interval must be positive");
       }
-      flinkStreamEnv.enableCheckpointing(checkpointInterval, options.getCheckpointingMode());
+      flinkStreamEnv.enableCheckpointing(
+          checkpointInterval, CheckpointingMode.valueOf(options.getCheckpointingMode()));
       if (options.getCheckpointTimeoutMillis() != -1) {
         flinkStreamEnv
             .getCheckpointConfig()
@@ -246,7 +251,7 @@ public class FlinkExecutionEnvironments {
     }
 
     // State backend
-    final StateBackend stateBackend = options.getStateBackend();
+    final StateBackend stateBackend = (StateBackend) options.getStateBackend();
     if (stateBackend != null) {
       flinkStreamEnv.setStateBackend(stateBackend);
     }

@@ -39,10 +39,8 @@ import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.WindowingStrategy;
 import org.apache.commons.lang3.SerializationUtils;
 import org.apache.flink.api.common.ExecutionConfig;
-import org.apache.flink.api.common.ExecutionMode;
 import org.apache.flink.api.common.typeinfo.TypeHint;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
-import org.apache.flink.streaming.api.CheckpointingMode;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
 import org.joda.time.Instant;
@@ -77,7 +75,7 @@ public class FlinkPipelineOptionsTest {
     assertThat(options.getLatencyTrackingInterval(), is(0L));
     assertThat(options.isShutdownSourcesOnFinalWatermark(), is(false));
     assertThat(options.getObjectReuse(), is(false));
-    assertThat(options.getCheckpointingMode(), is(CheckpointingMode.EXACTLY_ONCE));
+    assertThat(options.getCheckpointingMode(), is("EXACTLY_ONCE"));
     assertThat(options.getMinPauseBetweenCheckpoints(), is(-1L));
     assertThat(options.getCheckpointingInterval(), is(-1L));
     assertThat(options.getCheckpointTimeoutMillis(), is(-1L));
@@ -88,7 +86,7 @@ public class FlinkPipelineOptionsTest {
     assertThat(options.getStateBackend(), is(nullValue()));
     assertThat(options.getMaxBundleSize(), is(1000L));
     assertThat(options.getMaxBundleTimeMills(), is(1000L));
-    assertThat(options.getExecutionModeForBatch(), is(ExecutionMode.PIPELINED));
+    assertThat(options.getExecutionModeForBatch(), is("PIPELINED"));
     assertThat(options.getSavepointPath(), is(nullValue()));
     assertThat(options.getAllowNonRestoredState(), is(false));
   }
