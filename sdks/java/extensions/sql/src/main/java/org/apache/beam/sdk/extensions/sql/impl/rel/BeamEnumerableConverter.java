@@ -129,7 +129,7 @@ public class BeamEnumerableConverter extends ConverterImpl implements Enumerable
     }
   }
 
-  private static String[] toArgs(Map<String, String> map){
+  private static String[] toArgs(Map<String, String> map) {
     final String[] args = new String[map.size()];
     int i = 0;
     for (Map.Entry<String, String> entry : map.entrySet()) {
@@ -145,13 +145,6 @@ public class BeamEnumerableConverter extends ConverterImpl implements Enumerable
 
     options.as(ApplicationNameOptions.class).setAppName("BeamSql");
     return options;
-  }
-
-  public static PipelineOptions createPipelineOptionsAs(Map<String, String> map, Class<PipelineOptions> optionsType){
-    final String[] args = toArgs(map);
-    return PipelineOptionsFactory.fromArgs(args).withValidation().as(optionsType);
-
-
   }
 
   static List<Row> toRowList(PipelineOptions options, BeamRelNode node) {
