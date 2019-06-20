@@ -171,12 +171,12 @@ fi
 
 if [[ -z $PIPELINE_OPTS ]]; then
 
-  # Create a tarball if not exists
+  # Get tar ball path
   if [[ $(find ${SDK_LOCATION} 2> /dev/null) ]]; then
-    SDK_LOCATION=$(find ${SDK_LOCATION})
+    SDK_LOCATION=$(find ${SDK_LOCATION} | tail -n1)
   else
-    python setup.py -q sdist
-    SDK_LOCATION=$(ls dist/apache-beam-*.tar.gz | tail -n1)
+    echo 'Cannot find tar ball from SDK_LOCATION. Exit script.'
+    exit 1
   fi
 
   # Install test dependencies for ValidatesRunner tests.
