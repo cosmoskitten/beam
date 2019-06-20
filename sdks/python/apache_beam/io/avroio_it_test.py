@@ -17,9 +17,9 @@
 
 """End-to-end test for Avro IO's.
 
-Writes a configurable number of records to a temporary location with each of
-{avro,fastavro}, then reads them back in, joins the two read datasets, and
-verifies they have the same elements.
+Integration test for Avro IO. Using both the avro and fastavro
+libraries, this test writes avro files, reads them back in,
+and combines the different fields.
 
 Usage:
 
@@ -50,9 +50,7 @@ import os
 import sys
 import unittest
 import uuid
-
 from fastavro import parse_schema
-from nose.plugins.attrib import attr
 
 from apache_beam.io.avroio import ReadFromAvro
 from apache_beam.io.avroio import WriteToAvro
@@ -67,6 +65,8 @@ from apache_beam.transforms.core import Map
 from apache_beam.transforms.combiners import Mean
 from apache_beam.transforms.combiners import Count
 from apache_beam.transforms.combiners import ToList
+from nose.plugins.attrib import attr
+
 
 # pylint: disable=wrong-import-order, wrong-import-position
 try:
@@ -190,7 +190,7 @@ class AvroITTestBase(object):
          | 'ExtractNumber' >> Map(lambda x: x['number'])
          | 'CalculateMean' >> Mean.Globally()
          | 'MeanIsCorrect' >> Map(
-              lambda x: check(x, (len(batches) * batch_size) - 1))
+             lambda x: check(x, (len(batches) * batch_size) - 1))
         )
 
     _ = (read_pcol
