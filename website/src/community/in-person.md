@@ -28,7 +28,7 @@ While the official communication happens on the mailing list, and you can find u
 
 ## Meetups
 
-We occasionally meetup in various locations around the globe.  Active or to-be-started meetups include:
+We occasionally meetup in various locations around the globe. Active or to-be-started meetups include:
 
 | Meetup City | Name |
 | ----------------- | ---------------|
