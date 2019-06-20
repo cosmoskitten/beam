@@ -40,7 +40,7 @@ We occasionally meetup in various locations around the globe. Active or to-be-st
 | New York City | [New York Apache Beam](https://www.meetup.com/New-York-Apache-Beam/) |:
 {:.table}
 
-The above are the meetups that are already known to the community (please add if you are organizing one!).  For Meetups that are tagged with 'Apache Beam', see the [list](https://www.meetup.com/topics/apache-beam/).
+The above are the meetups that are already known to the community (please add if you are organizing one!). For Meetups that are tagged with 'Apache Beam', see the [list](https://www.meetup.com/topics/apache-beam/).
 
 
 ## Conference Talks
