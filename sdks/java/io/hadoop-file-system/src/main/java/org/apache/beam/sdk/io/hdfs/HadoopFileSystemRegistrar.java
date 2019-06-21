@@ -20,7 +20,6 @@ package org.apache.beam.sdk.io.hdfs;
 import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkArgument;
 
 import com.google.auto.service.AutoService;
-import java.io.IOException;
 import java.util.Collections;
 import java.util.List;
 import javax.annotation.Nonnull;
@@ -52,14 +51,7 @@ public class HadoopFileSystemRegistrar implements FileSystemRegistrar {
 
     ImmutableList.Builder<FileSystem> builder = ImmutableList.builder();
     for (Configuration configuration : configurations) {
-      try {
-        builder.add(new HadoopFileSystem(configuration));
-      } catch (IOException e) {
-        throw new IllegalArgumentException(
-            String.format(
-                "Failed to construct Hadoop filesystem with configuration %s", configuration),
-            e);
-      }
+      builder.add(new HadoopFileSystem(configuration));
     }
     return builder.build();
   }

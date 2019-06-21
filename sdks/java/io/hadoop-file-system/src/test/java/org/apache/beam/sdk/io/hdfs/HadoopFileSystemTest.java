@@ -51,6 +51,7 @@ import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableLis
 import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Iterables;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.io.ByteStreams;
 import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.hdfs.MiniDFSCluster;
 import org.junit.After;
 import org.junit.Before;
@@ -467,7 +468,7 @@ public class HadoopFileSystemTest {
 
     HadoopFileSystemOptions options =
         TestPipeline.testingPipelineOptions().as(HadoopFileSystemOptions.class);
-    options.setHdfsConfiguration(ImmutableList.of(fileSystem.fileSystem.getConf()));
+    options.setHdfsConfiguration(ImmutableList.of(fileSystem.configuration));
     FileSystems.setDefaultPipelineOptions(options);
     PCollection<String> pc = p.apply(TextIO.read().from(testPath("testFile*").toString()));
     PAssert.that(pc).containsInAnyOrder("testDataA", "testDataB", "testDataC");
@@ -494,8 +495,9 @@ public class HadoopFileSystemTest {
   }
 
   private long lastModified(String relativePath) throws Exception {
-    return fileSystem
-        .fileSystem
+    final Path testPath = testPath(relativePath).toPath();
+    return testPath
+        .getFileSystem(fileSystem.configuration)
         .getFileStatus(testPath(relativePath).toPath())
         .getModificationTime();
   }
