@@ -41,6 +41,8 @@ from apache_beam.io.gcp import bigquery_tools
 from apache_beam.io.gcp.internal.clients import bigquery as bigquery_api
 from apache_beam.io.gcp.tests.bigquery_matcher import BigqueryFullResultMatcher
 from apache_beam.runners.dataflow.test_dataflow_runner import TestDataflowRunner
+from apache_beam.runners.runner import PipelineState
+from apache_beam.testing.pipeline_verifiers import PipelineStateMatcher
 from apache_beam.testing.test_pipeline import TestPipeline
 from apache_beam.testing.test_stream import TestStream
 from apache_beam.testing.util import assert_that
@@ -481,13 +483,14 @@ class BigQueryFileLoadsIT(unittest.TestCase):
     schema = self.BIG_QUERY_STREAMING_SCHEMA
     l = [{'Integr': i} for i in range(_SIZE)]
 
-    matcher = BigqueryFullResultMatcher(project=self.project,
-                                        query="SELECT Integr FROM %s"
-                                        % output_table,
-                                        data=[(i,) for i in range(100)])
+    state_matcher = PipelineStateMatcher(PipelineState.RUNNING)
+    bq_matcher = BigqueryFullResultMatcher(project=self.project,
+                                           query="SELECT Integr FROM %s"
+                                           % output_table,
+                                           data=[(i,) for i in range(100)])
 
     args = self.test_pipeline.get_full_options_as_args(
-        on_success_matcher=matcher,
+        on_success_matcher=all_of(state_matcher, bq_matcher),
         experiments='use_beam_bq_sink',
         streaming=True)
     with beam.Pipeline(argv=args) as p:
