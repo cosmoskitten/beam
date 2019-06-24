@@ -18,10 +18,11 @@
 
 plugins { id 'org.apache.beam.module' }
 
+applyPythonNature()
+
 // Set the correct Python version
 pythonVersion = '3.6'
 
-applyPythonNature()
 
 
 def basePath = '..'
