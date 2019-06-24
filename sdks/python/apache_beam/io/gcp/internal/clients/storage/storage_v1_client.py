@@ -20,7 +20,12 @@
 
 from __future__ import absolute_import
 
+import logging
+import time
+
 from apitools.base.py import base_api
+from apitools.base.py import http_wrapper
+from apitools.base.py import util
 
 from apache_beam.io.gcp.internal.clients.storage import \
     storage_v1_messages as messages
@@ -56,6 +61,7 @@ class StorageV1(base_api.BaseApiClient):
         credentials_args=credentials_args,
         default_global_params=default_global_params,
         additional_http_headers=additional_http_headers,
+        retry_func=StorageV1.retry_func,
         response_encoding=response_encoding)
     self.bucketAccessControls = self.BucketAccessControlsService(self)
     self.buckets = self.BucketsService(self)
@@ -66,6 +72,23 @@ class StorageV1(base_api.BaseApiClient):
     self.objects = self.ObjectsService(self)
     self.projects_serviceAccount = self.ProjectsServiceAccountService(self)
     self.projects = self.ProjectsService(self)
+
+  @staticmethod
+  def retry_func(retry_args):
+    # handling GCS download throttling errors (BEAM-7424)
+    if (hasattr(retry_args.exc, 'status') and
+        retry_args.exc.status == http_wrapper.TOO_MANY_REQUESTS):
+      logging.debug(
+          'Caught transient credential refresh error (%s), retrying',
+          retry_args.exc)
+    else:
+      return http_wrapper.HandleExceptionsAndRebuildHttpConnections(retry_args)
+
+    http_wrapper.RebuildHttpConnections(retry_args.http)
+    logging.debug('Retrying request to url %s after exception %s',
+                  retry_args.http_request.url, retry_args.exc)
+    time.sleep(util.CalculateWaitForRetry(
+        retry_args.num_retries, max_wait=retry_args.max_retry_wait))
 
   class BucketAccessControlsService(base_api.BaseApiService):
     """Service class for the bucketAccessControls resource."""
