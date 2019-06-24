@@ -403,7 +403,11 @@ public class BeamCalcRel extends Calc implements BeamRelNode {
       } else if (fromType.getTypeName().isCompositeType()
           || (fromType.getTypeName().isCollectionType()
               && fromType.getCollectionElementType().getTypeName().isCompositeType())) {
-        field = Expressions.call(WrappedList.class, "of", field);
+        field =
+            Expressions.condition(
+                Expressions.equal(field, Expressions.constant(null)),
+                Expressions.constant(null),
+                Expressions.call(WrappedList.class, "of", field));
       }
       return field;
     }
