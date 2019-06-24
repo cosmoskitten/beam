@@ -58,7 +58,7 @@ class LoadTestsBuilder {
 
   private static String getGradleTaskName(SDK sdk) {
     if (sdk == SDK.JAVA) {
-      return ':beam:sdks:java:load-tests:run'
+      return ':sdks:java:load-tests:run'
     } else if (sdk == SDK.PYTHON) {
       return ':sdks:python:apache_beam:testing:load-tests:run'
     } else {
