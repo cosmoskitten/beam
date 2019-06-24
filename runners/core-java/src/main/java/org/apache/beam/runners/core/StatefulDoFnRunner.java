@@ -182,7 +182,7 @@ public class StatefulDoFnRunner<InputT, OutputT, W extends BoundedWindow>
       String timerId, BoundedWindow window, Instant timestamp, TimeDomain timeDomain) {
 
     if (timerId.equals(SORT_FLUSH_TIMER)) {
-      onSortFlushTimer(window, timestamp);
+      onSortFlushTimer(window, stepContext.timerInternals().currentInputWatermarkTime());
     } else if (cleanupTimer.isForWindow(timerId, window, timestamp, timeDomain)) {
       stateCleaner.clearForWindow(window);
       // There should invoke the onWindowExpiration of DoFn
