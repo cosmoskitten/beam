@@ -26,6 +26,7 @@ import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
+import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableMap;
@@ -51,6 +52,12 @@ public class BeamComplexTypeTest {
           .addRowField("field2", innerRowWithArraySchema)
           .addInt64Field("field3")
           .addArrayField("field4", FieldType.array(FieldType.STRING))
+          .build();
+
+  private static final Schema nullableNestedRowWithArraySchema =
+      Schema.builder()
+          .addNullableField("field1", FieldType.row(innerRowWithArraySchema))
+          .addNullableField("field2", FieldType.array(FieldType.row(innerRowWithArraySchema)))
           .build();
 
   private static final Schema nestedRowSchema =
@@ -244,6 +251,30 @@ public class BeamComplexTypeTest {
                         .build())
                 .addValues(1, 2, 3, "str", "str2", "str3")
                 .build());
+    pipeline.run().waitUntilFinish(Duration.standardMinutes(2));
+  }
+
+  @Test
+  public void testNullRows() {
+
+    Row nullRow = Row.nullRow(nullableNestedRowWithArraySchema);
+
+    PCollection<Row> outputRow =
+        pipeline
+            .apply(Create.of(nullRow))
+            .setRowSchema(nullableNestedRowWithArraySchema)
+            .apply(
+                SqlTransform.query(
+                    "select PCOLLECTION.field1.string_field as row_string_field, PCOLLECTION.field2[2].string_field as array_string_field from PCOLLECTION"));
+
+    PAssert.that(outputRow)
+        .containsInAnyOrder(
+            Row.nullRow(
+                Schema.builder()
+                    .addNullableField("row_string_field", FieldType.STRING)
+                    .addNullableField("array_string_field", FieldType.STRING)
+                    .build()));
+
     pipeline.run().waitUntilFinish(Duration.standardMinutes(2));
   }
 }
