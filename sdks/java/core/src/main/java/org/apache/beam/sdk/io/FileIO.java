@@ -729,6 +729,40 @@ public class FileIO {
       builder.add(DisplayData.item("directoryTreatment", getDirectoryTreatment().toString()));
     }
 
+    static ReadableFile matchToReadableFile(
+        MatchResult.Metadata metadata,
+        DirectoryTreatment directoryTreatment,
+        Compression compression) {
+
+      if (metadata.resourceId().isDirectory()) {
+        switch (directoryTreatment) {
+          case SKIP:
+            return null;
+          case PROHIBIT:
+            throw new IllegalArgumentException(
+                "Trying to read " + metadata.resourceId() + " which is a directory");
+
+          default:
+            throw new UnsupportedOperationException(
+                "Unknown DirectoryTreatment: " + directoryTreatment);
+        }
+      }
+
+      compression =
+          (compression == Compression.AUTO)
+              ? Compression.detect(metadata.resourceId().getFilename())
+              : compression;
+      return new ReadableFile(
+          MatchResult.Metadata.builder()
+              .setResourceId(metadata.resourceId())
+              .setSizeBytes(metadata.sizeBytes())
+              .setLastModifiedMillis(metadata.lastModifiedMillis())
+              .setIsReadSeekEfficient(
+                  metadata.isReadSeekEfficient() && compression == Compression.UNCOMPRESSED)
+              .build(),
+          compression);
+    }
+
     private static class ToReadableFileFn extends DoFn<MatchResult.Metadata, ReadableFile> {
       private final ReadMatches spec;
 
@@ -738,36 +772,12 @@ public class FileIO {
 
       @ProcessElement
       public void process(ProcessContext c) {
-        MatchResult.Metadata metadata = c.element();
-        if (metadata.resourceId().isDirectory()) {
-          switch (spec.getDirectoryTreatment()) {
-            case SKIP:
-              return;
-
-            case PROHIBIT:
-              throw new IllegalArgumentException(
-                  "Trying to read " + metadata.resourceId() + " which is a directory");
-
-            default:
-              throw new UnsupportedOperationException(
-                  "Unknown DirectoryTreatment: " + spec.getDirectoryTreatment());
-          }
+        ReadableFile r =
+            matchToReadableFile(c.element(), spec.getDirectoryTreatment(), spec.getCompression());
+        if (r == null) {
+          return;
         }
-
-        Compression compression =
-            (spec.getCompression() == Compression.AUTO)
-                ? Compression.detect(metadata.resourceId().getFilename())
-                : spec.getCompression();
-        c.output(
-            new ReadableFile(
-                MatchResult.Metadata.builder()
-                    .setResourceId(metadata.resourceId())
-                    .setSizeBytes(metadata.sizeBytes())
-                    .setLastModifiedMillis(metadata.lastModifiedMillis())
-                    .setIsReadSeekEfficient(
-                        metadata.isReadSeekEfficient() && compression == Compression.UNCOMPRESSED)
-                    .build(),
-                compression));
+        c.output(r);
       }
     }
   }
