@@ -52,6 +52,7 @@ import unittest
 import uuid
 from fastavro import parse_schema
 
+from nose.plugins.attrib import attr
 from apache_beam.io.avroio import ReadFromAvro
 from apache_beam.io.avroio import WriteToAvro
 from apache_beam.runners.runner import PipelineState
@@ -65,7 +66,6 @@ from apache_beam.transforms.core import Map
 from apache_beam.transforms.combiners import Mean
 from apache_beam.transforms.combiners import Count
 from apache_beam.transforms.combiners import ToList
-from nose.plugins.attrib import attr
 
 
 # pylint: disable=wrong-import-order, wrong-import-position
