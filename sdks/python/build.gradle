@@ -20,7 +20,8 @@ import org.apache.tools.ant.taskdefs.condition.Os
 
 // plugins { id 'org.apache.beam.module' }
 
-apply plugin: 'BeamModulePlugin'
+project.apply plugin: "org.apache.beam.module"
+
 applyPythonNature()
 enablePythonPerformanceTest()
 
