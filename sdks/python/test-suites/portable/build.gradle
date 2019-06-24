@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-project.buildDir = './sdks/python'
+project.buildDir = '..'
 
 class CompatibilityMatrixConfig {
   // Execute batch or streaming pipelines.
