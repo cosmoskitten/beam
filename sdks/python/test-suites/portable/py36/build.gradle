@@ -18,11 +18,10 @@
 
 plugins { id 'org.apache.beam.module' }
 
-// Set the correct Python version
-pythonVersion = '3.6'
-
 applyPythonNature()
 
+// Set the correct Python version
+pythonVersion = '3.6'
 
 def basePath = '..'
 apply from: "$basePath/build.gradle"
