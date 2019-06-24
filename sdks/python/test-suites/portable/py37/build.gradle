@@ -19,5 +19,5 @@
 // Set the correct Python version
 project.ext.set('pythonVersion','3.7')
 
-def basePath = '../../..'
+def basePath = '..'
 apply from: "$basePath/build.gradle"
