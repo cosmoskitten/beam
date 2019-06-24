@@ -1179,11 +1179,20 @@ class FnApiRunnerTestWithGrpcMultiThreaded(FnApiRunnerTest):
 class FnApiRunnerTestWithGrpcAndMultiWorkers(FnApiRunnerTest):
 
   def create_pipeline(self):
-    return beam.Pipeline(
+    from apache_beam.options.pipeline_options import PipelineOptions
+    pipeline_options = PipelineOptions(['--direct_num_workers', '2'])
+    p = beam.Pipeline(
         runner=fn_api_runner.FnApiRunner(
-            num_workers=2,
             default_environment=beam_runner_api_pb2.Environment(
-                urn=python_urns.EMBEDDED_PYTHON_GRPC)))
+                urn=python_urns.EMBEDDED_PYTHON_GRPC)),
+        options=pipeline_options)
+    return p
+
+  def test_metrics(self):
+    raise unittest.SkipTest("This test is for a single worker only.")
+
+  def test_sdf_with_sdf_initiated_checkpointing(self):
+    raise unittest.SkipTest("This test is for a single worker only.")
 
 
 class FnApiRunnerTestWithBundleRepeat(FnApiRunnerTest):
@@ -1199,18 +1208,33 @@ class FnApiRunnerTestWithBundleRepeat(FnApiRunnerTest):
 class FnApiRunnerTestWithMultiWorkers(FnApiRunnerTest):
 
   def create_pipeline(self):
-    return beam.Pipeline(
-        runner=fn_api_runner.FnApiRunner(num_workers=2))
+    from apache_beam.options.pipeline_options import PipelineOptions
+    pipeline_options = PipelineOptions(['--direct_num_workers', '2'])
+    p = beam.Pipeline(runner=fn_api_runner.FnApiRunner(),
+                      options=pipeline_options)
+    return p
 
+  def test_sdf_with_sdf_initiated_checkpointing(self):
+    raise unittest.SkipTest("This test is for a single worker only.")
 
 class FnApiRunnerTestWithMultiWorkersAndBundleRepeat(FnApiRunnerTest):
 
   def create_pipeline(self):
-    return beam.Pipeline(
-        runner=fn_api_runner.FnApiRunner(num_workers=2, bundle_repeat=2))
+    from apache_beam.options.pipeline_options import PipelineOptions
+    pipeline_options = PipelineOptions(['--direct_num_workers', '2'])
+    p = beam.Pipeline(
+        runner=fn_api_runner.FnApiRunner(bundle_repeat=2),
+        options=pipeline_options)
+    return p
 
   def test_register_finalizations(self):
     raise unittest.SkipTest("TODO: Avoid bundle finalizations on repeat.")
+
+  def test_sdf_with_sdf_initiated_checkpointing(self):
+    raise unittest.SkipTest("This test is for a single worker only.")
+
+  def test_metrics(self):
+    raise unittest.SkipTest("This test is for a single worker only.")
 
 
 class FnApiRunnerSplitTest(unittest.TestCase):
@@ -1519,6 +1543,31 @@ class ExpandStringsProvider(beam.transforms.core.RestrictionProvider):
 
   def restriction_size(self, element, restriction):
     return restriction[1] - restriction[0]
+
+
+class FnApiRunnerTestWithMultiWorkers(FnApiRunnerSplitTest):
+
+  def create_pipeline(self):
+    from apache_beam.options.pipeline_options import PipelineOptions
+    pipeline_options = PipelineOptions(['--direct_num_workers', '2'])
+    p = beam.Pipeline(
+        runner=fn_api_runner.FnApiRunner(
+            default_environment=beam_runner_api_pb2.Environment(
+                urn=python_urns.EMBEDDED_PYTHON_GRPC)),
+        options=pipeline_options)
+    return p
+
+  def test_checkpoint(self):
+    raise unittest.SkipTest("This test is for a single worker only.")
+
+  def test_checkpoint_sdf(self):
+    raise unittest.SkipTest("This test is for a single worker only.")
+
+  def test_split_half(self):
+    raise unittest.SkipTest("This test is for a single worker only.")
+
+  def test_split_crazy_sdf(self):
+    raise unittest.SkipTest("This test is for a single worker only.")
 
 
 if __name__ == '__main__':
