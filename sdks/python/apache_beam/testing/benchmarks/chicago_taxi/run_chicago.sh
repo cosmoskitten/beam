@@ -124,7 +124,7 @@ python preprocess.py \
   --runner ${RUNNER} \
   --max_rows ${MAX_ROWS} \
   --publish_to_big_query=true \
-  --metrics_dataset='chicago_taxi_metrics' \
+  --metrics_dataset='beam_performance' \
   --metrics_table='chicago_taxi_preprocess' \
   --sdk_location=${SDK_LOCATION} \
   --metric_reporting_project ${GCP_PROJECT} \
