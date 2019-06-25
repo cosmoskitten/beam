@@ -20,6 +20,7 @@ import json
 import logging
 import unittest
 
+from apache_beam.metrics import MetricsFilter
 from apache_beam.testing.load_tests.load_test_metrics_utils import MetricsReader
 from apache_beam.testing.test_pipeline import TestPipeline
 
@@ -70,6 +71,12 @@ class LoadTest(unittest.TestCase):
 
     if self.metrics_monitor:
       self.metrics_monitor.publish_metrics(result)
+
+  def apply_filter(self, allowed):
+    """Prevents metrics from namespaces other than specified in the argument
+    from being published."""
+    if allowed:
+      self.metrics_monitor.filters = MetricsFilter().with_namespaces(allowed)
 
 
 if __name__ == '__main__':
