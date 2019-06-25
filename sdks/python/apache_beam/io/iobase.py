@@ -1345,6 +1345,10 @@ class _SDFBoundedSourceWrapper(ptransform.PTransform):
                          'requires a RangeTracker')
       self._delegate_range_tracker = range_tracker
 
+    def current_progress(self):
+      return RestrictionProgress(
+          fraction=self._delegate_range_tracker.fraction_consumed())
+
     def current_restriction(self):
       return (self._delegate_range_tracker.start_position(),
               self._delegate_range_tracker.stop_position())
@@ -1374,6 +1378,9 @@ class _SDFBoundedSourceWrapper(ptransform.PTransform):
 
     def deferred_status(self):
       return None
+
+    def get_delegate_range_tracker(self):
+      return self._delegate_range_tracker
 
   class _SDFBoundedSourceRestrictionProvider(core.RestrictionProvider):
     """A `RestrictionProvider` that is used by SDF for `BoundedSource`."""
@@ -1424,9 +1431,9 @@ class _SDFBoundedSourceWrapper(ptransform.PTransform):
           restriction_tracker=core.DoFn.RestrictionParam(
               _SDFBoundedSourceWrapper._SDFBoundedSourceRestrictionProvider(
                   source, chunk_size))):
-        start_pos, end_pos = restriction_tracker.current_restriction()
-        range_tracker = self.source.get_range_tracker(start_pos, end_pos)
-        return self.source.read(range_tracker)
+        for output in self.source.read(
+            restriction_tracker.get_delegate_range_tracker()):
+          yield output
 
     return SDFBoundedSourceDoFn(self.source)
 
