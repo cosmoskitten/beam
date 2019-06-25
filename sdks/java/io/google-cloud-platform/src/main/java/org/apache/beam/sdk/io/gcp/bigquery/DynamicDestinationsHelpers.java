@@ -28,6 +28,7 @@ import com.google.api.services.bigquery.model.TableSchema;
 import java.io.IOException;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.coders.CannotProvideCoderException;
 import org.apache.beam.sdk.coders.Coder;
@@ -239,20 +240,20 @@ class DynamicDestinationsHelpers {
       TableDestination destination = super.getDestination(element);
       String partitioning = this.jsonTimePartitioning.get();
       checkArgument(partitioning != null, "jsonTimePartitioning can not be null");
-      if (jsonClustering != null) {
-        return new TableDestination(
-            destination.getTableSpec(),
-            destination.getTableDescription(),
-            partitioning,
-            jsonClustering.get());
-      }
       return new TableDestination(
-          destination.getTableSpec(), destination.getTableDescription(), partitioning);
+          destination.getTableSpec(),
+          destination.getTableDescription(),
+          partitioning,
+          Optional.ofNullable(jsonClustering).map(ValueProvider::get).orElse(null));
     }
 
     @Override
     public Coder<TableDestination> getDestinationCoder() {
-      return TableDestinationCoderV3.of();
+      if (jsonClustering == null) {
+        return TableDestinationCoderV2.of();
+      } else {
+        return TableDestinationCoderV3.of();
+      }
     }
 
     @Override

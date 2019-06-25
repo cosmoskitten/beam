@@ -2115,7 +2115,7 @@ public class BigQueryIO {
           dynamicDestinations =
               new ConstantTimePartitioningDestinations<>(
                   (DynamicDestinations<T, TableDestination>) dynamicDestinations,
-                  getJsonTimePartitioning()
+                  getJsonTimePartitioning(),
                   StaticValueProvider.of(BigQueryHelpers.toJsonString(getClustering())));
         }
       }
