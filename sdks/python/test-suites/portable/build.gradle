@@ -19,8 +19,8 @@
 project.buildDir = '../../..'
 apply plugin: 'org.apache.beam.module'
 
-addPortableWordCountTasks()
 applyPythonNature()
+addPortableWordCountTasks()
 
 class CompatibilityMatrixConfig {
   // Execute batch or streaming pipelines.
@@ -79,10 +79,12 @@ task flinkCompatibilityMatrixLoopback() {
   dependsOn flinkCompatibilityMatrix(streaming: true, workerType: CompatibilityMatrixConfig.SDK_WORKER_TYPE.LOOPBACK, preOptimize: true)
 }
 
+
+
 task portablePreCommitPy() {
     dependsOn ':runners:flink:1.5:job-server-container:docker'
     dependsOn ':sdks:python:container:py3:docker'
-    dependsOn portableWordCountBatch
-    dependsOn portableWordCountStreaming
+    dependsOn 'portableWordCountBatch' + project.ext.pythonVersion
+    dependsOn 'portableWordCountStreaming' + project.ext.pythonVersion
 }
 
