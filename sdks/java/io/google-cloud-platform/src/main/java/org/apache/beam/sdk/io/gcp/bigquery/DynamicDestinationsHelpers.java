@@ -28,6 +28,7 @@ import com.google.api.services.bigquery.model.TableSchema;
 import java.io.IOException;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.coders.CannotProvideCoderException;
 import org.apache.beam.sdk.coders.Coder;
@@ -95,13 +96,16 @@ class DynamicDestinationsHelpers {
     }
   }
 
-  /** Returns a tables based on a user-supplied function. */
+  /** Returns tables based on a user-supplied function. */
   static class TableFunctionDestinations<T> extends DynamicDestinations<T, TableDestination> {
     private final SerializableFunction<ValueInSingleWindow<T>, TableDestination> tableFunction;
+    private final boolean enableClustering;
 
     TableFunctionDestinations(
-        SerializableFunction<ValueInSingleWindow<T>, TableDestination> tableFunction) {
+        SerializableFunction<ValueInSingleWindow<T>, TableDestination> tableFunction,
+        boolean enableClustering) {
       this.tableFunction = tableFunction;
+      this.enableClustering = enableClustering;
     }
 
     @Override
@@ -127,7 +131,11 @@ class DynamicDestinationsHelpers {
 
     @Override
     public Coder<TableDestination> getDestinationCoder() {
-      return TableDestinationCoderV3.of();
+      if (enableClustering) {
+        return TableDestinationCoderV3.of();
+      } else {
+        return TableDestinationCoderV2.of();
+      }
     }
   }
 
@@ -167,7 +175,12 @@ class DynamicDestinationsHelpers {
     @Override
     Coder<DestinationT> getDestinationCoderWithDefault(CoderRegistry registry)
         throws CannotProvideCoderException {
-      return inner.getDestinationCoderWithDefault(registry);
+      Coder<DestinationT> destinationCoder = getDestinationCoder();
+      if (destinationCoder != null) {
+        return destinationCoder;
+      } else {
+        return inner.getDestinationCoderWithDefault(registry);
+      }
     }
 
     @Override
@@ -239,20 +252,20 @@ class DynamicDestinationsHelpers {
       TableDestination destination = super.getDestination(element);
       String partitioning = this.jsonTimePartitioning.get();
       checkArgument(partitioning != null, "jsonTimePartitioning can not be null");
-      if (jsonClustering != null) {
-        return new TableDestination(
-            destination.getTableSpec(),
-            destination.getTableDescription(),
-            partitioning,
-            jsonClustering.get());
-      }
       return new TableDestination(
-          destination.getTableSpec(), destination.getTableDescription(), partitioning);
+          destination.getTableSpec(),
+          destination.getTableDescription(),
+          partitioning,
+          Optional.ofNullable(jsonClustering).map(ValueProvider::get).orElse(null));
     }
 
     @Override
     public Coder<TableDestination> getDestinationCoder() {
-      return TableDestinationCoderV3.of();
+      if (jsonClustering != null) {
+        return TableDestinationCoderV3.of();
+      } else {
+        return TableDestinationCoderV2.of();
+      }
     }
 
     @Override
