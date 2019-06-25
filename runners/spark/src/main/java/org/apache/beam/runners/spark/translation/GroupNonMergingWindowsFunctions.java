@@ -95,11 +95,11 @@ public class GroupNonMergingWindowsFunctions {
   }
 
   /** Creates pair RDD with key being a composite of original key and window. */
-  static <K, V, O, W extends BoundedWindow> JavaPairRDD<ByteArray, O> bringWindowToKey(
+  static <K, V, OutputT, W extends BoundedWindow> JavaPairRDD<ByteArray, OutputT> bringWindowToKey(
       JavaRDD<WindowedValue<KV<K, V>>> rdd,
       Coder<K> keyCoder,
       Coder<W> windowCoder,
-      SerializableFunction<WindowedValue<KV<K, V>>, O> mappingFn) {
+      SerializableFunction<WindowedValue<KV<K, V>>, OutputT> mappingFn) {
 
     /*
     This fails some tests, but probably just makes visual some already existing errors.
