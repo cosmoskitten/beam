@@ -28,9 +28,10 @@ import org.apache.beam.sdk.coders.CoderProviders;
 import org.apache.beam.sdk.coders.VarLongCoder;
 import org.apache.beam.sdk.values.TypeDescriptor;
 
+/** A coder for {@link BigtableWriteResult}. */
 public class BigtableWriteResultCoder extends AtomicCoder<BigtableWriteResult> {
-  private static Coder<Long> LONG_CODER = VarLongCoder.of();
-  private static BigtableWriteResultCoder INSTANCE = new BigtableWriteResultCoder();
+  private static final Coder<Long> LONG_CODER = VarLongCoder.of();
+  private static final BigtableWriteResultCoder INSTANCE = new BigtableWriteResultCoder();
 
   public static CoderProvider getCoderProvider() {
     return CoderProviders.forCoder(
