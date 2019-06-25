@@ -31,6 +31,7 @@ Currently it is possible to have following metrics types:
 
 from __future__ import absolute_import
 
+from itertools import groupby
 import logging
 import time
 import uuid
@@ -111,11 +112,15 @@ class MetricsReader(object):
       insert_rows.append(counter_dict)
 
     dists = metrics['distributions']
-    if len(dists) > 0:
-      runtime = RuntimeMetric(dists, submit_timestamp, metric_id)\
-        .as_dict()
-      insert_rows.append(runtime)
-
+    sorted_dists = sorted(dists, key=lambda x: x.key.metric.name)
+    for key, dists in groupby(sorted_dists, lambda x: x.key.metric.name):
+      dists = list(dists)
+      if key == RUNTIME_METRIC:
+        metric = RuntimeMetric(dists, submit_timestamp, metric_id)
+        insert_rows.append(metric.as_dict())
+      else:
+        metrics = DistributionMetrics(dists, submit_timestamp, metric_id, key).values_list
+        insert_rows += metrics
     return insert_rows
 
 
@@ -138,15 +143,33 @@ class Metric(object):
 class CounterMetric(Metric):
   def __init__(self, counter_dict, submit_timestamp, metric_id):
     super(CounterMetric, self).__init__(submit_timestamp, metric_id)
-    self.value = counter_dict.committed
     self.label = str(counter_dict.key.metric.name)
+    self.value = counter_dict.committed
 
+
+class DistributionMetrics(Metric):
+  def __init__(self, dists, submit_timestamp, metric_id, key):
+    super(DistributionMetrics, self).__init__(submit_timestamp, metric_id)
+    self.dist_label = str(key)
+    self.values_list = self._get_list(dists)
+
+  def _get_list(self, dists):
+    labels = ['mean', 'max', 'min', 'sum']
+    list = []
+    for dist in dists:
+      for label in labels:
+        self.label = self.dist_label + '_' +  label
+        self.value = getattr(dist.committed,label)
+        list.append(self.as_dict())
+
+    return list
 
 class RuntimeMetric(Metric):
   def __init__(self, runtime_list, submit_timestamp, metric_id):
     super(RuntimeMetric, self).__init__(submit_timestamp, metric_id)
-    self.value = self._prepare_runtime_metrics(runtime_list)
     self.label = RUNTIME_METRIC
+    self.value = self._prepare_runtime_metrics(runtime_list)
+
 
   def _prepare_runtime_metrics(self, distributions):
     min_values = []
