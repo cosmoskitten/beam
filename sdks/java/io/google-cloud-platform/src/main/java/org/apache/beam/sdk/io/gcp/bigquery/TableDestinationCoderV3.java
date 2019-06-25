@@ -26,9 +26,10 @@ import org.apache.beam.sdk.coders.NullableCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 
 /**
- * A {@link Coder} for {@link TableDestination} that includes time partitioning information. This is
- * a new coder (instead of extending the old {@link TableDestinationCoder}) for compatibility
- * reasons. The old coder is kept around for the same compatibility reasons.
+ * A {@link Coder} for {@link TableDestination} that includes time partitioning and clustering
+ * information. Users must opt in to this version of the coder by setting one of the clustering
+ * options on {@link BigQueryIO.Write}, otherwise {@link TableDestinationCoderV2} will be used and
+ * clustering information will be discarded.
  */
 public class TableDestinationCoderV3 extends AtomicCoder<TableDestination> {
   private static final TableDestinationCoderV3 INSTANCE = new TableDestinationCoderV3();
