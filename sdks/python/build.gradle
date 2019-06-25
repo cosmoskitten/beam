@@ -156,9 +156,7 @@ task directRunnerIT(dependsOn: 'installGcpTest') {
 //    ./gradlew :sdks:python:portableWordCount -PjobEndpoint=localhost:8099
 //
 
-task portableWordCount {
-  dependsOn project.hasProperty("streaming") ? portableWordCountStreaming : portableWordCountBatch
-}
+
 
 // Run PostCommit integration tests on default runner (TestDataflowRunner)
 task postCommitIT(dependsOn: ['installGcpTest', 'sdist']) {
