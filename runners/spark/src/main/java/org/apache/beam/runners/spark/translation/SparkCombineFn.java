@@ -62,12 +62,17 @@ import org.joda.time.Instant;
 public class SparkCombineFn<InputT, ValueT, AccumT, OutputT> extends SparkAbstractCombineFn {
 
   /** Accumulator of WindowedValues holding values for different windows. */
-  public static interface WindowedAccumulator<
-      InputT, ValueT, AccumT, Impl extends WindowedAccumulator<InputT, ValueT, AccumT, Impl>> {
+  public interface WindowedAccumulator<
+      InputT, ValueT, AccumT, ImplT extends WindowedAccumulator<InputT, ValueT, AccumT, ImplT>> {
 
+    /**
+     * Type of the accumulator.
+     * The type depends (mostly) on {@link WindowingStrategy}, and more
+     * specialized versions enable more optimizations.
+     */
     enum Type {
-      NON_MERGING,
       MERGING,
+      NON_MERGING,
       SINGLE_WINDOW;
 
       boolean isMapBased() {
@@ -91,7 +96,7 @@ public class SparkCombineFn<InputT, ValueT, AccumT, OutputT> extends SparkAbstra
      *
      * @param other the other accumulator to merge
      */
-    void merge(Impl other, SparkCombineFn<?, ?, AccumT, ?> context) throws Exception;
+    void merge(ImplT other, SparkCombineFn<?, ?, AccumT, ?> context) throws Exception;
 
     /** Extract output. */
     Collection<WindowedValue<AccumT>> extractOutput();
@@ -240,14 +245,14 @@ public class SparkCombineFn<InputT, ValueT, AccumT, OutputT> extends SparkAbstra
    * accumulators in map.
    *
    * @param <AccumT> type of accumulator
-   * @param <Impl> type of final subclass
+   * @param <ImplT> type of final subclass
    */
   abstract static class MapBasedWindowedAccumulator<
           InputT,
           ValueT,
           AccumT,
-          Impl extends MapBasedWindowedAccumulator<InputT, ValueT, AccumT, Impl>>
-      implements WindowedAccumulator<InputT, ValueT, AccumT, Impl> {
+          ImplT extends MapBasedWindowedAccumulator<InputT, ValueT, AccumT, ImplT>>
+      implements WindowedAccumulator<InputT, ValueT, AccumT, ImplT> {
 
     final Function<InputT, ValueT> toValue;
     final Map<BoundedWindow, WindowedValue<AccumT>> map;
@@ -290,7 +295,7 @@ public class SparkCombineFn<InputT, ValueT, AccumT, OutputT> extends SparkAbstra
     }
 
     @Override
-    public void merge(Impl other, SparkCombineFn<?, ?, AccumT, ?> context) throws Exception {
+    public void merge(ImplT other, SparkCombineFn<?, ?, AccumT, ?> context) throws Exception {
       other.map.forEach(
           (window, acc) -> {
             WindowedValue<AccumT> thisAcc = this.map.get(window);
