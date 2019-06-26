@@ -24,7 +24,6 @@ from apache_beam.testing.load_tests.load_test_metrics_utils import MetricsReader
 from tensorflow_model_analysis.evaluators import evaluator
 import tensorflow_model_analysis as tfma
 import argparse
-import tempfile
 
 import tensorflow as tf
 
@@ -87,7 +86,7 @@ if publish_to_bq:
   )
 
 pipeline = beam.Pipeline(argv=pipeline_args)
-assert big_query_table
+
 query = taxi.make_sql(big_query_table, max_eval_rows, for_eval=True)
 raw_feature_spec = taxi.get_raw_feature_spec(schema)
 raw_data = (
@@ -145,9 +144,6 @@ def main():
       '--eval_model_dir',
       help='Input path to the model which will be evaluated.')
   parser.add_argument(
-      '--eval_result_dir',
-      help='Output directory in which the model analysis result is written.')
-  parser.add_argument(
       '--big_query_table',
       help='BigQuery path to input examples which will be evaluated.')
   parser.add_argument(
@@ -180,13 +176,7 @@ def main():
 
   known_args, pipeline_args = parser.parse_known_args()
 
-  if known_args.eval_result_dir:
-    eval_result_dir = known_args.eval_result_dir
-  else:
-    eval_result_dir = tempfile.mkdtemp()
-
   process_tfma(
-      eval_result_dir,
       big_query_table=known_args.big_query_table,
       eval_model_dir=known_args.eval_model_dir,
       max_eval_rows=known_args.max_eval_rows,
