@@ -456,6 +456,7 @@ public class PubsubIO {
         .setCoder(PubsubMessagePayloadOnlyCoder.of())
         .setParseFn(new IdentityMessageFn())
         .setNeedsAttributes(false)
+        .setNeedsMessageId(false)
         .build();
   }
 
@@ -470,6 +471,7 @@ public class PubsubIO {
         .setCoder(PubsubMessageWithMessageIdCoder.of())
         .setParseFn(new IdentityMessageFn())
         .setNeedsAttributes(false)
+        .setNeedsMessageId(true)
         .build();
   }
 
@@ -484,6 +486,7 @@ public class PubsubIO {
         .setCoder(PubsubMessageWithAttributesCoder.of())
         .setParseFn(new IdentityMessageFn())
         .setNeedsAttributes(true)
+        .setNeedsMessageId(false)
         .build();
   }
 
@@ -498,6 +501,7 @@ public class PubsubIO {
         .setCoder(PubsubMessageWithAttributesAndMessageIdCoder.of())
         .setParseFn(new IdentityMessageFn())
         .setNeedsAttributes(true)
+        .setNeedsMessageId(true)
         .build();
   }
 
@@ -673,6 +677,8 @@ public class PubsubIO {
 
     abstract boolean getNeedsAttributes();
 
+    abstract boolean getNeedsMessageId();
+
     abstract Builder<T> toBuilder();
 
     @AutoValue.Builder
@@ -698,6 +704,8 @@ public class PubsubIO {
       abstract Builder<T> setFromRowFn(@Nullable SerializableFunction<Row, T> fromRowFn);
 
       abstract Builder<T> setNeedsAttributes(boolean needsAttributes);
+
+      abstract Builder<T> setNeedsMessageId(boolean needsMessageId);
 
       abstract Builder<T> setClock(@Nullable Clock clock);
 
@@ -860,7 +868,8 @@ public class PubsubIO {
               subscriptionPath,
               getTimestampAttribute(),
               getIdAttribute(),
-              getNeedsAttributes());
+              getNeedsAttributes(),
+              getNeedsMessageId());
       PCollection<T> read = input.apply(source).apply(MapElements.via(getParseFn()));
       return (getBeamSchema() != null)
           ? read.setSchema(getBeamSchema(), getToRowFn(), getFromRowFn())
