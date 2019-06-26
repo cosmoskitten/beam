@@ -140,7 +140,7 @@ WORKING_DIR=${TRAIN_OUTPUT_PATH}/working_dir
 MODEL_DIR=${TRAIN_OUTPUT_PATH}/model_dir
 # Inputs
 TRAIN_FILE=${TFT_OUTPUT_PATH}/train_transformed-*
-TF_VERSION=1.12
+TF_VERSION=1.13
 # Start clean, but don't fail if the path does not exist yet.
 gsutil rm ${TRAIN_OUTPUT_PATH} || true
 # Options
@@ -149,7 +149,8 @@ EVAL_STEPS=1000
 # Force a small eval so that the Estimator.train_and_eval() can be used to
 # save the model with its standard paths.
 EVAL_FILE=${TFT_OUTPUT_PATH}/train_transformed-*
-gcloud ml-engine jobs submit training ${TRAINER_JOB_ID} \
+echo Training the model
+gcloud ai-platform jobs submit training ${TRAINER_JOB_ID} \
                                     --stream-logs \
                                     --job-dir ${MODEL_DIR} \
                                     --runtime-version ${TF_VERSION} \
@@ -159,7 +160,7 @@ gcloud ml-engine jobs submit training ${TRAINER_JOB_ID} \
                                     -- \
                                     --train-files ${TRAIN_FILE} \
                                     --train-steps ${TRAIN_STEPS} \
-                                    --eval-files ${EVAL_FILE} \
+                                   --eval-files ${EVAL_FILE} \
                                     --eval-steps ${EVAL_STEPS} \
                                     --output-dir ${WORKING_DIR} \
                                     --schema-file ${SCHEMA_PATH} \
@@ -175,7 +176,6 @@ python process_tfma.py \
   --big_query_table bigquery-public-data.chicago_taxi_trips.taxi_trips \
   --schema_file ${SCHEMA_PATH} \
   --eval_model_dir ${LAST_EVAL_MODEL_DIR} \
-  --eval_result_dir ${EVAL_RESULT_DIR} \
   --project ${GCP_PROJECT} \
   --region us-central1 \
   --temp_location ${GCS_BUCKET}/${JOB_ID}/tmp/ \
