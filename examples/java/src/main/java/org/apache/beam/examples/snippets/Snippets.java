@@ -536,15 +536,23 @@ public class Snippets {
 
     // [START FileProcessPatternAccessMetadataSnip1]
     p.apply(FileIO.match().filepattern("hdfs://path/to/*.gz"))
+<<<<<<< HEAD
         // The withCompression method is optional. By default, the Beam SDK detects compression from
         // the filename.
+=======
+        // The withCompression method is optional. By default, the Beam SDK detects compression from the filename.
+>>>>>>> Update code comments to improve readability in docs
         .apply(FileIO.readMatches().withCompression(Compression.GZIP))
         .apply(
             ParDo.of(
                 new DoFn<FileIO.ReadableFile, String>() {
                   @ProcessElement
                   public void process(@Element FileIO.ReadableFile file) {
+<<<<<<< HEAD
                     // We can now access the file and its metadata.
+=======
+                    // We can now access to the file and its metadata.
+>>>>>>> Update code comments to improve readability in docs
                     LOG.info("File Metadata resourceId is {} ", file.getMetadata().resourceId());
                   }
                 }));
@@ -605,7 +613,10 @@ public class Snippets {
                 .withSideInputs(map));
   }
 
+<<<<<<< HEAD
   /** Placeholder class that represents an external service generating test data. */
+=======
+>>>>>>> Update code comments to improve readability in docs
   public static class PlaceholderExternalService {
 
     public static Map<String, String> readTestData() {
