@@ -19,6 +19,7 @@ package org.apache.beam.sdk.io.gcp.pubsub;
 
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkNotNull;
 
+import java.nio.charset.StandardCharsets;
 import java.util.Map;
 import javax.annotation.Nullable;
 
@@ -65,5 +66,10 @@ public class PubsubMessage {
   @Nullable
   public String getMessageId() {
     return messageId;
+  }
+
+  @Override
+  public String toString() {
+    return "MessageId: " + messageId + ", Payload: " + new String(message, StandardCharsets.UTF_8);
   }
 }
