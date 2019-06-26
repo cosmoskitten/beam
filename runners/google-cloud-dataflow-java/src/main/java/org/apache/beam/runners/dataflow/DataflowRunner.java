@@ -100,6 +100,7 @@ import org.apache.beam.sdk.io.WriteFiles;
 import org.apache.beam.sdk.io.WriteFilesResult;
 import org.apache.beam.sdk.io.fs.ResourceId;
 import org.apache.beam.sdk.io.gcp.pubsub.PubsubMessage;
+import org.apache.beam.sdk.io.gcp.pubsub.PubsubMessageWithAttributesAndMessageIdCoder;
 import org.apache.beam.sdk.io.gcp.pubsub.PubsubMessageWithAttributesCoder;
 import org.apache.beam.sdk.io.gcp.pubsub.PubsubUnboundedSink;
 import org.apache.beam.sdk.io.gcp.pubsub.PubsubUnboundedSource;
@@ -1161,11 +1162,15 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
 
     @Override
     public PCollection<PubsubMessage> expand(PBegin input) {
+      Coder coder = null;
+      if (transform.getNeedsMessageId()) {
+        coder = new PubsubMessageWithAttributesAndMessageIdCoder();
+      } else {
+        coder = new PubsubMessageWithAttributesCoder();
+      }
+      ;
       return PCollection.createPrimitiveOutputInternal(
-          input.getPipeline(),
-          WindowingStrategy.globalDefault(),
-          IsBounded.UNBOUNDED,
-          new PubsubMessageWithAttributesCoder());
+          input.getPipeline(), WindowingStrategy.globalDefault(), IsBounded.UNBOUNDED, coder);
     }
 
     @Override
