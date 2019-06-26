@@ -78,16 +78,16 @@ public class PubsubReadIT {
         signal.signalSuccessWhen(
             messages.getCoder(),
             pubsubMessages ->
-                pubsubMessages
-                    .parallelStream()
+                pubsubMessages.stream()
+                    .limit(2)
                     .noneMatch(m -> Strings.isNullOrEmpty(m.getMessageId()))));
 
-    Supplier<Void> start = signal.waitForStart(Duration.standardMinutes(1));
+    Supplier<Void> start = signal.waitForStart(Duration.standardMinutes(5));
     pipeline.apply(signal.signalStart());
     PipelineResult job = pipeline.run();
     start.get();
 
-    signal.waitForSuccess(Duration.standardMinutes(3));
+    signal.waitForSuccess(Duration.standardMinutes(1));
     // A runner may not support cancel
     try {
       job.cancel();
