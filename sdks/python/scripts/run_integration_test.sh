@@ -161,7 +161,7 @@ if [[ "$JENKINS_HOME" != "" && "$SUITE" == "" ]]; then
     echo "Argument --suite is required in a Jenkins environment."
     exit 1
 fi
-XUNIT_FILE="build/nosetests-$SUITE.xml"
+XUNIT_FILE="nosetests-$SUITE.xml"
 
 set -o errexit
 
