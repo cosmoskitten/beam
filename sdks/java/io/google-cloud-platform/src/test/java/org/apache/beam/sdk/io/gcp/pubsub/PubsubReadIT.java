@@ -78,8 +78,8 @@ public class PubsubReadIT {
         signal.signalSuccessWhen(
             messages.getCoder(),
             pubsubMessages ->
-                pubsubMessages
-                    .parallelStream()
+                pubsubMessages.stream()
+                    .limit(2)
                     .noneMatch(m -> Strings.isNullOrEmpty(m.getMessageId()))));
 
     Supplier<Void> start = signal.waitForStart(Duration.standardMinutes(1));
