@@ -58,73 +58,73 @@ def process_tfma(schema_file,
   ValueError: if input_csv and big_query_table are not specified correctly.
   """
 
-if big_query_table is None:
-  raise ValueError(
-      '--big_query_table should be provided.')
+  if big_query_table is None:
+    raise ValueError(
+        '--big_query_table should be provided.')
 
-slice_spec = [
-    tfma.slicer.SingleSliceSpec(),
-    tfma.slicer.SingleSliceSpec(columns=['trip_start_hour'])
-]
-metrics_namespace = 'NAMESPACE_PROCESS_TFMA'
+  slice_spec = [
+      tfma.slicer.SingleSliceSpec(),
+      tfma.slicer.SingleSliceSpec(columns=['trip_start_hour'])
+  ]
+  metrics_namespace = 'NAMESPACE_PROCESS_TFMA'
 
-schema = taxi.read_schema(schema_file)
+  schema = taxi.read_schema(schema_file)
 
-eval_shared_model = tfma.default_eval_shared_model(
-    eval_saved_model_path=eval_model_dir,
-    add_metrics_callbacks=[
-        tfma.post_export_metrics.calibration_plot_and_prediction_histogram(),
-        tfma.post_export_metrics.auc_plots()
-    ])
+  eval_shared_model = tfma.default_eval_shared_model(
+      eval_saved_model_path=eval_model_dir,
+      add_metrics_callbacks=[
+          tfma.post_export_metrics.calibration_plot_and_prediction_histogram(),
+          tfma.post_export_metrics.auc_plots()
+      ])
 
-metrics_monitor = None
-if publish_to_bq:
-  metrics_monitor = MetricsReader(
-      project_name=project,
-      bq_table=metrics_table,
-      bq_dataset=metrics_dataset,
+  metrics_monitor = None
+  if publish_to_bq:
+    metrics_monitor = MetricsReader(
+        project_name=project,
+        bq_table=metrics_table,
+        bq_dataset=metrics_dataset,
+    )
+
+  pipeline = beam.Pipeline(argv=pipeline_args)
+
+  query = taxi.make_sql(big_query_table, max_eval_rows, for_eval=True)
+  raw_feature_spec = taxi.get_raw_feature_spec(schema)
+  raw_data = (
+      pipeline
+      | 'ReadBigQuery' >> beam.io.Read(
+          beam.io.BigQuerySource(query=query, use_standard_sql=True))
+      | 'Measure time: Start' >> beam.ParDo(MeasureTime(metrics_namespace))
+      | 'CleanData' >> beam.Map(lambda x: (
+          taxi.clean_raw_data_dict(x, raw_feature_spec))))
+
+  # Examples must be in clean tf-example format.
+  coder = taxi.make_proto_coder(schema)
+  # Prepare arguments for Extract, Evaluate and Write steps
+  extractors = tfma.default_extractors(
+      eval_shared_model=eval_shared_model,
+      slice_spec=slice_spec,
+      desired_batch_size=None,
+      materialize=False)
+
+  evaluators = tfma.default_evaluators(
+      eval_shared_model=eval_shared_model,
+      desired_batch_size=None,
+      num_bootstrap_samples=1)
+  _ = (
+      raw_data
+      | 'ToSerializedTFExample' >> beam.Map(coder.encode)
+      | 'Extract Results' >> tfma.InputsToExtracts()
+      | 'Extract and evaluate' >> tfma.ExtractAndEvaluate(
+          extractors=extractors,
+          evaluators=evaluators)
+      | 'Map Evaluations to PCollection' >> MapEvalToPCollection()
+      | 'Measure time: End' >> beam.ParDo(
+          MeasureTime(metrics_namespace))
   )
-
-pipeline = beam.Pipeline(argv=pipeline_args)
-
-query = taxi.make_sql(big_query_table, max_eval_rows, for_eval=True)
-raw_feature_spec = taxi.get_raw_feature_spec(schema)
-raw_data = (
-    pipeline
-    | 'ReadBigQuery' >> beam.io.Read(
-        beam.io.BigQuerySource(query=query, use_standard_sql=True))
-    | 'Measure time: Start' >> beam.ParDo(MeasureTime(metrics_namespace))
-    | 'CleanData' >> beam.Map(lambda x: (
-        taxi.clean_raw_data_dict(x, raw_feature_spec))))
-
-# Examples must be in clean tf-example format.
-coder = taxi.make_proto_coder(schema)
-# Prepare arguments for Extract, Evaluate and Write steps
-extractors = tfma.default_extractors(
-    eval_shared_model=eval_shared_model,
-    slice_spec=slice_spec,
-    desired_batch_size=None,
-    materialize=False)
-
-evaluators = tfma.default_evaluators(
-    eval_shared_model=eval_shared_model,
-    desired_batch_size=None,
-    num_bootstrap_samples=1)
-_ = (
-    raw_data
-    | 'ToSerializedTFExample' >> beam.Map(coder.encode)
-    | 'Extract Results' >> tfma.InputsToExtracts()
-    | 'Extract and evaluate' >> tfma.ExtractAndEvaluate(
-        extractors=extractors,
-        evaluators=evaluators)
-    | 'Map Evaluations to PCollection' >> MapEvalToPCollection()
-    | 'Measure time: End' >> beam.ParDo(
-        MeasureTime(metrics_namespace))
-)
-result = pipeline.run()
-result.wait_until_finish()
-if metrics_monitor:
-  metrics_monitor.publish_metrics(result)
+  result = pipeline.run()
+  result.wait_until_finish()
+  if metrics_monitor:
+    metrics_monitor.publish_metrics(result)
 
 
 @beam.ptransform_fn
