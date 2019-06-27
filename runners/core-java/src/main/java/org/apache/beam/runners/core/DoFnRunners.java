@@ -98,13 +98,14 @@ public class DoFnRunners {
   public static <InputT, OutputT, W extends BoundedWindow>
       DoFnRunner<InputT, OutputT> defaultStatefulDoFnRunner(
           DoFn<InputT, OutputT> fn,
+          Coder<InputT> inputCoder,
           DoFnRunner<InputT, OutputT> doFnRunner,
           StepContext stepContext,
           WindowingStrategy<?, ?> windowingStrategy,
           CleanupTimer<InputT> cleanupTimer,
           StateCleaner<W> stateCleaner) {
     return new StatefulDoFnRunner<>(
-        doFnRunner, stepContext, windowingStrategy, cleanupTimer, stateCleaner);
+        doFnRunner, inputCoder, stepContext, windowingStrategy, cleanupTimer, stateCleaner);
   }
 
   public static <InputT, OutputT, RestrictionT>

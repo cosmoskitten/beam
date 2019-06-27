@@ -282,10 +282,5 @@ public class SimplePushbackSideInputDoFnRunnerTest {
     public void finishBundle() {
       finished = true;
     }
-
-    @Override
-    public Coder<InputT> getInputCoder() {
-      return inputCoder;
-    }
   }
 }

@@ -162,8 +162,6 @@ public class DoFnOperator<InputT, OutputT> extends AbstractStreamOperator<Window
 
   private final Coder<WindowedValue<InputT>> windowedInputCoder;
 
-  private final Coder<InputT> inputCoder;
-
   private final Map<TupleTag<?>, Coder<?>> outputCoders;
 
   protected final Coder<?> keyCoder;
@@ -206,7 +204,6 @@ public class DoFnOperator<InputT, OutputT> extends AbstractStreamOperator<Window
       DoFn<InputT, OutputT> doFn,
       String stepName,
       Coder<WindowedValue<InputT>> inputWindowedCoder,
-      Coder<InputT> inputCoder,
       Map<TupleTag<?>, Coder<?>> outputCoders,
       TupleTag<OutputT> mainOutputTag,
       List<TupleTag<?>> additionalOutputTags,
@@ -221,7 +218,6 @@ public class DoFnOperator<InputT, OutputT> extends AbstractStreamOperator<Window
     this.doFn = doFn;
     this.stepName = stepName;
     this.windowedInputCoder = inputWindowedCoder;
-    this.inputCoder = inputCoder;
     this.outputCoders = outputCoders;
     this.mainOutputTag = mainOutputTag;
     this.additionalOutputTags = additionalOutputTags;
@@ -293,7 +289,13 @@ public class DoFnOperator<InputT, OutputT> extends AbstractStreamOperator<Window
               doFn, keyedStateInternals, windowCoder);
 
       return DoFnRunners.defaultStatefulDoFnRunner(
-          doFn, wrappedRunner, stepContext, windowingStrategy, cleanupTimer, stateCleaner);
+          doFn,
+          getInputCoder(),
+          wrappedRunner,
+          stepContext,
+          windowingStrategy,
+          cleanupTimer,
+          stateCleaner);
 
     } else {
       return doFnRunner;
@@ -415,7 +417,7 @@ public class DoFnOperator<InputT, OutputT> extends AbstractStreamOperator<Window
             mainOutputTag,
             additionalOutputTags,
             stepContext,
-            inputCoder,
+            getInputCoder(),
             outputCoders,
             windowingStrategy,
             doFnSchemaInformation);
@@ -814,6 +816,11 @@ public class DoFnOperator<InputT, OutputT> extends AbstractStreamOperator<Window
 
   private void setCurrentOutputWatermark(long currentOutputWatermark) {
     this.currentOutputWatermark = currentOutputWatermark;
+  }
+
+  @SuppressWarnings("unchecked")
+  Coder<InputT> getInputCoder() {
+    return (Coder<InputT>) Iterables.getOnlyElement(windowedInputCoder.getCoderArguments());
   }
 
   /** Factory for creating an {@link BufferedOutputManager} from a Flink {@link Output}. */

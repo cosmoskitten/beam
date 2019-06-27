@@ -20,6 +20,7 @@ package org.apache.beam.runners.core;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.InstantCoder;
 import org.apache.beam.sdk.metrics.Counter;
@@ -77,6 +78,7 @@ public class StatefulDoFnRunner<InputT, OutputT, W extends BoundedWindow>
 
   public StatefulDoFnRunner(
       DoFnRunner<InputT, OutputT> doFnRunner,
+      Coder<InputT> inputCoder,
       StepContext stepContext,
       WindowingStrategy<?, ?> windowingStrategy,
       CleanupTimer<InputT> cleanupTimer,
@@ -99,7 +101,7 @@ public class StatefulDoFnRunner<InputT, OutputT, W extends BoundedWindow>
         StateTags.makeSystemTagInternal(
             StateTags.bag(
                 SORT_BUFFER_STATE,
-                WindowedValue.getFullCoder(doFnRunner.getInputCoder(), windowCoder)));
+                WindowedValue.getFullCoder(Objects.requireNonNull(inputCoder), windowCoder)));
 
     rejectMergingWindowFn(windowFn);
   }
@@ -124,11 +126,6 @@ public class StatefulDoFnRunner<InputT, OutputT, W extends BoundedWindow>
   @Override
   public void finishBundle() {
     doFnRunner.finishBundle();
-  }
-
-  @Override
-  public Coder<InputT> getInputCoder() {
-    return doFnRunner.getInputCoder();
   }
 
   @Override

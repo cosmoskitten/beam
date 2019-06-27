@@ -117,6 +117,7 @@ public class SamzaDoFnRunners {
       final DoFnRunner<InT, FnOutT> statefulDoFnRunner =
           DoFnRunners.defaultStatefulDoFnRunner(
               doFn,
+              inputCoder,
               doFnRunnerWithMetrics,
               stepContext,
               windowingStrategy,

@@ -132,7 +132,6 @@ public class ExecutableStageDoFnOperator<InputT, OutputT> extends DoFnOperator<I
   public ExecutableStageDoFnOperator(
       String stepName,
       Coder<WindowedValue<InputT>> windowedInputCoder,
-      Coder<InputT> inputCoder,
       Map<TupleTag<?>, Coder<?>> outputCoders,
       TupleTag<OutputT> mainOutputTag,
       List<TupleTag<?>> additionalOutputTags,
@@ -152,7 +151,6 @@ public class ExecutableStageDoFnOperator<InputT, OutputT> extends DoFnOperator<I
         new NoOpDoFn(),
         stepName,
         windowedInputCoder,
-        inputCoder,
         outputCoders,
         mainOutputTag,
         additionalOutputTags,
@@ -454,6 +452,7 @@ public class ExecutableStageDoFnOperator<InputT, OutputT> extends DoFnOperator<I
       DoFnRunner<InputT, OutputT> wrappedRunner, StepContext stepContext) {
     sdkHarnessRunner =
         new SdkHarnessDoFnRunner<>(
+            wrappedRunner.getFn(),
             executableStage.getInputPCollection().getId(),
             stageBundleFactory,
             stateRequestHandler,
@@ -524,6 +523,7 @@ public class ExecutableStageDoFnOperator<InputT, OutputT> extends DoFnOperator<I
   private static class SdkHarnessDoFnRunner<InputT, OutputT>
       implements DoFnRunner<InputT, OutputT> {
 
+    private final DoFn<InputT, OutputT> doFn;
     private final String mainInput;
     private final LinkedBlockingQueue<KV<String, OutputT>> outputQueue;
     private final StageBundleFactory stageBundleFactory;
@@ -542,6 +542,7 @@ public class ExecutableStageDoFnOperator<InputT, OutputT> extends DoFnOperator<I
     private FnDataReceiver<WindowedValue<?>> mainInputReceiver;
 
     public SdkHarnessDoFnRunner(
+        DoFn<InputT, OutputT> doFn,
         String mainInput,
         StageBundleFactory stageBundleFactory,
         StateRequestHandler stateRequestHandler,
@@ -551,6 +552,7 @@ public class ExecutableStageDoFnOperator<InputT, OutputT> extends DoFnOperator<I
         Coder<BoundedWindow> windowCoder,
         BiConsumer<WindowedValue<InputT>, TimerInternals.TimerData> timerRegistration,
         Supplier<Object> keyForTimer) {
+      this.doFn = doFn;
       this.mainInput = mainInput;
       this.stageBundleFactory = stageBundleFactory;
       this.stateRequestHandler = stateRequestHandler;
@@ -692,7 +694,7 @@ public class ExecutableStageDoFnOperator<InputT, OutputT> extends DoFnOperator<I
 
     @Override
     public DoFn<InputT, OutputT> getFn() {
-      throw new UnsupportedOperationException();
+      return doFn;
     }
   }
 
@@ -724,7 +726,12 @@ public class ExecutableStageDoFnOperator<InputT, OutputT> extends DoFnOperator<I
         new StateCleaner(userStates, windowCoder, () -> stateBackend.getCurrentKey());
 
     return new StatefulDoFnRunner<InputT, OutputT, BoundedWindow>(
-        sdkHarnessRunner, stepContext, windowingStrategy, cleanupTimer, stateCleaner) {
+        sdkHarnessRunner,
+        getInputCoder(),
+        stepContext,
+        windowingStrategy,
+        cleanupTimer,
+        stateCleaner) {
       @Override
       public void finishBundle() {
         // Before cleaning up state, first finish bundle for all underlying DoFnRunners

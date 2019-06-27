@@ -30,6 +30,8 @@ import javax.annotation.Nullable;
 import org.apache.beam.runners.core.DoFnRunners.OutputManager;
 import org.apache.beam.runners.core.metrics.MetricsContainerImpl;
 import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.coders.KvCoder;
+import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.coders.VarIntCoder;
 import org.apache.beam.sdk.metrics.MetricName;
 import org.apache.beam.sdk.metrics.MetricsEnvironment;
@@ -322,6 +324,7 @@ public class StatefulDoFnRunnerTest {
       DoFn<KV<String, Integer>, Integer> fn, OutputManager outputManager) {
     return DoFnRunners.defaultStatefulDoFnRunner(
         fn,
+        KvCoder.of(StringUtf8Coder.of(), VarIntCoder.of()),
         getDoFnRunner(fn, outputManager),
         mockStepContext,
         WINDOWING_STRATEGY,

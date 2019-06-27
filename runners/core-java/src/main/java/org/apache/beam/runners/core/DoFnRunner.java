@@ -17,7 +17,6 @@
  */
 package org.apache.beam.runners.core;
 
-import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.state.TimeDomain;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
@@ -52,10 +51,4 @@ public interface DoFnRunner<InputT, OutputT> {
    * @return the underlying fn instance.
    */
   DoFn<InputT, OutputT> getFn();
-
-  /**
-   * @since 2.15.0
-   * @return coder of input
-   */
-  Coder<InputT> getInputCoder();
 }

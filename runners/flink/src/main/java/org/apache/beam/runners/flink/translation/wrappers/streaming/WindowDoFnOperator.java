@@ -70,7 +70,6 @@ public class WindowDoFnOperator<K, InputT, OutputT>
         null,
         stepName,
         windowedInputCoder,
-        null,
         Collections.emptyMap(),
         mainOutputTag,
         additionalOutputTags,

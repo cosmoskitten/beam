@@ -75,7 +75,7 @@ class ParDoEvaluator<InputT> implements TransformEvaluator<InputT> {
         mainOutputTag,
         additionalOutputTags,
         stepContext,
-        schemaCoder,
+        inputCoder,
         outputCoders,
         windowingStrategy,
         doFnSchemaInformation) -> {
@@ -88,7 +88,7 @@ class ParDoEvaluator<InputT> implements TransformEvaluator<InputT> {
               mainOutputTag,
               additionalOutputTags,
               stepContext,
-              schemaCoder,
+              inputCoder,
               outputCoders,
               windowingStrategy,
               doFnSchemaInformation);
@@ -96,6 +96,7 @@ class ParDoEvaluator<InputT> implements TransformEvaluator<InputT> {
         underlying =
             DoFnRunners.defaultStatefulDoFnRunner(
                 fn,
+                inputCoder,
                 underlying,
                 stepContext,
                 windowingStrategy,
