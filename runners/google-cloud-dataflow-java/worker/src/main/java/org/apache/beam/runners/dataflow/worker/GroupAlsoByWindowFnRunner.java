@@ -23,6 +23,7 @@ import org.apache.beam.runners.core.DoFnRunners.OutputManager;
 import org.apache.beam.runners.core.OutputWindowedValue;
 import org.apache.beam.runners.core.SideInputReader;
 import org.apache.beam.runners.core.StepContext;
+import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.state.TimeDomain;
 import org.apache.beam.sdk.transforms.DoFn;
@@ -129,5 +130,10 @@ public class GroupAlsoByWindowFnRunner<InputT, OutputT> implements DoFnRunner<In
   public DoFn<InputT, OutputT> getFn() {
     throw new UnsupportedOperationException(
         String.format("%s does not support getFn()", getClass().getCanonicalName()));
+  }
+
+  @Override
+  public Coder<InputT> getInputCoder() {
+    throw new UnsupportedOperationException();
   }
 }

@@ -19,6 +19,7 @@ package org.apache.beam.runners.dataflow.worker;
 
 import java.util.Set;
 import org.apache.beam.runners.core.DoFnRunner;
+import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.state.BagState;
 import org.apache.beam.sdk.state.TimeDomain;
 import org.apache.beam.sdk.transforms.DoFn;
@@ -91,5 +92,10 @@ public class StreamingSideInputDoFnRunner<InputT, OutputT, W extends BoundedWind
   @Override
   public DoFn<InputT, OutputT> getFn() {
     return simpleDoFnRunner.getFn();
+  }
+
+  @Override
+  public Coder<InputT> getInputCoder() {
+    return simpleDoFnRunner.getInputCoder();
   }
 }

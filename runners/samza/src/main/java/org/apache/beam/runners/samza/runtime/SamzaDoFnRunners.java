@@ -240,5 +240,10 @@ public class SamzaDoFnRunners {
     public DoFn<InT, FnOutT> getFn() {
       throw new UnsupportedOperationException();
     }
+
+    @Override
+    public Coder<InT> getInputCoder() {
+      throw new UnsupportedOperationException();
+    }
   }
 }

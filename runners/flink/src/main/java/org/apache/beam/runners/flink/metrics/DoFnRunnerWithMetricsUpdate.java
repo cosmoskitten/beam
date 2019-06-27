@@ -21,6 +21,7 @@ import java.io.Closeable;
 import java.io.IOException;
 import org.apache.beam.runners.core.DoFnRunner;
 import org.apache.beam.runners.core.metrics.MetricsContainerImpl;
+import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.metrics.MetricsEnvironment;
 import org.apache.beam.sdk.state.TimeDomain;
 import org.apache.beam.sdk.transforms.DoFn;
@@ -96,5 +97,10 @@ public class DoFnRunnerWithMetricsUpdate<InputT, OutputT> implements DoFnRunner<
   @Override
   public DoFn<InputT, OutputT> getFn() {
     return delegate.getFn();
+  }
+
+  @Override
+  public Coder<InputT> getInputCoder() {
+    return delegate.getInputCoder();
   }
 }

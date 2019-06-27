@@ -22,6 +22,7 @@ import java.io.IOException;
 import org.apache.beam.runners.core.DoFnRunner;
 import org.apache.beam.runners.core.metrics.MetricsContainerImpl;
 import org.apache.beam.runners.spark.metrics.MetricsContainerStepMapAccumulator;
+import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.metrics.MetricsContainer;
 import org.apache.beam.sdk.metrics.MetricsEnvironment;
 import org.apache.beam.sdk.state.TimeDomain;
@@ -88,6 +89,11 @@ class DoFnRunnerWithMetrics<InputT, OutputT> implements DoFnRunner<InputT, Outpu
     } catch (IOException e) {
       throw new RuntimeException(e);
     }
+  }
+
+  @Override
+  public Coder<InputT> getInputCoder() {
+    return delegate.getInputCoder();
   }
 
   private MetricsContainer metricsContainer() {

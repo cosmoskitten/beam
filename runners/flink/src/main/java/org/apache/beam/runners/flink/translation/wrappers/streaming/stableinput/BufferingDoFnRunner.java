@@ -26,6 +26,7 @@ import java.util.UUID;
 import javax.annotation.Nullable;
 import org.apache.beam.runners.core.DoFnRunner;
 import org.apache.beam.runners.flink.translation.types.CoderTypeSerializer;
+import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.state.TimeDomain;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
@@ -130,6 +131,11 @@ public class BufferingDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, 
   @Override
   public DoFn<InputT, OutputT> getFn() {
     return underlying.getFn();
+  }
+
+  @Override
+  public Coder<InputT> getInputCoder() {
+    return underlying.getInputCoder();
   }
 
   /** Should be called when a checkpoint is created. */

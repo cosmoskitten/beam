@@ -18,6 +18,7 @@
 package org.apache.beam.runners.samza.metrics;
 
 import org.apache.beam.runners.core.DoFnRunner;
+import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.state.TimeDomain;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
@@ -71,6 +72,11 @@ public class DoFnRunnerWithMetrics<InT, OutT> implements DoFnRunner<InT, OutT> {
   @Override
   public DoFn<InT, OutT> getFn() {
     return underlying.getFn();
+  }
+
+  @Override
+  public Coder<InT> getInputCoder() {
+    return underlying.getInputCoder();
   }
 
   private void withMetrics(Runnable runnable) {

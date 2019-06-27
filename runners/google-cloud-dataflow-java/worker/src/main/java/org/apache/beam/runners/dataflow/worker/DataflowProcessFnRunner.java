@@ -25,6 +25,7 @@ import org.apache.beam.runners.core.DoFnRunner;
 import org.apache.beam.runners.core.KeyedWorkItem;
 import org.apache.beam.runners.core.StateNamespaces.WindowNamespace;
 import org.apache.beam.runners.core.TimerInternals.TimerData;
+import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.state.TimeDomain;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
@@ -121,5 +122,10 @@ class DataflowProcessFnRunner<InputT, OutputT, RestrictionT>
   @Override
   public DoFn<KeyedWorkItem<byte[], KV<InputT, RestrictionT>>, OutputT> getFn() {
     return simpleRunner.getFn();
+  }
+
+  @Override
+  public Coder<KeyedWorkItem<byte[], KV<InputT, RestrictionT>>> getInputCoder() {
+    return simpleRunner.getInputCoder();
   }
 }

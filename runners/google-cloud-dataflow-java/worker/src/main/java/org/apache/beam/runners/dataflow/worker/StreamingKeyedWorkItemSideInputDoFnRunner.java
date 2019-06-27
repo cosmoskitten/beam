@@ -156,4 +156,9 @@ public class StreamingKeyedWorkItemSideInputDoFnRunner<K, InputT, OutputT, W ext
   public DoFn<KeyedWorkItem<K, InputT>, OutputT> getFn() {
     return simpleDoFnRunner.getFn();
   }
+
+  @Override
+  public Coder<KeyedWorkItem<K, InputT>> getInputCoder() {
+    return simpleDoFnRunner.getInputCoder();
+  }
 }

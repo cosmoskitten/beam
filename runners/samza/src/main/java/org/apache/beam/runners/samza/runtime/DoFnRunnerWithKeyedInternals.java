@@ -22,6 +22,7 @@ import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Precondi
 import org.apache.beam.runners.core.DoFnRunner;
 import org.apache.beam.runners.core.KeyedWorkItem;
 import org.apache.beam.runners.core.TimerInternals;
+import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.state.TimeDomain;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
@@ -84,6 +85,11 @@ public class DoFnRunnerWithKeyedInternals<InputT, OutputT> implements DoFnRunner
   @Override
   public DoFn<InputT, OutputT> getFn() {
     return underlying.getFn();
+  }
+
+  @Override
+  public Coder<InputT> getInputCoder() {
+    return underlying.getInputCoder();
   }
 
   @SuppressWarnings("unchecked")

@@ -31,6 +31,7 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Objects;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
@@ -453,6 +454,7 @@ public class ExecutableStageDoFnOperator<InputT, OutputT> extends DoFnOperator<I
       DoFnRunner<InputT, OutputT> wrappedRunner) {
     sdkHarnessRunner =
         new SdkHarnessDoFnRunner<>(
+            wrappedRunner,
             executableStage.getInputPCollection().getId(),
             stageBundleFactory,
             stateRequestHandler,
@@ -533,6 +535,8 @@ public class ExecutableStageDoFnOperator<InputT, OutputT> extends DoFnOperator<I
     /** Timer Output Pcollection id => TimerSpec. */
     private final Map<String, TimerSpec> timerOutputIdToSpecMap;
 
+    private final Coder<InputT> inputCoder;
+    private final DoFn<InputT, OutputT> doFn;
     private final Coder<BoundedWindow> windowCoder;
     private final BiConsumer<WindowedValue<InputT>, TimerInternals.TimerData> timerRegistration;
     private final Supplier<Object> keyForTimer;
@@ -541,6 +545,7 @@ public class ExecutableStageDoFnOperator<InputT, OutputT> extends DoFnOperator<I
     private FnDataReceiver<WindowedValue<?>> mainInputReceiver;
 
     public SdkHarnessDoFnRunner(
+        DoFnRunner<InputT, OutputT> underlying,
         String mainInput,
         StageBundleFactory stageBundleFactory,
         StateRequestHandler stateRequestHandler,
@@ -566,6 +571,8 @@ public class ExecutableStageDoFnOperator<InputT, OutputT> extends DoFnOperator<I
           timerOutputIdToSpecMap.put(timerSpec.outputCollectionId(), timerSpec);
         }
       }
+      this.inputCoder = Objects.requireNonNull(underlying.getInputCoder());
+      this.doFn = underlying.getFn();
       this.windowCoder = windowCoder;
       this.outputQueue = new LinkedBlockingQueue<>();
     }
@@ -691,7 +698,12 @@ public class ExecutableStageDoFnOperator<InputT, OutputT> extends DoFnOperator<I
 
     @Override
     public DoFn<InputT, OutputT> getFn() {
-      throw new UnsupportedOperationException();
+      return doFn;
+    }
+
+    @Override
+    public Coder<InputT> getInputCoder() {
+      return inputCoder;
     }
   }
 
