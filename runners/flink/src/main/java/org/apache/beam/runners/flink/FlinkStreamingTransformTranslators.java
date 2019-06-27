@@ -469,7 +469,6 @@ class FlinkStreamingTransformTranslators {
       SingleOutputStreamOperator<WindowedValue<OutputT>> outputStream;
 
       Coder<WindowedValue<InputT>> windowedInputCoder = context.getWindowedInputCoder(input);
-      Coder<InputT> inputCoder = context.getInputCoder(input);
       Map<TupleTag<?>, Coder<?>> outputCoders = context.getOutputCoders();
 
       DataStream<WindowedValue<InputT>> inputDataStream = context.getInputDataStream(input);
