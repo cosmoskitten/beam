@@ -51,10 +51,12 @@ import org.apache.beam.sdk.runners.AppliedPTransform;
 import org.apache.beam.sdk.state.StateSpec;
 import org.apache.beam.sdk.state.StateSpecs;
 import org.apache.beam.sdk.state.ValueState;
+import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.DoFnSchemaInformation;
+import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.View;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.FixedWindows;
@@ -66,8 +68,10 @@ import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.PCollectionView;
+import org.apache.beam.sdk.values.TimestampedValue;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TupleTagList;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.MoreObjects;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
 import org.joda.time.Duration;
@@ -329,5 +333,43 @@ public class StatefulParDoEvaluatorFactoryTest implements Serializable {
       }
     }
     assertThat(pushedBackInts, containsInAnyOrder(1, 13, 15));
+  }
+
+  @Test
+  public void testRequiresTimeSortedInput() {
+    Instant now = Instant.ofEpochMilli(0);
+    PCollection<KV<String, Integer>> input =
+        pipeline.apply(
+            Create.timestamped(
+                TimestampedValue.of(KV.of("", 1), now.plus(2)),
+                TimestampedValue.of(KV.of("", 2), now.plus(1)),
+                TimestampedValue.of(KV.of("", 3), now)));
+    PCollection<String> result = input.apply(ParDo.of(statefulConcat()));
+    PAssert.that(result).containsInAnyOrder("3", "3:2", "3:2:1");
+    pipeline.run();
+  }
+
+  private static DoFn<KV<String, Integer>, String> statefulConcat() {
+
+    final String stateId = "sum";
+
+    return new DoFn<KV<String, Integer>, String>() {
+
+      @StateId(stateId)
+      final StateSpec<ValueState<String>> stateSpec = StateSpecs.value();
+
+      @ProcessElement
+      @DoFn.RequiresTimeSortedInput
+      public void processElement(
+          ProcessContext context, @StateId(stateId) ValueState<String> state) {
+        String current = MoreObjects.firstNonNull(state.read(), "");
+        if (!current.isEmpty()) {
+          current += ":";
+        }
+        current += context.element().getValue();
+        context.output(current);
+        state.write(current);
+      }
+    };
   }
 }
