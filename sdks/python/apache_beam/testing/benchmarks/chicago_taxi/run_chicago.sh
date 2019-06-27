@@ -150,24 +150,24 @@ EVAL_STEPS=1000
 # save the model with its standard paths.
 EVAL_FILE=${TFT_OUTPUT_PATH}/train_transformed-*
 echo Training the model
-#gcloud ml-engine jobs submit training ${TRAINER_JOB_ID} \
-#                                    --stream-logs \
-#                                    --job-dir ${MODEL_DIR} \
-#                                    --runtime-version ${TF_VERSION} \
-#                                    --module-name trainer.task \
-#                                    --package-path trainer/ \
-#                                    --region us-central1 \
-#                                    -- \
-#                                    --train-files ${TRAIN_FILE} \
-#                                    --train-steps ${TRAIN_STEPS} \
-#                                   --eval-files ${EVAL_FILE} \
-#                                    --eval-steps ${EVAL_STEPS} \
-#                                    --output-dir ${WORKING_DIR} \
-#                                    --schema-file ${SCHEMA_PATH} \
-#                                    --tf-transform-dir ${TFT_OUTPUT_PATH}
+gcloud ml-engine jobs submit training ${TRAINER_JOB_ID} \
+                                    --stream-logs \
+                                    --job-dir ${MODEL_DIR} \
+                                    --runtime-version ${TF_VERSION} \
+                                    --module-name trainer.task \
+                                    --package-path trainer/ \
+                                    --region us-central1 \
+                                    -- \
+                                    --train-files ${TRAIN_FILE} \
+                                    --train-steps ${TRAIN_STEPS} \
+                                   --eval-files ${EVAL_FILE} \
+                                    --eval-steps ${EVAL_STEPS} \
+                                    --output-dir ${WORKING_DIR} \
+                                    --schema-file ${SCHEMA_PATH} \
+                                    --tf-transform-dir ${TFT_OUTPUT_PATH}
 
 # We evaluate with the last eval model written (hence tail -n1)
-EVAL_MODEL_DIR=gs://temp-storage-for-perf-tests/chicago-taxi/chicago-taxi-tfdv-20190626-114655/chicago_taxi_output/trainer_output/working_dir/eval_model_dir
+EVAL_MODEL_DIR=${TRAIN_OUTPUT_PATH}/working_dir/eval_model_dir
 LAST_EVAL_MODEL_DIR=$(gsutil ls ${EVAL_MODEL_DIR} | tail -n1)
 
 echo Eval model dir: ${EVAL_MODEL_DIR}
