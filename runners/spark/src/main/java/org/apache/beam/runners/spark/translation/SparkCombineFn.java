@@ -50,6 +50,7 @@ import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.sdk.values.WindowingStrategy;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Iterables;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Lists;
 import org.apache.spark.api.java.function.Function;
@@ -72,6 +73,7 @@ public class SparkCombineFn<InputT, ValueT, AccumT, OutputT> extends SparkAbstra
     enum Type {
       MERGING,
       NON_MERGING,
+      EXPLODE_WINDOWS,
       SINGLE_WINDOW;
 
       boolean isMapBased() {
@@ -102,8 +104,10 @@ public class SparkCombineFn<InputT, ValueT, AccumT, OutputT> extends SparkAbstra
 
     /** Create concrete accumulator for given type. */
     static <InputT, ValueT, AccumT> WindowedAccumulator<InputT, ValueT, AccumT, ?> create(
-        Function<InputT, ValueT> toValue, WindowingStrategy<?, ?> windowingStrategy) {
-      Type type = getType(windowingStrategy);
+        SparkCombineFn<InputT, ValueT, AccumT, ?> context,
+        Function<InputT, ValueT> toValue,
+        WindowingStrategy<?, ?> windowingStrategy) {
+      Type type = context.getType(windowingStrategy);
       @SuppressWarnings("unchecked")
       TypeDescriptor<BoundedWindow> windowTypeDescriptor =
           (TypeDescriptor<BoundedWindow>) windowingStrategy.getWindowFn().getWindowTypeDescriptor();
@@ -113,6 +117,7 @@ public class SparkCombineFn<InputT, ValueT, AccumT, OutputT> extends SparkAbstra
         case NON_MERGING:
           return NonMergingWindowedAccumulator.create(toValue);
         case SINGLE_WINDOW:
+        case EXPLODE_WINDOWS:
           return SingleWindowWindowedAccumulator.create(toValue);
         default:
           throw new IllegalArgumentException("Unknown type: " + type);
@@ -131,6 +136,7 @@ public class SparkCombineFn<InputT, ValueT, AccumT, OutputT> extends SparkAbstra
         case NON_MERGING:
           return NonMergingWindowedAccumulator.from(toValue, values);
         case SINGLE_WINDOW:
+        case EXPLODE_WINDOWS:
           return SingleWindowWindowedAccumulator.create(toValue, Iterables.getOnlyElement(values));
         default:
           throw new IllegalArgumentException("Unknown type: " + type);
@@ -467,15 +473,6 @@ public class SparkCombineFn<InputT, ValueT, AccumT, OutputT> extends SparkAbstra
   static class WindowedAccumulatorCoder<InputT, ValueT, AccumT>
       extends Coder<WindowedAccumulator<InputT, ValueT, AccumT, ?>> {
 
-    static <InputT, ValueT, AccumT> WindowedAccumulatorCoder<InputT, ValueT, AccumT> of(
-        Function<InputT, ValueT> toValue,
-        Coder<BoundedWindow> windowCoder,
-        Coder<AccumT> accumCoder,
-        WindowingStrategy windowingStrategy) {
-      return new WindowedAccumulatorCoder<>(
-          toValue, windowCoder, accumCoder, getType(windowingStrategy));
-    }
-
     private final Function<InputT, ValueT> toValue;
     private final @Nullable TypeDescriptor<BoundedWindow> windowDesc;
     private final IterableCoder<WindowedValue<AccumT>> wrap;
@@ -525,6 +522,17 @@ public class SparkCombineFn<InputT, ValueT, AccumT, OutputT> extends SparkAbstra
     public void verifyDeterministic() throws NonDeterministicException {}
   }
 
+  @VisibleForTesting
+  static <K, V, AccumT, OutputT> SparkCombineFn<KV<K, V>, V, AccumT, OutputT> keyed(
+      CombineWithContext.CombineFnWithContext<V, AccumT, OutputT> combineFn,
+      SerializablePipelineOptions options,
+      Map<TupleTag<?>, KV<WindowingStrategy<?, ?>, SideInputBroadcast<?>>> sideInputs,
+      WindowingStrategy<?, ?> windowingStrategy,
+      WindowedAccumulator.Type nonMergingStrategy) {
+    return new SparkCombineFn<>(
+        KV::getValue, combineFn, options, sideInputs, windowingStrategy, nonMergingStrategy);
+  }
+
   public static <K, V, AccumT, OutputT> SparkCombineFn<KV<K, V>, V, AccumT, OutputT> keyed(
       CombineWithContext.CombineFnWithContext<V, AccumT, OutputT> combineFn,
       SerializablePipelineOptions options,
@@ -561,18 +569,8 @@ public class SparkCombineFn<InputT, ValueT, AccumT, OutputT> extends SparkAbstra
     return comparator;
   }
 
-  private static WindowedAccumulator.Type getType(WindowingStrategy<?, ?> windowingStrategy) {
-    if (windowingStrategy.getWindowFn().isNonMerging()) {
-      if (windowingStrategy.getWindowFn().assignsToOneWindow()
-          && GroupNonMergingWindowsFunctions.isEligibleForGroupByWindow(windowingStrategy)) {
-        return WindowedAccumulator.Type.SINGLE_WINDOW;
-      }
-      return WindowedAccumulator.Type.NON_MERGING;
-    }
-    return WindowedAccumulator.Type.MERGING;
-  }
-
   private final Function<InputT, ValueT> toValue;
+  private final WindowedAccumulator.Type defaultNonMergingCombineStrategy;
   private final CombineWithContext.CombineFnWithContext<ValueT, AccumT, OutputT> combineFn;
 
   public SparkCombineFn(
@@ -581,14 +579,33 @@ public class SparkCombineFn<InputT, ValueT, AccumT, OutputT> extends SparkAbstra
       SerializablePipelineOptions options,
       Map<TupleTag<?>, KV<WindowingStrategy<?, ?>, SideInputBroadcast<?>>> sideInputs,
       WindowingStrategy<?, ?> windowingStrategy) {
+    this(
+        toValue,
+        combineFn,
+        options,
+        sideInputs,
+        windowingStrategy,
+        WindowedAccumulator.Type.EXPLODE_WINDOWS);
+  }
+
+  @VisibleForTesting
+  SparkCombineFn(
+      Function<InputT, ValueT> toValue,
+      CombineWithContext.CombineFnWithContext<ValueT, AccumT, OutputT> combineFn,
+      SerializablePipelineOptions options,
+      Map<TupleTag<?>, KV<WindowingStrategy<?, ?>, SideInputBroadcast<?>>> sideInputs,
+      WindowingStrategy<?, ?> windowingStrategy,
+      WindowedAccumulator.Type defaultNonMergingCombineStrategy) {
+
     super(options, sideInputs, windowingStrategy);
     this.toValue = toValue;
+    this.defaultNonMergingCombineStrategy = defaultNonMergingCombineStrategy;
     this.combineFn = combineFn;
   }
 
   /** Create empty combiner. Implements Spark's zeroValue for aggregateFn. */
   WindowedAccumulator<InputT, ValueT, AccumT, ?> createCombiner() {
-    return WindowedAccumulator.create(toValue, windowingStrategy);
+    return WindowedAccumulator.create(this, toValue, windowingStrategy);
   }
 
   /**
@@ -599,7 +616,7 @@ public class SparkCombineFn<InputT, ValueT, AccumT, OutputT> extends SparkAbstra
   WindowedAccumulator<InputT, ValueT, AccumT, ?> createCombiner(WindowedValue<InputT> value) {
     try {
       WindowedAccumulator<InputT, ValueT, AccumT, ?> accumulator =
-          WindowedAccumulator.create(toValue, windowingStrategy);
+          WindowedAccumulator.create(this, toValue, windowingStrategy);
       accumulator.add(value, this);
       return accumulator;
     } catch (Exception ex) {
@@ -652,7 +669,8 @@ public class SparkCombineFn<InputT, ValueT, AccumT, OutputT> extends SparkAbstra
       Coder<BoundedWindow> windowCoder,
       Coder<AccumT> accumulatorCoder,
       WindowingStrategy<?, ?> windowingStrategy) {
-    return WindowedAccumulatorCoder.of(toValue, windowCoder, accumulatorCoder, windowingStrategy);
+    return new WindowedAccumulatorCoder<>(
+        toValue, windowCoder, accumulatorCoder, getType(windowingStrategy));
   }
 
   CombineWithContext.CombineFnWithContext<ValueT, AccumT, OutputT> getCombineFn() {
@@ -660,6 +678,17 @@ public class SparkCombineFn<InputT, ValueT, AccumT, OutputT> extends SparkAbstra
   }
 
   boolean mustBringWindowToKey() {
-    return getType(windowingStrategy) == WindowedAccumulator.Type.SINGLE_WINDOW;
+    return !getType(windowingStrategy).isMapBased();
+  }
+
+  private WindowedAccumulator.Type getType(WindowingStrategy<?, ?> windowingStrategy) {
+    if (windowingStrategy.getWindowFn().isNonMerging()) {
+      if (windowingStrategy.getWindowFn().assignsToOneWindow()
+          && GroupNonMergingWindowsFunctions.isEligibleForGroupByWindow(windowingStrategy)) {
+        return WindowedAccumulator.Type.SINGLE_WINDOW;
+      }
+      return defaultNonMergingCombineStrategy;
+    }
+    return WindowedAccumulator.Type.MERGING;
   }
 }
