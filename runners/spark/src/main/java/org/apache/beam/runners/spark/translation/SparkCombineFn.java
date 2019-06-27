@@ -106,11 +106,9 @@ public class SparkCombineFn<InputT, ValueT, AccumT, OutputT> extends SparkAbstra
     static <InputT, ValueT, AccumT> WindowedAccumulator<InputT, ValueT, AccumT, ?> create(
         SparkCombineFn<InputT, ValueT, AccumT, ?> context,
         Function<InputT, ValueT> toValue,
-        WindowingStrategy<?, ?> windowingStrategy) {
+        WindowingStrategy<?, ?> windowingStrategy,
+        TypeDescriptor<BoundedWindow> windowTypeDescriptor) {
       Type type = context.getType(windowingStrategy);
-      @SuppressWarnings("unchecked")
-      TypeDescriptor<BoundedWindow> windowTypeDescriptor =
-          (TypeDescriptor<BoundedWindow>) windowingStrategy.getWindowFn().getWindowTypeDescriptor();
       switch (type) {
         case MERGING:
           return MergingWindowedAccumulator.create(toValue, windowTypeDescriptor);
@@ -572,6 +570,7 @@ public class SparkCombineFn<InputT, ValueT, AccumT, OutputT> extends SparkAbstra
   private final Function<InputT, ValueT> toValue;
   private final WindowedAccumulator.Type defaultNonMergingCombineStrategy;
   private final CombineWithContext.CombineFnWithContext<ValueT, AccumT, OutputT> combineFn;
+  private final TypeDescriptor<BoundedWindow> windowTypeDescriptor;
 
   public SparkCombineFn(
       Function<InputT, ValueT> toValue,
@@ -601,11 +600,15 @@ public class SparkCombineFn<InputT, ValueT, AccumT, OutputT> extends SparkAbstra
     this.toValue = toValue;
     this.defaultNonMergingCombineStrategy = defaultNonMergingCombineStrategy;
     this.combineFn = combineFn;
+    @SuppressWarnings("unchecked")
+    TypeDescriptor<BoundedWindow> untyped =
+        (TypeDescriptor<BoundedWindow>) windowingStrategy.getWindowFn().getWindowTypeDescriptor();
+    this.windowTypeDescriptor = untyped;
   }
 
   /** Create empty combiner. Implements Spark's zeroValue for aggregateFn. */
   WindowedAccumulator<InputT, ValueT, AccumT, ?> createCombiner() {
-    return WindowedAccumulator.create(this, toValue, windowingStrategy);
+    return WindowedAccumulator.create(this, toValue, windowingStrategy, windowTypeDescriptor);
   }
 
   /**
@@ -616,7 +619,7 @@ public class SparkCombineFn<InputT, ValueT, AccumT, OutputT> extends SparkAbstra
   WindowedAccumulator<InputT, ValueT, AccumT, ?> createCombiner(WindowedValue<InputT> value) {
     try {
       WindowedAccumulator<InputT, ValueT, AccumT, ?> accumulator =
-          WindowedAccumulator.create(this, toValue, windowingStrategy);
+          WindowedAccumulator.create(this, toValue, windowingStrategy, windowTypeDescriptor);
       accumulator.add(value, this);
       return accumulator;
     } catch (Exception ex) {
