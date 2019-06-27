@@ -19,9 +19,12 @@ package org.apache.beam.runners.spark.translation;
 
 import static org.junit.Assert.assertEquals;
 
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
 import org.apache.beam.runners.core.construction.SerializablePipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
@@ -129,12 +132,17 @@ public class SparkCombineFnTest {
   }
 
   @Test
-  public void testSlidingCombineFn() throws Exception {
+  public void testSlidingCombineFnNonMerging() throws Exception {
     WindowingStrategy<Object, IntervalWindow> strategy =
         WindowingStrategy.of(SlidingWindows.of(Duration.millis(3000)).every(Duration.millis(1000)));
 
     SparkCombineFn<KV<String, Integer>, Integer, Long, Long> sparkCombineFn =
-        SparkCombineFn.keyed(combineFn, opts, Collections.emptyMap(), strategy);
+        SparkCombineFn.keyed(
+            combineFn,
+            opts,
+            Collections.emptyMap(),
+            strategy,
+            SparkCombineFn.WindowedAccumulator.Type.NON_MERGING);
 
     Instant now = Instant.ofEpochMilli(0);
     WindowedValue<KV<String, Integer>> first =
@@ -159,6 +167,56 @@ public class SparkCombineFnTest {
     assertUnorderedEquals(
         Lists.newArrayList("3:999", "5:1999", "5:2999", "2:3999", "1:5999", "1:6999", "1:7999"),
         format);
+  }
+
+  @Test
+  public void testSlidingCombineFnExplode() throws Exception {
+    WindowingStrategy<Object, IntervalWindow> strategy =
+        WindowingStrategy.of(SlidingWindows.of(Duration.millis(3000)).every(Duration.millis(1000)));
+
+    SparkCombineFn<KV<String, Integer>, Integer, Long, Long> sparkCombineFn =
+        SparkCombineFn.keyed(
+            combineFn,
+            opts,
+            Collections.emptyMap(),
+            strategy,
+            SparkCombineFn.WindowedAccumulator.Type.EXPLODE_WINDOWS);
+
+    Instant now = Instant.ofEpochMilli(0);
+    WindowedValue<KV<String, Integer>> first =
+        input("key", 1, now.plus(5000), strategy.getWindowFn());
+    WindowedValue<KV<String, Integer>> second =
+        input("key", 2, now.plus(1500), strategy.getWindowFn());
+    WindowedValue<KV<String, Integer>> third =
+        input("key", 3, now.plus(500), strategy.getWindowFn());
+
+    Map<KV<String, BoundedWindow>, List<WindowedValue<KV<String, Integer>>>> groupByKeyAndWindow;
+    groupByKeyAndWindow =
+        Stream.of(first, second, third)
+            .flatMap(e -> StreamSupport.stream(e.explodeWindows().spliterator(), false))
+            .collect(
+                Collectors.groupingBy(
+                    e -> KV.of(e.getValue().getKey(), Iterables.getOnlyElement(e.getWindows()))));
+
+    List<String> result = new ArrayList<>();
+    for (Map.Entry<KV<String, BoundedWindow>, List<WindowedValue<KV<String, Integer>>>> e :
+        groupByKeyAndWindow.entrySet()) {
+
+      SparkCombineFn.WindowedAccumulator<KV<String, Integer>, Integer, Long, ?> combiner = null;
+      for (WindowedValue<KV<String, Integer>> v : e.getValue()) {
+        if (combiner == null) {
+          combiner = sparkCombineFn.createCombiner(v);
+        } else {
+          combiner.add(v, sparkCombineFn);
+        }
+      }
+      WindowedValue<Long> combined = Iterables.getOnlyElement(combiner.extractOutput());
+      result.add(combined.getValue() + ":" + combined.getTimestamp().getMillis());
+    }
+
+    assertUnorderedEquals(
+        Lists.newArrayList("3:999", "5:1999", "5:2999", "2:3999", "1:5999", "1:6999", "1:7999"),
+        result);
   }
 
   private static Combine.CombineFn<Integer, Long, Long> getSumFn() {
