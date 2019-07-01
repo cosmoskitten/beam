@@ -99,13 +99,13 @@ class DynamicDestinationsHelpers {
   /** Returns tables based on a user-supplied function. */
   static class TableFunctionDestinations<T> extends DynamicDestinations<T, TableDestination> {
     private final SerializableFunction<ValueInSingleWindow<T>, TableDestination> tableFunction;
-    private final boolean enableClustering;
+    private final boolean clusteringEnabled;
 
     TableFunctionDestinations(
         SerializableFunction<ValueInSingleWindow<T>, TableDestination> tableFunction,
-        boolean enableClustering) {
+        boolean clusteringEnabled) {
       this.tableFunction = tableFunction;
-      this.enableClustering = enableClustering;
+      this.clusteringEnabled = clusteringEnabled;
     }
 
     @Override
@@ -131,7 +131,7 @@ class DynamicDestinationsHelpers {
 
     @Override
     public Coder<TableDestination> getDestinationCoder() {
-      if (enableClustering) {
+      if (clusteringEnabled) {
         return TableDestinationCoderV3.of();
       } else {
         return TableDestinationCoderV2.of();

@@ -1444,7 +1444,6 @@ public class BigQueryIO {
    */
   public static <T> Write<T> write() {
     return new AutoValue_BigQueryIO_Write.Builder<T>()
-        .setEnableClustering(false)
         .setValidate(true)
         .setBigQueryServices(new BigQueryServicesImpl())
         .setCreateDisposition(Write.CreateDisposition.CREATE_IF_NEEDED)
@@ -1531,8 +1530,6 @@ public class BigQueryIO {
     @Nullable
     abstract ValueProvider<String> getJsonTimePartitioning();
 
-    abstract boolean getEnableClustering();
-
     @Nullable
     abstract Clustering getClustering();
 
@@ -1604,8 +1601,6 @@ public class BigQueryIO {
       abstract Builder<T> setJsonSchema(ValueProvider<String> jsonSchema);
 
       abstract Builder<T> setJsonTimePartitioning(ValueProvider<String> jsonTimePartitioning);
-
-      abstract Builder<T> setEnableClustering(boolean enable);
 
       abstract Builder<T> setClustering(Clustering clustering);
 
@@ -1745,7 +1740,7 @@ public class BigQueryIO {
      * ValueInSingleWindow}, so can be determined by the value or by the window.
      *
      * <p>If the function produces destinations configured with clustering fields, ensure that
-     * {@link #enableClustering()} is also set so that the clustering configurations get properly
+     * {@link #withClustering()} is also set so that the clustering configurations get properly
      * encoded and decoded.
      */
     public Write<T> to(
@@ -1847,26 +1842,28 @@ public class BigQueryIO {
      * Specifies the clustering fields to use when writing to a single output table. Can only be
      * used when {@link#withTimePartitioning(TimePartitioning)} is set. If {@link
      * #to(SerializableFunction)} or {@link #to(DynamicDestinations)} is used to write to dynamic
-     * tables, this setting is ignored; instead, see {@link #enableClustering()}.
+     * tables, the fields here will be ignored; call {@link #withClustering()} instead.
      */
     public Write<T> withClustering(Clustering clustering) {
       checkArgument(clustering != null, "clustering can not be null");
-      return toBuilder().setEnableClustering(true).setClustering(clustering).build();
+      return toBuilder().setClustering(clustering).build();
     }
 
     /**
      * Allows writing to clustered tables when {@link #to(SerializableFunction)} or {@link
      * #to(DynamicDestinations)} is used. The returned {@link TableDestination} objects should
-     * specify the clustering fields per table. If writing to a single table, use {@link
-     * #withClustering(Clustering)} instead to specify the clustering fields.
+     * specify the time partitioning and clustering fields per table. If writing to a single table,
+     * use {@link #withClustering(Clustering)} instead to pass a {@link Clustering} instance that
+     * specifies the static clustering fields to use.
      *
      * <p>Setting this option enables use of {@link TableDestinationCoderV3} which encodes
-     * clustering information. Pipelines using an older coder must be drained before setting this
-     * option, since {@link TableDestinationCoderV3} will not be able to read state written with a
-     * previous version.
+     * clustering information. The updated coder is compatible with non-clustered tables, so can be
+     * freely set for newly deployed pipelines, but note that pipelines using an older coder must be
+     * drained before setting this option, since {@link TableDestinationCoderV3} will not be able to
+     * read state written with a previous version.
      */
-    public Write<T> enableClustering() {
-      return toBuilder().setEnableClustering(true).build();
+    public Write<T> withClustering() {
+      return toBuilder().setClustering(new Clustering()).build();
     }
 
     /** Specifies whether the table should be created if it does not exist. */
@@ -2140,10 +2137,10 @@ public class BigQueryIO {
             "The supplied getTableFunction object can directly set TimePartitioning."
                 + " There is no need to call BigQueryIO.Write.withTimePartitioning.");
       }
-      if (getClustering() != null) {
+      if (getClustering() != null && getClustering().getFields() != null) {
         checkArgument(
             getJsonTimePartitioning() != null,
-            "Clustering can only be set when TimePartitioning is set.");
+            "Clustering fields can only be set when TimePartitioning is set.");
       }
 
       DynamicDestinations<T, ?> dynamicDestinations = getDynamicDestinations();
@@ -2154,7 +2151,7 @@ public class BigQueryIO {
                   getJsonTableRef(), getTableDescription());
         } else if (getTableFunction() != null) {
           dynamicDestinations =
-              new TableFunctionDestinations<>(getTableFunction(), getEnableClustering());
+              new TableFunctionDestinations<>(getTableFunction(), getClustering() != null);
         }
 
         // Wrap with a DynamicDestinations class that will provide a schema. There might be no

@@ -468,7 +468,7 @@ public class BigQueryIOWriteTest implements Serializable {
                 .withTestServices(fakeBqServices)
                 .withMethod(BigQueryIO.Write.Method.FILE_LOADS)
                 .withSchema(schema)
-                .enableClustering()
+                .withClustering()
                 .withoutValidation());
     p.run();
     Table table =

@@ -37,6 +37,7 @@ import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.testing.TestPipelineOptions;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.ParDo;
+import org.apache.beam.sdk.values.ValueInSingleWindow;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
@@ -123,6 +124,79 @@ public class BigQueryTimePartitioningClusteringIT {
                 .withTimePartitioning(getTimepartitioning())
                 .withClustering(getClustering())
                 .withSchema(getSchema())
+                .withCreateDisposition(BigQueryIO.Write.CreateDisposition.CREATE_IF_NEEDED)
+                .withWriteDisposition(BigQueryIO.Write.WriteDisposition.WRITE_TRUNCATE));
+
+    p.run().waitUntilFinish();
+
+    Table table = bqClient.tables().get(options.getProject(), datasetName, tableName).execute();
+
+    Assert.assertEquals(table.getClustering(), getClustering());
+  }
+
+  @Test
+  public void testE2EBigQueryClusteringTableFunction() throws Exception {
+    String tableName = "weather_stations_clustered_table_function_" + System.currentTimeMillis();
+
+    Pipeline p = Pipeline.create(options);
+
+    p.apply(BigQueryIO.readTableRows().from(options.getInput()))
+        .apply(ParDo.of(new KeepStationNumberAndConvertDate()))
+        .apply(
+            BigQueryIO.writeTableRows()
+                .to(
+                    (ValueInSingleWindow<TableRow> vsw) ->
+                        new TableDestination(
+                            String.format("%s.%s", datasetName, tableName),
+                            null,
+                            getTimepartitioning(),
+                            getClustering()))
+                .withClustering()
+                .withSchema(getSchema())
+                .withCreateDisposition(BigQueryIO.Write.CreateDisposition.CREATE_IF_NEEDED)
+                .withWriteDisposition(BigQueryIO.Write.WriteDisposition.WRITE_TRUNCATE));
+
+    p.run().waitUntilFinish();
+
+    Table table = bqClient.tables().get(options.getProject(), datasetName, tableName).execute();
+
+    Assert.assertEquals(table.getClustering(), getClustering());
+  }
+
+  @Test
+  public void testE2EBigQueryClusteringDynamicDestinations() throws Exception {
+    String tableName =
+        "weather_stations_clustered_dynamic_destinations_" + System.currentTimeMillis();
+
+    Pipeline p = Pipeline.create(options);
+
+    p.apply(BigQueryIO.readTableRows().from(options.getInput()))
+        .apply(ParDo.of(new KeepStationNumberAndConvertDate()))
+        .apply(
+            BigQueryIO.writeTableRows()
+                .to(
+                    new DynamicDestinations<TableRow, TableDestination>() {
+                      @Override
+                      public TableDestination getDestination(
+                          ValueInSingleWindow<TableRow> element) {
+                        return new TableDestination(
+                            String.format("%s.%s", datasetName, tableName),
+                            null,
+                            getTimepartitioning(),
+                            getClustering());
+                      }
+
+                      @Override
+                      public TableDestination getTable(TableDestination destination) {
+                        return destination;
+                      }
+
+                      @Override
+                      public TableSchema getSchema(TableDestination destination) {
+                        return BigQueryTimePartitioningClusteringIT.this.getSchema();
+                      }
+                    })
+                .withClustering()
                 .withCreateDisposition(BigQueryIO.Write.CreateDisposition.CREATE_IF_NEEDED)
                 .withWriteDisposition(BigQueryIO.Write.WriteDisposition.WRITE_TRUNCATE));
 
