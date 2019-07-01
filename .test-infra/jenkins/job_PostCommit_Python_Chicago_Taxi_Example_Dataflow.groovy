@@ -29,18 +29,13 @@ PostcommitJobBuilder.postCommitJob('beam_PostCommit_Python_Chicago_Taxi_Dataflow
     // Set common parameters.
     commonJobProperties.setTopLevelMainJobProperties(delegate)
 
-    // Publish all test results to Jenkins
-    publishers {
-        archiveJunit('**/build/test-results/**/*.xml')
-    }
-
     // Gradle goals for this job.
     steps {
         gradle {
             rootBuildScriptDir(commonJobProperties.checkoutDir)
             tasks(':sdks:python:dataflowChicagoTaxiExample')
             switches('-PgcsRoot=gs://temp-storage-for-perf-tests/chicago-taxi')
-            switches('-Prunner=DataflowRunner')
+            switches('-Prunner=DirectRunner')
         }
     }
 }
