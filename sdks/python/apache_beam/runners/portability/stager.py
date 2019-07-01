@@ -206,19 +206,6 @@ class Stager(object):
               jar_packages.split(','), staging_location,
               temp_dir=temp_dir))
 
-    # Pickle the main session if requested.
-    # We will create the pickled main session locally and then copy it to the
-    # staging location because the staging location is a remote path and the
-    # file cannot be created directly there.
-    if setup_options.save_main_session:
-      pickled_session_file = os.path.join(temp_dir,
-                                          names.PICKLED_MAIN_SESSION_FILE)
-      pickler.dump_session(pickled_session_file)
-      staged_path = FileSystems.join(staging_location,
-                                     names.PICKLED_MAIN_SESSION_FILE)
-      self.stage_artifact(pickled_session_file, staged_path)
-      resources.append(names.PICKLED_MAIN_SESSION_FILE)
-
     if hasattr(setup_options, 'sdk_location'):
 
       if (setup_options.sdk_location == 'default') or Stager._is_remote_path(
