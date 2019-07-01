@@ -20,10 +20,17 @@
 
 from __future__ import absolute_import
 
+import logging
+import time
+
 from apitools.base.py import base_api
+from apitools.base.py import exceptions
+from apitools.base.py import http_wrapper
+from apitools.base.py import util
 
 from apache_beam.io.gcp.internal.clients.storage import \
     storage_v1_messages as messages
+from apache_beam.metrics.metric import Metrics
 
 
 class StorageV1(base_api.BaseApiClient):
@@ -42,6 +49,8 @@ class StorageV1(base_api.BaseApiClient):
   _URL_VERSION = u'v1'
   _API_KEY = None
 
+  _THROTTLED_SECS = Metrics.counter('StorageV1', "cumulativeThrottlingSeconds")
+
   def __init__(self, url='', credentials=None,
                get_credentials=True, http=None, model=None,
                log_request=False, log_response=False,
@@ -56,6 +65,7 @@ class StorageV1(base_api.BaseApiClient):
         credentials_args=credentials_args,
         default_global_params=default_global_params,
         additional_http_headers=additional_http_headers,
+        retry_func=StorageV1.retry_func,
         response_encoding=response_encoding)
     self.bucketAccessControls = self.BucketAccessControlsService(self)
     self.buckets = self.BucketsService(self)
@@ -66,6 +76,24 @@ class StorageV1(base_api.BaseApiClient):
     self.objects = self.ObjectsService(self)
     self.projects_serviceAccount = self.ProjectsServiceAccountService(self)
     self.projects = self.ProjectsService(self)
+
+  @classmethod
+  def retry_func(cls, retry_args):
+    # handling GCS download throttling errors (BEAM-7424)
+    if (isinstance(retry_args.exc, exceptions.BadStatusCodeError) and
+        retry_args.exc.status_code == http_wrapper.TOO_MANY_REQUESTS):
+      logging.debug(
+          'Caught GCS quota error (%s), retrying.', retry_args.exc.status_code)
+    else:
+      return http_wrapper.HandleExceptionsAndRebuildHttpConnections(retry_args)
+
+    http_wrapper.RebuildHttpConnections(retry_args.http)
+    logging.debug('Retrying request to url %s after exception %s',
+                  retry_args.http_request.url, retry_args.exc)
+    sleep_seconds = util.CalculateWaitForRetry(
+        retry_args.num_retries, max_wait=retry_args.max_retry_wait)
+    cls._THROTTLED_SECS.inc(int(round(sleep_seconds)))
+    time.sleep(sleep_seconds)
 
   class BucketAccessControlsService(base_api.BaseApiService):
     """Service class for the bucketAccessControls resource."""
