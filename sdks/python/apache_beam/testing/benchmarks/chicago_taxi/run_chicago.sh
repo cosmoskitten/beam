@@ -45,7 +45,7 @@ JOB_ID="chicago-taxi-tfdv-$(date +%Y%m%d-%H%M%S)"
 JOB_OUTPUT_PATH=${GCS_BUCKET}/${JOB_ID}/chicago_taxi_output
 TEMP_PATH=${GCS_BUCKET}/${JOB_ID}/tmp/
 GCP_PROJECT=$(gcloud config list --format 'value(core.project)' 2>/dev/null)
-MAX_ROWS=3000
+MAX_ROWS=100000
 JOB_OUTPUT_PATH=${GCS_BUCKET}/${JOB_ID}/chicago_taxi_output
 TFT_OUTPUT_PATH=${JOB_OUTPUT_PATH}/tft_output
 EVAL_RESULT_DIR=${TFT_OUTPUT_PATH}/eval_result_dir
@@ -129,8 +129,6 @@ python preprocess.py \
   --sdk_location=${SDK_LOCATION} \
   --metric_reporting_project ${GCP_PROJECT} \
   --setup_file ./setup.py
-
-
 
 #Train ML engine
 TRAINER_JOB_ID="chicago_taxi_trainer_$(date +%Y%m%d_%H%M%S)"
