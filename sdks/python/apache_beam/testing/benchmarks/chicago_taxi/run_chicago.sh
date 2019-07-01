@@ -45,7 +45,7 @@ JOB_ID="chicago-taxi-tfdv-$(date +%Y%m%d-%H%M%S)"
 JOB_OUTPUT_PATH=${GCS_BUCKET}/${JOB_ID}/chicago_taxi_output
 TEMP_PATH=${GCS_BUCKET}/${JOB_ID}/tmp/
 GCP_PROJECT=$(gcloud config list --format 'value(core.project)' 2>/dev/null)
-MAX_ROWS=2000
+MAX_ROWS=3000
 JOB_OUTPUT_PATH=${GCS_BUCKET}/${JOB_ID}/chicago_taxi_output
 TFT_OUTPUT_PATH=${JOB_OUTPUT_PATH}/tft_output
 EVAL_RESULT_DIR=${TFT_OUTPUT_PATH}/eval_result_dir
@@ -141,6 +141,8 @@ MODEL_DIR=${TRAIN_OUTPUT_PATH}/model_dir
 # Inputs
 TRAIN_FILE=${TFT_OUTPUT_PATH}/train_transformed-*
 TF_VERSION=1.13
+#workaround for boto in virtualenv, required for the gsutil commands to work:
+export BOTO_CONFIG=/dev/null
 # Start clean, but don't fail if the path does not exist yet.
 gsutil rm ${TRAIN_OUTPUT_PATH} || true
 # Options
