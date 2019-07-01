@@ -189,7 +189,6 @@ def transform_data(input_handle,
 
 def main():
   tf.logging.set_verbosity(tf.logging.INFO)
-
   parser = argparse.ArgumentParser()
   parser.add_argument(
       '--input',
