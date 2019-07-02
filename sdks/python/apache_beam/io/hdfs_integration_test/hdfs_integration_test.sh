@@ -53,6 +53,6 @@ function finally {
 }
 trap finally EXIT
 
-time docker-compose ${COMPOSE_OPT} build
+time docker-compose ${COMPOSE_OPT} build --build-arg BASE_IMAGE=$1
 time docker-compose ${COMPOSE_OPT} up --exit-code-from test \
     --abort-on-container-exit --force-recreate
