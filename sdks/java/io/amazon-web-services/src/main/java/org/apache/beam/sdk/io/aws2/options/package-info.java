@@ -15,22 +15,8 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.io.aws.options;
-
-import com.google.auto.service.AutoService;
-import org.apache.beam.sdk.options.PipelineOptions;
-import org.apache.beam.sdk.options.PipelineOptionsRegistrar;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableList;
-
-/** A registrar containing the default AWS options. */
-@AutoService(PipelineOptionsRegistrar.class)
-public class AwsPipelineOptionsRegistrar implements PipelineOptionsRegistrar {
-
-  @Override
-  public Iterable<Class<? extends PipelineOptions>> getPipelineOptions() {
-    return ImmutableList.<Class<? extends PipelineOptions>>builder()
-        .add(AwsOptions.class)
-        .add(S3Options.class)
-        .build();
-  }
-}
+/**
+ * Defines {@link org.apache.beam.sdk.options.PipelineOptions} for configuring pipeline execution
+ * for Amazon Web Services components.
+ */
+package org.apache.beam.sdk.io.aws2.options;

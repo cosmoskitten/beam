@@ -47,7 +47,7 @@ import com.amazonaws.services.s3.model.UploadPartRequest;
 import com.amazonaws.services.s3.model.UploadPartResult;
 import java.io.IOException;
 import java.nio.ByteBuffer;
-import org.apache.beam.sdk.io.aws.options.S3Options;
+import org.apache.beam.sdk.io.aws2.options.S3Options;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;

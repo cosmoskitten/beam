@@ -32,7 +32,7 @@ import java.nio.channels.ClosedChannelException;
 import java.nio.channels.NonWritableChannelException;
 import java.nio.channels.ReadableByteChannel;
 import java.nio.channels.SeekableByteChannel;
-import org.apache.beam.sdk.io.aws.options.S3Options;
+import org.apache.beam.sdk.io.aws2.options.S3Options;
 
 /** A readable S3 object, as a {@link SeekableByteChannel}. */
 class S3ReadableSeekableByteChannel implements SeekableByteChannel {

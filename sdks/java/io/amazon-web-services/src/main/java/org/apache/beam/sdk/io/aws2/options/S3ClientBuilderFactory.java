@@ -15,8 +15,11 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-/**
- * Defines {@link org.apache.beam.sdk.options.PipelineOptions} for configuring pipeline execution
- * for Amazon Web Services components.
- */
-package org.apache.beam.sdk.io.aws.options;
+package org.apache.beam.sdk.io.aws2.options;
+
+import com.amazonaws.services.s3.AmazonS3ClientBuilder;
+
+/** Construct AmazonS3ClientBuilder from S3 pipeline options. */
+public interface S3ClientBuilderFactory {
+  AmazonS3ClientBuilder createBuilder(S3Options s3Options);
+}

@@ -15,41 +15,39 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.io.aws.options;
+package org.apache.beam.sdk.io.aws2.options;
 
-import org.apache.beam.sdk.annotations.Experimental;
+import com.amazonaws.ClientConfiguration;
+import com.amazonaws.auth.AWSCredentialsProvider;
+import com.amazonaws.auth.DefaultAWSCredentialsProviderChain;
 import org.apache.beam.sdk.options.Default;
 import org.apache.beam.sdk.options.DefaultValueFactory;
 import org.apache.beam.sdk.options.Description;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.Validation;
-import software.amazon.awssdk.auth.credentials.AwsCredentialsProvider;
-import software.amazon.awssdk.auth.credentials.DefaultCredentialsProvider;
-import software.amazon.awssdk.http.apache.ProxyConfiguration;
 
 /**
  * Options used to configure Amazon Web Services specific options such as credentials and region.
  */
-@Experimental(Experimental.Kind.SOURCE_SINK)
 public interface AwsOptions extends PipelineOptions {
 
   /** AWS region used by the AWS client. */
   @Description("AWS region used by the AWS client")
   @Validation.Required
-  String getRegion();
+  String getAwsRegion();
 
-  void setRegion(String value);
+  void setAwsRegion(String value);
 
   /** The AWS service endpoint used by the AWS client. */
   @Description("AWS service endpoint used by the AWS client")
-  String getEndpoint();
+  String getAwsServiceEndpoint();
 
-  void setEndpoint(String value);
+  void setAwsServiceEndpoint(String value);
 
   /**
    * The credential instance that should be used to authenticate against AWS services. The option
    * value must contain a "@type" field and an AWS Credentials Provider class as the field value.
-   * Refer to {@link DefaultCredentialsProvider} Javadoc for usage help.
+   * Refer to {@link DefaultAWSCredentialsProviderChain} Javadoc for usage help.
    *
    * <p>For example, to specify the AWS key ID and secret, specify the following: <code>
    * {"@type" : "AWSStaticCredentialsProvider", "awsAccessKeyId" : "key_id_value",
@@ -62,18 +60,19 @@ public interface AwsOptions extends PipelineOptions {
           + "and an AWS Credentials Provider class name as the field value. "
           + "Refer to DefaultAWSCredentialsProviderChain Javadoc for usage help. "
           + "For example, to specify the AWS key ID and secret, specify the following: "
-          + "{\"@type\": \"StaticCredentialsProvider\", "
-          + "\"accessKeyId\":\"<key_id>\", \"secretAccessKey\":\"<secret_key>\"}")
+          + "{\"@type\": \"AWSStaticCredentialsProvider\", "
+          + "\"awsAccessKeyId\":\"<key_id>\", \"awsSecretKey\":\"<secret_key>\"}")
   @Default.InstanceFactory(AwsUserCredentialsFactory.class)
-  AwsCredentialsProvider getAwsCredentialsProvider();
+  AWSCredentialsProvider getAwsCredentialsProvider();
 
-  void setAwsCredentialsProvider(AwsCredentialsProvider value);
+  void setAwsCredentialsProvider(AWSCredentialsProvider value);
 
   /** Attempts to load AWS credentials. */
-  class AwsUserCredentialsFactory implements DefaultValueFactory<AwsCredentialsProvider> {
+  class AwsUserCredentialsFactory implements DefaultValueFactory<AWSCredentialsProvider> {
+
     @Override
-    public AwsCredentialsProvider create(PipelineOptions options) {
-      return DefaultCredentialsProvider.create();
+    public AWSCredentialsProvider create(PipelineOptions options) {
+      return DefaultAWSCredentialsProviderChain.getInstance();
     }
   }
 
@@ -81,21 +80,35 @@ public interface AwsOptions extends PipelineOptions {
    * The client configuration instance that should be used to configure AWS service clients. Please
    * note that the configuration deserialization only allows one to specify proxy settings.
    *
-   * <p>For example, to specify the proxy endpoint, username and password, specify the following:
+   * <p>For example, to specify the proxy host, port, username and password, specify the following:
    * <code>
-   * --proxyConfiguration={
-   *   "endpoint": "http://hostname:port",
-   *   "username": "username",
-   *   "password": "password"
+   * --clientConfiguration={
+   *   "proxyHost":"hostname",
+   *   "proxyPort":1234,
+   *   "proxyUsername":"username",
+   *   "proxyPassword":"password"
    * }
    * </code>
+   *
+   * @return
    */
   @Description(
-      "The proxy configuration instance that should be used to configure AWS service "
+      "The client configuration instance that should be used to configure AWS service "
           + "clients. Please note that the configuration deserialization only allows one to specify "
-          + "proxy settings. For example, to specify the proxy endpoint, username and password, "
-          + "specify the following: --proxyConfiguration={\"endpoint\":\"http://hostname:port\", \"username\":\"username\", \"password\":\"password\"}")
-  ProxyConfiguration getProxyConfiguration();
+          + "proxy settings. For example, to specify the proxy host, port, username and password, "
+          + "specify the following: --clientConfiguration={\"proxyHost\":\"hostname\",\"proxyPort\":1234,"
+          + "\"proxyUsername\":\"username\",\"proxyPassword\":\"password\"}")
+  @Default.InstanceFactory(ClientConfigurationFactory.class)
+  ClientConfiguration getClientConfiguration();
 
-  void setProxyConfiguration(ProxyConfiguration value);
+  void setClientConfiguration(ClientConfiguration clientConfiguration);
+
+  /** Default AWS client configuration. */
+  class ClientConfigurationFactory implements DefaultValueFactory<ClientConfiguration> {
+
+    @Override
+    public ClientConfiguration create(PipelineOptions options) {
+      return new ClientConfiguration();
+    }
+  }
 }

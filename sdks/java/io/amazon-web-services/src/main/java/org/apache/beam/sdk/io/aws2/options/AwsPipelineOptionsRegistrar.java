@@ -15,11 +15,22 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.io.aws.options;
+package org.apache.beam.sdk.io.aws2.options;
 
-import com.amazonaws.services.s3.AmazonS3ClientBuilder;
+import com.google.auto.service.AutoService;
+import org.apache.beam.sdk.options.PipelineOptions;
+import org.apache.beam.sdk.options.PipelineOptionsRegistrar;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableList;
 
-/** Construct AmazonS3ClientBuilder from S3 pipeline options. */
-public interface S3ClientBuilderFactory {
-  AmazonS3ClientBuilder createBuilder(S3Options s3Options);
+/** A registrar containing the default AWS options. */
+@AutoService(PipelineOptionsRegistrar.class)
+public class AwsPipelineOptionsRegistrar implements PipelineOptionsRegistrar {
+
+  @Override
+  public Iterable<Class<? extends PipelineOptions>> getPipelineOptions() {
+    return ImmutableList.<Class<? extends PipelineOptions>>builder()
+        .add(AwsOptions.class)
+        .add(S3Options.class)
+        .build();
+  }
 }

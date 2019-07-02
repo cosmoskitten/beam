@@ -39,8 +39,8 @@ import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
 import java.util.List;
-import org.apache.beam.sdk.io.aws.options.S3Options;
-import org.apache.beam.sdk.io.aws.options.S3Options.S3UploadBufferSizeBytesFactory;
+import org.apache.beam.sdk.io.aws2.options.S3Options;
+import org.apache.beam.sdk.io.aws2.options.S3Options.S3UploadBufferSizeBytesFactory;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.annotations.VisibleForTesting;
 
 /** A writable S3 object, as a {@link WritableByteChannel}. */

@@ -24,7 +24,7 @@ import com.amazonaws.services.s3.model.SSEAwsKeyManagementParams;
 import com.amazonaws.services.s3.model.SSECustomerKey;
 import com.amazonaws.util.Base64;
 import javax.annotation.Nullable;
-import org.apache.beam.sdk.io.aws.options.S3Options;
+import org.apache.beam.sdk.io.aws2.options.S3Options;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.commons.codec.digest.DigestUtils;
 import org.mockito.Mockito;

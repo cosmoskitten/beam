@@ -23,8 +23,8 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.io.IOException;
 import java.io.Serializable;
-import org.apache.beam.sdk.io.aws.options.AwsModule;
-import org.apache.beam.sdk.io.aws.options.AwsOptions;
+import org.apache.beam.sdk.io.aws2.options.AwsModule;
+import org.apache.beam.sdk.io.aws2.options.AwsOptions;
 
 class SqsConfiguration implements Serializable {
 
