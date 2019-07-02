@@ -77,6 +77,32 @@ class PubSubIntegrationTest(unittest.TestCase):
           })
       ],
   }
+  INPUT_MESSAGES_BYTES = {
+      # TODO(BEAM-4275): DirectRunner doesn't support reading or writing
+      # label_ids, nor writing timestamp attributes. Once these features exist,
+      # TestDirectRunner and TestDataflowRunner should behave identically.
+      'TestDirectRunner': [
+          PubsubMessage(b'data001\xab\xac', {}),
+          # For those elements that have the TIMESTAMP_ATTRIBUTE attribute, the
+          # IT pipeline writes back the timestamp of each element (as reported
+          # by Beam), as a TIMESTAMP_ATTRIBUTE + '_out' attribute.
+          PubsubMessage(b'data002\xab\xac', {
+              TIMESTAMP_ATTRIBUTE: '2018-07-11T02:02:50.149000Z',
+          }),
+      ],
+      'TestDataflowRunner': [
+          # Use ID_LABEL attribute to deduplicate messages with the same ID.
+          PubsubMessage(b'data001\xab\xac', {ID_LABEL: 'foo'}),
+          PubsubMessage(b'data001\xab\xac', {ID_LABEL: 'foo'}),
+          PubsubMessage(b'data001\xab\xac', {ID_LABEL: 'foo'}),
+          # For those elements that have the TIMESTAMP_ATTRIBUTE attribute, the
+          # IT pipeline writes back the timestamp of each element (as reported
+          # by Beam), as a TIMESTAMP_ATTRIBUTE + '_out' attribute.
+          PubsubMessage(b'data002\xab\xac', {
+              TIMESTAMP_ATTRIBUTE: '2018-07-11T02:02:50.149000Z',
+          }),
+      ],
+  }
   EXPECTED_OUTPUT_MESSAGES = {
       'TestDirectRunner': [
           PubsubMessage(b'data001-seen', {'processed': 'IT'}),
@@ -89,6 +115,23 @@ class PubSubIntegrationTest(unittest.TestCase):
       'TestDataflowRunner': [
           PubsubMessage(b'data001-seen', {'processed': 'IT'}),
           PubsubMessage(b'data002-seen', {
+              TIMESTAMP_ATTRIBUTE + '_out': '2018-07-11T02:02:50.149000Z',
+              'processed': 'IT',
+          }),
+      ],
+  }
+  EXPECTED_OUTPUT_MESSAGES_BYTES = {
+      'TestDirectRunner': [
+          PubsubMessage(b'data001\xab\xac-seen', {'processed': 'IT'}),
+          PubsubMessage(b'data002\xab\xac-seen', {
+              TIMESTAMP_ATTRIBUTE: '2018-07-11T02:02:50.149000Z',
+              TIMESTAMP_ATTRIBUTE + '_out': '2018-07-11T02:02:50.149000Z',
+              'processed': 'IT',
+          }),
+      ],
+      'TestDataflowRunner': [
+          PubsubMessage(b'data001\xab\xac-seen', {'processed': 'IT'}),
+          PubsubMessage(b'data002\xab\xac-seen', {
               TIMESTAMP_ATTRIBUTE + '_out': '2018-07-11T02:02:50.149000Z',
               'processed': 'IT',
           }),
@@ -123,13 +166,14 @@ class PubSubIntegrationTest(unittest.TestCase):
     test_utils.cleanup_topics(self.pub_client,
                               [self.input_topic, self.output_topic])
 
-  def _test_streaming(self, with_attributes):
+  def _test_streaming(self, with_attributes, bytes=False):
     """Runs IT pipeline with message verifier.
 
     Args:
       with_attributes: False - Reads and writes message data only.
         True - Reads and writes message data and attributes. Also verifies
         id_label and timestamp_attribute features.
+      bytes: True - Write non utf-8 decodable bytes to PubSub
     """
     # Set on_success_matcher to verify pipeline state and pubsub output. These
     # verifications run on a (remote) worker.
@@ -137,10 +181,12 @@ class PubSubIntegrationTest(unittest.TestCase):
     # Expect the state to be RUNNING since a streaming pipeline is usually
     # never DONE. The test runner will cancel the pipeline after verification.
     state_verifier = PipelineStateMatcher(PipelineState.RUNNING)
-    expected_messages = self.EXPECTED_OUTPUT_MESSAGES[self.runner_name]
+    if bytes:
+      expected_messages = self.EXPECTED_OUTPUT_MESSAGES_BYTES[self.runner_name]
+    else:
+      expected_messages = self.EXPECTED_OUTPUT_MESSAGES[self.runner_name]
     if not with_attributes:
-      expected_messages = [pubsub_msg.data.decode('utf-8')
-                           for pubsub_msg in expected_messages]
+      expected_messages = [pubsub_msg.data for pubsub_msg in expected_messages]
     if self.runner_name == 'TestDirectRunner':
       strip_attributes = None
     else:
@@ -159,7 +205,12 @@ class PubSubIntegrationTest(unittest.TestCase):
                                                pubsub_msg_verifier)}
 
     # Generate input data and inject to PubSub.
-    for msg in self.INPUT_MESSAGES[self.runner_name]:
+    if bytes:
+      input_messages = self.INPUT_MESSAGES_BYTES[self.runner_name]
+    else:
+      input_messages = self.INPUT_MESSAGES[self.runner_name]
+
+    for msg in input_messages:
       self.pub_client.publish(self.input_topic.name, msg.data, **msg.attributes)
 
     # Get pipeline options from command argument: --test-pipeline-options,
@@ -177,6 +228,14 @@ class PubSubIntegrationTest(unittest.TestCase):
   @attr('IT')
   def test_streaming_with_attributes(self):
     self._test_streaming(with_attributes=True)
+
+  @attr('IT')
+  def test_streaming_bytes_data_only(self):
+    self._test_streaming(with_attributes=False, bytes=True)
+
+  @attr('IT')
+  def test_streaming_bytes_with_attributes(self):
+    self._test_streaming(with_attributes=True, bytes=True)
 
 
 if __name__ == '__main__':
