@@ -155,14 +155,13 @@ class OffsetRangeTracker(iobase.RangeTracker):
       # the range of the OffsetRangeTracker. Hence fraction could be > 1.
       # self.last_record_start is initialized to -1, hence fraction may be < 0.
       # Bounding the to range [0, 1].
-      fraction = self.position_to_fraction(self._last_record_start,
+      return self.position_to_fraction(self._last_record_start,
                                        self.start_position(),
                                        self.stop_position())
-      return max(0.0, min(1.0, fraction))
 
   def position_to_fraction(self, pos, start, stop):
-    fraction = (1.0 * (pos - start) / (stop - start)) if start != stop else 0.0
-    return fraction
+    fraction = 1.0 * (pos - start) / (stop - start) if start != stop else 0.0
+    return max(0.0, min(1.0, fraction))
 
   def position_at_fraction(self, fraction):
     if self.stop_position() == OffsetRangeTracker.OFFSET_INFINITY:
