@@ -173,6 +173,16 @@ class DynamicDestinationsHelpers {
     }
 
     @Override
+    public Coder<DestinationT> getDestinationCoderWithDefault(CoderRegistry registry)
+        throws CannotProvideCoderException {
+      Coder<DestinationT> destinationCoder = getDestinationCoder();
+      if (destinationCoder != null) {
+        return destinationCoder;
+      }
+      return inner.getDestinationCoderWithDefault(registry);
+    }
+
+    @Override
     public List<PCollectionView<?>> getSideInputs() {
       return inner.getSideInputs();
     }
