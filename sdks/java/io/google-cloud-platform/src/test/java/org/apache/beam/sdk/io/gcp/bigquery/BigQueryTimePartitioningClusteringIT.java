@@ -24,10 +24,11 @@ import com.google.api.services.bigquery.model.TableFieldSchema;
 import com.google.api.services.bigquery.model.TableRow;
 import com.google.api.services.bigquery.model.TableSchema;
 import com.google.api.services.bigquery.model.TimePartitioning;
-import java.util.ArrayList;
+import com.google.common.collect.ImmutableList;
 import java.util.Arrays;
-import java.util.List;
+import javax.annotation.Nullable;
 import org.apache.beam.sdk.Pipeline;
+import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.io.gcp.testing.BigqueryClient;
 import org.apache.beam.sdk.options.Default;
 import org.apache.beam.sdk.options.Description;
@@ -49,9 +50,15 @@ import org.junit.runners.JUnit4;
 public class BigQueryTimePartitioningClusteringIT {
   private static final String WEATHER_SAMPLES_TABLE =
       "clouddataflow-readonly:samples.weather_stations";
+  private static final String DATASET_NAME = "BigQueryTimePartitioningIT";
+  private static final TimePartitioning TIME_PARTITIONING = new TimePartitioning().setField("date").setType("DAY");
+  private static final Clustering CLUSTERING = new Clustering().setFields(Arrays.asList("station_number"));
+  private static final TableSchema SCHEMA = new TableSchema()
+      .setFields(ImmutableList
+          .of(new TableFieldSchema().setName("station_number").setType("INTEGER"),
+              new TableFieldSchema().setName("date").setType("DATE")));
 
   private Bigquery bqClient;
-  private String datasetName = "BigQueryTimePartitioningIT";
   private BigQueryClusteringITOptions options;
 
   @Before
@@ -86,6 +93,40 @@ public class BigQueryTimePartitioningClusteringIT {
     }
   }
 
+  static class ClusteredDestinations extends DynamicDestinations<TableRow, TableDestination> {
+    private final String tableName;
+
+    public ClusteredDestinations(String tableName) {
+      this.tableName = tableName;
+    }
+
+    @Nullable
+    @Override
+    public Coder<TableDestination> getDestinationCoder() {
+      return TableDestinationCoderV3.of();
+    }
+
+    @Override
+    public TableDestination getDestination(
+        ValueInSingleWindow<TableRow> element) {
+      return new TableDestination(
+          String.format("%s.%s", DATASET_NAME, tableName),
+          null,
+          TIME_PARTITIONING,
+          CLUSTERING);
+    }
+
+    @Override
+    public TableDestination getTable(TableDestination destination) {
+      return destination;
+    }
+
+    @Override
+    public TableSchema getSchema(TableDestination destination) {
+      return SCHEMA;
+    }
+  }
+
   @Test
   public void testE2EBigQueryTimePartitioning() throws Exception {
     String tableName = "weather_stations_time_partitioned_" + System.currentTimeMillis();
@@ -96,18 +137,18 @@ public class BigQueryTimePartitioningClusteringIT {
         .apply(ParDo.of(new KeepStationNumberAndConvertDate()))
         .apply(
             BigQueryIO.writeTableRows()
-                .to(String.format("%s.%s", datasetName, tableName))
-                .withTimePartitioning(getTimepartitioning())
-                .withSchema(getSchema())
+                .to(String.format("%s.%s", DATASET_NAME, tableName))
+                .withTimePartitioning(TIME_PARTITIONING)
+                .withSchema(SCHEMA)
                 .withCreateDisposition(BigQueryIO.Write.CreateDisposition.CREATE_IF_NEEDED)
                 .withWriteDisposition(BigQueryIO.Write.WriteDisposition.WRITE_TRUNCATE));
 
     p.run().waitUntilFinish();
 
     bqClient = BigqueryClient.getNewBigquerryClient(options.getAppName());
-    Table table = bqClient.tables().get(options.getProject(), datasetName, tableName).execute();
+    Table table = bqClient.tables().get(options.getProject(), DATASET_NAME, tableName).execute();
 
-    Assert.assertEquals(table.getTimePartitioning(), getTimepartitioning());
+    Assert.assertEquals(table.getTimePartitioning(), TIME_PARTITIONING);
   }
 
   @Test
@@ -120,18 +161,18 @@ public class BigQueryTimePartitioningClusteringIT {
         .apply(ParDo.of(new KeepStationNumberAndConvertDate()))
         .apply(
             BigQueryIO.writeTableRows()
-                .to(String.format("%s.%s", datasetName, tableName))
-                .withTimePartitioning(getTimepartitioning())
-                .withClustering(getClustering())
-                .withSchema(getSchema())
+                .to(String.format("%s.%s", DATASET_NAME, tableName))
+                .withTimePartitioning(TIME_PARTITIONING)
+                .withClustering(CLUSTERING)
+                .withSchema(SCHEMA)
                 .withCreateDisposition(BigQueryIO.Write.CreateDisposition.CREATE_IF_NEEDED)
                 .withWriteDisposition(BigQueryIO.Write.WriteDisposition.WRITE_TRUNCATE));
 
     p.run().waitUntilFinish();
 
-    Table table = bqClient.tables().get(options.getProject(), datasetName, tableName).execute();
+    Table table = bqClient.tables().get(options.getProject(), DATASET_NAME, tableName).execute();
 
-    Assert.assertEquals(table.getClustering(), getClustering());
+    Assert.assertEquals(table.getClustering(), CLUSTERING);
   }
 
   @Test
@@ -147,20 +188,20 @@ public class BigQueryTimePartitioningClusteringIT {
                 .to(
                     (ValueInSingleWindow<TableRow> vsw) ->
                         new TableDestination(
-                            String.format("%s.%s", datasetName, tableName),
+                            String.format("%s.%s", DATASET_NAME, tableName),
                             null,
-                            getTimepartitioning(),
-                            getClustering()))
+                            TIME_PARTITIONING,
+                            CLUSTERING))
                 .withClustering()
-                .withSchema(getSchema())
+                .withSchema(SCHEMA)
                 .withCreateDisposition(BigQueryIO.Write.CreateDisposition.CREATE_IF_NEEDED)
                 .withWriteDisposition(BigQueryIO.Write.WriteDisposition.WRITE_TRUNCATE));
 
     p.run().waitUntilFinish();
 
-    Table table = bqClient.tables().get(options.getProject(), datasetName, tableName).execute();
+    Table table = bqClient.tables().get(options.getProject(), DATASET_NAME, tableName).execute();
 
-    Assert.assertEquals(table.getClustering(), getClustering());
+    Assert.assertEquals(table.getClustering(), CLUSTERING);
   }
 
   @Test
@@ -174,51 +215,16 @@ public class BigQueryTimePartitioningClusteringIT {
         .apply(ParDo.of(new KeepStationNumberAndConvertDate()))
         .apply(
             BigQueryIO.writeTableRows()
-                .to(
-                    new DynamicDestinations<TableRow, TableDestination>() {
-                      @Override
-                      public TableDestination getDestination(
-                          ValueInSingleWindow<TableRow> element) {
-                        return new TableDestination(
-                            String.format("%s.%s", datasetName, tableName),
-                            null,
-                            getTimepartitioning(),
-                            getClustering());
-                      }
-
-                      @Override
-                      public TableDestination getTable(TableDestination destination) {
-                        return destination;
-                      }
-
-                      @Override
-                      public TableSchema getSchema(TableDestination destination) {
-                        return BigQueryTimePartitioningClusteringIT.this.getSchema();
-                      }
-                    })
+                .to(new ClusteredDestinations(tableName))
                 .withClustering()
                 .withCreateDisposition(BigQueryIO.Write.CreateDisposition.CREATE_IF_NEEDED)
                 .withWriteDisposition(BigQueryIO.Write.WriteDisposition.WRITE_TRUNCATE));
 
     p.run().waitUntilFinish();
 
-    Table table = bqClient.tables().get(options.getProject(), datasetName, tableName).execute();
+    Table table = bqClient.tables().get(options.getProject(), DATASET_NAME, tableName).execute();
 
-    Assert.assertEquals(table.getClustering(), getClustering());
+    Assert.assertEquals(table.getClustering(), CLUSTERING);
   }
 
-  private TableSchema getSchema() {
-    List<TableFieldSchema> fields = new ArrayList<>();
-    fields.add(new TableFieldSchema().setName("station_number").setType("INTEGER"));
-    fields.add(new TableFieldSchema().setName("date").setType("DATE"));
-    return new TableSchema().setFields(fields);
-  }
-
-  private TimePartitioning getTimepartitioning() {
-    return new TimePartitioning().setField("date").setType("DAY");
-  }
-
-  private Clustering getClustering() {
-    return new Clustering().setFields(Arrays.asList("station_number"));
-  }
 }
