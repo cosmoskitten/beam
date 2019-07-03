@@ -1376,32 +1376,24 @@ class _SDFBoundedSourceWrapper(ptransform.PTransform):
     def try_split(self, fraction_of_remainder):
       consumed_fraction = self._delegate_range_tracker.fraction_consumed()
       fraction = (consumed_fraction +
-                  (1 - consumed_fraction) * (1 - fraction_of_remainder))
+                  (1 - consumed_fraction) * fraction_of_remainder)
       position = self._delegate_range_tracker.position_at_fraction(fraction)
       # Need to stash current stop_pos before splitting since
       # range_tracker.split will update its stop_pos if splits
       # successfully.
       start_pos = self.start_pos()
       stop_pos = self.stop_pos()
-      # Get a copy of range_tracker before split for calculating source weight
-      # after split.
-      range_tracker_before_split = self._source.get_range_tracker(start_pos,
-                                                                  stop_pos)
       split_result = self._delegate_range_tracker.try_split(position)
       if split_result:
-        split_pos, _ = split_result
-        if split_pos:
-          primary_fraction = range_tracker_before_split.position_at_fraction(
-              split_pos)
-          primary_weight = self._weight * primary_fraction
-          residual_weight = self._weight - primary_weight
-          # Update self._weight to primary weight
-          self._weight = primary_weight
-          return (SourceBundle(primary_weight, self._source, start_pos,
-                               split_pos),
-                  SourceBundle(residual_weight, self._source, split_pos,
-                               stop_pos))
-
+        split_pos, split_fraction = split_result
+        primary_weight = self._weight * split_fraction
+        residual_weight = self._weight - primary_weight
+        # Update self._weight to primary weight
+        self._weight = primary_weight
+        return (SourceBundle(primary_weight, self._source, start_pos,
+                             split_pos),
+                SourceBundle(residual_weight, self._source, split_pos,
+                             stop_pos))
     def deferred_status(self):
       return None
 
