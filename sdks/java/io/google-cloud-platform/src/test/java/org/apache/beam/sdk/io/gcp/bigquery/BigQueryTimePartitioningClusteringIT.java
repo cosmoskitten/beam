@@ -24,7 +24,6 @@ import com.google.api.services.bigquery.model.TableFieldSchema;
 import com.google.api.services.bigquery.model.TableRow;
 import com.google.api.services.bigquery.model.TableSchema;
 import com.google.api.services.bigquery.model.TimePartitioning;
-import com.google.common.collect.ImmutableList;
 import java.util.Arrays;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.Pipeline;
@@ -39,6 +38,7 @@ import org.apache.beam.sdk.testing.TestPipelineOptions;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.values.ValueInSingleWindow;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableList;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
@@ -51,12 +51,16 @@ public class BigQueryTimePartitioningClusteringIT {
   private static final String WEATHER_SAMPLES_TABLE =
       "clouddataflow-readonly:samples.weather_stations";
   private static final String DATASET_NAME = "BigQueryTimePartitioningIT";
-  private static final TimePartitioning TIME_PARTITIONING = new TimePartitioning().setField("date").setType("DAY");
-  private static final Clustering CLUSTERING = new Clustering().setFields(Arrays.asList("station_number"));
-  private static final TableSchema SCHEMA = new TableSchema()
-      .setFields(ImmutableList
-          .of(new TableFieldSchema().setName("station_number").setType("INTEGER"),
-              new TableFieldSchema().setName("date").setType("DATE")));
+  private static final TimePartitioning TIME_PARTITIONING =
+      new TimePartitioning().setField("date").setType("DAY");
+  private static final Clustering CLUSTERING =
+      new Clustering().setFields(Arrays.asList("station_number"));
+  private static final TableSchema SCHEMA =
+      new TableSchema()
+          .setFields(
+              ImmutableList.of(
+                  new TableFieldSchema().setName("station_number").setType("INTEGER"),
+                  new TableFieldSchema().setName("date").setType("DATE")));
 
   private Bigquery bqClient;
   private BigQueryClusteringITOptions options;
@@ -107,13 +111,9 @@ public class BigQueryTimePartitioningClusteringIT {
     }
 
     @Override
-    public TableDestination getDestination(
-        ValueInSingleWindow<TableRow> element) {
+    public TableDestination getDestination(ValueInSingleWindow<TableRow> element) {
       return new TableDestination(
-          String.format("%s.%s", DATASET_NAME, tableName),
-          null,
-          TIME_PARTITIONING,
-          CLUSTERING);
+          String.format("%s.%s", DATASET_NAME, tableName), null, TIME_PARTITIONING, CLUSTERING);
     }
 
     @Override
@@ -226,5 +226,4 @@ public class BigQueryTimePartitioningClusteringIT {
 
     Assert.assertEquals(table.getClustering(), CLUSTERING);
   }
-
 }
