@@ -173,7 +173,7 @@ class DynamicDestinationsHelpers {
     }
 
     @Override
-    public Coder<DestinationT> getDestinationCoderWithDefault(CoderRegistry registry)
+    Coder<DestinationT> getDestinationCoderWithDefault(CoderRegistry registry)
         throws CannotProvideCoderException {
       Coder<DestinationT> destinationCoder = getDestinationCoder();
       if (destinationCoder != null) {
