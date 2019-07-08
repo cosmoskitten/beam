@@ -142,11 +142,11 @@ class _MetricsEnvironment(object):
   """
   def __init__(self):
     self.METRICS_SUPPORTED = False
-    self._METRICS_SUPPORTED_LOCK = threading.Lock()
+    # self._METRICS_SUPPORTED_LOCK = threading.Lock()
 
   def set_metrics_supported(self, supported):
-    with self._METRICS_SUPPORTED_LOCK:
-      self.METRICS_SUPPORTED = supported
+    # with self._METRICS_SUPPORTED_LOCK:
+    self.METRICS_SUPPORTED = supported
 
   def current_container(self):
     """Returns the current MetricsContainer."""

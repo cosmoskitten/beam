@@ -43,6 +43,7 @@ import operator
 import os
 import sys
 import threading
+import traceback
 from builtins import hex
 from builtins import object
 from builtins import zip
@@ -696,8 +697,9 @@ class PTransformWithSideInputs(PTransform):
     # Ensure fn and side inputs are picklable for remote execution.
     try:
       self.fn = pickler.loads(pickler.dumps(self.fn))
-    except RuntimeError:
-      raise RuntimeError('Unable to pickle fn %s' % self.fn)
+    except Exception:
+      message = traceback.format_exc()
+      raise RuntimeError('Unable to pickle fn %s %s.' % (self.fn, message))
 
     self.args = pickler.loads(pickler.dumps(self.args))
     self.kwargs = pickler.loads(pickler.dumps(self.kwargs))
