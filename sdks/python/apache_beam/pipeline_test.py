@@ -568,7 +568,7 @@ class DirectRunnerRetryTests(unittest.TestCase):
     def f_c(x):
       global count_c  # pylint: disable=global-variable-undefined
       count_c += 1
-      raise Exception('exception in f_c')
+      raise Exception('exception in f_c, %s' % count_c)
 
     names = p | 'CreateNodeA' >> beam.Create(['Ann', 'Joe'])
 
@@ -577,7 +577,7 @@ class DirectRunnerRetryTests(unittest.TestCase):
 
     with self.assertRaises(Exception):
       p.run().wait_until_finish()
-    assert count_b == count_c == 4
+    assert count_b == count_c == 4, "%s, %s" %(count_b, count_c)
 
   def test_no_partial_writeouts(self):
 
