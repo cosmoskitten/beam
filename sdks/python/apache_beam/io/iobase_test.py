@@ -140,8 +140,8 @@ class SDFBoundedSourceRestrictionTrackerTest(unittest.TestCase):
 
   def test_try_split_at_remainder(self):
     fraction_of_remainder = 0.4
-    expected_primary = (0, 3, 3)
-    expected_residual = (3, 4, 1)
+    expected_primary = (0, 2, 2.0)
+    expected_residual = (2, 4, 2.0)
     self.sdf_restriction_tracker.try_claim(0)
     actual_primary, actual_residual = (
         self.sdf_restriction_tracker.try_split(fraction_of_remainder))
