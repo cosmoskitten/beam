@@ -60,7 +60,7 @@ class FileBasedSink(iobase.Sink):
 
   # Max number of threads to be used for renaming.
   _MAX_RENAME_THREADS = 64
-  __hash__ = None
+  __hash__ = None  # type: ignore
 
   def __init__(self,
                file_path_prefix,

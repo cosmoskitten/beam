@@ -53,6 +53,7 @@ import abc
 from builtins import object
 from builtins import range
 from functools import total_ordering
+import typing
 
 from future.utils import with_metaclass
 from google.protobuf import duration_pb2
@@ -118,13 +119,18 @@ class WindowFn(with_metaclass(abc.ABCMeta, urns.RunnerApiFn)):
   class AssignContext(object):
     """Context passed to WindowFn.assign()."""
 
-    def __init__(self, timestamp, element=None, window=None):
+    def __init__(self,
+                 timestamp,  # type: typing.Union[int, float, Timestamp]
+                 element=None,
+                 window=None
+                 ):
       self.timestamp = Timestamp.of(timestamp)
       self.element = element
       self.window = window
 
   @abc.abstractmethod
   def assign(self, assign_context):
+    # type: (AssignContext) -> typing.Iterable[BoundedWindow]
     """Associates windows to an element.
 
     Arguments:
@@ -146,6 +152,7 @@ class WindowFn(with_metaclass(abc.ABCMeta, urns.RunnerApiFn)):
 
   @abc.abstractmethod
   def merge(self, merge_context):
+    # type: (WindowFn.MergeContext) -> None
     """Returns a window that is the result of merging a set of windows."""
     raise NotImplementedError
 
@@ -187,6 +194,7 @@ class BoundedWindow(object):
   """
 
   def __init__(self, end):
+    # type: (typing.Union[int, float, Timestamp]) -> None
     self.end = Timestamp.of(end)
 
   def max_timestamp(self):
@@ -257,6 +265,7 @@ class TimestampedValue(object):
   """
 
   def __init__(self, value, timestamp):
+    # type: (typing.Any, typing.Union[int, float, Timestamp]) -> None
     self.value = value
     self.timestamp = Timestamp.of(timestamp)
 
@@ -318,6 +327,7 @@ class NonMergingWindowFn(WindowFn):
     return False
 
   def merge(self, merge_context):
+    # type: (WindowFn.MergeContext) -> None
     pass  # No merging.
 
 
@@ -366,7 +376,10 @@ class FixedWindows(NonMergingWindowFn):
       in range [0, size). If it is not it will be normalized to this range.
   """
 
-  def __init__(self, size, offset=0):
+  def __init__(self,
+               size,  # type: typing.Union[int, float, Duration]
+               offset=0  # type: typing.Union[int, float, Timestamp]
+               ):
     if size <= 0:
       raise ValueError('The size parameter must be strictly positive.')
     self.size = Duration.of(size)
@@ -422,7 +435,11 @@ class SlidingWindows(NonMergingWindowFn):
       in range [0, period). If it is not it will be normalized to this range.
   """
 
-  def __init__(self, size, period, offset=0):
+  def __init__(self,
+               size,  # type: typing.Union[int, float, Duration]
+               period,  # type: typing.Union[int, float, Duration]
+               offset=0  # type: typing.Union[int, float, Timestamp]
+               ):
     if size <= 0:
       raise ValueError('The size parameter must be strictly positive.')
     self.size = Duration.of(size)
@@ -483,6 +500,7 @@ class Sessions(WindowFn):
   """
 
   def __init__(self, gap_size):
+    # type: (typing.Union[int, float, Duration]) -> None
     if gap_size <= 0:
       raise ValueError('The size parameter must be strictly positive.')
     self.gap_size = Duration.of(gap_size)
@@ -495,6 +513,7 @@ class Sessions(WindowFn):
     return coders.IntervalWindowCoder()
 
   def merge(self, merge_context):
+    # type: (WindowFn.MergeContext) -> None
     to_merge = []
     end = MIN_TIMESTAMP
     for w in sorted(merge_context.windows, key=lambda w: w.start):

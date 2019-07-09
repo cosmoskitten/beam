@@ -35,7 +35,7 @@ from apache_beam.testing.util import equal_to
 
 class RangeSource(iobase.BoundedSource):
 
-  __hash__ = None
+  __hash__ = None  # type: ignore
 
   def __init__(self, start, end, split_freq=1):
     assert start <= end

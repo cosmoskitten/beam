@@ -26,6 +26,7 @@ from __future__ import division
 import datetime
 import functools
 import re
+import typing
 from builtins import object
 
 import pytz
@@ -57,6 +58,7 @@ class Timestamp(object):
 
   @staticmethod
   def of(seconds):
+    # type: (typing.Union[int, float, Timestamp]) -> Timestamp
     """Return the Timestamp for the given number of seconds.
 
     If the input is already a Timestamp, the input itself will be returned.
@@ -149,6 +151,7 @@ class Timestamp(object):
     return self.micros // 1000000
 
   def __eq__(self, other):
+    # type: (typing.Union[int, float, Timestamp, Duration]) -> bool
     # Allow comparisons between Duration and Timestamp values.
     if not isinstance(other, Duration):
       other = Timestamp.of(other)
@@ -159,6 +162,7 @@ class Timestamp(object):
     return not self == other
 
   def __lt__(self, other):
+    # type: (typing.Union[int, float, Timestamp, Duration]) -> bool
     # Allow comparisons between Duration and Timestamp values.
     if not isinstance(other, Duration):
       other = Timestamp.of(other)
@@ -168,6 +172,7 @@ class Timestamp(object):
     return hash(self.micros)
 
   def __add__(self, other):
+    # type: (typing.Union[int, float, Duration]) -> Timestamp
     other = Duration.of(other)
     return Timestamp(micros=self.micros + other.micros)
 
@@ -175,10 +180,12 @@ class Timestamp(object):
     return self + other
 
   def __sub__(self, other):
+    # type: (typing.Union[int, float, Duration]) -> Timestamp
     other = Duration.of(other)
     return Timestamp(micros=self.micros - other.micros)
 
   def __mod__(self, other):
+    # type: (typing.Union[int, float, Duration]) -> Duration
     other = Duration.of(other)
     return Duration(micros=self.micros % other.micros)
 
@@ -206,6 +213,7 @@ class Duration(object):
 
   @staticmethod
   def of(seconds):
+    # type: (typing.Union[int, float, Duration]) -> Duration
     """Return the Duration for the given number of seconds since Unix epoch.
 
     If the input is already a Duration, the input itself will be returned.
@@ -259,9 +267,11 @@ class Duration(object):
     return hash(self.micros)
 
   def __neg__(self):
+    # type: () -> Duration
     return Duration(micros=-self.micros)
 
   def __add__(self, other):
+    # type: (typing.Union[int, float, Timestamp, Duration]) -> Duration
     if isinstance(other, Timestamp):
       return other + self
     other = Duration.of(other)
@@ -271,6 +281,7 @@ class Duration(object):
     return self + other
 
   def __sub__(self, other):
+    # type: (typing.Union[int, float, Duration]) -> Duration
     other = Duration.of(other)
     return Duration(micros=self.micros - other.micros)
 
@@ -278,6 +289,7 @@ class Duration(object):
     return -(self - other)
 
   def __mul__(self, other):
+    # type: (typing.Union[int, float, Duration]) -> Duration
     other = Duration.of(other)
     return Duration(micros=self.micros * other.micros // 1000000)
 
@@ -285,6 +297,7 @@ class Duration(object):
     return self * other
 
   def __mod__(self, other):
+    # type: (typing.Union[int, float, Duration]) -> Duration
     other = Duration.of(other)
     return Duration(micros=self.micros % other.micros)
 

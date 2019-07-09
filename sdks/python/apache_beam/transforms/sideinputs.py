@@ -27,8 +27,11 @@ AsSingleton, AsIter, AsList and AsDict in apache_beam.pvalue.
 from __future__ import absolute_import
 
 from builtins import object
+import typing
 
 from apache_beam.transforms import window
+
+T = typing.TypeVar('T')
 
 
 # Top-level function so we can identify it later.
@@ -66,18 +69,21 @@ class SideInputMap(object):
     return self._cache[window]
 
   def is_globally_windowed(self):
+    # type: () -> bool
     return self._window_mapping_fn == _global_window_mapping_fn
 
 
-class _FilteringIterable(object):
+class _FilteringIterable(typing.Generic[T]):
   """An iterable containing only those values in the given window.
   """
 
   def __init__(self, iterable, target_window):
+    # type: (typing.Iterable[T], typing.Any) -> None
     self._iterable = iterable
     self._target_window = target_window
 
   def __iter__(self):
+    # type: () -> typing.Iterator[T]
     for wv in self._iterable:
       if self._target_window in wv.windows:
         yield wv.value

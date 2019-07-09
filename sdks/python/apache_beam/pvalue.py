@@ -44,7 +44,8 @@ from apache_beam.portability.api import beam_runner_api_pb2
 
 if typing.TYPE_CHECKING:
     from apache_beam.transforms import ptransform
-    from apache_beam import pipeline
+    from apache_beam.transforms.core import Windowing
+    from apache_beam.pipeline import Pipeline, AppliedPTransform
 
 __all__ = [
     'PCollection',
@@ -72,8 +73,12 @@ class PValue(typing.Generic[T]):
     (3) Has a value which is meaningful if the transform was executed.
   """
 
-  def __init__(self, pipeline, tag=None, element_type=None, windowing=None):
-    # type: (pipeline.Pipeline, typing.Any, typing.Any, typing.Any) -> None
+  def __init__(self,
+               pipeline,  # type: Pipeline
+               tag=None,  # type: typing.Optional[str]
+               element_type=None,
+               windowing=None  # type: typing.Optional[Windowing]
+               ):
     """Initializes a PValue with all arguments hidden behind keyword arguments.
 
     Args:
@@ -87,7 +92,7 @@ class PValue(typing.Generic[T]):
     # The AppliedPTransform instance for the application of the PTransform
     # generating this PValue. The field gets initialized when a transform
     # gets applied.
-    self.producer = None
+    self.producer = None  # type: typing.Optional[AppliedPTransform]
     if windowing:
       self._windowing = windowing
 
@@ -210,9 +215,9 @@ class DoOutputsTuple(object):
     # The ApplyPTransform instance for the application of the multi FlatMap
     # generating this value. The field gets initialized when a transform
     # gets applied.
-    self.producer = None
+    self.producer = None  # type: typing.Optional[AppliedPTransform]
     # Dictionary of PCollections already associated with tags.
-    self._pcolls = {}
+    self._pcolls = {}  # type: typing.Dict[str, PCollection]
 
   def __str__(self):
     return '<%s>' % self._str_internal()
@@ -284,6 +289,7 @@ class TaggedOutput(object):
   """
 
   def __init__(self, tag, value):
+    # type: (str, typing.Any) -> None
     if not isinstance(tag, (str, unicode)):
       raise TypeError(
           'Attempting to create a TaggedOutput with non-string tag %s' % (tag,))
@@ -303,6 +309,7 @@ class AsSideInput(object):
   """
 
   def __init__(self, pcoll):
+    # type: (PCollection) -> None
     from apache_beam.transforms import sideinputs
     self.pvalue = pcoll
     self._window_mapping_fn = sideinputs.default_window_mapping_fn(
@@ -418,6 +425,7 @@ class AsSingleton(AsSideInput):
   _NO_DEFAULT = object()
 
   def __init__(self, pcoll, default_value=_NO_DEFAULT):
+    # type: (PCollection, typing.Any) -> None
     super(AsSingleton, self).__init__(pcoll)
     self.default_value = default_value
 
