@@ -21,6 +21,7 @@ import static org.apache.beam.runners.core.metrics.MetricsContainerStepMap.asAtt
 
 import java.util.Collections;
 import java.util.Map;
+import org.apache.beam.model.jobmanagement.v1.JobApi;
 import org.apache.beam.runners.core.metrics.MetricsContainerStepMap;
 import org.apache.beam.runners.flink.metrics.FlinkMetricContainer;
 import org.apache.beam.sdk.PipelineResult;
@@ -78,5 +79,11 @@ public class FlinkRunnerResult implements PipelineResult {
 
   MetricsContainerStepMap getMetricsContainerStepMap() {
     return (MetricsContainerStepMap) accumulators.get(FlinkMetricContainer.ACCUMULATOR_NAME);
+  }
+
+  @Override
+  public JobApi.MetricResults portableMetrics() {
+    return JobApi.MetricResults.newBuilder()
+        .addAllAttempted(getMetricsContainerStepMap().getMonitoringInfos()).build();
   }
 }
