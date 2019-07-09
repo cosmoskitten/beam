@@ -361,7 +361,9 @@ class PortableRunner(runner.PipelineRunner):
 
 
 class PortableMetrics(metrics.metric.MetricResults):
-  def __init__(self):
+
+  def __init__(self, job_metrics_response):
+    # TODO(lgajowy): Convert MonitoringInfos to MetricResults and allow querying them
     pass
 
   def query(self, filter=None):
@@ -381,6 +383,7 @@ class PipelineResult(runner.PipelineResult):
     self._message_stream = message_stream
     self._state_stream = state_stream
     self._cleanup_callbacks = cleanup_callbacks
+    self._metrics = None
 
   def cancel(self):
     try:
@@ -406,7 +409,13 @@ class PipelineResult(runner.PipelineResult):
     return beam_job_api_pb2.JobState.Enum.Value(pipeline_state)
 
   def metrics(self):
-    return PortableMetrics()
+    if not self._metrics:
+
+      job_metrics_response = self._job_service.GetJobMetrics(
+        beam_job_api_pb2.GetJobMetricsRequest(job_id=self._job_id))
+
+      self._metrics = PortableMetrics(job_metrics_response)
+    return self._metrics
 
   def _last_error_message(self):
     # Filter only messages with the "message_response" and error messages.
