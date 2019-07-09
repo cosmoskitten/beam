@@ -30,6 +30,7 @@ import javax.annotation.Nullable;
 import org.apache.beam.model.jobmanagement.v1.JobApi.JobMessage;
 import org.apache.beam.model.jobmanagement.v1.JobApi.JobState;
 import org.apache.beam.model.jobmanagement.v1.JobApi.JobState.Enum;
+import org.apache.beam.model.jobmanagement.v1.JobApi.MetricResults;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.model.pipeline.v1.RunnerApi.Pipeline;
 import org.apache.beam.runners.fnexecution.provisioning.JobInfo;
@@ -53,6 +54,7 @@ public class JobInvocation {
   private List<Consumer<Enum>> stateObservers;
   private List<Consumer<JobMessage>> messageObservers;
   private JobState.Enum jobState;
+  private MetricResults metrics;
   @Nullable private ListenableFuture<PipelineResult> invocationFuture;
 
   public JobInvocation(
@@ -93,6 +95,7 @@ public class JobInvocation {
               switch (pipelineResult.getState()) {
                 case DONE:
                   setState(Enum.DONE);
+                  metrics = pipelineResult.portableMetrics();
                   break;
                 case RUNNING:
                   setState(Enum.RUNNING);
@@ -155,6 +158,7 @@ public class JobInvocation {
               if (pipelineResult != null
                   && pipelineResult.getState() != PipelineResult.State.DONE) {
                 try {
+                  metrics = pipelineResult.portableMetrics();
                   pipelineResult.cancel();
                   setState(JobState.Enum.CANCELLED);
                 } catch (IOException exn) {
@@ -173,6 +177,10 @@ public class JobInvocation {
   /** Retrieve the job's current state. */
   public JobState.Enum getState() {
     return this.jobState;
+  }
+
+  public MetricResults getMetrics() {
+    return metrics;
   }
 
   /** Listen for job state changes with a {@link Consumer}. */

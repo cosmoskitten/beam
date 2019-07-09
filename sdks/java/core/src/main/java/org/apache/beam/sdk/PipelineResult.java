@@ -18,6 +18,7 @@
 package org.apache.beam.sdk;
 
 import java.io.IOException;
+import org.apache.beam.model.jobmanagement.v1.JobApi;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.metrics.MetricResults;
@@ -123,4 +124,8 @@ public interface PipelineResult {
    */
   @Experimental(Kind.METRICS)
   MetricResults metrics();
+
+  default JobApi.MetricResults portableMetrics() {
+    throw new UnsupportedOperationException("Collecting monitoring infos not implemented.");
+  }
 }
