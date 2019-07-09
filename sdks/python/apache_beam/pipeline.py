@@ -72,7 +72,6 @@ from apache_beam.pvalue import PDone
 from apache_beam.runners import PipelineRunner
 from apache_beam.runners import create_runner
 from apache_beam.transforms import ptransform
-#from apache_beam.transforms import external
 from apache_beam.typehints import TypeCheckError
 from apache_beam.typehints import typehints
 from apache_beam.utils.annotations import deprecated
@@ -856,9 +855,9 @@ class AppliedPTransform(object):
             if isinstance(output, pvalue.PCollection)}
 
   def to_runner_api(self, context):
-    # External tranforms require more splicing than just setting the spec.
-    from apache_beam.transforms import external
-    if isinstance(self.transform, external.ExternalTransform):
+    # External transforms require more splicing than just setting the spec.
+    from apache_beam.transforms.external import ExternalTransform
+    if isinstance(self.transform, ExternalTransform):
       return self.transform.to_runner_api_transform(context, self.full_label)
 
     from apache_beam.portability.api import beam_runner_api_pb2
