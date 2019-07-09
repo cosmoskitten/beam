@@ -68,7 +68,11 @@ from apache_beam.typehints.trivial_inference import instance_to_type
 from apache_beam.typehints.typehints import validate_composite_type_param
 from apache_beam.utils import proto_utils
 
-from typing import overload, Any, Tuple, TypeVar
+from typing import overload
+
+if typing.TYPE_CHECKING:
+  from apache_beam.pipeline import Pipeline
+  from apache_beam.transforms.core import Windowing
 
 __all__ = [
     'PTransform',
@@ -76,8 +80,8 @@ __all__ = [
     'label_from_callable',
     ]
 
-PTransformT = TypeVar('PTransformT', bound='PTransform')
-T = TypeVar('T')
+PTransformT = typing.TypeVar('PTransformT', bound='PTransform')
+T = typing.TypeVar('T')
 
 
 class _PValueishTransform(object):
@@ -315,28 +319,32 @@ class PTransform(WithTypeHints[InT, OutT], HasDisplayData):
   side_inputs = ()
 
   # Used for nullary transforms.
-  pipeline = None
+  pipeline = None  # type: typing.Optional[Pipeline]
 
   # Default is unset.
-  _user_label = None
+  _user_label = None  # type: typing.Optional[str]
 
   def __init__(self, label=None):
+    # type: (typing.Optional[str]) -> None
     super(PTransform, self).__init__()
     self.label = label
 
   @property
   def label(self):
+    # type: () -> str
     return self._user_label or self.default_label()
 
   @label.setter
   def label(self, value):
+    # type: (str) -> None
     self._user_label = value
 
   def default_label(self):
+    # type: () -> str
     return self.__class__.__name__
 
   def with_input_types(self, input_type_hint):
-    # type: (PTransformT, Any) -> PTransformT
+    # type: (PTransformT, typing.Any) -> PTransformT
     """Annotates the input type of a :class:`PTransform` with a type-hint.
 
     Args:
@@ -360,7 +368,7 @@ class PTransform(WithTypeHints[InT, OutT], HasDisplayData):
     return super(PTransform, self).with_input_types(input_type_hint)
 
   def with_output_types(self, type_hint):
-    # type: (PTransformT, Any) -> PTransformT
+    # type: (PTransformT, typing.Any) -> PTransformT
     """Annotates the output type of a :class:`PTransform` with a type-hint.
 
     Args:
@@ -466,6 +474,7 @@ class PTransform(WithTypeHints[InT, OutT], HasDisplayData):
       raise error.TransformError('PCollection not part of a pipeline.')
 
   def get_windowing(self, inputs):
+    # type: (typing.Any) -> Windowing
     """Returns the window function to be associated with transform's output.
 
     By default most transforms just return the windowing function associated
@@ -531,12 +540,12 @@ class PTransform(WithTypeHints[InT, OutT], HasDisplayData):
 
   @overload
   def _extract_input_pvalues(self, pvalueish):
-    # type: (pipeline.Pipeline) -> Tuple[pvalue.PBegin, Tuple]
+    # type: (pipeline.Pipeline) -> typing.Tuple[pvalue.PBegin, typing.Tuple]
     pass
 
   @overload
   def _extract_input_pvalues(self, pvalueish):
-    # type: (T) -> Tuple[T, Tuple]
+    # type: (T) -> typing.Tuple[T, typing.Tuple]
     pass
 
   def _extract_input_pvalues(self, pvalueish):

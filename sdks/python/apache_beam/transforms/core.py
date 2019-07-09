@@ -68,6 +68,10 @@ from apache_beam.typehints.trivial_inference import element_type
 from apache_beam.typehints.typehints import is_consistent_with
 from apache_beam.utils import urns
 
+if typing.TYPE_CHECKING:
+    from apache_beam.pipeline import Pipeline
+    from apache_beam.transforms import create_source
+
 __all__ = [
     'DoFn',
     'CombineFn',
@@ -595,7 +599,7 @@ class CallableWrapperDoFn(DoFn[InT, OutT]):
   """
 
   def __init__(self, fn):
-    # type: (typing.Callable[[InT], OutT]) -> None
+    # type: (typing.Callable[[InT], typing.Iterable[OutT]]) -> None
     """Initializes a CallableWrapperDoFn object wrapping a callable.
 
     Args:
@@ -1329,7 +1333,9 @@ def Map(fn,  # type: typing.Callable[[InT], OutT]
   return pardo
 
 
-def Filter(fn, *args, **kwargs):  # pylint: disable=invalid-name
+def Filter(fn,  # type: typing.Callable[[InT], bool]
+           *args, **kwargs):  # pylint: disable=invalid-name
+  # type: (...) -> ParDo[InT, InT]
   """:func:`Filter` is a :func:`FlatMap` with its callable filtering out
   elements.
 
@@ -1820,7 +1826,6 @@ class GroupByKey(PTransform[typing.Tuple[K_, V_],
 
     def process(self, element, window=DoFn.WindowParam,
                 timestamp=DoFn.TimestampParam):
-      # type: (typing.Tuple[K_, V_], Any, Any) -> typing.List[typing.Tuple[K_, V_]]
       try:
         k, v = element
       except TypeError:
@@ -2119,6 +2124,7 @@ class WindowInto(ParDo):
     super(WindowInto, self).__init__(self.WindowIntoFn(self.windowing))
 
   def get_windowing(self, unused_inputs):
+    # type: (typing.Any) -> Windowing
     return self.windowing
 
   def infer_output_type(self, input_type):
@@ -2180,7 +2186,7 @@ class Flatten(PTransform[InT, OutT]):
 
   def __init__(self, **kwargs):
     super(Flatten, self).__init__()
-    self.pipeline = kwargs.pop('pipeline', None)
+    self.pipeline = kwargs.pop('pipeline', None)  # type: typing.Optional[Pipeline]
     if kwargs:
       raise ValueError('Unexpected keyword arguments: %s' % list(kwargs))
 
@@ -2203,6 +2209,7 @@ class Flatten(PTransform[InT, OutT]):
     return result
 
   def get_windowing(self, inputs):
+    # type: (typing.Any) -> Windowing
     if not inputs:
       # TODO(robertwb): Return something compatible with every windowing?
       return Windowing(GlobalWindows())
@@ -2290,6 +2297,7 @@ class Create(PTransform[None, T_]):
               | iobase.Read(source).with_output_types(self.get_output_type()))
 
   def get_windowing(self, unused_inputs):
+    # type: (typing.Any) -> Windowing
     return Windowing(GlobalWindows())
 
   @staticmethod
@@ -2315,6 +2323,7 @@ class Impulse(PTransform[None, None]):
     return pvalue.PCollection(pbegin.pipeline)
 
   def get_windowing(self, inputs):
+    # type: (typing.Any) -> Windowing
     return Windowing(GlobalWindows())
 
   def infer_output_type(self, unused_input_type):

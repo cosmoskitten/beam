@@ -217,10 +217,12 @@ class Top(object):
       self._py2__init__(n, None, **kwargs)
 
     # Python 3 sort does not accept a comparison operator, and nor do we.
+    # FIXME: mypy would handle this better if we placed the _py*__init__ funcs
+    #  inside the if/else block below:
     if sys.version_info[0] < 3:
-      __init__ = _py2__init__
+      __init__ = _py2__init__  # type: ignore
     else:
-      __init__ = _py3__init__
+      __init__ = _py3__init__  # type: ignore
 
     def default_label(self):
       return 'Top(%d)' % self._n

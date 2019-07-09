@@ -26,10 +26,14 @@ import itertools
 import types
 from builtins import object
 
+import typing
+
 from apache_beam.coders import Coder
 from apache_beam.coders import coders
 from apache_beam.portability.api import beam_runner_api_pb2
 from apache_beam.transforms.timeutil import TimeDomain
+
+CallableT = typing.TypeVar('CallableT', bound=typing.Callable)
 
 
 class StateSpec(object):
@@ -129,6 +133,7 @@ class TimerSpec(object):
 
 
 def on_timer(timer_spec):
+  # type: (TimerSpec) -> typing.Callable[[CallableT], CallableT]
   """Decorator for timer firing DoFn method.
 
   This decorator allows a user to specify an on_timer processing method
@@ -253,6 +258,7 @@ class RuntimeState(object):
   """State interface object passed to user code."""
 
   def __init__(self, state_spec, state_tag, current_value_accessor):
+    # type: (StateSpec, typing.Any, typing.Callable[[], typing.Any]) -> None
     self._state_spec = state_spec
     self._state_tag = state_tag
     self._current_value_accessor = current_value_accessor
@@ -286,6 +292,7 @@ class BagRuntimeState(RuntimeState):
   """Bag state interface object passed to user code."""
 
   def __init__(self, state_spec, state_tag, current_value_accessor):
+    # type: (BagStateSpec, typing.Any, typing.Callable[[], typing.Any]) -> None
     super(BagRuntimeState, self).__init__(
         state_spec, state_tag, current_value_accessor)
     self._cached_value = UNREAD_VALUE
@@ -314,6 +321,7 @@ class CombiningValueRuntimeState(RuntimeState):
   """Combining value state interface object passed to user code."""
 
   def __init__(self, state_spec, state_tag, current_value_accessor):
+    # type: (CombiningValueStateSpec, typing.Any, typing.Callable[[], typing.Any]) -> None
     super(CombiningValueRuntimeState, self).__init__(
         state_spec, state_tag, current_value_accessor)
     self._current_accumulator = UNREAD_VALUE
