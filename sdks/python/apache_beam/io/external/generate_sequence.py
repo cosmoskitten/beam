@@ -23,8 +23,10 @@ from apache_beam.coders import VarIntCoder
 from apache_beam.portability.api.external_transforms_pb2 import ConfigValue
 from apache_beam.portability.api.external_transforms_pb2 import ExternalConfigurationPayload
 from apache_beam.transforms import ptransform
+from apache_beam.utils.annotations import experimental
 
 
+@experimental()
 class GenerateSequence(ptransform.PTransform):
   """
     An external PTransform which provides a bounded or unbounded stream of

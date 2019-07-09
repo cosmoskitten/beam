@@ -30,6 +30,7 @@ from apache_beam.portability.api import beam_expansion_api_pb2
 from apache_beam.portability.api import beam_runner_api_pb2
 from apache_beam.runners import pipeline_context
 from apache_beam.transforms import ptransform
+from apache_beam.utils.annotations import experimental
 
 # Protect against environments where grpc is not available.
 # pylint: disable=wrong-import-order, wrong-import-position, ungrouped-imports
@@ -41,6 +42,7 @@ except ImportError:
 # pylint: enable=wrong-import-order, wrong-import-position, ungrouped-imports
 
 
+@experimental()
 class ExternalTransform(ptransform.PTransform):
 
   _namespace_counter = 0

@@ -46,8 +46,10 @@ from apache_beam.coders.coders import LengthPrefixCoder
 from apache_beam.portability.api.external_transforms_pb2 import ConfigValue
 from apache_beam.portability.api.external_transforms_pb2 import ExternalConfigurationPayload
 from apache_beam.transforms import ptransform
+from apache_beam.utils.annotations import experimental
 
 
+@experimental()
 class ReadFromKafka(ptransform.PTransform):
   """
     An external PTransform which reads from Kafka and returns a KV pair for
@@ -117,6 +119,7 @@ class ReadFromKafka(ptransform.PTransform):
             self.expansion_service))
 
 
+@experimental()
 class WriteToKafka(ptransform.PTransform):
   """
     An external PTransform which writes KV data to a specified Kafka topic.
