@@ -658,7 +658,7 @@ class CallableWrapperDoFn(DoFn[InT, OutT]):
     return getfullargspec(self._process_argspec_fn())
 
 
-class CombineFn(WithTypeHints, HasDisplayData, urns.RunnerApiFn):
+class CombineFn(WithTypeHints[T, T], HasDisplayData, urns.RunnerApiFn):
   """A function object used by a Combine transform with custom processing.
 
   A CombineFn specifies how multiple values in all or part of a PCollection can
@@ -836,7 +836,7 @@ class _ReiterableChain(object):
     return False
 
 
-class CallableWrapperCombineFn(CombineFn):
+class CallableWrapperCombineFn(CombineFn[T, T]):
   """For internal use only; no backwards-compatibility guarantees.
 
   A CombineFn (function) object wrapping a callable object.
@@ -847,6 +847,7 @@ class CallableWrapperCombineFn(CombineFn):
   _DEFAULT_BUFFER_SIZE = 10
 
   def __init__(self, fn, buffer_size=_DEFAULT_BUFFER_SIZE):
+    # type: (typing.Callable[[typing.Iterable[T]], T], int) -> None
     """Initializes a CallableFn object wrapping a callable.
 
     Args:
@@ -977,7 +978,7 @@ class NoSideInputsCallableWrapperCombineFn(CallableWrapperCombineFn):
     return self._fn(accumulator)
 
 
-class PartitionFn(WithTypeHints):
+class PartitionFn(WithTypeHints[T_, T_], typing.Generic[T_]):
   """A function object used by a Partition transform.
 
   A PartitionFn specifies how individual values in a PCollection will be placed
@@ -988,6 +989,7 @@ class PartitionFn(WithTypeHints):
     return self.__class__.__name__
 
   def partition_for(self, element, num_partitions, *args, **kwargs):
+    # type: (T_, int, *typing.Any, **typing.Any) -> int
     """Specify which partition will receive this element.
 
     Args:
@@ -1011,6 +1013,7 @@ class CallableWrapperPartitionFn(PartitionFn):
   """
 
   def __init__(self, fn):
+    # type: (typing.Callable[[T_, int], int]) -> None
     """Initializes a PartitionFn object wrapping a callable.
 
     Args:
@@ -1027,6 +1030,7 @@ class CallableWrapperPartitionFn(PartitionFn):
     self._fn = fn
 
   def partition_for(self, element, num_partitions, *args, **kwargs):
+    # type: (T_, int, *typing.Any, **typing.Any) -> int
     return self._fn(element, num_partitions, *args, **kwargs)
 
 
@@ -1067,7 +1071,7 @@ class ParDo(PTransformWithSideInputs[InT, OutT]):
     super(ParDo, self).__init__(fn, *args, **kwargs)
     # TODO(robertwb): Change all uses of the dofn attribute to use fn instead.
     self.dofn = self.fn
-    self.output_tags = set()
+    self.output_tags = set()  # type: typing.Set[str]
 
     if not isinstance(self.fn, DoFn):
       raise TypeError('ParDo must be called with a DoFn instance.')
@@ -1333,9 +1337,9 @@ def Map(fn,  # type: typing.Callable[[InT], OutT]
   return pardo
 
 
-def Filter(fn,  # type: typing.Callable[[InT], bool]
+def Filter(fn,  # type: typing.Callable[[T], bool]
            *args, **kwargs):  # pylint: disable=invalid-name
-  # type: (...) -> ParDo[InT, InT]
+  # type: (...) -> ParDo[T, T]
   """:func:`Filter` is a :func:`FlatMap` with its callable filtering out
   elements.
 
@@ -1677,12 +1681,17 @@ class CombineValues(PTransformWithSideInputs):
 class CombineValuesDoFn(DoFn):
   """DoFn for performing per-key Combine transforms."""
 
-  def __init__(self, input_pcoll_type, combinefn, runtime_type_check):
+  def __init__(self,
+               input_pcoll_type,
+               combinefn,  # type: CombineFn
+               runtime_type_check
+               ):
     super(CombineValuesDoFn, self).__init__()
     self.combinefn = combinefn
     self.runtime_type_check = runtime_type_check
 
   def process(self, element, *args, **kwargs):
+    # type: (typing.Tuple[K_, typing.Iterable[V_]], *typing.Any, **typing.Any) -> typing.List[typing.Tuple[K_, V_]]
     # Expected elements input to this DoFn are 2-tuples of the form
     # (key, iter), with iter an iterable of all the values associated with key
     # in the input PCollection.
@@ -1945,7 +1954,7 @@ class _GroupAlsoByWindowDoFn(DoFn):
     return self.driver.process_entire_key(k, vs)
 
 
-class Partition(PTransformWithSideInputs):
+class Partition(PTransformWithSideInputs[T_, T_]):
   """Split a PCollection into several partitions.
 
   Uses the specified PartitionFn to separate an input PCollection into the
@@ -1966,6 +1975,7 @@ class Partition(PTransformWithSideInputs):
     """A DoFn that applies a PartitionFn."""
 
     def process(self, element, partitionfn, n, *args, **kwargs):
+      # type: (T_, PartitionFn[T_], int, *typing.Any, **typing.Any) -> typing.Iterator[pvalue.TaggedOutput[T_]]
       partition = partitionfn.partition_for(element, n, *args, **kwargs)
       if not 0 <= partition < n:
         raise ValueError(
@@ -2072,7 +2082,7 @@ class Windowing(object):
 
 @typehints.with_input_types(T)
 @typehints.with_output_types(T)
-class WindowInto(ParDo):
+class WindowInto(ParDo[T_, T_]):
   """A window transform assigning windows to each element of a PCollection.
 
   Transforms an input PCollection by applying a windowing function to each
@@ -2169,7 +2179,7 @@ PTransform.register_urn(
 WindowIntoFn = WindowInto.WindowIntoFn
 
 
-class Flatten(PTransform[InT, OutT]):
+class Flatten(PTransform[typing.Tuple[pvalue.PCollection[T_], ...], T_]):
   """Merges several PCollections into a single PCollection.
 
   Copies all elements in 0 or more PCollections into a single output
@@ -2198,9 +2208,11 @@ class Flatten(PTransform[InT, OutT]):
                        'Got a value of type %s instead.' % type(pvalueish))
     return pvalueish, pvalueish
 
-  def expand(self, pcolls  # type: typing.Tuple[pvalue.PCollection[InT], ...]
+  # FIXME: what we really want here is a Union output, based on the tuple of
+  #  input types
+  def expand(self, pcolls  # type: typing.Tuple[pvalue.PCollection[T_], ...]
              ):
-    # type: (...) -> pvalue.PCollection[OutT]
+    # type: (...) -> pvalue.PCollection[T_]
     for pcoll in pcolls:
       self._check_pcollection(pcoll)
     result = pvalue.PCollection(self.pipeline)
@@ -2231,7 +2243,7 @@ class Create(PTransform[None, T_]):
   """A transform that creates a PCollection from an iterable."""
 
   def __init__(self, values, reshuffle=True):
-    # type: (Iterable[T], bool) -> None
+    # type: (Iterable[T_], bool) -> None
     """Initializes a Create transform.
 
     Args:

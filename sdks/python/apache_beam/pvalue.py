@@ -42,8 +42,8 @@ from apache_beam.portability import python_urns
 from apache_beam.portability.api import beam_runner_api_pb2
 
 if typing.TYPE_CHECKING:
-    from apache_beam.transforms import ptransform
-    from apache_beam.transforms.core import Windowing
+    from apache_beam.transforms.ptransform import PTransform
+    from apache_beam.transforms.core import Windowing, ParDo
     from apache_beam.pipeline import Pipeline, AppliedPTransform
 
 __all__ = [
@@ -58,6 +58,7 @@ __all__ = [
 
 T = typing.TypeVar('T')
 OutT = typing.TypeVar('OutT')
+InT = typing.TypeVar('InT')
 
 
 class PValue(typing.Generic[T]):
@@ -75,7 +76,7 @@ class PValue(typing.Generic[T]):
   def __init__(self,
                pipeline,  # type: Pipeline
                tag=None,  # type: typing.Optional[str]
-               element_type=None,
+               element_type=None,  # this should eventually be Optional[T]
                windowing=None  # type: typing.Optional[Windowing]
                ):
     """Initializes a PValue with all arguments hidden behind keyword arguments.
@@ -121,8 +122,9 @@ class PValue(typing.Generic[T]):
     arglist.insert(1, self)
     return self.pipeline.apply(*arglist, **kwargs)
 
+  # use InT instead of T, to preserve the TypeVar for the plugin
   def __or__(self, ptransform):
-    # type: (ptransform.PTransform[T, OutT]) -> PCollection[OutT]
+    # type: (PTransform[InT, OutT]) -> PCollection[OutT]
     return self.pipeline.apply(ptransform, self)
 
 
@@ -206,7 +208,12 @@ class PDone(PValue[None]):
 class DoOutputsTuple(object):
   """An object grouping the multiple outputs of a ParDo or FlatMap transform."""
 
-  def __init__(self, pipeline, transform, tags, main_tag):
+  def __init__(self,
+               pipeline,  # type: Pipeline
+               transform,  # type: ParDo
+               tags,  # type: typing.Sequence[str]
+               main_tag  # type: typing.Optional[str]
+               ):
     self._pipeline = pipeline
     self._tags = tags
     self._main_tag = main_tag
@@ -229,6 +236,7 @@ class DoOutputsTuple(object):
         self.__class__.__name__, self._main_tag, self._tags, self._transform)
 
   def __iter__(self):
+    # type: () -> typing.Iterator[PCollection]
     """Iterates over tags returning for each call a (tag, pvalue) pair."""
     if self._main_tag is not None:
       yield self[self._main_tag]
@@ -243,6 +251,7 @@ class DoOutputsTuple(object):
     return self[tag]
 
   def __getitem__(self, tag):
+    # type: (typing.Union[int, str]) -> PCollection
     # Accept int tags so that we can look at Partition tags with the
     # same ints that we used in the partition function.
     # TODO(gildea): Consider requiring string-based tags everywhere.
@@ -278,7 +287,7 @@ class DoOutputsTuple(object):
     return pcoll
 
 
-class TaggedOutput(object):
+class TaggedOutput(typing.Generic[T]):
   """An object representing a tagged value.
 
   ParDo, Map, and FlatMap transforms can emit values on multiple outputs which
@@ -288,7 +297,7 @@ class TaggedOutput(object):
   """
 
   def __init__(self, tag, value):
-    # type: (str, typing.Any) -> None
+    # type: (str, T) -> None
     if not isinstance(tag, (str, unicode)):
       raise TypeError(
           'Attempting to create a TaggedOutput with non-string tag %s' % (tag,))
