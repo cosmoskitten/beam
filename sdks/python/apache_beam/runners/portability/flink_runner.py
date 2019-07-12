@@ -25,7 +25,6 @@ import os
 import shutil
 
 from distutils.version import LooseVersion
-#from future.moves.urllib.request import
 from future.moves.urllib.request import urlopen, URLError
 
 from apache_beam.version import __version__ as beam_version
@@ -93,6 +92,7 @@ class FlinkJarJobServer(job_server.SubprocessJobServer):
             beam_version=beam_version)
 
   def local_jar(self, url):
+    # TODO: Verify checksum?
     if os.path.exists(url):
       return url
     else:
@@ -100,6 +100,7 @@ class FlinkJarJobServer(job_server.SubprocessJobServer):
       if not os.path.exists(cached_jar):
         if not os.path.exists(JAR_CACHE):
           os.makedirs(JAR_CACHE)
+          # TODO: Clean up this cache according to some policy.
         try:
           url_read = urlopen(url)
           with open(cached_jar + '.tmp', 'wb') as jar_write:
