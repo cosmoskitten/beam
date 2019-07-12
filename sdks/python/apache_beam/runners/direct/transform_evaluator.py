@@ -23,6 +23,7 @@ import collections
 import logging
 import random
 import time
+import typing
 from builtins import object
 
 from future.utils import iteritems
@@ -64,6 +65,12 @@ from apache_beam.utils import counters
 from apache_beam.utils.timestamp import MIN_TIMESTAMP
 from apache_beam.utils.timestamp import Timestamp
 
+if typing.TYPE_CHECKING:
+  from apache_beam.io.gcp.pubsub import _PubSubSource
+  from apache_beam.io.gcp.pubsub import PubsubMessage
+  from apache_beam.pipeline import AppliedPTransform
+  from apache_beam.runners.direct.evaluation_context import EvaluationContext
+
 
 class TransformEvaluatorRegistry(object):
   """For internal use only; no backwards-compatibility guarantees.
@@ -71,9 +78,10 @@ class TransformEvaluatorRegistry(object):
   Creates instances of TransformEvaluator for the application of a transform.
   """
 
-  _test_evaluators_overrides = {}
+  _test_evaluators_overrides = {}  # type: typing.Dict[typing.Type, _TransformEvaluator]
 
   def __init__(self, evaluation_context):
+    # type: (EvaluationContext) -> None
     assert evaluation_context
     self._evaluation_context = evaluation_context
     self._evaluators = {
@@ -199,8 +207,12 @@ class _TestStreamRootBundleProvider(RootBundleProvider):
 class _TransformEvaluator(object):
   """An evaluator of a specific application of a transform."""
 
-  def __init__(self, evaluation_context, applied_ptransform,
-               input_committed_bundle, side_inputs):
+  def __init__(self,
+               evaluation_context, # type: EvaluationContext
+               applied_ptransform,  # type: AppliedPTransform
+               input_committed_bundle,
+               side_inputs
+               ):
     self._evaluation_context = evaluation_context
     self._applied_ptransform = applied_ptransform
     self._input_committed_bundle = input_committed_bundle
@@ -279,6 +291,7 @@ class _TransformEvaluator(object):
     raise NotImplementedError('%s do not process elements.' % type(self))
 
   def finish_bundle(self):
+    # type: () -> TransformResult
     """Finishes the bundle and produces output."""
     pass
 
@@ -424,7 +437,7 @@ class _PubSubReadEvaluator(_TransformEvaluator):
         evaluation_context, applied_ptransform, input_committed_bundle,
         side_inputs)
 
-    self.source = self._applied_ptransform.transform._source
+    self.source = self._applied_ptransform.transform._source  # type: _PubSubSource
     if self.source.id_label:
       raise NotImplementedError(
           'DirectRunner: id_label is not supported for PubSub reads')
@@ -446,6 +459,7 @@ class _PubSubReadEvaluator(_TransformEvaluator):
     pass
 
   def _read_from_pubsub(self, timestamp_attribute):
+    # type: (...) -> typing.List[typing.Tuple[Timestamp, PubsubMessage]]
     from apache_beam.io.gcp.pubsub import PubsubMessage
     from google.cloud import pubsub
     # Because of the AutoAck, we are not able to reread messages if this
@@ -482,6 +496,7 @@ class _PubSubReadEvaluator(_TransformEvaluator):
     return results
 
   def finish_bundle(self):
+    # type: () -> TransformResult
     data = self._read_from_pubsub(self.source.timestamp_attribute)
     if data:
       output_pcollection = list(self._outputs)[0]

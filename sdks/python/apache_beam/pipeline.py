@@ -52,6 +52,7 @@ import os
 import re
 import shutil
 import tempfile
+import typing
 from builtins import object
 from builtins import zip
 
@@ -730,7 +731,12 @@ class AppliedPTransform(object):
   (used internally by Pipeline for bookeeping purposes).
   """
 
-  def __init__(self, parent, transform, full_label, inputs):
+  def __init__(self,
+               parent,
+               transform,  # type: ptransform.PTransform
+               full_label,
+               inputs
+               ):
     self.parent = parent
     self.transform = transform
     # Note that we want the PipelineVisitor classes to use the full_label,
@@ -741,7 +747,7 @@ class AppliedPTransform(object):
     self.full_label = full_label
     self.inputs = inputs or ()
     self.side_inputs = () if transform is None else tuple(transform.side_inputs)
-    self.outputs = {}
+    self.outputs = {}  # type: typing.Dict[str, pvalue.PValue]
     self.parts = []
 
   def __repr__(self):
@@ -762,7 +768,11 @@ class AppliedPTransform(object):
     else:
       raise TypeError("Unexpected output type: %s" % output)
 
-  def add_output(self, output, tag=None):
+  def add_output(self,
+                 output,  # type: typing.Union[pvalue.DoOutputsTuple, pvalue.PValue]
+                 tag=None  # type: typing.Optional[str]
+                 ):
+    # type: (...) -> None
     if isinstance(output, pvalue.DoOutputsTuple):
       self.add_output(output[output._main_tag])
     elif isinstance(output, pvalue.PValue):

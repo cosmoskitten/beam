@@ -24,12 +24,14 @@ import os
 import shelve
 import shutil
 import tempfile
+import typing
 from builtins import object
 
 __all__ = ['PipelineRunner', 'PipelineState', 'PipelineResult']
 
 
 def _get_runner_map(runner_names, module_path):
+  # type: (typing.Iterable[str], str) -> typing.Dict[str, str]
   """Create a map of runner name in lower case to full import path to the
   runner class.
   """

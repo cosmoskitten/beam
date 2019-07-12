@@ -494,49 +494,50 @@ class PTransform(WithTypeHints[InT, OutT], HasDisplayData):
       return _ChainedPTransform(self, right)
     return NotImplemented
 
-  def __ror__(self, left, label=None):
-    # type: (typing.Any, typing.Optional[str]) -> pvalue.PCollection[OutT]
-    """Used to apply this PTransform to non-PValues, e.g., a tuple."""
-    pvalueish, pvalues = self._extract_input_pvalues(left)
-    pipelines = [v.pipeline for v in pvalues if isinstance(v, pvalue.PValue)]
-    if pvalues and not pipelines:
-      deferred = False
-      # pylint: disable=wrong-import-order, wrong-import-position
-      from apache_beam import pipeline
-      from apache_beam.options.pipeline_options import PipelineOptions
-      # pylint: enable=wrong-import-order, wrong-import-position
-      p = pipeline.Pipeline(
-          'DirectRunner', PipelineOptions(sys.argv))
-    else:
-      if not pipelines:
-        if self.pipeline is not None:
-          p = self.pipeline
-        else:
-          raise ValueError('"%s" requires a pipeline to be specified '
-                           'as there are no deferred inputs.'% self.label)
+  if not typing.TYPE_CHECKING:
+    def __ror__(self, left, label=None):
+      # type: (typing.Any, typing.Optional[str]) -> pvalue.PCollection[OutT]
+      """Used to apply this PTransform to non-PValues, e.g., a tuple."""
+      pvalueish, pvalues = self._extract_input_pvalues(left)
+      pipelines = [v.pipeline for v in pvalues if isinstance(v, pvalue.PValue)]
+      if pvalues and not pipelines:
+        deferred = False
+        # pylint: disable=wrong-import-order, wrong-import-position
+        from apache_beam import pipeline
+        from apache_beam.options.pipeline_options import PipelineOptions
+        # pylint: enable=wrong-import-order, wrong-import-position
+        p = pipeline.Pipeline(
+            'DirectRunner', PipelineOptions(sys.argv))
       else:
-        p = self.pipeline or pipelines[0]
-        for pp in pipelines:
-          if p != pp:
-            raise ValueError(
-                'Mixing value from different pipelines not allowed.')
-      deferred = not getattr(p.runner, 'is_eager', False)
-    # pylint: disable=wrong-import-order, wrong-import-position
-    from apache_beam.transforms.core import Create
-    # pylint: enable=wrong-import-order, wrong-import-position
-    replacements = {id(v): p | 'CreatePInput%s' % ix >> Create(v)
-                    for ix, v in enumerate(pvalues)
-                    if not isinstance(v, pvalue.PValue) and v is not None}
-    pvalueish = _SetInputPValues().visit(pvalueish, replacements)
-    self.pipeline = p
-    result = p.apply(self, pvalueish, label)
-    if deferred:
-      return result
-    _allocate_materialized_pipeline(p)
-    materialized_result = _AddMaterializationTransforms().visit(result)
-    p.run().wait_until_finish()
-    _release_materialized_pipeline(p)
-    return _FinalizeMaterialization().visit(materialized_result)
+        if not pipelines:
+          if self.pipeline is not None:
+            p = self.pipeline
+          else:
+            raise ValueError('"%s" requires a pipeline to be specified '
+                             'as there are no deferred inputs.'% self.label)
+        else:
+          p = self.pipeline or pipelines[0]
+          for pp in pipelines:
+            if p != pp:
+              raise ValueError(
+                  'Mixing value from different pipelines not allowed.')
+        deferred = not getattr(p.runner, 'is_eager', False)
+      # pylint: disable=wrong-import-order, wrong-import-position
+      from apache_beam.transforms.core import Create
+      # pylint: enable=wrong-import-order, wrong-import-position
+      replacements = {id(v): p | 'CreatePInput%s' % ix >> Create(v)
+                      for ix, v in enumerate(pvalues)
+                      if not isinstance(v, pvalue.PValue) and v is not None}
+      pvalueish = _SetInputPValues().visit(pvalueish, replacements)
+      self.pipeline = p
+      result = p.apply(self, pvalueish, label)
+      if deferred:
+        return result
+      _allocate_materialized_pipeline(p)
+      materialized_result = _AddMaterializationTransforms().visit(result)
+      p.run().wait_until_finish()
+      _release_materialized_pipeline(p)
+      return _FinalizeMaterialization().visit(materialized_result)
 
   @overload
   def _extract_input_pvalues(self, pvalueish):

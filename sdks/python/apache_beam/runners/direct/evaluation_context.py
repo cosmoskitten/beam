@@ -21,6 +21,7 @@ from __future__ import absolute_import
 
 import collections
 import threading
+import typing
 from builtins import object
 
 from apache_beam.runners.direct.direct_metrics import DirectMetrics
@@ -29,6 +30,9 @@ from apache_beam.runners.direct.watermark_manager import WatermarkManager
 from apache_beam.transforms import sideinputs
 from apache_beam.transforms.trigger import InMemoryUnmergedState
 from apache_beam.utils import counters
+
+if typing.TYPE_CHECKING:
+  from apache_beam.runners.direct.bundle_factory import BundleFactory
 
 
 class _ExecutionContext(object):
@@ -210,8 +214,15 @@ class EvaluationContext(object):
   global watermarks, and executing any callbacks that can be executed.
   """
 
-  def __init__(self, pipeline_options, bundle_factory, root_transforms,
-               value_to_consumers, step_names, views, clock):
+  def __init__(self,
+               pipeline_options,
+               bundle_factory,  # type: BundleFactory
+               root_transforms,
+               value_to_consumers,
+               step_names,
+               views,
+               clock
+               ):
     self.pipeline_options = pipeline_options
     self._bundle_factory = bundle_factory
     self._root_transforms = root_transforms

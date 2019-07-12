@@ -99,14 +99,16 @@ def run(argv=None):
   p = beam.Pipeline(options=pipeline_options)
 
   reveal_type(p)
+
   _read = ReadFromText(known_args.input)
   reveal_type(_read)
+
   read = 'read' >> _read
   reveal_type(read)
+
   # Read the text file[pattern] into a PCollection.
   lines = p | read
-
-  reveal_type(lines)
+  reveal_type(lines)  # PCollection[unicode*]
 
   def make_ones(x):
     # type: (T) -> Tuple[T, int]
@@ -118,21 +120,32 @@ def run(argv=None):
     (word, ones) = word_ones
     return (word, sum(ones))
 
-  split = lines | 'split' >> beam.ParDo(WordExtractingDoFn())
-  reveal_type(split)
+  split = lines | beam.ParDo(WordExtractingDoFn())
+  reveal_type(split)  # PCollection[unicode*]
 
   makemap = beam.Map(make_ones)
-  reveal_type(makemap)
-  # breaks here:  we want the type of split to affect the TypeVar in make_ones
-  # but it doesn't...
-  pair = split | 'pair_with_one' >> beam.Map(make_ones)
-  reveal_type(pair)
+  reveal_type(makemap)  # ParDo[T`-1, Tuple[T`-1, int]]
 
-  group = pair | 'group' >> beam.GroupByKey()
-  reveal_type(group)
+  # results in error
+  # Unsupported operand types for | ("PCollection[unicode]" and "PTransform[T, Tuple[T, int]]")
+  pair = split | makemap
+  reveal_type(pair)  # PCollection[Tuple[unicode*, int]]
 
-  counts = group | 'count' >> beam.Map(count_ones)
-  reveal_type(counts)
+  # Below, beam.Map picks up unicode from split (becoming PTransform[unicode, Tuple[T, int]), resulting in the error:
+  # Argument 1 to "Map" has incompatible type "Callable[[T], Tuple[T, int]]"; expected "Callable[[unicode], Tuple[T, int]]"
+  pair2 = split | beam.Map(make_ones)
+  reveal_type(pair2)  # PCollection[Tuple[unicode*, int]]
+
+  _group = beam.GroupByKey()  # type: beam.GroupByKey[Tuple[unicode, int], Tuple[unicode, Iterable[int]]]
+  reveal_type(_group)
+  reveal_type(beam.GroupByKey())
+  reveal_type(beam.GroupByKey.expand)
+
+  group = pair | beam.GroupByKey()
+  reveal_type(group)  # PCollection[Tuple[unicode*, typing.Iterable[int*]]]
+
+  counts = group | beam.Map(count_ones)
+  reveal_type(counts)  # PCollection[Tuple[K`-1, int]]
 
   # Format the counts into a PCollection of strings.
   def format_result(word_count):
@@ -144,7 +157,7 @@ def run(argv=None):
 
   # Write the output using a "Write" transform that has side effects.
   # pylint: disable=expression-not-assigned
-  output | 'write' >> WriteToText(known_args.output)
+  output | WriteToText(known_args.output)
 
   result = p.run()
   result.wait_until_finish()

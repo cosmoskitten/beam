@@ -25,6 +25,7 @@ import collections
 import contextlib
 import random
 import time
+import typing
 from builtins import object
 from builtins import range
 from builtins import zip
@@ -53,6 +54,9 @@ from apache_beam.transforms.window import TimestampedValue
 from apache_beam.utils import windowed_value
 from apache_beam.utils.annotations import deprecated
 
+if typing.TYPE_CHECKING:
+  from apache_beam import pvalue
+
 __all__ = [
     'BatchElements',
     'CoGroupByKey',
@@ -67,6 +71,10 @@ __all__ = [
 K = typehints.TypeVariable('K')
 V = typehints.TypeVariable('V')
 T = typehints.TypeVariable('T')
+
+T_ = typing.TypeVar('T')
+InT = typing.TypeVar('InT')
+OutT = typing.TypeVar('OutT')
 
 
 class CoGroupByKey(PTransform):
@@ -467,7 +475,7 @@ class _WindowAwareBatchingDoFn(DoFn):
 
 @typehints.with_input_types(T)
 @typehints.with_output_types(typehints.List[T])
-class BatchElements(PTransform):
+class BatchElements(PTransform[InT, typing.List[OutT]]):
   """A Transform that batches elements for amortized processing.
 
   This transform is designed to precede operations whose processing cost
@@ -629,7 +637,7 @@ class ReshufflePerKey(PTransform):
 
 @typehints.with_input_types(T)
 @typehints.with_output_types(T)
-class Reshuffle(PTransform):
+class Reshuffle(PTransform[T_, T_]):
   """PTransform that returns a PCollection equivalent to its input,
   but operationally provides some of the side effects of a GroupByKey,
   in particular preventing fusion of the surrounding transforms,
@@ -642,6 +650,7 @@ class Reshuffle(PTransform):
   """
 
   def expand(self, pcoll):
+    # type: (pvalue.PValue[T_]) -> pvalue.PCollection[T_]
     return (pcoll
             | 'AddRandomKeys' >> Map(lambda t: (random.getrandbits(32), t))
             | ReshufflePerKey()
