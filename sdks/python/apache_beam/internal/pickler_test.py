@@ -19,6 +19,8 @@
 
 from __future__ import absolute_import
 
+import sys
+import types
 import unittest
 
 from apache_beam.internal import module_test
@@ -85,6 +87,18 @@ class PicklerTest(unittest.TestCase):
   def test_recursive_class(self):
     self.assertEqual('RecursiveClass:abc',
                      loads(dumps(module_test.RecursiveClass('abc').datum)))
+
+  @unittest.skipIf(not hasattr(types, "MappingProxyType"), 'test with MappingProxyType introduced version only')
+  def test_dump_and_load_mapping_proxy(self):
+    self.assertEqual('def', loads(dumps(types.MappingProxyType({'abc': 'def'})))['abc'])
+    self.assertEqual(types.MappingProxyType, type(loads(dumps(types.MappingProxyType({})))))
+
+  @unittest.skipIf(sys.version_info < (3, 7), 'Python 3.7 or above only')
+  def test_dataclass(self):
+    exec('''
+from apache_beam.internal.module_test import DataClass
+self.assertEqual(DataClass(datum='abc'), loads(dumps(DataClass(datum='abc'))))
+    ''')
 
 
 if __name__ == '__main__':
