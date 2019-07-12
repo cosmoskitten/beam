@@ -21,6 +21,7 @@ import atexit
 import logging
 import os
 import shutil
+import shutil
 import signal
 import socket
 import subprocess
@@ -29,8 +30,11 @@ import tempfile
 import threading
 import time
 
+from future.moves.urllib.request import urlopen, URLError
+
 import grpc
 
+from apache_beam.version import __version__ as beam_version
 from apache_beam.portability.api import beam_job_api_pb2_grpc
 from apache_beam.runners.portability import local_job_service
 
@@ -39,11 +43,11 @@ class JobServer(object):
   def start(self):
     """Starts this JobServer, returning a grpc service to which to submit jobs.
     """
-    raise NotImplementedError()
+    raise NotImplementedError(type(self))
 
   def stop(self):
     """Stops this job server."""
-    raise NotImplementedError()
+    raise NotImplementedError(type(self))
 
 
 class ExternalJobServer(JobServer):
@@ -99,7 +103,7 @@ class SubprocessJobServer(JobServer):
     self._local_temp_root = None
 
   def subprocess_cmd_and_endpoint(self):
-    raise NotImplementedError()
+    raise NotImplementedError(type(self))
 
   def start(self):
     with self._process_lock:
@@ -152,6 +156,78 @@ class SubprocessJobServer(JobServer):
 
   def local_temp_dir(self, **kwargs):
     return tempfile.mkdtemp(dir=self._local_temp_root, **kwargs)
+
+
+class JavaJarJobServer(SubprocessJobServer):
+
+  MAVEN_REPOSITORY = 'https://repo.maven.apache.org/maven2/org/apache/beam'
+  JAR_CACHE = os.path.expanduser("~/.apache_beam/cache")
+
+  def java_arguments(self):
+    raise NotImplementedError(type(self))
+
+  def path_to_jar(self):
+    raise NotImplementedError(type(self))
+
+  def path_to_gradle_target_jar(self, target):
+    gradle_package = target[:target.rindex(':')]
+    jar_name = (
+        'beam-' + gradle_package.replace(':', '-') + '-' + beam_version + '.jar')
+
+    if beam_version.endswith('.dev'):
+      # TODO: Attempt to use nightly snapshots?
+      project_root = os.path.sep.join(__file__.split(os.path.sep)[:-6])
+      dev_path = os.path.join(
+          project_root,
+          gradle_package.replace(':', os.path.sep),
+          'build',
+          'libs',
+          jar_name.replace('.dev', '').replace('.jar', '-SNAPSHOT.jar'))
+      if os.path.exists(dev_path):
+        logging.warning(
+            'Using pre-built job server snapshot at %s', dev_path)
+        return dev_path
+      else:
+        raise RuntimeError(
+            'Please build the job server with \n  cd %s; ./gradlew %s' % (
+                os.path.abspath(project_root), target))
+    else:
+      return '/'.join([
+          self.MAVEN_REPOSITORY,
+          'beam-' + gradle_package.replace(':', '-'),
+          beam_version,
+          jar_name])
+
+
+  def subprocess_cmd_and_endpoint(self):
+    jar_path = self.local_jar(self.path_to_jar())
+    artifacts_dir = self.local_temp_dir(prefix='artifacts')
+    job_port, = _pick_port(None)
+    return (
+        ['java', '-jar', jar_path] + list(
+            self.java_arguments(job_port, artifacts_dir)),
+        'localhost:%s' % job_port)
+
+  def local_jar(self, url):
+    # TODO: Verify checksum?
+    if os.path.exists(url):
+      return url
+    else:
+      logging.warning('Downloading job server jar from %s' % url)
+      cached_jar = os.path.join(self.JAR_CACHE, os.path.basename(url))
+      if not os.path.exists(cached_jar):
+        if not os.path.exists(self.JAR_CACHE):
+          os.makedirs(self.JAR_CACHE)
+          # TODO: Clean up this cache according to some policy.
+        try:
+          url_read = urlopen(url)
+          with open(cached_jar + '.tmp', 'wb') as jar_write:
+            shutil.copyfileobj(url_read, jar_write, length=1 << 20)
+          os.rename(cached_jar + '.tmp', cached_jar)
+        except URLError as e:
+          raise RuntimeError(
+              'Unable to fetch remote job server jar at %s: %s' % (url, e))
+      return cached_jar
 
 
 class DockerizedJobServer(SubprocessJobServer):
