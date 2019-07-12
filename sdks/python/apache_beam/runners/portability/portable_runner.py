@@ -40,14 +40,12 @@ from apache_beam.portability import common_urns
 from apache_beam.portability.api import beam_fn_api_pb2
 from apache_beam.portability.api import beam_fn_api_pb2_grpc
 from apache_beam.portability.api import beam_job_api_pb2
-from apache_beam.portability.api import beam_job_api_pb2_grpc
 from apache_beam.portability.api import beam_runner_api_pb2
 from apache_beam.portability.api import endpoints_pb2
 from apache_beam.runners import runner
 from apache_beam.runners.job import utils as job_utils
 from apache_beam.runners.portability import fn_api_runner_transforms
 from apache_beam.runners.portability import job_server
-from apache_beam.runners.portability import local_job_service
 from apache_beam.runners.portability import portable_stager
 from apache_beam.runners.worker import sdk_worker
 from apache_beam.runners.worker import sdk_worker_main
@@ -163,7 +161,7 @@ class PortableRunner(runner.PipelineRunner):
     # TODO Provide a way to specify a container Docker URL
     # https://issues.apache.org/jira/browse/BEAM-6328
     if not self._dockerized_job_server:
-      self._dockerized_job_server = job_server.PersistentJobServer(
+      self._dockerized_job_server = job_server.StopOnExitJobServer(
           job_server.DockerizedJobServer())
     return self._dockerized_job_server
 

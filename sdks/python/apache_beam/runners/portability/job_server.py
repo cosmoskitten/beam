@@ -67,7 +67,7 @@ class EmbeddedJobServer(JobServer):
     pass
 
 
-class PersistentJobServer(JobServer):
+class StopOnExitJobServer(JobServer):
   """Wraps a JobServer such that its stop will automatically be called on exit.
   """
   def __init__(self, job_server):
@@ -88,7 +88,7 @@ class PersistentJobServer(JobServer):
     with self._lock:
       if self._started:
         self._job_server.stop()
-      self._started = False
+        self._started = False
 
 
 class SubprocessJobServer(JobServer):
@@ -122,7 +122,7 @@ class SubprocessJobServer(JobServer):
           try:
             channel_ready.result(timeout=wait_secs)
             break
-          except grpc.FutureTimeoutError:
+          except (grpc.FutureTimeoutError, grpc._channel._Rendezvous):
             wait_secs *= 1.2
             logging.log(logging.WARNING if wait_secs > 1 else logging.DEBUG,
                         'Waiting for jobs grpc channel to be ready at %s.',
