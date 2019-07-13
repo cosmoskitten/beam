@@ -27,10 +27,14 @@ from __future__ import print_function
 import abc
 import os
 import subprocess
+import typing
 
 from future.utils import with_metaclass
 
 from apache_beam.utils.plugin import BeamPlugin
+
+if typing.TYPE_CHECKING:
+  from apache_beam.runners.interactive.display.pipeline_graph import PipelineGraph
 
 
 class PipelineGraphRenderer(with_metaclass(abc.ABCMeta, BeamPlugin)):
@@ -40,12 +44,14 @@ class PipelineGraphRenderer(with_metaclass(abc.ABCMeta, BeamPlugin)):
   @classmethod
   @abc.abstractmethod
   def option(cls):
+    # type: () -> str
     """The corresponding rendering option for the renderer.
     """
     raise NotImplementedError
 
   @abc.abstractmethod
   def render_pipeline_graph(self, pipeline_graph):
+    # type: (PipelineGraph) -> str
     """Renders the pipeline graph in HTML-compatible format.
 
     Args:
@@ -63,9 +69,11 @@ class MuteRenderer(PipelineGraphRenderer):
 
   @classmethod
   def option(cls):
+    # type: () -> str
     return 'mute'
 
   def render_pipeline_graph(self, pipeline_graph):
+    # type: (PipelineGraph) -> str
     return ''
 
 
@@ -75,9 +83,11 @@ class TextRenderer(PipelineGraphRenderer):
 
   @classmethod
   def option(cls):
+    # type: () -> str
     return 'text'
 
   def render_pipeline_graph(self, pipeline_graph):
+    # type: (PipelineGraph) -> str
     return pipeline_graph.get_dot()
 
 
@@ -91,13 +101,16 @@ class PydotRenderer(PipelineGraphRenderer):
 
   @classmethod
   def option(cls):
+    # type: () -> str
     return 'graph'
 
   def render_pipeline_graph(self, pipeline_graph):
+    # type: (PipelineGraph) -> str
     return pipeline_graph._get_graph().create_svg()  # pylint: disable=protected-access
 
 
 def get_renderer(option=None):
+  # type: (typing.Optional[str]) -> typing.Type[PipelineGraphRenderer]
   """Get an instance of PipelineGraphRenderer given rendering option.
 
   Args:

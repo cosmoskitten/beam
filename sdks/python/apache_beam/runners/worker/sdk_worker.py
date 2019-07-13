@@ -80,7 +80,7 @@ class SdkHarness(object):
         data_channel_factory=self._data_channel_factory,
         fns=self._fns)
     # workers for process/finalize bundle.
-    self.workers = queue.Queue()
+    self.workers = queue.Queue()  # type: queue.Queue[SdkWorker]
     # one worker for progress/split request.
     self.progress_worker = SdkWorker(self._bundle_processor_cache,
                                      profiler_factory=self._profiler_factory)
@@ -330,7 +330,10 @@ class BundleProcessorCache(object):
 
 class SdkWorker(object):
 
-  def __init__(self, bundle_processor_cache, profiler_factory=None):
+  def __init__(self,
+               bundle_processor_cache,  # type: BundleProcessorCache
+               profiler_factory=None
+               ):
     self.bundle_processor_cache = bundle_processor_cache
     self.profiler_factory = profiler_factory
 
@@ -526,6 +529,7 @@ class GrpcStateHandler(object):
   _DONE = object()
 
   def __init__(self, state_stub):
+    # type: (beam_fn_api_pb2_grpc.BeamFnStateStub) -> None
     self._lock = threading.Lock()
     self._state_stub = state_stub
     self._requests = queue.Queue()

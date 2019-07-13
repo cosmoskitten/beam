@@ -52,6 +52,7 @@ import os
 import shutil
 import sys
 import tempfile
+import typing
 
 import pkg_resources
 
@@ -107,10 +108,11 @@ class Stager(object):
 
   def stage_job_resources(self,
                           options,
-                          build_setup_args=None,
-                          temp_dir=None,
-                          populate_requirements_cache=None,
-                          staging_location=None):
+                          build_setup_args=None,  # type: typing.Optional[typing.List[str]]
+                          temp_dir=None,  # type: typing.Optional[str]
+                          populate_requirements_cache=None,  # type: typing.Optional[str]
+                          staging_location=None
+                          ):
     """For internal use only; no backwards-compatibility guarantees.
 
         Creates (if needed) and stages job resources to staging_location.

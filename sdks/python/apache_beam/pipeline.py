@@ -78,6 +78,9 @@ from apache_beam.typehints import TypeCheckError
 from apache_beam.typehints import typehints
 from apache_beam.utils.annotations import deprecated
 
+if typing.TYPE_CHECKING:
+  from apache_beam.portability.api import beam_runner_api_pb2
+
 __all__ = ['Pipeline', 'PTransformOverride']
 
 
@@ -611,6 +614,7 @@ class Pipeline(object):
   def to_runner_api(
       self, return_context=False, context=None, use_fake_coders=False,
       default_environment=None):
+    # type: (...) -> beam_runner_api_pb2.Pipeline
     """For internal use only; no backwards-compatibility guarantees."""
     from apache_beam.runners import pipeline_context
     from apache_beam.portability.api import beam_runner_api_pb2
