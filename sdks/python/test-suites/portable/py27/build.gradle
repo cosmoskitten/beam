@@ -16,15 +16,16 @@
  * limitations under the License.
  */
 
-apply plugin: org.apache.beam.gradle.BeamModulePlugin
+plugins { id 'org.apache.beam.module' }
 
 project.ext {
   pythonVersion = '2.7'
 }
 
-applyPythonNature()
-addPortableWordCountTasks()
+def basePath = '..'
+apply from: "$basePath/build.gradle"
 
+addPortableWordCountTasks()
 
 task portablePreCommitPy() {
   dependsOn ':runners:flink:1.5:job-server-container:docker'
@@ -33,8 +34,7 @@ task portablePreCommitPy() {
   dependsOn portableWordCountStreaming27
 }
 
-def basePath = '..'
-apply from: "$basePath/build.gradle"
+
 
 
 
