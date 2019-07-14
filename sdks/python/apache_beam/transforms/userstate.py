@@ -60,6 +60,29 @@ class BagStateSpec(StateSpec):
             element_coder_id=context.coders.get_id(self.coder)))
 
 
+class ValueStateSpec(StateSpec):
+  """
+  Specification of a user DoFn value State Cell.
+  """
+  def __init__(self, name, coder):
+    """
+    Initialize the specification for Value state.
+
+    Args:
+    name (str): The name by which the state is identified.
+    coder (Coder): Coder specifying how to encode the value.
+    """
+    assert isinstance(name, str)
+    assert isinstance(coder, Coder)
+    self.name = name
+    self.coder = coder
+
+  def to_runner_api(self, context):
+    return beam_runner_api_pb2.ValueStateSpec(
+      value_spec=beam_runner_api_pb2.ValueStateSpec(
+        coder_id=context.coders.get_id(self.coder)))
+
+
 class CombiningValueStateSpec(StateSpec):
   """Specification for a user DoFn combining value state cell."""
 
@@ -264,6 +287,8 @@ class RuntimeState(object):
     elif isinstance(state_spec, CombiningValueStateSpec):
       return CombiningValueRuntimeState(state_spec, state_tag,
                                         current_value_accessor)
+    if isinstance(state_spec, ValueStateSpec):
+      return ValueStateSpec(state_spec)
     else:
       raise ValueError('Invalid state spec: %s' % state_spec)
 
@@ -308,6 +333,31 @@ class BagRuntimeState(RuntimeState):
     self._cleared = True
     self._cached_value = []
     self._new_values = []
+
+
+class ValueRuntimeState(RuntimeState):
+  """Value state interface object passed to user code."""
+
+  def __init__(self, state_spec, state_tag, current_value_accessor):
+    super(ValueRuntimeState, self).__init__(
+      state_spec, state_tag, current_value_accessor)
+    self._value = UNREAD_VALUE
+    self._modified = False
+    self._cleared = False
+
+  def read(self):
+    if self._value is UNREAD_VALUE:
+      self._value = self._decode(self._current_value_accessor())
+
+    return self._value
+
+  def add(self, value):
+    self._modified = True
+    self._value = value
+
+  def clear(self):
+    self._cleared = True
+    self._value = None
 
 
 class CombiningValueRuntimeState(RuntimeState):
