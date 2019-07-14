@@ -267,13 +267,13 @@ task flinkValidatesRunner() {
   dependsOn ':sdks:python:test-suites:portable:py27:flinkCompatibilityMatrixLoopback'
   dependsOn ':sdks:python:test-suites:portable:py35:flinkCompatibilityMatrixLoopback'
   dependsOn ':sdks:python:test-suites:portable:py36:flinkCompatibilityMatrixLoopback'
-  dependsOn ':sdks:python:test-suites:portable:py37:flinkCompatibilityMatrixLoopback'
+  // dependsOn ':sdks:python:test-suites:portable:py37:flinkCompatibilityMatrixLoopback'
   makeDependenciesSequential(':sdks:python:test-suites:portable:py35:flinkCompatibilityMatrixLoopback',
                              ':sdks:python:test-suites:portable:py27:flinkCompatibilityMatrixLoopback')
   makeDependenciesSequential(':sdks:python:test-suites:portable:py36:flinkCompatibilityMatrixLoopback',
                              ':sdks:python:test-suites:portable:py35:flinkCompatibilityMatrixLoopback')
-  makeDependenciesSequential(':sdks:python:test-suites:portable:py37:flinkCompatibilityMatrixLoopback',
-                             ':sdks:python:test-suites:portable:py36:flinkCompatibilityMatrixLoopback')
+  // makeDependenciesSequential(':sdks:python:test-suites:portable:py37:flinkCompatibilityMatrixLoopback',
+  //                            ':sdks:python:test-suites:portable:py36:flinkCompatibilityMatrixLoopback')
 }
 
 task postCommit() {
