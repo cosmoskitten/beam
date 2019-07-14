@@ -18,6 +18,7 @@
 
 project.buildDir = '../../..'
 apply plugin: 'org.apache.beam.module'
+applyPythonNature()
 
 class CompatibilityMatrixConfig {
   // Execute batch or streaming pipelines.
