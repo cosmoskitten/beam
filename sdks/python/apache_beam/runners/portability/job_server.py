@@ -21,7 +21,6 @@ import atexit
 import logging
 import os
 import shutil
-import shutil
 import signal
 import socket
 import subprocess
@@ -30,7 +29,8 @@ import tempfile
 import threading
 import time
 
-from future.moves.urllib.request import urlopen, URLError
+from future.moves.urllib.error import URLError
+from future.moves.urllib.request import urlopen
 
 import grpc
 
@@ -163,16 +163,17 @@ class JavaJarJobServer(SubprocessJobServer):
   MAVEN_REPOSITORY = 'https://repo.maven.apache.org/maven2/org/apache/beam'
   JAR_CACHE = os.path.expanduser("~/.apache_beam/cache")
 
-  def java_arguments(self):
+  def java_arguments(self, job_port, artifacts_dir):
     raise NotImplementedError(type(self))
 
   def path_to_jar(self):
     raise NotImplementedError(type(self))
 
-  def path_to_gradle_target_jar(self, target):
+  @staticmethod
+  def path_to_gradle_target_jar(target):
     gradle_package = target[:target.rindex(':')]
-    jar_name = (
-        'beam-' + gradle_package.replace(':', '-') + '-' + beam_version + '.jar')
+    jar_name = '-'.join([
+        'beam', gradle_package.replace(':', '-'), beam_version + '.jar'])
 
     if beam_version.endswith('.dev'):
       # TODO: Attempt to use nightly snapshots?
@@ -241,7 +242,7 @@ class DockerizedJobServer(SubprocessJobServer):
                expansion_port=None,
                harness_port_range=(8100, 8200),
                max_connection_retries=5):
-    super(SubprocessJobServer, self).__init__()
+    super(DockerizedJobServer, self).__init__()
     self.job_host = job_host
     self.job_port = job_port
     self.expansion_port = expansion_port
