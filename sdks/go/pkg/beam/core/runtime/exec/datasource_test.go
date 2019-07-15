@@ -122,7 +122,7 @@ func TestDataSource_Iterators(t *testing.T) {
 					EncodeWindowedValueHeader(wc, window.SingleGlobalWindow, mtime.ZeroTimestamp, dmw)
 					kc.Encode(&FullValue{Elm: k}, dmw)
 
-					coder.EncodeInt32(-1, dmw) // Mark this as a multi-Chunk (though beam runner proto says to use 0)
+					coder.EncodeInt32(-1, dmw) // Mark this as a multi-Chunk
 					for _, v := range vs {
 						coder.EncodeVarInt(1, dmw) // Number of elements in this chunk.
 						vc.Encode(&FullValue{Elm: v}, dmw)
@@ -142,7 +142,7 @@ func TestDataSource_Iterators(t *testing.T) {
 				for _, k := range ks {
 					EncodeWindowedValueHeader(wc, window.SingleGlobalWindow, mtime.ZeroTimestamp, dmw)
 					kc.Encode(&FullValue{Elm: k}, dmw)
-					coder.EncodeInt32(-1, dmw)  // Mark as multi-chunk (though beam, runner says to use 0)
+					coder.EncodeInt32(-1, dmw)  // Mark as multi-chunk
 					coder.EncodeVarInt(-1, dmw) // Mark subsequent chunks as "state backed"
 
 					token := []byte(tokenString)
