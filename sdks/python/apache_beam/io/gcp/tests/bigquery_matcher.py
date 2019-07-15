@@ -84,6 +84,7 @@ class BigqueryMatcher(BaseMatcher):
     response = self._query_with_retry(bigquery_client)
     logging.info('Read from given query (%s), total rows %d',
                  self.query, len(response))
+    logging.info(response)
 
     # Compute checksum
     self.checksum = compute_hash(response)
