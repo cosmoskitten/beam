@@ -27,11 +27,10 @@ def loadTestConfigurations = { datasetName -> [
                 title        : 'ParDo Python Load test: 2GB 100 byte records 10 times',
                 itClass      : 'apache_beam.testing.load_tests.pardo_test:ParDoTest.testParDo',
                 runner       : CommonTestProperties.Runner.DATAFLOW,
-                sdk          : CommonTestProperties.SDK.PYTHON,
                 jobProperties: [
                         job_name             : 'load-tests-python-dataflow-batch-pardo-1-' + now,
                         project              : 'apache-beam-testing',
-                        temp_location        : 'gs://temp-storage-for-perf-tests/smoketests',
+                        temp_location        : 'gs://temp-storage-for-perf-tests/loadtests',
                         publish_to_big_query : true,
                         metrics_dataset      : datasetName,
                         metrics_table        : 'python_dataflow_batch_pardo_1',
@@ -41,8 +40,8 @@ def loadTestConfigurations = { datasetName -> [
                                 '"value_size": 90}\'',
                         iterations           : 10,
                         number_of_counter_operations: 0,
-                        number_of_counters   : 1,
-                        num_workers          : 10,
+                        number_of_counters   : 0,
+                        num_workers          : 5,
                         autoscaling_algorithm: 'NONE',
                 ]
         ],
@@ -50,11 +49,10 @@ def loadTestConfigurations = { datasetName -> [
                 title        : 'ParDo Python Load test: 2GB 100 byte records 200 times',
                 itClass      : 'apache_beam.testing.load_tests.pardo_test:ParDoTest.testParDo',
                 runner       : CommonTestProperties.Runner.DATAFLOW,
-                sdk          : CommonTestProperties.SDK.PYTHON,
                 jobProperties: [
                         job_name             : 'load-tests-python-dataflow-batch-pardo-2-' + now,
                         project              : 'apache-beam-testing',
-                        temp_location        : 'gs://temp-storage-for-perf-tests/smoketests',
+                        temp_location        : 'gs://temp-storage-for-perf-tests/loadtests',
                         publish_to_big_query : true,
                         metrics_dataset      : datasetName,
                         metrics_table        : 'python_dataflow_batch_pardo_2',
@@ -64,8 +62,8 @@ def loadTestConfigurations = { datasetName -> [
                                 '"value_size": 90}\'',
                         iterations           : 200,
                         number_of_counter_operations: 0,
-                        number_of_counters   : 1,
-                        num_workers          : 10,
+                        number_of_counters   : 0,
+                        num_workers          : 5,
                         autoscaling_algorithm: 'NONE',
                 ]
         ],
@@ -73,11 +71,10 @@ def loadTestConfigurations = { datasetName -> [
                 title        : 'ParDo Python Load test: 2GB 100 byte records 10 counters',
                 itClass      : 'apache_beam.testing.load_tests.pardo_test:ParDoTest.testParDo',
                 runner       : CommonTestProperties.Runner.DATAFLOW,
-                sdk          : CommonTestProperties.SDK.PYTHON,
                 jobProperties: [
                         job_name             : 'load-tests-python-dataflow-batch-pardo-3-' + now,
                         project              : 'apache-beam-testing',
-                        temp_location        : 'gs://temp-storage-for-perf-tests/smoketests',
+                        temp_location        : 'gs://temp-storage-for-perf-tests/loadtests',
                         publish_to_big_query : true,
                         metrics_dataset      : datasetName,
                         metrics_table        : 'python_dataflow_batch_pardo_3',
@@ -85,10 +82,10 @@ def loadTestConfigurations = { datasetName -> [
                                 '"num_records": 20000000,' +
                                 '"key_size": 10,' +
                                 '"value_size": 90}\'',
-                        iterations           : 10,
+                        iterations           : 1,
                         number_of_counter_operations: 10,
                         number_of_counters   : 1,
-                        num_workers          : 10,
+                        num_workers          : 5,
                         autoscaling_algorithm: 'NONE',
                 ]
         ],
@@ -96,11 +93,10 @@ def loadTestConfigurations = { datasetName -> [
                 title        : 'ParDo Python Load test: 2GB 100 byte records 100 counters',
                 itClass      : 'apache_beam.testing.load_tests.pardo_test:ParDoTest.testParDo',
                 runner       : CommonTestProperties.Runner.DATAFLOW,
-                sdk          : CommonTestProperties.SDK.PYTHON,
                 jobProperties: [
                         job_name             : 'load-tests-python-dataflow-batch-pardo-4-' + now,
                         project              : 'apache-beam-testing',
-                        temp_location        : 'gs://temp-storage-for-perf-tests/smoketests',
+                        temp_location        : 'gs://temp-storage-for-perf-tests/loadtests',
                         publish_to_big_query : true,
                         metrics_dataset      : datasetName,
                         metrics_table        : 'python_dataflow_batch_pardo_4',
@@ -108,10 +104,10 @@ def loadTestConfigurations = { datasetName -> [
                                 '"num_records": 20000000,' +
                                 '"key_size": 10,' +
                                 '"value_size": 90}\'',
-                        iterations           : 10,
+                        iterations           : 1,
                         number_of_counter_operations: 100,
                         number_of_counters   : 1,
-                        num_workers          : 10,
+                        num_workers          : 5,
                         autoscaling_algorithm: 'NONE',
                 ]
         ],
@@ -133,9 +129,9 @@ PhraseTriggeringPostCommitBuilder.postCommitJob(
         'Load Tests Python ParDo Dataflow Batch suite',
         this
 ) {
-    batchLoadTestJob(delegate, CommonTestProperties.TriggeringContext.PR)
+    batchLoadTestJob(delegate, CommonTestProperties.TriggeringContext.PR, loadTestConfigurations)
 }
 
 CronJobBuilder.cronJob('beam_LoadTests_Python_ParDo_Dataflow_Batch', 'H 13 * * *', this) {
-    batchLoadTestJob(delegate, CommonTestProperties.TriggeringContext.POST_COMMIT)
+    batchLoadTestJob(delegate, CommonTestProperties.TriggeringContext.POST_COMMIT, loadTestConfigurations)
 }
