@@ -27,6 +27,7 @@ import java.util.concurrent.CancellationException;
 import java.util.function.Consumer;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
+import org.apache.beam.model.jobmanagement.v1.JobApi;
 import org.apache.beam.model.jobmanagement.v1.JobApi.JobMessage;
 import org.apache.beam.model.jobmanagement.v1.JobApi.JobState;
 import org.apache.beam.model.jobmanagement.v1.JobApi.JobState.Enum;
@@ -53,6 +54,7 @@ public class JobInvocation {
   private List<Consumer<Enum>> stateObservers;
   private List<Consumer<JobMessage>> messageObservers;
   private JobState.Enum jobState;
+  private JobApi.MetricResults metrics;
   @Nullable private ListenableFuture<PortablePipelineResult> invocationFuture;
 
   public JobInvocation(
@@ -90,7 +92,13 @@ public class JobInvocation {
           @Override
           public void onSuccess(@Nullable PortablePipelineResult pipelineResult) {
             if (pipelineResult != null) {
-              switch (pipelineResult.getState()) {
+              PipelineResult.State state = pipelineResult.getState();
+
+              if (state.isTerminal()) {
+                metrics = pipelineResult.monitoringInfos();
+              }
+
+              switch (state) {
                 case DONE:
                   setState(Enum.DONE);
                   break;
@@ -151,6 +159,10 @@ public class JobInvocation {
           new FutureCallback<PortablePipelineResult>() {
             @Override
             public void onSuccess(@Nullable PortablePipelineResult pipelineResult) {
+              if (pipelineResult != null) {
+                metrics = pipelineResult.monitoringInfos();
+              }
+
               // Do not cancel when we are already done.
               if (pipelineResult != null
                   && pipelineResult.getState() != PipelineResult.State.DONE) {
@@ -168,6 +180,10 @@ public class JobInvocation {
           },
           executorService);
     }
+  }
+
+  public JobApi.MetricResults getMetrics() {
+    return metrics;
   }
 
   /** Retrieve the job's current state. */
