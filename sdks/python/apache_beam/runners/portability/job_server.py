@@ -30,7 +30,8 @@ import tempfile
 import threading
 import time
 
-from future.moves.urllib.request import urlopen, URLError
+from future.moves.urllib.error import URLError
+from future.moves.urllib.request import urlopen
 
 import grpc
 
@@ -169,6 +170,7 @@ class JavaJarJobServer(SubprocessJobServer):
   def path_to_jar(self):
     raise NotImplementedError(type(self))
 
+  @staticmethod
   def path_to_gradle_target_jar(self, target):
     gradle_package = target[:target.rindex(':')]
     jar_name = (
