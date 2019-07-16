@@ -19,20 +19,27 @@ package org.apache.beam.sdk.io.kafka;
 
 import static org.apache.beam.sdk.io.synthetic.SyntheticOptions.fromJsonString;
 
+import com.google.cloud.Timestamp;
 import java.io.IOException;
 import java.util.Arrays;
+import java.util.Set;
+import java.util.UUID;
+import java.util.function.Function;
 import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.io.Read;
 import org.apache.beam.sdk.io.common.HashingFn;
 import org.apache.beam.sdk.io.common.IOITHelper;
+import org.apache.beam.sdk.io.common.IOTestPipelineOptions;
 import org.apache.beam.sdk.io.synthetic.SyntheticBoundedSource;
 import org.apache.beam.sdk.io.synthetic.SyntheticSourceOptions;
 import org.apache.beam.sdk.options.Description;
-import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.StreamingOptions;
 import org.apache.beam.sdk.options.Validation;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
+import org.apache.beam.sdk.testutils.NamedTestResult;
+import org.apache.beam.sdk.testutils.metrics.IOITMetrics;
+import org.apache.beam.sdk.testutils.metrics.MetricsReader;
 import org.apache.beam.sdk.testutils.metrics.TimeMonitor;
 import org.apache.beam.sdk.transforms.Combine;
 import org.apache.beam.sdk.transforms.MapElements;
@@ -40,6 +47,7 @@ import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.SimpleFunction;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableMap;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableSet;
 import org.apache.kafka.common.serialization.ByteArraySerializer;
 import org.joda.time.Duration;
 import org.junit.BeforeClass;
@@ -61,6 +69,10 @@ import org.junit.runners.JUnit4;
 public class KafkaIOIT {
 
   private static final String NAMESPACE = KafkaIOIT.class.getName();
+
+  private final String testId = UUID.randomUUID().toString();
+
+  private final String timestamp = Timestamp.now().toString();
 
   /** Hash for 1000 uniformly distributed records with 10B keys and 90B values (100kB total). */
   private static final String EXPECTED_HASHCODE = "4507649971ee7c51abbb446e65a5c660";
@@ -86,8 +98,6 @@ public class KafkaIOIT {
         .apply("Measure write time", ParDo.of(new TimeMonitor<>(NAMESPACE, "write_time")))
         .apply("Write to Kafka", writeToKafka());
 
-    writePipeline.run().waitUntilFinish();
-
     PCollection<String> hashcode =
         readPipeline
             .apply("Read from Kafka", readFromKafka())
@@ -97,10 +107,41 @@ public class KafkaIOIT {
 
     PAssert.thatSingleton(hashcode).isEqualTo(EXPECTED_HASHCODE);
 
+    PipelineResult writeResult = writePipeline.run();
+    writeResult.waitUntilFinish();
+
     PipelineResult readResult = readPipeline.run();
     PipelineResult.State readState =
         readResult.waitUntilFinish(Duration.standardSeconds(options.getReadTimeout()));
     cancelIfNotTerminal(readResult, readState);
+
+    Set<NamedTestResult> metrics = readMetrics(writeResult, readResult);
+    IOITMetrics.publish(
+        testId, timestamp, options.getBigQueryDataset(), options.getBigQueryTable(), metrics);
+  }
+
+  private Set<NamedTestResult> readMetrics(PipelineResult writeResult, PipelineResult readResult) {
+    Function<MetricsReader, NamedTestResult> writeTimeSupplier =
+        reader -> {
+          long start = reader.getStartTimeMetric("write_time");
+          long end = reader.getEndTimeMetric("write_time");
+          return NamedTestResult.create(testId, timestamp, "write_time", (end - start) / 1e3);
+        };
+
+    Function<MetricsReader, NamedTestResult> readTimeSupplier =
+        reader -> {
+          long start = reader.getStartTimeMetric("read_time");
+          long end = reader.getEndTimeMetric("read_time");
+          return NamedTestResult.create(testId, timestamp, "read_time", (end - start) / 1e3);
+        };
+
+    NamedTestResult writeTime = writeTimeSupplier.apply(new MetricsReader(writeResult, NAMESPACE));
+    NamedTestResult readTime = readTimeSupplier.apply(new MetricsReader(readResult, NAMESPACE));
+    NamedTestResult runTime =
+        NamedTestResult.create(
+            testId, timestamp, "run_time", writeTime.getValue() + readTime.getValue());
+
+    return ImmutableSet.of(readTime, writeTime, runTime);
   }
 
   private void cancelIfNotTerminal(PipelineResult readResult, PipelineResult.State readState)
@@ -127,7 +168,7 @@ public class KafkaIOIT {
   }
 
   /** Pipeline options specific for this test. */
-  public interface Options extends PipelineOptions, StreamingOptions {
+  public interface Options extends IOTestPipelineOptions, StreamingOptions {
 
     @Description("Options for synthetic source.")
     @Validation.Required
