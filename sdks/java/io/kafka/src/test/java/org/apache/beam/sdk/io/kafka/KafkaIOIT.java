@@ -33,8 +33,10 @@ import org.apache.beam.sdk.options.StreamingOptions;
 import org.apache.beam.sdk.options.Validation;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
+import org.apache.beam.sdk.testutils.metrics.TimeMonitor;
 import org.apache.beam.sdk.transforms.Combine;
 import org.apache.beam.sdk.transforms.MapElements;
+import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.SimpleFunction;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableMap;
@@ -58,6 +60,8 @@ import org.junit.runners.JUnit4;
 @RunWith(JUnit4.class)
 public class KafkaIOIT {
 
+  private static final String NAMESPACE = KafkaIOIT.class.getName();
+
   /** Hash for 1000 uniformly distributed records with 10B keys and 90B values (100kB total). */
   private static final String EXPECTED_HASHCODE = "4507649971ee7c51abbb446e65a5c660";
 
@@ -79,6 +83,7 @@ public class KafkaIOIT {
   public void testKafkaIOReadsAndWritesCorrectly() throws IOException {
     writePipeline
         .apply("Generate records", Read.from(new SyntheticBoundedSource(sourceOptions)))
+        .apply("Measure write time", ParDo.of(new TimeMonitor<>(NAMESPACE, "write_time")))
         .apply("Write to Kafka", writeToKafka());
 
     writePipeline.run().waitUntilFinish();
@@ -86,6 +91,7 @@ public class KafkaIOIT {
     PCollection<String> hashcode =
         readPipeline
             .apply("Read from Kafka", readFromKafka())
+            .apply("Measure read time", ParDo.of(new TimeMonitor<>(NAMESPACE, "read_time")))
             .apply("Map records to strings", MapElements.via(new MapKafkaRecordsToStrings()))
             .apply("Calculate hashcode", Combine.globally(new HashingFn()).withoutDefaults());
 
