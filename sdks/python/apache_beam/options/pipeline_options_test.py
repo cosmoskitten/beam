@@ -25,6 +25,7 @@ import unittest
 import hamcrest as hc
 
 from apache_beam.options.pipeline_options import DebugOptions
+from apache_beam.options.pipeline_options import GoogleCloudOptions
 from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.options.pipeline_options import ProfilingOptions
 from apache_beam.options.pipeline_options import TypeOptions
@@ -477,6 +478,10 @@ class PipelineOptionsTest(unittest.TestCase):
         True,
         debug_options.lookup_experiment('existing_experiment'))
 
+  def test_transform_name_mapping(self):
+    options = PipelineOptions(['--transform_name_mapping={\"from\":\"to\"}'])
+    mapping = options.view_as(GoogleCloudOptions).transform_name_mapping
+    self.assertEqual(mapping['from'], 'to')
 
 if __name__ == '__main__':
   logging.getLogger().setLevel(logging.INFO)
