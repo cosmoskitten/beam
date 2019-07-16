@@ -295,7 +295,8 @@ class FnApiRunner(runner.PipelineRunner):
     # Setup "beam_fn_api" experiment options if lacked.
     experiments = (options.view_as(pipeline_options.DebugOptions).experiments
                    or [])
-    if not 'beam_fn_api' in experiments:
+
+    if 'beam_fn_api' not in experiments:
       experiments.append('beam_fn_api')
     options.view_as(pipeline_options.DebugOptions).experiments = experiments
 
