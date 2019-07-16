@@ -882,51 +882,21 @@ class Regex(object):
     return regex
 
   @staticmethod
-  @ptransform_fn
-  def _matches_all_object(pcoll, regex, group=None):
-    """
-    PTransform to find the matches as per the regex.
-    """
-    def _process(element):
-      m = regex.finditer(element)
-      results = list()
-      for _, match in enumerate(m, start=1):
-        results.append(match.group())
-        for groupNum in range(0, len(match.groups())):
-          results.append(match.group(groupNum + 1))
-      if results:
-        yield results
-    return pcoll | FlatMap(_process)
-
-  @staticmethod
-  @ptransform_fn
-  def _matches_kv_object(pcoll, regex, keyGroup, valueGroup):
-    """
-    PTransfrom to find the matches as per regex and return as a KV pair.
-    """
-    def _process(element):
-      match = regex.match(element)
-      if match:
-        yield (match.group(keyGroup), match.group(valueGroup))
-
-    return pcoll | FlatMap(_process)
-
-  @staticmethod
   @typehints.with_input_types(str)
   @typehints.with_output_types(str)
   @ptransform_fn
-  def matches(pcoll, regex, group=None):
+  def matches(pcoll, regex, group=0):
     """
-    Returns the matches if the entire line matched the Regex. Returns the
-    entire line (group 0 by default). Group can be integer value and a string
+    Returns the matches if the element matched the Regex. Returns the
+    entire line (group 0 by default). Group can be integer value or a string
     value.
 
     Args:
       regex: the regular expression string or (re.compile) pattern.
-      group: (optional) name of the group, it can be integer or a string value.
+      group: (optional) name/number of the group, it can be integer or a string
+        value.
     """
     regex = Regex._regex_compile(regex)
-    group = group or 0
 
     def _process(element):
       m = regex.match(element)
@@ -947,7 +917,19 @@ class Regex(object):
       regex: the regular expression string or (re.compile) pattern.
     """
     regex = Regex._regex_compile(regex)
-    return pcoll | Regex._matches_all_object(regex=regex)
+
+    def _process(element):
+      m = regex.match(element)
+      results = list()
+
+      if m:
+        results.append(m.group())
+        for match in m.groups():
+          results.append(match)
+      if results:
+        yield results
+    return pcoll | FlatMap(_process)
+
 
   @staticmethod
   @typehints.with_input_types(str)
@@ -955,8 +937,8 @@ class Regex(object):
   @ptransform_fn
   def matches_kv(pcoll, regex, keyGroup, valueGroup):
     """
-    Returns the matches if the entire line matches the Regex. Returns the
-    specified groups as the key and value pair.
+    Returns the KV pairs if the string matches the regular expression, deriving
+    the key & value from the specified group of the regular expression.
 
     Args:
       regex: the regular expression string or (re.compile) pattern.
@@ -964,17 +946,21 @@ class Regex(object):
       valueGroup: The Regex group to use the value. Can be int or str.
     """
     regex = Regex._regex_compile(regex)
-    return pcoll | Regex._matches_kv_object(regex=regex, keyGroup=keyGroup,
-                                            valueGroup=valueGroup)
+
+    def _process(element):
+      match = regex.match(element)
+      if match:
+        yield (match.group(keyGroup), match.group(valueGroup))
+    return pcoll | FlatMap(_process)
 
   @staticmethod
   @typehints.with_input_types(str)
   @typehints.with_output_types(str)
   @ptransform_fn
-  def find(pcoll, regex, group=None):
+  def find(pcoll, regex, group=0):
     """
     Returns the matches if a portion of the line matches the Regex. Returns
-    the entire line (group 0 by default). Group can be integer value and a
+    the entire group (group 0 by default). Group can be integer value or a
     string value.
 
     Args:
@@ -982,7 +968,6 @@ class Regex(object):
       group: (optional) name of the group, it can be integer or a string value.
     """
     regex = Regex._regex_compile(regex)
-    group = group or 0
 
     def _process(element):
       r = regex.search(element)
@@ -1001,11 +986,19 @@ class Regex(object):
 
     Args:
       regex: the regular expression string or (re.compile) pattern.
-      keyGroup: The Regex group to use as the key. Can be int or str.
-      valueGroup: The Regex group to use the value. Can be int or str.
     """
     regex = Regex._regex_compile(regex)
-    return pcoll | Regex._matches_all_object(regex=regex)
+
+    def _process(element):
+      m = regex.finditer(element)
+      results = list()
+      for match in m:
+        results.append(match.group())
+        for groupNum in range(0, len(match.groups())):
+          results.append(match.group(groupNum + 1))
+      if results:
+        yield results
+    return pcoll | FlatMap(_process)
 
   @staticmethod
   @typehints.with_input_types(str)
@@ -1022,8 +1015,14 @@ class Regex(object):
       valueGroup: The Regex group to use the value. Can be int or str.
     """
     regex = Regex._regex_compile(regex)
-    return pcoll | Regex._matches_kv_object(regex=regex, keyGroup=keyGroup,
-                                            valueGroup=valueGroup)
+
+    def _process(element):
+      matches = regex.finditer(element)
+      if matches:
+        for match in matches:
+          yield (match.group(keyGroup), match.group(valueGroup))
+
+    return pcoll | FlatMap(_process)
 
   @staticmethod
   @typehints.with_input_types(str)
