@@ -529,8 +529,6 @@ class FnApiRunnerTest(unittest.TestCase):
       # Setup experiment option to enable using SDFBoundedSourceWrapper
       if 'use_sdf_bounded_source' not in experiments:
         experiments.append('use_sdf_bounded_source')
-      if 'beam_fn_api' not in experiments:
-        experiments.append('beam_fn_api')
       p._options.view_as(DebugOptions).experiments = experiments
 
       actual = (

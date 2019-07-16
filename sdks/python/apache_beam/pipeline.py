@@ -154,9 +154,11 @@ class Pipeline(object):
       raise ValueError(
           'Pipeline has validations errors: \n' + '\n'.join(errors))
 
-    # set default experiments for portable runner
+    # set default experiments for portable runner and fnapi runner
     # (needs to occur prior to pipeline construction)
-    if self._options.view_as(StandardOptions).runner == 'PortableRunner':
+    from apache_beam.runners.portability.fn_api_runner import FnApiRunner
+    if (self._options.view_as(StandardOptions).runner == 'PortableRunner' or
+      isinstance(runner, FnApiRunner)):
       experiments = (self._options.view_as(DebugOptions).experiments or [])
       if not 'beam_fn_api' in experiments:
         experiments.append('beam_fn_api')
