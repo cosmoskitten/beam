@@ -869,36 +869,6 @@ class Reify(object):
       return pcoll | ParDo(self.add_window_info)
 
 
-@ptransform_fn
-def matches_all_object(pcoll, regex, group=None):
-  """
-  PTransform to find the matches as per the regex.
-  """
-  def _process(element):
-    m = regex.finditer(element)
-    results = list()
-    for _, match in enumerate(m, start=1):
-      results.append(match.group())
-      for groupNum in range(0, len(match.groups())):
-        results.append(match.group(groupNum + 1))
-    if results:
-      yield results
-  return pcoll | FlatMap(_process)
-
-
-@ptransform_fn
-def matches_kv_object(pcoll, regex, keyGroup, valueGroup):
-  """
-  PTransfrom to find the matches as per regex and return as a KV pair.
-  """
-  def _process(element):
-    match = regex.match(element)
-    if match:
-      yield (match.group(keyGroup), match.group(valueGroup))
-
-  return pcoll | FlatMap(_process)
-
-
 class Regex(object):
   """
   PTransform  to use Regular Expression to process the elements in a
@@ -910,6 +880,36 @@ class Regex(object):
     if isinstance(regex, str):
       regex = re.compile(regex)
     return regex
+
+  @staticmethod
+  @ptransform_fn
+  def _matches_all_object(pcoll, regex, group=None):
+    """
+    PTransform to find the matches as per the regex.
+    """
+    def _process(element):
+      m = regex.finditer(element)
+      results = list()
+      for _, match in enumerate(m, start=1):
+        results.append(match.group())
+        for groupNum in range(0, len(match.groups())):
+          results.append(match.group(groupNum + 1))
+      if results:
+        yield results
+    return pcoll | FlatMap(_process)
+
+  @staticmethod
+  @ptransform_fn
+  def _matches_kv_object(pcoll, regex, keyGroup, valueGroup):
+    """
+    PTransfrom to find the matches as per regex and return as a KV pair.
+    """
+    def _process(element):
+      match = regex.match(element)
+      if match:
+        yield (match.group(keyGroup), match.group(valueGroup))
+
+    return pcoll | FlatMap(_process)
 
   @staticmethod
   @typehints.with_input_types(str)
@@ -947,7 +947,7 @@ class Regex(object):
       regex: the regular expression string or (re.compile) pattern.
     """
     regex = Regex._regex_compile(regex)
-    return pcoll | matches_all_object(regex=regex)
+    return pcoll | Regex._matches_all_object(regex=regex)
 
   @staticmethod
   @typehints.with_input_types(str)
@@ -964,8 +964,8 @@ class Regex(object):
       valueGroup: The Regex group to use the value. Can be int or str.
     """
     regex = Regex._regex_compile(regex)
-    return pcoll | matches_kv_object(regex=regex, keyGroup=keyGroup,
-                                     valueGroup=valueGroup)
+    return pcoll | Regex._matches_kv_object(regex=regex, keyGroup=keyGroup,
+                                            valueGroup=valueGroup)
 
   @staticmethod
   @typehints.with_input_types(str)
@@ -1005,7 +1005,7 @@ class Regex(object):
       valueGroup: The Regex group to use the value. Can be int or str.
     """
     regex = Regex._regex_compile(regex)
-    return pcoll | matches_all_object(regex=regex)
+    return pcoll | Regex._matches_all_object(regex=regex)
 
   @staticmethod
   @typehints.with_input_types(str)
@@ -1022,8 +1022,8 @@ class Regex(object):
       valueGroup: The Regex group to use the value. Can be int or str.
     """
     regex = Regex._regex_compile(regex)
-    return pcoll | matches_kv_object(regex=regex, keyGroup=keyGroup,
-                                     valueGroup=valueGroup)
+    return pcoll | Regex._matches_kv_object(regex=regex, keyGroup=keyGroup,
+                                            valueGroup=valueGroup)
 
   @staticmethod
   @typehints.with_input_types(str)
