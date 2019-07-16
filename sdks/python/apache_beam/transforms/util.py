@@ -930,7 +930,6 @@ class Regex(object):
         yield results
     return pcoll | FlatMap(_process)
 
-
   @staticmethod
   @typehints.with_input_types(str)
   @typehints.with_output_types(typehints.KV[K, V])
