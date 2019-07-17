@@ -31,6 +31,8 @@ from apache_beam.portability import common_urns
 from apache_beam.portability.api import beam_expansion_api_pb2
 from apache_beam.portability.api import beam_runner_api_pb2
 from apache_beam.runners import pipeline_context
+from apache_beam.portability.api.external_transforms_pb2 import ConfigValue
+from apache_beam.portability.api.external_transforms_pb2 import ExternalConfigurationPayload
 from apache_beam.transforms import ptransform
 
 # Protect against environments where grpc is not available.
@@ -41,6 +43,63 @@ try:
 except ImportError:
   grpc = None
 # pylint: enable=wrong-import-order, wrong-import-position, ungrouped-imports
+
+DEFAULT_EXPANSION_SERVICE = 'localhost:8097'
+FILTERED_CODERS = {
+  'beam:coder:length_prefix:v1',
+}
+
+
+def iter_urns(coder, context=None):
+  yield coder.to_runner_api_parameter(context)[0]
+  for child in coder._get_component_coders():
+    for urn in iter_urns(child, context):
+      yield urn
+
+
+class External(ptransform.PTransform):
+  """
+  Base class for transforms that produce external transforms.
+  """
+  _urn = None
+
+  def __init__(self, expansion_service=None):
+    self.expansion_service = expansion_service or DEFAULT_EXPANSION_SERVICE
+
+  def get_config_args(self):
+    """
+    :return: dictionary of encoded configuration values to pass to
+             ExternalConfigurationPayload
+    """
+    raise NotImplementedError
+
+  @classmethod
+  def config_value(cls, obj, coder):
+    """
+    Helper to create a ConfigValue with an encoded value.
+    """
+    return ConfigValue(
+      coder_urn=[urn for urn in iter_urns(coder)
+                 if urn not in FILTERED_CODERS],
+      payload=coder.encode(obj))
+
+  def expand(self, pbegin):
+    args = self.get_config_args()
+
+    payload = ExternalConfigurationPayload(configuration=args)
+    return pbegin.apply(
+        ExternalTransform(
+            self._urn,
+            payload.SerializeToString(),
+            self.expansion_service))
+
+
+class ExternalRead(ptransform.PTransform):
+  def expand(self, pbegin):
+    if not isinstance(pbegin, pvalue.PBegin):
+      raise Exception("%s must be a root transform" % self.__class__)
+
+    return super(ExternalRead, self).expand(pbegin)
 
 
 class ExternalTransform(ptransform.PTransform):
