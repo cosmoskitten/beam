@@ -50,7 +50,10 @@ golang {
   packagePath = 'github.com/apache/beam/sdks/python/container'
   goBuild {
     environment 'GO111MODULE', 'on'
-    targetPlatform = ['darwin-amd64', 'linux-amd64']
+    environment 'GOARCH', 'amd64'
+    environment 'GOOS', 'darwin'
+    go 'build -o ./build/target/launcher/${GOOS}_${GOARCH}/boot .'
+    environment 'GOOS', 'linux'
     go 'build -o ./build/target/launcher/${GOOS}_${GOARCH}/boot .'
   }
 }

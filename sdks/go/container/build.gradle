@@ -37,7 +37,10 @@ golang {
   goBuild {
     // TODO(herohde): build local platform + linux-amd64, if possible.
     environment 'GO111MODULE', 'on'
-    targetPlatform = ['darwin-amd64', 'linux-amd64']
+    environment 'GOARCH', 'amd64'
+    environment 'GOOS', 'darwin'
+    go 'build -o ./build/target/${GOOS}_${GOARCH}/boot .'
+    environment 'GOOS', 'linux'
     go 'build -o ./build/target/${GOOS}_${GOARCH}/boot .'
   }
 }
