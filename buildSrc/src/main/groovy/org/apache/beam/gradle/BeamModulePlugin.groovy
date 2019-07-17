@@ -1742,6 +1742,10 @@ class BeamModulePlugin implements Plugin<Project> {
 
       project.task('sdist', dependsOn: 'setupVirtualenv') {
         doLast {
+          project.exec {
+            executable 'sh'
+            args '-c', "chmod -R 700 ${project.rootDir}/.gogradle || true"
+          }
           // Copy sdk sources to an isolated directory
           project.copy {
             from pythonSdkDeps
