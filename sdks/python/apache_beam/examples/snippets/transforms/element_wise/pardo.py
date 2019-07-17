@@ -19,8 +19,6 @@
 from __future__ import absolute_import
 from __future__ import print_function
 
-from builtins import int
-
 
 def pardo_dofn(test=None):
   # [START pardo_dofn]
@@ -58,7 +56,7 @@ def pardo_dofn_params(test=None):
       yield '\n'.join([
           '# timestamp',
           'type(timestamp) -> ' + repr(type(timestamp)),
-          'timestamp.micros -> ' + repr(int(timestamp.micros)),
+          'timestamp.micros -> ' + repr(timestamp.micros),
           'timestamp.to_rfc3339() -> ' + repr(timestamp.to_rfc3339()),
           'timestamp.to_utc_datetime() -> ' + repr(timestamp.to_utc_datetime()),
           '',
