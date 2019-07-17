@@ -169,8 +169,8 @@ class JavaJarJobServer(SubprocessJobServer):
   def path_to_jar(self):
     raise NotImplementedError(type(self))
 
-  @staticmethod
-  def path_to_gradle_target_jar(target):
+  @classmethod
+  def path_to_gradle_target_jar(cls, target):
     gradle_package = target[:target.rindex(':')]
     jar_name = '-'.join([
         'beam', gradle_package.replace(':', '-'), beam_version + '.jar'])
@@ -194,11 +194,10 @@ class JavaJarJobServer(SubprocessJobServer):
                 os.path.abspath(project_root), target))
     else:
       return '/'.join([
-          self.MAVEN_REPOSITORY,
+          cls.MAVEN_REPOSITORY,
           'beam-' + gradle_package.replace(':', '-'),
           beam_version,
           jar_name])
-
 
   def subprocess_cmd_and_endpoint(self):
     jar_path = self.local_jar(self.path_to_jar())

@@ -45,7 +45,6 @@ class FlinkRunnerOptions(pipeline_options.PipelineOptions):
                         help='Path or URL to a flink jobserver jar.')
 
 
-
 class FlinkJarJobServer(job_server.JavaJarJobServer):
   def __init__(self, options):
     super(FlinkJarJobServer, self).__init__()
