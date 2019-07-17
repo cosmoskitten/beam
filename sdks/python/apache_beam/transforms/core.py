@@ -658,7 +658,7 @@ class CallableWrapperDoFn(DoFn[InT, OutT]):
     return getfullargspec(self._process_argspec_fn())
 
 
-class CombineFn(WithTypeHints[T, T], HasDisplayData, urns.RunnerApiFn):
+class CombineFn(WithTypeHints[T_, T_], HasDisplayData, urns.RunnerApiFn):
   """A function object used by a Combine transform with custom processing.
 
   A CombineFn specifies how multiple values in all or part of a PCollection can
@@ -836,7 +836,7 @@ class _ReiterableChain(object):
     return False
 
 
-class CallableWrapperCombineFn(CombineFn[T, T]):
+class CallableWrapperCombineFn(CombineFn[T_]):
   """For internal use only; no backwards-compatibility guarantees.
 
   A CombineFn (function) object wrapping a callable object.
@@ -847,7 +847,7 @@ class CallableWrapperCombineFn(CombineFn[T, T]):
   _DEFAULT_BUFFER_SIZE = 10
 
   def __init__(self, fn, buffer_size=_DEFAULT_BUFFER_SIZE):
-    # type: (typing.Callable[[typing.Iterable[T]], T], int) -> None
+    # type: (typing.Callable[[typing.Iterable[T_]], T_], int) -> None
     """Initializes a CallableFn object wrapping a callable.
 
     Args:
@@ -1337,9 +1337,9 @@ def Map(fn,  # type: typing.Callable[[InT], OutT]
   return pardo
 
 
-def Filter(fn,  # type: typing.Callable[[T], bool]
+def Filter(fn,  # type: typing.Callable[[T_], bool]
            *args, **kwargs):  # pylint: disable=invalid-name
-  # type: (...) -> ParDo[T, T]
+  # type: (...) -> ParDo[T_, T_]
   """:func:`Filter` is a :func:`FlatMap` with its callable filtering out
   elements.
 

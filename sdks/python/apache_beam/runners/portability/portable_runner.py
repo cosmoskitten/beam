@@ -184,7 +184,7 @@ class PortableRunner(runner.PipelineRunner):
       if not self._job_endpoint:
         self.init_dockerized_job_server()
       job_endpoint = self._job_endpoint
-      job_service = None
+      job_service = None  # type: typing.Union[None, beam_job_api_pb2_grpc.JobServiceStub, beam_job_api_pb2_grpc.JobServiceServicer]
     elif job_endpoint == 'embed':
       job_service = local_job_service.LocalJobServicer()
     else:
