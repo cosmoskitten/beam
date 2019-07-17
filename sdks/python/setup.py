@@ -25,17 +25,69 @@ import platform
 import sys
 import warnings
 from distutils.version import StrictVersion
+from distutils.errors import DistutilsError
 
 # Pylint and isort disagree here.
 # pylint: disable=ungrouped-imports
 import setuptools
 from pkg_resources import DistributionNotFound
 from pkg_resources import get_distribution
+from pkg_resources import normalize_path
+from pkg_resources import to_filename
+from setuptools import Command
 from setuptools.command.build_py import build_py
 from setuptools.command.develop import develop
 from setuptools.command.egg_info import egg_info
 from setuptools.command.sdist import sdist
 from setuptools.command.test import test
+
+
+class mypy(Command):
+  user_options = []
+
+  def initialize_options(self):
+    """Abstract method that is required to be overwritten"""
+
+  def finalize_options(self):
+    """Abstract method that is required to be overwritten"""
+
+  def get_project_path(self, include_dists=[]):
+      # with_2to3 = six.PY3 and getattr(self.distribution, 'use_2to3', False)
+      #
+      # if with_2to3:
+      #     # If we run 2to3 we can not do this inplace:
+      #
+      #     # Ensure metadata is up-to-date
+      #     self.reinitialize_command('build_py', inplace=0)
+      #     self.run_command('build_py')
+      #     bpy_cmd = self.get_finalized_command("build_py")
+      #     build_path = normalize_path(bpy_cmd.build_lib)
+      #
+      #     # Build extensions
+      #     self.reinitialize_command('egg_info', egg_base=build_path)
+      #     self.run_command('egg_info')
+      #
+      #     self.reinitialize_command('build_ext', inplace=0)
+      #     self.run_command('build_ext')
+      # else:
+      # Without 2to3 inplace works fine:
+      self.run_command('egg_info')
+
+      # Build extensions in-place
+      self.reinitialize_command('build_ext', inplace=1)
+      self.run_command('build_ext')
+
+      ei_cmd = self.get_finalized_command("egg_info")
+
+      project_path = normalize_path(ei_cmd.egg_base)
+      return os.path.join(project_path, to_filename(ei_cmd.egg_name))
+
+  def run(self):
+    import subprocess
+    args = ['mypy', self.get_project_path()]
+    result = subprocess.call(args)
+    if result != 0:
+      raise DistutilsError()
 
 
 def get_version():
@@ -236,5 +288,6 @@ setuptools.setup(
         'egg_info': generate_protos_first(egg_info),
         'sdist': generate_protos_first(sdist),
         'test': generate_protos_first(test),
+        'mypy': generate_protos_first(mypy),
     },
 )
