@@ -166,6 +166,16 @@ class WriteTables<DestinationT>
               + "but %s returned null for destination %s",
           dynamicDestinations,
           destination);
+      boolean destinationCoderSupportsClustering =
+          !(dynamicDestinations.getDestinationCoder() instanceof TableDestinationCoderV2);
+      checkArgument(
+          tableDestination.getClustering() == null || destinationCoderSupportsClustering,
+          "DynamicDestinations.getTable() may only return destinations with clustering configured"
+              + " if a destination coder is supplied that supports clustering, but %s is configured"
+              + " to use TableDestinationCoderV2. Set withClustering() on BigQueryIO.write() and, "
+              + " if you provided a custom DynamicDestinations instance, override"
+              + " getDestinationCoder() to return TableDestinationCoderV3.",
+          dynamicDestinations);
       TableReference tableReference = tableDestination.getTableReference();
       if (Strings.isNullOrEmpty(tableReference.getProjectId())) {
         tableReference.setProjectId(c.getPipelineOptions().as(BigQueryOptions.class).getProject());
