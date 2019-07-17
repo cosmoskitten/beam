@@ -60,11 +60,12 @@ task copyDockerfileDependencies(type: Copy) {
 }
 
 golang {
-  packagePath = 'github.com/apache/beam/sdks/java/boot'
+  packagePath = 'github.com/apache/beam/sdks/java/container'
   goBuild {
     // TODO(herohde): build local platform + linux-amd64, if possible.
-    targetPlatform = ['linux-amd64']
-    outputLocation = './build/target/${GOOS}_${GOARCH}/boot'
+    environment 'GO111MODULE', 'on'
+    targetPlatform = ['darwin-amd64', 'linux-amd64']
+    go 'build -o ./build/target/${GOOS}_${GOARCH}/boot .'
   }
 }
 
