@@ -27,11 +27,6 @@ def getLocalPlatform = {
   return hostOs + '-' + hostArch
 }
 
-// Figure out why the golang plugin does not add a build dependency between projects.
-// Without the line below, we get spurious errors about not being able to resolve
-// "./github.com/apache/beam/sdks/go"
-resolveBuildDependencies.dependsOn ":sdks:go:goBuild"
-
 dependencies {
   golang {
     // TODO(herohde): use "./" prefix to prevent gogradle use base github path, for now.
@@ -44,6 +39,7 @@ dependencies {
 golang {
   packagePath = 'github.com/apache/beam/sdks/go/examples'
   goBuild {
+    environment 'GO111MODULE', 'on'
     // We always want to build linux-amd64 in addition to the user host platform
     // so we can submit this as the remote binary used within the Go container.
     //
