@@ -426,7 +426,12 @@ class BytesCoderImpl(CoderImpl):
 
   A coder for bytes/str objects."""
 
+  def __init__(self, encode_utf8=False):
+    self.encode_utf8 = encode_utf8
+
   def encode_to_stream(self, value, out, nested):
+    if self.encode_utf8:
+      value = value.encode('utf-8')
     out.write(value, nested)
 
   def decode_from_stream(self, in_stream, nested):
