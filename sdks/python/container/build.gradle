@@ -51,8 +51,6 @@ golang {
   goBuild {
     environment 'GO111MODULE', 'on'
     environment 'GOARCH', 'amd64'
-    environment 'GOOS', 'darwin'
-    go 'build -o ./build/target/launcher/${GOOS}_${GOARCH}/boot .'
     environment 'GOOS', 'linux'
     go 'build -o ./build/target/launcher/${GOOS}_${GOARCH}/boot .'
   }
