@@ -72,8 +72,8 @@ class ParDoTest(unittest.TestCase):
   def test_pardo_dofn(self):
     pardo_dofn(check_plants)
 
-  @unittest.skipIf(sys.version_info[0] < 2 and platform.system() == 'Windows',
-                   'Python 2 on Windows uses`long` rather than `int`')
+  @unittest.skipIf(sys.version_info[0] < 3 and platform.system() == 'Windows',
+                   'Python 2 on Windows uses `long` rather than `int`')
   def test_pardo_dofn_params(self):
     pardo_dofn_params(check_dofn_params)
 
