@@ -105,6 +105,11 @@ def _match_same_type(match_against):
   return lambda user_type: type(user_type) == type(match_against)
 
 
+def _match_is_exactly_iterable(user_type):
+  # Avoid unintentionally catching all subtypes (e.g. strings and mappings).
+  return getattr(user_type, '__origin__', None) is typing.Iterable
+
+
 def _match_is_named_tuple(user_type):
   return (_safe_issubclass(user_type, typing.Tuple) and
           hasattr(user_type, '_field_types'))
@@ -155,6 +160,10 @@ def convert_to_beam_type(typ):
           match=_match_issubclass(typing.Dict),
           arity=2,
           beam_type=typehints.Dict),
+      _TypeMapEntry(
+          match=_match_is_exactly_iterable,
+          arity=1,
+          beam_type=typehints.Iterable),
       _TypeMapEntry(
           match=_match_issubclass(typing.List),
           arity=1,
