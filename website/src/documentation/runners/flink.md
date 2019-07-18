@@ -293,8 +293,9 @@ To run on a separate [Flink cluster](https://ci.apache.org/projects/flink/flink-
 <span class="language-py">3. Submit the pipeline as above.
 </span>
 
-As of Beam 2.15.0, steps 2 and 3 can be automated in Python by using the `FlinkRunner`,
+<span class="language-py">As of Beam 2.15.0, steps 2 and 3 can be automated in Python by using the `FlinkRunner`,
 plus the optional `flink_version` and `flink_master_url` options if required, i.e.
+</span>
 
 ```py
 import apache_beam as beam
