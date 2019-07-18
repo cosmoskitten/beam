@@ -134,6 +134,9 @@ def _match_is_union(user_type):
   return False
 
 
+_type_var_cache = {}
+
+
 def convert_to_beam_type(typ):
   """Convert a given typing type to a Beam type.
 
@@ -149,7 +152,15 @@ def convert_to_beam_type(typ):
   """
   if isinstance(typ, typing.TypeVar):
     # This is a special case, as it's not parameterized by types.
-    return typehints.TypeVariable(typ.__name__)
+    # Also, identity must be preserved through conversion.
+    # A global cache should be OK as the number of distinct type variables
+    # is generally small.
+    if id(typ) not in _type_var_cache:
+      _type_var_cache[id(typ)] = typehints.TypeVariable(typ.__name__)
+    return _type_var_cache[id(typ)]
+  elif getattr(typ, '__module__', None) in ('__builtin__', 'builtins'):
+    # Don't translate base types.
+    return typ
 
   type_map = [
       _TypeMapEntry(
