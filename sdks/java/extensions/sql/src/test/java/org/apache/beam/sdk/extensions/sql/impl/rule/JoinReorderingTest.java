@@ -17,7 +17,6 @@
  */
 package org.apache.beam.sdk.extensions.sql.impl.rule;
 
-import java.math.BigInteger;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -32,8 +31,8 @@ import org.apache.beam.sdk.extensions.sql.meta.provider.test.TestTableProvider;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.values.Row;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableList;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableMap;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 import org.apache.calcite.DataContext;
 import org.apache.calcite.adapter.enumerable.EnumerableConvention;
 import org.apache.calcite.adapter.enumerable.EnumerableRules;
@@ -85,25 +84,28 @@ public class JoinReorderingTest {
     createThreeTables(tableProvider);
 
     Assert.assertEquals(
-        BigInteger.ONE,
+        1d,
         tableProvider
             .buildBeamSqlTable(tableProvider.getTable("small_table"))
             .getRowCount(null)
-            .getRowCount());
+            .getRowCount(),
+        0.01);
 
     Assert.assertEquals(
-        BigInteger.valueOf(3),
+        3d,
         tableProvider
             .buildBeamSqlTable(tableProvider.getTable("medium_table"))
             .getRowCount(null)
-            .getRowCount());
+            .getRowCount(),
+        0.01);
 
     Assert.assertEquals(
-        BigInteger.valueOf(100),
+        100d,
         tableProvider
             .buildBeamSqlTable(tableProvider.getTable("large_table"))
             .getRowCount(null)
-            .getRowCount());
+            .getRowCount(),
+        0.01);
   }
 
   @Test
