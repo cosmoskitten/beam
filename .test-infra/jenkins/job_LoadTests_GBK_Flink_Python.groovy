@@ -58,7 +58,7 @@ def testConfiguration = { datasetName ->
         ]}
 
 def loadTest = { scope, triggeringContext ->
-  scope.description('Runs Java GBK load tests on Flink runner in batch mode')
+  scope.description('Runs Python GBK load tests on Flink runner in batch mode')
   commonJobProperties.setTopLevelMainJobProperties(scope, 'master', 240)
 
   def datasetName = loadTestsBuilder.getBigQueryDataset('load_test', triggeringContext)
