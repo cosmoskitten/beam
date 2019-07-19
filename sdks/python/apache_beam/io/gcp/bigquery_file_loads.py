@@ -389,7 +389,6 @@ class TriggerLoadJobs(beam.DoFn):
       if table_reference.projectId is None:
         table_reference.projectId = vp.RuntimeValueProvider.get_value(
             'project', str, '')
-
       # Load jobs for a single destination are always triggered from the same
       # worker. This means that we can generate a deterministic numbered job id,
       # and not need to worry.
@@ -579,32 +578,23 @@ class BigQueryBatchFileLoads(beam.PTransform):
                                      trigger.AfterCount(
                                          _FILE_TRIGGERING_RECORD_COUNT))),
                              accumulation_mode=trigger.AccumulationMode\
-                              .DISCARDING)
-    return beam.WindowInto(beam.window.GlobalWindows())
+                                 .DISCARDING)
+    else:
+      return beam.WindowInto(beam.window.GlobalWindows())
 
-  def expand(self, pcoll):
-    p = pcoll.pipeline
+  def _write_files_streaming(self, destination_data_kv_pc, file_prefix_pcv):
+    destination_file_pairs_pc = (
+        destination_data_kv_pc
+        | beam.ParDo(_ShardDestinations())
+        | "GroupShardedRows" >> beam.GroupByKey()
+        | "DropShardNumber" >> beam.Map(lambda x: (x[0][0], x[1]))
+        | "WriteGroupedRecordsToFile" >> beam.ParDo(WriteGroupedRecordsToFile(
+            coder=self.coder), file_prefix=file_prefix_pcv))
+    return destination_file_pairs_pc
 
-    temp_location = p.options.view_as(GoogleCloudOptions).temp_location
-
-    load_job_name_pcv = pvalue.AsSingleton(
-        p
-        | "ImpulseJobName" >> beam.Create([None])
-        | beam.Map(lambda _: _generate_load_job_name()))
-
-    file_prefix_pcv = pvalue.AsSingleton(
-        p
-        | "CreateFilePrefixView" >> beam.Create([''])
-        | "GenerateFilePrefix" >> beam.Map(
-            file_prefix_generator(self._validate,
-                                  self._custom_gcs_temp_location,
-                                  temp_location)))
-
+  def _write_files_batch(self, destination_data_kv_pc, file_prefix_pcv):
     outputs = (
-        pcoll
-        | "ApplyWindow" >> self._window_fn()
-        | "AppendDestination" >> beam.ParDo(bigquery_tools.AppendDestinationsFn(
-            self.destination), *self.table_side_inputs)
+        destination_data_kv_pc
         | beam.ParDo(
             WriteRecordsToFile(max_files_per_bundle=self.max_files_per_bundle,
                                max_file_size=self.max_file_size,
@@ -629,15 +619,86 @@ class BigQueryBatchFileLoads(beam.PTransform):
         | "GroupShardedRows" >> beam.GroupByKey()
         | "DropShardNumber" >> beam.Map(lambda x: (x[0][0], x[1]))
         | "WriteGroupedRecordsToFile" >> beam.ParDo(WriteGroupedRecordsToFile(
-            coder=self.coder), file_prefix=file_prefix_pcv)
-    )
+            coder=self.coder), file_prefix=file_prefix_pcv))
 
-    all_destination_file_pairs_pc = (
+    destination_file_pairs_pc = (
         (destination_files_kv_pc, more_destination_files_kv_pc)
         | "DestinationFilesUnion" >> beam.Flatten())
 
+    return destination_file_pairs_pc
+
+  def _write_files(self, destination_data_kv_pc, file_prefix_pcv):
+    if self.is_streaming_pipeline:
+      destination_file_pairs_pc = self._write_files_streaming(
+          destination_data_kv_pc,
+          file_prefix_pcv)
+      destination_file_pairs_pc = (
+          destination_file_pairs_pc
+          | "ApplyUserTrigger" >> beam.WindowInto(
+              beam.window.GlobalWindows(),
+              trigger=trigger.Repeatedly(
+                  trigger.AfterAll(
+                      trigger.AfterProcessingTime(self.triggering_frequency),
+                      trigger.AfterCount(1))),
+              accumulation_mode=trigger.AccumulationMode.DISCARDING))
+    else:
+      destination_file_pairs_pc = self._write_files_batch(
+          destination_data_kv_pc,
+          file_prefix_pcv)
+    return destination_file_pairs_pc
+
+  def _copy_temp_table(self, dest_ids_list_pcv, load_job_name_pcv):
+    if self.is_streaming_pipeline:
+      destination_job_ids_pc = (
+          dest_ids_list_pcv
+          | beam.WindowInto(
+              beam.window.GlobalWindows(),
+              trigger=trigger.Repeatedly(trigger.AfterCount(1)),
+              accumulation_mode=trigger.AccumulationMode.DISCARDING)
+          | beam.ParDo(TriggerCopyJobs(
+              create_disposition=self.create_disposition,
+              write_disposition=self.write_disposition,
+              temporary_tables=self.temp_tables,
+              test_client=self.test_client), load_job_name_pcv))
+    else:
+      destination_job_ids_pc = (
+          dest_ids_list_pcv
+          | beam.ParDo(TriggerCopyJobs(
+              create_disposition=self.create_disposition,
+              write_disposition=self.write_disposition,
+              temporary_tables=self.temp_tables,
+              test_client=self.test_client), load_job_name_pcv))
+    return destination_job_ids_pc
+
+  def expand(self, pcoll):
+    p = pcoll.pipeline
+
+    temp_location = p.options.view_as(GoogleCloudOptions).temp_location
+
+    load_job_name_pcv = pvalue.AsSingleton(
+        p
+        | "ImpulseJobName" >> beam.Create([None])
+        | beam.Map(lambda _: _generate_load_job_name()))
+
+    file_prefix_pcv = pvalue.AsSingleton(
+        p
+        | "CreateFilePrefixView" >> beam.Create([''])
+        | "GenerateFilePrefix" >> beam.Map(
+            file_prefix_generator(self._validate,
+                                  self._custom_gcs_temp_location,
+                                  temp_location)))
+
+    destination_data_kv_pc = (
+        pcoll
+        | "RewindowIntoGlobal" >> self._window_fn()
+        | "AppendDestination" >> beam.ParDo(bigquery_tools.AppendDestinationsFn(
+            self.destination), *self.table_side_inputs))
+
+    destination_file_pairs_pc = self._write_files(destination_data_kv_pc,
+                                                  file_prefix_pcv)
+
     grouped_files_pc = (
-        all_destination_file_pairs_pc
+        destination_file_pairs_pc
         | "GroupFilesByTableDestinations" >> beam.GroupByKey())
 
     # Load Jobs are triggered to temporary tables, and those are later copied to
@@ -661,17 +722,15 @@ class BigQueryBatchFileLoads(beam.PTransform):
     destination_job_ids_pc = trigger_loads_outputs['main']
     temp_tables_pc = trigger_loads_outputs[TriggerLoadJobs.TEMP_TABLES]
 
-    destination_copy_job_ids_pc = (
+    dest_ids_list_pcv = (
         p
         | "ImpulseMonitorLoadJobs" >> beam.Create([None])
         | "WaitForLoadJobs" >> beam.ParDo(
             WaitForBQJobs(self.test_client),
-            beam.pvalue.AsList(destination_job_ids_pc))
-        | beam.ParDo(TriggerCopyJobs(
-            create_disposition=self.create_disposition,
-            write_disposition=self.write_disposition,
-            temporary_tables=self.temp_tables,
-            test_client=self.test_client), load_job_name_pcv))
+            beam.pvalue.AsList(destination_job_ids_pc)))
+
+    destination_copy_job_ids_pc = self._copy_temp_table(
+        dest_ids_list_pcv, load_job_name_pcv)
 
     finished_copy_jobs_pc = (p
                              | "ImpulseMonitorCopyJobs" >> beam.Create([None])
@@ -690,6 +749,6 @@ class BigQueryBatchFileLoads(beam.PTransform):
          | "RemoveTempTables/Delete" >> beam.ParDo(DeleteTablesFn()))
     return {
         self.DESTINATION_JOBID_PAIRS: destination_job_ids_pc,
-        self.DESTINATION_FILE_PAIRS: all_destination_file_pairs_pc,
+        self.DESTINATION_FILE_PAIRS: destination_file_pairs_pc,
         self.DESTINATION_COPY_JOBID_PAIRS: destination_copy_job_ids_pc,
     }
