@@ -35,7 +35,6 @@ from apache_beam.transforms import cy_combiners
 from apache_beam.transforms import ptransform
 from apache_beam.transforms import window
 from apache_beam.transforms.display import DisplayDataItem
-from typing import Tuple
 from typing import Any
 from typing import Dict
 from typing import Iterable
