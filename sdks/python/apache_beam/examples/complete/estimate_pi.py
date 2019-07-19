@@ -31,6 +31,9 @@ import argparse
 import json
 import logging
 import random
+from typing import Any
+from typing import Iterable
+from typing import Tuple
 from builtins import object
 from builtins import range
 
@@ -38,9 +41,6 @@ import apache_beam as beam
 from apache_beam.io import WriteToText
 from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.options.pipeline_options import SetupOptions
-from typing import Any
-from typing import Iterable
-from typing import Tuple
 
 
 @beam.typehints.with_output_types(Tuple[int, int, int])
