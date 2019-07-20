@@ -480,7 +480,7 @@ class BigQueryFileLoadsIT(unittest.TestCase):
     if isinstance(self.test_pipeline.runner, TestDataflowRunner):
       self.skipTest("TestStream is not supported on TestDataflowRunner")
     output_table = '%s_%s' % (self.output_table, 'ints')
-    _SIZE = 100
+    _SIZE = 30
     schema = self.BIG_QUERY_STREAMING_SCHEMA
     l = [{'Integr': i} for i in range(_SIZE)]
 
@@ -489,7 +489,7 @@ class BigQueryFileLoadsIT(unittest.TestCase):
         project=self.project,
         query="SELECT Integr FROM %s"
         % output_table,
-        data=[(i,) for i in range(100)])
+        data=[(i,) for i in range(_SIZE)])
 
     args = self.test_pipeline.get_full_options_as_args(
         on_success_matcher=all_of(state_matcher, bq_matcher),
@@ -498,19 +498,13 @@ class BigQueryFileLoadsIT(unittest.TestCase):
     with beam.Pipeline(argv=args) as p:
       stream_source = (TestStream()
                        .advance_watermark_to(0)
-                       .add_elements(l[:_SIZE//5])
+                       .add_elements(l[:_SIZE//3])
                        .advance_processing_time(100)
                        .advance_watermark_to(100)
-                       .add_elements(l[_SIZE//5:2*_SIZE//5])
+                       .add_elements(l[_SIZE//3:2*_SIZE//3])
                        .advance_processing_time(100)
                        .advance_watermark_to(200)
-                       .add_elements(l[2*_SIZE//5:3*_SIZE//5])
-                       .advance_processing_time(100)
-                       .advance_watermark_to(300)
-                       .add_elements(l[3*_SIZE//5:4*_SIZE//5])
-                       .advance_processing_time(100)
-                       .advance_watermark_to(400)
-                       .add_elements(l[4*_SIZE//5:])
+                       .add_elements(l[2*_SIZE//3:])
                        .advance_processing_time(100)
                        .advance_watermark_to_infinity())
       _ = (p
