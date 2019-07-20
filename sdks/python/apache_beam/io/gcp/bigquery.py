@@ -1146,6 +1146,9 @@ bigquery_v2_messages.TableSchema):
                        'inserts into BigQuery. Only for File Loads.')
 
     if method_to_use == WriteToBigQuery.Method.STREAMING_INSERTS:
+      if self.triggering_frequency:
+        raise ValueError('triggering_frequency can only be used with '
+                         'File Loads method of writing in streaming mode.')
       bigquery_write_fn = BigQueryWriteFn(
           schema=self.schema,
           batch_size=self.batch_size,
