@@ -17,7 +17,8 @@
  */
 import CommonJobProperties as common
 
-String kubernetes = '"$WORKSPACE/src/.test-infra/kubernetes/"'
+String kubernetesDir = '"$WORKSPACE/src/.test-infra/kubernetes"'
+String kubernetesScript = "${kubernetesDir}/kubernetes.sh"
 String jobName = "beam_PerformanceTests_MongoDBIO_IT"
 
 Map pipelineOptions = [
@@ -49,8 +50,9 @@ job(jobName) {
       env('KUBERNETES_NAMESPACE', namespace)
     }
 
-    shell("${kubernetes}/kubernetes.sh apply ${kubernetes}/mongodb/load-balancer/mongo.yml")
-    shell("echo LOAD_BALANCER_IP=myEnvInjectedOnRuntime > job.properties")
+    shell("${kubernetesScript} createNamespace ${namespace}")
+    shell("${kubernetesScript} apply ${kubernetesDir}/mongodb/load-balancer/mongo.yml")
+    shell("echo LOAD_BALANCER_IP=`eval ${kubernetesScript} loadBalancerIP mongo-load-balancer-service` > job.properties")
     environmentVariables {
       propertiesFile('job.properties')
     }
@@ -69,7 +71,8 @@ job(jobName) {
   publishers {
     postBuildScripts {
       steps {
-        shell("{kubernetes} deleteNamespace ${namespace}")
+
+        shell("${kubernetesScript} deleteNamespace ${namespace}")
         shell("rm ${kubeconfigPath}")
       }
       onlyIfBuildSucceeds(false)
