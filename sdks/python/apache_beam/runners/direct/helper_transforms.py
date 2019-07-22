@@ -22,6 +22,7 @@ import itertools
 import typing
 
 import apache_beam as beam
+from apache_beam import typehints
 from apache_beam.internal.util import ArgumentPlaceholder
 from apache_beam.transforms.combiners import _CurriedFn
 from apache_beam.utils.windowed_value import WindowedValue
@@ -78,7 +79,7 @@ class PartialGroupByKeyCombiningValues(beam.DoFn):
     K = typing.TypeVar('K')
     if hints.input_types:
       args, kwargs = hints.input_types
-      args = (typing.Tuple[K, args[0]],) + args[1:]
+      args = (typehints.Tuple[K, args[0]],) + args[1:]
       hints.set_input_types(*args, **kwargs)
     else:
       hints.set_input_types(typing.Tuple[K, typing.Any])
@@ -105,5 +106,5 @@ class FinishCombine(beam.DoFn):
     hints.set_input_types(typing.Tuple[K, typing.Any])
     if hints.output_types:
       main_output_type = hints.simple_output_type('')
-      hints.set_output_types(typing.Tuple[K, main_output_type])
+      hints.set_output_types(typehints.Tuple[K, main_output_type])
     return hints
