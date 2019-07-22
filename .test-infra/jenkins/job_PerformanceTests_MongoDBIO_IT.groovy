@@ -17,7 +17,8 @@
  */
 import CommonJobProperties as common
 
-String kubernetes = '"$WORKSPACE/src/.test-infra/kubernetes/"'
+String kubernetesDir = '"$WORKSPACE/src/.test-infra/kubernetes"'
+String kubernetesScript = "${kubernetesDir}/kubernetes.sh"
 String jobName = "beam_PerformanceTests_MongoDBIO_IT"
 
 Map pipelineOptions = [
@@ -49,27 +50,31 @@ job(jobName) {
       env('KUBERNETES_NAMESPACE', namespace)
     }
 
-    shell("${kubernetes}/kubernetes.sh apply ${kubernetes}/mongodb/load-balancer/mongo.yml")
-    shell("echo LOAD_BALANCER_IP=myEnvInjectedOnRuntime > job.properties")
+    shell("${kubernetesScript} createNamespace ${namespace}")
+    shell("${kubernetesScript} apply ${kubernetesDir}/mongodb/load-balancer/mongo.yml")
+
+    String variableName = "LOAD_BALANCER_IP"
+    String command = "./${kubernetesScript} loadBalancerIP mongo-load-balancer-service"
+    shell("set -eo pipefail; eval ${command} | sed 's/^/${variableName}/' > job.properties")
     environmentVariables {
       propertiesFile('job.properties')
     }
 
     gradle {
       rootBuildScriptDir(common.checkoutDir)
-      tasks("integrationTest")
       common.setGradleSwitches(delegate)
-      switches("-p sdks/java/io/mongodb")
-      switches("-DintegrationTestPipelineOptions='[${common.joinPipelineOptions(pipelineOptions)}]'")
-      switches("-DintegrationTestRunner=dataflow")
+      tasks("integrationTest")
       switches("--tests org.apache.beam.sdk.mongodb.MongoDBIOIT")
+      switches("-p sdks/java/io/mongodb")
+      switches("-DintegrationTestPipelineOptions=${common.joinPipelineOptions(pipelineOptions)}")
+      switches("-DintegrationTestRunner=dataflow")
     }
   }
 
   publishers {
     postBuildScripts {
       steps {
-        shell("{kubernetes} deleteNamespace ${namespace}")
+        shell("${kubernetesScript} deleteNamespace ${namespace}")
         shell("rm ${kubeconfigPath}")
       }
       onlyIfBuildSucceeds(false)
