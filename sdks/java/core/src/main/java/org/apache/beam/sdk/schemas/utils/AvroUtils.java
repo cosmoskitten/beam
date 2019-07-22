@@ -57,6 +57,7 @@ import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.apache.beam.sdk.schemas.Schema.TypeName;
 import org.apache.beam.sdk.schemas.SchemaUserTypeCreator;
 import org.apache.beam.sdk.transforms.SerializableFunction;
+import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.CaseFormat;
@@ -295,6 +296,18 @@ public class AvroUtils {
   public static SerializableFunction<Row, GenericRecord> getRowToGenericRecordFunction(
       @Nullable org.apache.avro.Schema avroSchema) {
     return g -> toGenericRecord(g, avroSchema);
+  }
+
+  /** Transform an existing Avro-based PCollection input into an Schema-based PCollection. */
+  public static <T> PCollection<T> asSchemaPCollection(
+      PCollection<T> pc, Class<T> clazz, @Nullable org.apache.avro.Schema schema) {
+    if (!pc.hasSchema()) {
+      Schema beamSchema = getSchema(clazz, schema);
+      if (beamSchema != null) {
+        pc.setSchema(beamSchema, getToRowFunction(clazz, schema), getFromRowFunction(clazz));
+      }
+    }
+    return pc;
   }
 
   private static final class AvroSpecificRecordFieldValueTypeSupplier

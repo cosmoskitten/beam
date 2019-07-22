@@ -18,6 +18,7 @@
 package org.apache.beam.sdk.io;
 
 import static org.apache.beam.sdk.io.FileIO.ReadMatches.DirectoryTreatment;
+import static org.apache.beam.sdk.schemas.utils.AvroUtils.asSchemaPCollection;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkNotNull;
 
@@ -187,6 +188,22 @@ import org.joda.time.Duration;
  * thousands or more), use {@link Read#withHintMatchesManyFiles} for better performance and
  * scalability. Note that it may decrease performance if the filepattern matches only a small number
  * of files.
+ *
+ * <h3>Inferring Beam schemas from Avro files</h3>
+ *
+ * <p>If you want to use SQL or schema based operations on an Avro-based PCollection. You must
+ * configure the read transform to infer the Beam schema and automatically setup the Beam related
+ * coders by doing:
+ *
+ * <pre>{@code
+ * PCollection<AvroAutoGenClass> records =
+ *     p.apply(AvroIO.read(...).from(...).withBeamSchemas(true);
+ * }</pre>
+ *
+ * If you created an Avro-based PCollection by other means e.g. reading from Kafka or as the output
+ * of another transform. You should use {@link
+ * org.apache.beam.sdk.schemas.utils.AvroUtils#asSchemaPCollection(PCollection, Class, Schema)} to
+ * make it a Beam Schema-aware PCollection.
  *
  * <h2>Writing Avro files</h2>
  *
@@ -519,19 +536,6 @@ public class AvroIO {
         .setNoSpilling(false);
   }
 
-  private static <T> PCollection<T> setBeamSchema(
-      PCollection<T> pc, Class<T> clazz, @Nullable Schema schema) {
-    org.apache.beam.sdk.schemas.Schema beamSchema =
-        org.apache.beam.sdk.schemas.utils.AvroUtils.getSchema(clazz, schema);
-    if (beamSchema != null) {
-      pc.setSchema(
-          beamSchema,
-          org.apache.beam.sdk.schemas.utils.AvroUtils.getToRowFunction(clazz, schema),
-          org.apache.beam.sdk.schemas.utils.AvroUtils.getFromRowFunction(clazz));
-    }
-    return pc;
-  }
-
   /**
    * 64MB is a reasonable value that allows to amortize the cost of opening files, but is not so
    * large as to exhaust a typical runner's maximum amount of output per ProcessElement call.
@@ -627,6 +631,10 @@ public class AvroIO {
       return toBuilder().setHintMatchesManyFiles(true).build();
     }
 
+    /**
+     * If set to true, a Beam schema will be inferred from the AVRO schema. This allows the output
+     * to be used by SQL and by the schema-transform library.
+     */
     @Experimental(Kind.SCHEMAS)
     public Read<T> withBeamSchemas(boolean withBeamSchemas) {
       return toBuilder().setInferBeamSchema(withBeamSchemas).build();
@@ -648,7 +656,9 @@ public class AvroIO {
                         getMatchConfiguration().getEmptyMatchTreatment(),
                         getRecordClass(),
                         getSchema())));
-        return getInferBeamSchema() ? setBeamSchema(read, getRecordClass(), getSchema()) : read;
+        return getInferBeamSchema()
+            ? asSchemaPCollection(read, getRecordClass(), getSchema())
+            : read;
       }
 
       // All other cases go through FileIO + ReadFiles
@@ -748,7 +758,7 @@ public class AvroIO {
                   getDesiredBundleSizeBytes(),
                   new CreateSourceFn<>(getRecordClass(), getSchema().toString()),
                   AvroCoder.of(getRecordClass(), getSchema())));
-      return getInferBeamSchema() ? setBeamSchema(read, getRecordClass(), getSchema()) : read;
+      return getInferBeamSchema() ? asSchemaPCollection(read, getRecordClass(), getSchema()) : read;
     }
 
     @Override
@@ -843,7 +853,7 @@ public class AvroIO {
               .apply(FileIO.matchAll().withConfiguration(getMatchConfiguration()))
               .apply(FileIO.readMatches().withDirectoryTreatment(DirectoryTreatment.PROHIBIT))
               .apply(readFiles(getRecordClass()));
-      return getInferBeamSchema() ? setBeamSchema(read, getRecordClass(), getSchema()) : read;
+      return getInferBeamSchema() ? asSchemaPCollection(read, getRecordClass(), getSchema()) : read;
     }
 
     @Override
