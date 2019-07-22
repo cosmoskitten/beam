@@ -142,15 +142,19 @@ def loadTestConfigurations = { datasetName -> [
         ],
 ]}
 
-def groupByParallelism = { testConfigs ->
-    def groups = [:]
+def getMaxParallelism = { testConfigs ->
+    def maxValue = 0
     for (config in testConfigs) {
-        if (!groups.containsKey(config.parallelism)) {
-            groups[config.parallelism] = []
+        if (config.jobProperties.parallelism > maxValue) {
+            maxValue = config.jobProperties.parallelism
         }
-        groups[config.parallelism] <<  config
     }
-    return groups
+    return maxValue
+}
+
+def sortDescByParallelism = { testConfigs ->
+    Comparator cm = {a, b -> a.jobProperties.parallelism == b.jobProperties.parallelism ? 0 : a.jobProperties.parallelism < jobProperties.parallelism ? 1 : -1}
+    return testConfigs.sort(cm)
 }
 
 def batchLoadTestJob = { scope, triggeringContext ->
@@ -158,17 +162,18 @@ def batchLoadTestJob = { scope, triggeringContext ->
     commonJobProperties.setTopLevelMainJobProperties(scope, 'master', 240)
 
     def datasetName = loadTestsBuilder.getBigQueryDataset('load_test', triggeringContext)
+    def testConfigs = sortDescByParallelism(loadTestConfigurations(datasetName))
+
     infra.prepareSDKHarness(scope, CommonTestProperties.SDK.PYTHON, dockerRegistryRoot, dockerTag)
     infra.prepareFlinkJobServer(scope, flinkVersion, dockerRegistryRoot, dockerTag)
+    infra.setupFlinkCluster(scope, jenkinsJobName, flinkDownloadUrl, pythonHarnessImageTag, jobServerImageTag, getMaxParallelism(testConfigs))
 
-    def testConfigs = loadTestConfigurations(datasetName)
-    for (testConfigGroup in groupByParallelism(testConfigs)) {
-        infra.setupFlinkCluster(scope, jenkinsJobName, flinkDownloadUrl, pythonHarnessImageTag, jobServerImageTag, testConfigGroup.key)
-        for (config in testConfigGroup.value) {
-            loadTestsBuilder.loadTest(scope, config.title, config.runner, CommonTestProperties.SDK.PYTHON, config.jobProperties, config.itClass)
-        }
-        infra.teardownDataproc(scope, jenkinsJobName)
+    for (config in testConfigs) {
+        loadTestsBuilder.loadTest(scope, config.title, config.runner, CommonTestProperties.SDK.PYTHON, config.jobProperties, config.itClass)
+        infra.scaleCluster(jenkinsJobName, config.jobProperties.parallelism)
     }
+
+    infra.teardownDataproc(scope, jenkinsJobName)
 }
 
 PhraseTriggeringPostCommitBuilder.postCommitJob(
