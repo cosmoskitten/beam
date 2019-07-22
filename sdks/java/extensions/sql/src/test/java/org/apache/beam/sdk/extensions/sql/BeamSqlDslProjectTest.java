@@ -27,10 +27,7 @@ import org.apache.beam.sdk.extensions.sql.impl.ParseException;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.transforms.Create;
-import org.apache.beam.sdk.values.PCollection;
-import org.apache.beam.sdk.values.PCollectionTuple;
-import org.apache.beam.sdk.values.Row;
-import org.apache.beam.sdk.values.TupleTag;
+import org.apache.beam.sdk.values.*;
 import org.junit.Assert;
 import org.junit.Test;
 
@@ -214,6 +211,20 @@ public class BeamSqlDslProjectTest extends BeamSqlDslBase {
     Assert.assertEquals(outputSchema, result.getSchema());
 
     PAssert.that(result).containsInAnyOrder(Row.withSchema(outputSchema).addValue(42L).build());
+
+    pipeline.run();
+  }
+
+  @Test
+  public void testBytesLiteral() {
+    Schema outputSchema = Schema.of(Schema.Field.of("c_bytes", Schema.FieldType.BYTES));
+
+    PCollection<Row> result =
+        PCollectionTuple.empty(pipeline).apply(SqlTransform.query("SELECT x'baadcafe' as c_bytes"));
+
+    PAssert.that(result)
+        .containsInAnyOrder(
+            Row.withSchema(outputSchema).addValue(new byte[] {-70, -83, -54, -2}).build());
 
     pipeline.run();
   }
