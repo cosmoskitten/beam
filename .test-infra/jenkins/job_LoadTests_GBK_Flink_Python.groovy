@@ -32,7 +32,7 @@ String pythonHarnessImageTag = "${dockerRegistryRoot}/python:${dockerTag}"
 String flinkVersion = '1.7'
 String flinkDownloadUrl = 'https://archive.apache.org/dist/flink/flink-1.7.0/flink-1.7.0-bin-hadoop28-scala_2.11.tgz'
 
-int parallelism = 5
+int parallelism = 16
 
 def testConfiguration = { datasetName -> [
         [
@@ -49,7 +49,7 @@ def testConfiguration = { datasetName -> [
                         input_options       : '\'{"num_records": 200000000,"key_size": 1,"value_size":9}\'',
                         iterations          : 1,
                         fanout              : 1,
-                        parallelism         : parallelism,
+                        parallelism         : 5,
                         job_endpoint: 'localhost:8099',
                         environment_config : pythonHarnessImageTag,
                         environment_type: 'DOCKER'
@@ -70,7 +70,7 @@ def testConfiguration = { datasetName -> [
                         input_options       : '\'{"num_records": 20000000,"key_size": 10,"value_size":90}\'',
                         iterations          : 1,
                         fanout              : 1,
-                        parallelism         : parallelism,
+                        parallelism         : 5,
                         job_endpoint: 'localhost:8099',
                         environment_config : pythonHarnessImageTag,
                         environment_type: 'DOCKER'
@@ -91,7 +91,7 @@ def testConfiguration = { datasetName -> [
                         input_options       : '\'{"num_records": 2000,"key_size": 100000,"value_size":900000}\'',
                         iterations          : 1,
                         fanout              : 1,
-                        parallelism         : parallelism,
+                        parallelism         : 5,
                         job_endpoint: 'localhost:8099',
                         environment_config : pythonHarnessImageTag,
                         environment_type: 'DOCKER'
@@ -112,7 +112,7 @@ def testConfiguration = { datasetName -> [
                         input_options       : '\'{"num_records": 5000000,"key_size": 10,"value_size":90}\'',
                         iterations          : 1,
                         fanout              : 4,
-                        parallelism         : parallelism,
+                        parallelism         : 16,
                         job_endpoint: 'localhost:8099',
                         environment_config : pythonHarnessImageTag,
                         environment_type: 'DOCKER'
@@ -133,7 +133,7 @@ def testConfiguration = { datasetName -> [
                         input_options       : '\'{"num_records": 2500000,"key_size": 10,"value_size":90}\'',
                         iterations          : 1,
                         fanout              : 8,
-                        parallelism         : parallelism,
+                        parallelism         : 16,
                         job_endpoint: 'localhost:8099',
                         environment_config : pythonHarnessImageTag,
                         environment_type: 'DOCKER'
