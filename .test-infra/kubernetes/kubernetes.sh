@@ -60,6 +60,13 @@ function delete() {
   eval "$KUBECTL delete -R -f $1"
 }
 
+# Creates namespace.
+#
+# Usage: ./kubernetes.sh createNamespace <namespace name>
+function deleteNamespace() {
+  eval "kubectl --kubeconfig=${KUBECONFIG} create namespace $1"
+}
+
 # Deletes whole namespace with all its contents.
 #
 # Usage: ./kubernetes.sh deleteNamespace <namespace name>

@@ -49,6 +49,7 @@ job(jobName) {
       env('KUBERNETES_NAMESPACE', namespace)
     }
 
+    shell("${kubernetes} create ${namespace}")
     shell("${kubernetes}/kubernetes.sh apply ${kubernetes}/mongodb/load-balancer/mongo.yml")
     shell("echo LOAD_BALANCER_IP=myEnvInjectedOnRuntime > job.properties")
     environmentVariables {
@@ -69,7 +70,7 @@ job(jobName) {
   publishers {
     postBuildScripts {
       steps {
-        shell("{kubernetes} deleteNamespace ${namespace}")
+        shell("${kubernetes} deleteNamespace ${namespace}")
         shell("rm ${kubeconfigPath}")
       }
       onlyIfBuildSucceeds(false)
