@@ -140,6 +140,48 @@ def testConfiguration = { datasetName -> [
 
                 ]
         ],
+        [
+                title        : 'Load test: reiterate 4 times 10kB values',
+                itClass      : 'apache_beam.testing.load_tests.group_by_key_test:GroupByKeyTest.testGroupByKey',
+                runner       : CommonTestProperties.Runner.PORTABLE,
+                sdk          : CommonTestProperties.SDK.PYTHON,
+                jobProperties: [
+                        job_name            : "load_tests_Python_Flink_Batch_GBK_6_${now}",
+                        publish_to_big_query: false,
+                        project             : 'apache-beam-testing',
+                        metrics_dataset     : datasetName,
+                        metrics_table       : "python_flink_batch_GBK_5",
+                        input_options       : '\'{"num_records": 20000000,"key_size": 10,"value_size":90, "num_hot_keys": 200, "hot_key_fraction": 1}\'',
+                        iterations          : 4,
+                        fanout              : 1,
+                        parallelism         : 5,
+                        job_endpoint: 'localhost:8099',
+                        environment_config : pythonHarnessImageTag,
+                        environment_type: 'DOCKER'
+
+                ]
+        ],
+        [
+                title        : 'Load test: reiterate 4 times 2MB values',
+                itClass      : 'apache_beam.testing.load_tests.group_by_key_test:GroupByKeyTest.testGroupByKey',
+                runner       : CommonTestProperties.Runner.PORTABLE,
+                sdk          : CommonTestProperties.SDK.PYTHON,
+                jobProperties: [
+                        job_name            : "load_tests_Python_Flink_Batch_GBK_7_${now}",
+                        publish_to_big_query: false,
+                        project             : 'apache-beam-testing',
+                        metrics_dataset     : datasetName,
+                        metrics_table       : "python_flink_batch_GBK_5",
+                        input_options       : '\'{"num_records": 20000000,"key_size": 10,"value_size":90, "num_hot_keys": 10, "hot_key_fraction": 1}\'',
+                        iterations          : 4,
+                        fanout              : 1,
+                        parallelism         : 5,
+                        job_endpoint: 'localhost:8099',
+                        environment_config : pythonHarnessImageTag,
+                        environment_type: 'DOCKER'
+
+                ]
+        ],
     ]}
 
 def loadTest = { scope, triggeringContext ->
