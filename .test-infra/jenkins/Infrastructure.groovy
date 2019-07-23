@@ -109,4 +109,11 @@ class Infrastructure {
   private static GString getClusterName(String jobName) {
     return "${jobName.toLowerCase().replace("_", "-")}-\$BUILD_ID"
   }
+
+  static void scaleCluster(def context, String jobName, Integer workerCount) {
+    context.steps {
+      shell('echo Changing number of workers to ${workerCount}')
+      shell("gcloud dataproc clusters update ${getClusterName(jobName)} --num-workers=${workerCount} --quiet")
+    }
+  }
 }
