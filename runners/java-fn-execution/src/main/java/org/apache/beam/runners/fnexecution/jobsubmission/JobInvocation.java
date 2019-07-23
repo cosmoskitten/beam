@@ -70,6 +70,7 @@ public class JobInvocation {
     this.messageObservers = new ArrayList<>();
     this.invocationFuture = null;
     this.jobState = JobState.Enum.STOPPED;
+    this.metrics = JobApi.MetricResults.newBuilder().build();
   }
 
   private PortablePipelineResult runPipeline() throws Exception {

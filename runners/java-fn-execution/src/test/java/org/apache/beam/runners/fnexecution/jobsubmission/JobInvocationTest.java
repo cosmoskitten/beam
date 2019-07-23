@@ -148,10 +148,12 @@ public class JobInvocationTest {
   public void testReturnsMetricsFromJobInvocationAfterCancellation() throws Exception {
     JobApi.MetricResults expectedMonitoringInfos = JobApi.MetricResults.newBuilder().build();
     TestPipelineResult result =
-        new TestPipelineResult(PipelineResult.State.FAILED, expectedMonitoringInfos);
+        new TestPipelineResult(PipelineResult.State.RUNNING, expectedMonitoringInfos);
 
     jobInvocation.start();
     runner.setResult(result);
+    awaitJobState(jobInvocation, JobApi.JobState.Enum.RUNNING);
+
     jobInvocation.cancel();
     awaitJobState(jobInvocation, JobApi.JobState.Enum.CANCELLED);
 
