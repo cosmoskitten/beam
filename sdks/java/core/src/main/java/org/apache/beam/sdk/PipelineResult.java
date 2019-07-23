@@ -75,7 +75,7 @@ public interface PipelineResult {
    */
   enum State {
 
-    /** The job state could not be obtained or was not specified. */
+    /** The job state was not specified or unknown to a runner. */
     UNKNOWN(false, false),
 
     /** The job has been paused, or has not yet started. */
@@ -95,6 +95,9 @@ public interface PipelineResult {
 
     /** The job has been updated. */
     UPDATED(true, true);
+
+    /** The job state reported by a runner cannot be interpreted by the SDK. */
+    UNRECOGNIZED(false, false);
 
     private final boolean terminal;
 
