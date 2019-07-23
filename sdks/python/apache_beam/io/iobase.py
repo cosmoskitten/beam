@@ -436,7 +436,7 @@ class RangeTracker(object):
 
     Returns:
       the approximate fraction of positions that have been consumed by
-      successful 'try_split()' and  'report_current_position()'  calls, or
+      successful 'try_split()' and  'try_claim()'  calls, or
       0.0 if no such calls have happened.
     """
     raise NotImplementedError
@@ -1136,6 +1136,13 @@ class RestrictionTracker(object):
     """Returns a RestrictionProgress object representing the current progress.
     """
     raise NotImplementedError
+
+  def current_watermark(self):
+    """Returns current watermark. By default, not report watermark.
+
+    TODO(BEAM-7473): Provide synchronization guarantee by using a wrapper.
+    """
+    return None
 
   def checkpoint(self):
     """Performs a checkpoint of the current restriction.
