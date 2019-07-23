@@ -43,19 +43,19 @@ job(jobName) {
           'Run Java MongoDBIO Performance Test')
 
   steps {
-    //shell("cp /home/jenkins/.kube/config ${kubeconfigPath}")
+    shell("cp /home/jenkins/.kube/config ${kubeconfigPath}")
 
     environmentVariables {
       env('KUBECONFIG', kubeconfigPath)
       env('KUBERNETES_NAMESPACE', namespace)
     }
 
-    //shell("${kubernetesScript} createNamespace ${namespace}")
-    //shell("${kubernetesScript} apply ${kubernetesDir}/mongodb/load-balancer/mongo.yml")
+    shell("${kubernetesScript} createNamespace ${namespace}")
+    shell("${kubernetesScript} apply ${kubernetesDir}/mongodb/load-balancer/mongo.yml")
 
     String variableName = "LOAD_BALANCER_IP"
     String command = "${kubernetesScript} loadBalancerIP mongo-load-balancer-service"
-    shell("set -e pipefail; eval ${command} | sed 's/^/${variableName}/' > job.properties")
+    shell("set -eo pipefail; eval ${command} | sed 's/^/${variableName}=/' > job.properties")
     environmentVariables {
       propertiesFile('job.properties')
     }
@@ -63,11 +63,9 @@ job(jobName) {
     gradle {
       rootBuildScriptDir(common.checkoutDir)
       common.setGradleSwitches(delegate)
-      tasks("integrationTest")
-      switches("--tests org.apache.beam.sdk.mongodb.MongoDBIOIT")
-      switches("-p sdks/java/io/mongodb")
       switches("-DintegrationTestPipelineOptions=${common.joinPipelineOptions(pipelineOptions)}")
       switches("-DintegrationTestRunner=dataflow")
+      tasks(":sdks:java:io:mongodb:integrationTest --tests org.apache.beam.sdk.mongodb.MongoDBIOIT")
     }
   }
 
