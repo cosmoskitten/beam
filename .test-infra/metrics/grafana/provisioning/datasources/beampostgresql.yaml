@@ -1,0 +1,17 @@
+apiVersion: 1
+
+deleteDatasources:
+
+datasources:
+  - name: BeamPSQL
+    type: postgres
+    orgId: 1
+    url: ${DB_HOST}:${DB_PORT}
+    secureJsonData:
+      password: ${DB_DBPWD}
+    user: ${DB_DBUSERNAME}
+    database: ${DB_DBNAME}
+    jsonData:
+      sslmode: disable
+    editable: false
+

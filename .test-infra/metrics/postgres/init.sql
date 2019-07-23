@@ -1,0 +1,2 @@
+CREATE extension tablefunc;
+
