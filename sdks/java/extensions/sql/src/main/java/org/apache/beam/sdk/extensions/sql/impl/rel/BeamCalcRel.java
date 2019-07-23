@@ -32,11 +32,7 @@ import java.util.Map;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.extensions.sql.impl.planner.BeamJavaTypeFactory;
 import org.apache.beam.sdk.extensions.sql.impl.utils.CalciteUtils;
-import org.apache.beam.sdk.extensions.sql.impl.utils.CalciteUtils.CharType;
-import org.apache.beam.sdk.extensions.sql.impl.utils.CalciteUtils.DateType;
-import org.apache.beam.sdk.extensions.sql.impl.utils.CalciteUtils.TimeType;
-import org.apache.beam.sdk.extensions.sql.impl.utils.CalciteUtils.TimeWithLocalTzType;
-import org.apache.beam.sdk.extensions.sql.impl.utils.CalciteUtils.TimestampWithLocalTzType;
+import org.apache.beam.sdk.extensions.sql.impl.utils.CalciteUtils.*;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.PTransform;
@@ -53,12 +49,7 @@ import org.apache.calcite.adapter.enumerable.RexToLixTranslator;
 import org.apache.calcite.adapter.java.JavaTypeFactory;
 import org.apache.calcite.avatica.util.ByteString;
 import org.apache.calcite.linq4j.QueryProvider;
-import org.apache.calcite.linq4j.tree.BlockBuilder;
-import org.apache.calcite.linq4j.tree.Expression;
-import org.apache.calcite.linq4j.tree.Expressions;
-import org.apache.calcite.linq4j.tree.GotoExpressionKind;
-import org.apache.calcite.linq4j.tree.ParameterExpression;
-import org.apache.calcite.linq4j.tree.Types;
+import org.apache.calcite.linq4j.tree.*;
 import org.apache.calcite.plan.RelOptCluster;
 import org.apache.calcite.plan.RelOptPredicateList;
 import org.apache.calcite.plan.RelTraitSet;
@@ -279,7 +270,11 @@ public class BeamCalcRel extends Calc implements BeamRelNode {
       return Expressions.new_(BigDecimal.class, value);
     } else if (toType.getTypeName() == TypeName.BYTES
         && Types.isAssignableFrom(ByteString.class, (Class) value.getType())) {
-      return Expressions.call(value, "getBytes");
+
+      return Expressions.condition(
+          Expressions.equal(value, Expressions.constant(null)),
+          Expressions.constant(null),
+          Expressions.call(value, "getBytes"));
     } else if (((Class) value.getType()).isPrimitive()
         || Types.isAssignableFrom(Number.class, (Class) value.getType())) {
       Type rawType = rawTypeMap.get(toType.getTypeName());
@@ -414,8 +409,12 @@ public class BeamCalcRel extends Calc implements BeamRelNode {
                 Expressions.equal(field, Expressions.constant(null)),
                 Expressions.constant(null),
                 Expressions.call(WrappedList.class, "of", field));
-      } else if (fromType.getTypeName() == TypeName.BYTES && storageType == ByteString.class) {
-        field = Expressions.new_(ByteString.class, field);
+      } else if (fromType.getTypeName() == TypeName.BYTES) {
+        field =
+            Expressions.condition(
+                Expressions.equal(field, Expressions.constant(null)),
+                Expressions.constant(null),
+                Expressions.new_(ByteString.class, field));
       }
       return field;
     }
