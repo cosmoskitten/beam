@@ -887,9 +887,11 @@ class Regex(object):
   @ptransform_fn
   def matches(pcoll, regex, group=0):
     """
-    Returns the matches if the element matched the Regex. Returns the
-    entire line (group 0 by default). Group can be integer value or a string
-    value.
+    Returns the matches (group 0 by default) if zero or more characters at the
+    beginning of string match the regular expression. To match the entire
+    string, add "$" sign at the end of regex expression.
+
+    Group can be integer value or a string value.
 
     Args:
       regex: the regular expression string or (re.compile) pattern.
@@ -906,12 +908,12 @@ class Regex(object):
 
   @staticmethod
   @typehints.with_input_types(str)
-  @typehints.with_output_types(str)
+  @typehints.with_output_types(typehints.List[str])
   @ptransform_fn
   def all_matches(pcoll, regex):
     """
-    Returns the matches if the entire line matches the Regex. Returns all
-    groups.
+    Returns all matches (groups) if zero or more characters at the beginning
+    of string match the regular expression.
 
     Args:
       regex: the regular expression string or (re.compile) pattern.
@@ -920,14 +922,9 @@ class Regex(object):
 
     def _process(element):
       m = regex.match(element)
-      results = list()
-
       if m:
-        results.append(m.group())
-        for match in m.groups():
-          results.append(match)
-      if results:
-        yield results
+        yield [m.group(ix) for ix in range(m.lastindex + 1)]
+
     return pcoll | FlatMap(_process)
 
   @staticmethod
@@ -976,7 +973,7 @@ class Regex(object):
 
   @staticmethod
   @typehints.with_input_types(str)
-  @typehints.with_output_types(str)
+  @typehints.with_output_types(typehints.List[str])
   @ptransform_fn
   def find_all(pcoll, regex):
     """
@@ -989,14 +986,10 @@ class Regex(object):
     regex = Regex._regex_compile(regex)
 
     def _process(element):
-      m = regex.finditer(element)
-      results = list()
-      for match in m:
-        results.append(match.group())
-        for groupNum in range(0, len(match.groups())):
-          results.append(match.group(groupNum + 1))
-      if results:
-        yield results
+      matches = regex.finditer(element)
+      for m in matches:
+        yield [m.group(ix) for ix in range(m.lastindex + 1)]
+
     return pcoll | FlatMap(_process)
 
   @staticmethod
@@ -1029,19 +1022,15 @@ class Regex(object):
   @ptransform_fn
   def replace_all(pcoll, regex, replacement):
     """
-    Returns the matches if a portion of the line  matches the Regex and
-    replaces all matches with the replacement String.
+    Returns the matches if a portion of the line  matches the regex and
+    replaces all matches with the replacement string.
 
     Args:
       regex: the regular expression string or (re.compile) pattern.
       replacement: the string to be substituted for each match.
     """
     regex = Regex._regex_compile(regex)
-
-    def _process(element):
-      yield regex.sub(replacement, element)
-
-    return pcoll | FlatMap(_process)
+    return pcoll | Map(lambda elem: regex.sub(replacement, elem))
 
   @staticmethod
   @typehints.with_input_types(str)
@@ -1049,28 +1038,24 @@ class Regex(object):
   @ptransform_fn
   def replace_first(pcoll, regex, replacement):
     """
-    Returns the matches if a portion of the line matches the Regex and replaces
-    the first match with the replacement String.
+    Returns the matches if a portion of the line matches the regex and replaces
+    the first match with the replacement string.
 
     Args:
       regex: the regular expression string or (re.compile) pattern.
       replacement: the string to be substituted for each match.
     """
     regex = Regex._regex_compile(regex)
-
-    def _process(element):
-      yield regex.sub(replacement, element, 1)
-
-    return pcoll | FlatMap(_process)
+    return pcoll | Map(lambda elem: regex.sub(replacement, elem, 1))
 
   @staticmethod
   @typehints.with_input_types(str)
-  @typehints.with_output_types(str)
+  @typehints.with_output_types(typehints.List[str])
   @ptransform_fn
   def split(pcoll, regex, outputEmpty=False):
     """
-    Returns the list of string which was splitted on the basis of regular
-    expression and then outputs each item. It will not output empty items.
+    Returns the list string which was splitted on the basis of regular
+    expression. It will not output empty items (by defaults).
 
     Args:
       regex: the regular expression string or (re.compile) pattern.

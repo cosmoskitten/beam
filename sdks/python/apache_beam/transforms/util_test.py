@@ -684,6 +684,17 @@ class RegexTest(unittest.TestCase):
                 | util.Regex.matches("[xyz]"))
       assert_that(result, equal_to(["x", "y", "z"]))
 
+    with TestPipeline() as p:
+      result = (p | beam.Create(["a", "ax", "yby", "zzc"])
+                | util.Regex.matches("[xyz]"))
+      assert_that(result, equal_to(["y", "z"]))
+
+  def test_match_entire_line(self):
+    with TestPipeline() as p:
+      result = (p | beam.Create(["a", "x", "y", "ay", "zz"])
+                | util.Regex.matches("[xyz]$"))
+      assert_that(result, equal_to(["x", "y"]))
+
   def test_match_pattern(self):
     with TestPipeline() as p:
       rc = re.compile("[xyz]")
