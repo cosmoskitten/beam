@@ -127,7 +127,7 @@ public class AvroUtils {
 
     /** Create a {@link FixedBytesField} from a Beam {@link FieldType}. */
     @Nullable
-    public static FixedBytesField fromBeamFieldType(FieldType fieldType) {
+    static FixedBytesField fromBeamFieldType(FieldType fieldType) {
       if (fieldType.getTypeName().isLogicalType()
           && fieldType.getLogicalType().getIdentifier().equals(FixedBytes.IDENTIFIER)) {
         int length = fieldType.getLogicalType(FixedBytes.class).getLength();
@@ -139,7 +139,7 @@ public class AvroUtils {
 
     /** Create a {@link FixedBytesField} from an AVRO type. */
     @Nullable
-    public static FixedBytesField fromAvroType(org.apache.avro.Schema type) {
+    static FixedBytesField fromAvroType(org.apache.avro.Schema type) {
       if (type.getType().equals(Type.FIXED)) {
         return new FixedBytesField(type.getFixedSize());
       } else {
@@ -148,17 +148,17 @@ public class AvroUtils {
     }
 
     /** Get the size. */
-    public int getSize() {
+    int getSize() {
       return size;
     }
 
     /** Convert to a Beam type. */
-    public FieldType toBeamType() {
+    FieldType toBeamType() {
       return Schema.FieldType.logicalType(FixedBytes.of(size));
     }
 
     /** Convert to an AVRO type. */
-    public org.apache.avro.Schema toAvroType() {
+    org.apache.avro.Schema toAvroType() {
       return org.apache.avro.Schema.createFixed(null, "", "", size);
     }
   }
@@ -207,8 +207,7 @@ public class AvroUtils {
       org.apache.avro.Schema.Field recordField = toAvroField(field);
       fields.add(recordField);
     }
-    org.apache.avro.Schema avroSchema = org.apache.avro.Schema.createRecord(fields);
-    return avroSchema;
+    return org.apache.avro.Schema.createRecord(fields);
   }
 
   /**
@@ -663,7 +662,7 @@ public class AvroUtils {
    */
   @SuppressWarnings("unchecked")
   @Nullable
-  public static Object convertAvroFieldStrict(
+  private static Object convertAvroFieldStrict(
       @Nullable Object value,
       @Nonnull org.apache.avro.Schema avroSchema,
       @Nonnull Schema.FieldType fieldType) {
