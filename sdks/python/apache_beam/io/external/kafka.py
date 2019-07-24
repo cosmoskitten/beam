@@ -37,11 +37,10 @@
 
 from __future__ import absolute_import
 
+from past.builtins import unicode
+
+from apache_beam import typehints
 from apache_beam.transforms.external import External
-from apache_beam.coders import StrUtf8Coder
-from apache_beam.coders import IterableCoder
-from apache_beam.coders import TupleCoder
-from apache_beam.coders.coders import LengthPrefixCoder
 
 
 class ReadFromKafka(External):
@@ -61,6 +60,13 @@ class ReadFromKafka(External):
                             'ByteArrayDeserializer'
 
   _urn = 'beam:external:java:kafka:read:v1'
+
+  _schema = {
+    'consumer_config': typehints.Iterable[typehints.KV[unicode, unicode]],
+    'topics': typehints.Iterable[unicode],
+    'key_deserializer': unicode,
+    'value_deserializer': unicode,
+  }
 
   def __init__(self, consumer_config,
                topics,
@@ -87,25 +93,10 @@ class ReadFromKafka(External):
     :param expansion_service: The address (host:port) of the ExpansionService.
     """
     super(ReadFromKafka, self).__init__(expansion_service)
-    self.consumer_config = consumer_config
+    self.consumer_config = list(consumer_config.items())
     self.topics = topics
     self.key_deserializer = key_deserializer
     self.value_deserializer = value_deserializer
-
-  def get_config_args(self):
-    str_coder = LengthPrefixCoder(StrUtf8Coder())
-    str_list_coder = IterableCoder(str_coder)
-    map_coder = IterableCoder(TupleCoder([str_coder, str_coder]))
-    return {
-        'consumer_config':
-            self.config_value(self.consumer_config.items(), map_coder),
-        'topics':
-            self.config_value(self.topics, str_list_coder),
-        'key_deserializer':
-            self.config_value(self.key_deserializer, str_coder),
-        'value_deserializer':
-            self.config_value(self.value_deserializer, str_coder),
-    }
 
 
 class WriteToKafka(External):
@@ -122,6 +113,13 @@ class WriteToKafka(External):
                           'ByteArraySerializer'
 
   _urn = 'beam:external:java:kafka:write:v1'
+
+  _schema = {
+    'producer_config': typehints.Iterable[typehints.KV[unicode, unicode]],
+    'topic': unicode,
+    'key_deserializer': unicode,
+    'value_deserializer': unicode,
+  }
 
   def __init__(self, producer_config,
                topic,
@@ -148,21 +146,7 @@ class WriteToKafka(External):
     :param expansion_service: The address (host:port) of the ExpansionService.
     """
     super(WriteToKafka, self).__init__(expansion_service)
-    self.producer_config = producer_config
+    self.producer_config = list(producer_config.items())
     self.topic = topic
     self.key_serializer = key_serializer
     self.value_serializer = value_serializer
-
-  def get_config_args(self):
-    str_coder = LengthPrefixCoder(StrUtf8Coder())
-    map_coder = IterableCoder(TupleCoder([str_coder, str_coder]))
-    return {
-        'producer_config':
-            self.config_value(self.producer_config.items(), map_coder),
-        'topic':
-            self.config_value(self.topic, str_coder),
-        'key_serializer':
-            self.config_value(self.key_serializer, str_coder),
-        'value_serializer':
-            self.config_value(self.value_serializer, str_coder),
-    }
