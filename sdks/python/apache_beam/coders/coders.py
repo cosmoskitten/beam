@@ -386,14 +386,8 @@ class FastCoder(Coder):
 class BytesCoder(FastCoder):
   """Byte string coder."""
 
-  def __init__(self, encode_utf8=False):
-    """
-    :param encode_utf8: encode the string value as utf-8.
-    """
-    self.encode_utf8 = encode_utf8
-
   def _create_impl(self):
-    return coder_impl.BytesCoderImpl(encode_utf8=self.encode_utf8)
+    return coder_impl.BytesCoderImpl()
 
   def is_deterministic(self):
     return True
