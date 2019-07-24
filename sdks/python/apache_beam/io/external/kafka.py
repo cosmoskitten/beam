@@ -38,7 +38,7 @@
 from __future__ import absolute_import
 
 from apache_beam.transforms.external import External, ExternalRead
-from apache_beam.coders import BytesCoder
+from apache_beam.coders import StrUtf8Coder
 from apache_beam.coders import IterableCoder
 from apache_beam.coders import TupleCoder
 from apache_beam.coders.coders import LengthPrefixCoder
@@ -93,7 +93,7 @@ class ReadFromKafka(ExternalRead):
     self.value_deserializer = value_deserializer
 
   def get_config_args(self):
-    str_coder = LengthPrefixCoder(BytesCoder(encode_utf8=True))
+    str_coder = LengthPrefixCoder(StrUtf8Coder())
     str_list_coder = IterableCoder(str_coder)
     map_coder = IterableCoder(TupleCoder([str_coder, str_coder]))
     return {
@@ -154,10 +154,8 @@ class WriteToKafka(External):
     self.value_serializer = value_serializer
 
   def get_config_args(self):
-    str_coder = LengthPrefixCoder(BytesCoder())
-    map_coder = IterableCoder(TupleCoder(
-                [LengthPrefixCoder(BytesCoder()),
-                 LengthPrefixCoder(BytesCoder())]))
+    str_coder = LengthPrefixCoder(StrUtf8Coder())
+    map_coder = IterableCoder(TupleCoder([str_coder, str_coder]))
     return {
         'producer_config':
             self.config_value(self.producer_config.items(), map_coder),
