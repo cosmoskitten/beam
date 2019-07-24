@@ -21,7 +21,7 @@ import static org.apache.beam.sdk.nexmark.NexmarkUtils.ResourceNameMode.QUERY;
 import static org.apache.beam.sdk.nexmark.NexmarkUtils.ResourceNameMode.QUERY_AND_SALT;
 import static org.apache.beam.sdk.nexmark.NexmarkUtils.ResourceNameMode.QUERY_RUNNER_AND_MODE;
 import static org.apache.beam.sdk.nexmark.NexmarkUtils.ResourceNameMode.VERBATIM;
-import static org.testng.Assert.assertEquals;
+import static org.junit.Assert.assertEquals;
 
 import java.util.Random;
 import java.util.stream.Collectors;
