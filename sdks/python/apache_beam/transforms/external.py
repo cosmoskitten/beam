@@ -83,23 +83,15 @@ class External(ptransform.PTransform):
                  if urn not in FILTERED_CODERS],
       payload=coder.encode(obj))
 
-  def expand(self, pbegin):
+  def expand(self, pvalue):
     args = self.get_config_args()
 
     payload = ExternalConfigurationPayload(configuration=args)
-    return pbegin.apply(
+    return pvalue.apply(
         ExternalTransform(
             self._urn,
             payload.SerializeToString(),
             self.expansion_service))
-
-
-class ExternalRead(ptransform.PTransform):
-  def expand(self, pbegin):
-    if not isinstance(pbegin, pvalue.PBegin):
-      raise Exception("%s must be a root transform" % self.__class__.__name__)
-
-    return super(ExternalRead, self).expand(pbegin)
 
 
 class ExternalTransform(ptransform.PTransform):
