@@ -163,6 +163,13 @@ public class AvroUtils {
     }
   }
 
+  /** Get Beam Field from avro Field. */
+  public static Schema.Field toBeamField(org.apache.avro.Schema.Field field) {
+    TypeWithNullability nullableType = new TypeWithNullability(field.schema());
+    FieldType beamFieldType = toFieldType(nullableType);
+    return Field.of(field.name(), beamFieldType);
+  }
+
   private AvroUtils() {}
 
   /**
@@ -174,8 +181,7 @@ public class AvroUtils {
     Schema.Builder builder = Schema.builder();
 
     for (org.apache.avro.Schema.Field field : schema.getFields()) {
-      TypeWithNullability nullableType = new TypeWithNullability(field.schema());
-      Field beamField = Field.of(field.name(), toFieldType(nullableType));
+      Field beamField = toBeamField(field);
       if (field.doc() != null) {
         beamField = beamField.withDescription(field.doc());
       }

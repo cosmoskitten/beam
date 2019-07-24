@@ -140,6 +140,22 @@ public class AvroUtilsTest {
         typeWithNullability.type);
   }
 
+  @Test
+  public void testNullableArrayFieldToBeamArrayField() {
+    org.apache.avro.Schema.Field avroField =
+        new org.apache.avro.Schema.Field(
+            "arrayField",
+            ReflectData.makeNullable(
+                org.apache.avro.Schema.createArray((org.apache.avro.Schema.create(Type.INT)))),
+            "",
+            null);
+
+    Field expectedBeamField = Field.nullable("arrayField", FieldType.array(FieldType.INT32));
+
+    Field beamField = AvroUtils.toBeamField(avroField);
+    assertEquals(expectedBeamField, beamField);
+  }
+
   private org.apache.avro.Schema getAvroSubSchema() {
     List<org.apache.avro.Schema.Field> fields = Lists.newArrayList();
     fields.add(
