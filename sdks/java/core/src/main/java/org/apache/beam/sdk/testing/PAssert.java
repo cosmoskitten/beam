@@ -287,6 +287,12 @@ public class PAssert {
     IterableAssert<T> inEarlyGlobalWindowPanes();
 
     /**
+     * Creates a new {@link IterableAssert} like this one, but with the assertion restricted to only
+     * run on additions.
+     */
+    // IterableAssert<T> filerAdditions();
+
+    /**
      * Asserts that the iterable in question contains the provided elements.
      *
      * @return the same {@link IterableAssert} builder for further assertions
