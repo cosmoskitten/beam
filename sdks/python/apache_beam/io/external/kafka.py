@@ -37,14 +37,14 @@
 
 from __future__ import absolute_import
 
-from apache_beam.transforms.external import External, ExternalRead
+from apache_beam.transforms.external import External
 from apache_beam.coders import StrUtf8Coder
 from apache_beam.coders import IterableCoder
 from apache_beam.coders import TupleCoder
 from apache_beam.coders.coders import LengthPrefixCoder
 
 
-class ReadFromKafka(ExternalRead):
+class ReadFromKafka(External):
   """
     An external PTransform which reads from Kafka and returns a KV pair for
     each item in the specified Kafka topics. If no Kafka Deserializer for
