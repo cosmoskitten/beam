@@ -136,7 +136,7 @@ public abstract class WindowedValue<T> {
   /** Returns the pane of this {@code WindowedValue} in its window. */
   public abstract PaneInfo getPane();
 
-  /** Returns {@code true} is this WindowedValue holds exactly single window per value. */
+  /** Returns {@code true} if this WindowedValue has exactly one window. */
   public boolean isSingleWindowedValue() {
     return false;
   }

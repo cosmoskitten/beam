@@ -120,6 +120,8 @@ public class WindowedValueTest {
             WindowedValue.of("foo", now, futureWindow, pane),
             WindowedValue.of("foo", now, centerWindow, pane),
             WindowedValue.of("foo", now, pastWindow, pane)));
+
+    assertThat(value.isSingleWindowedValue(), equalTo(false));
   }
 
   @Test
