@@ -18,7 +18,6 @@
 from __future__ import absolute_import
 
 from apache_beam.transforms.external import External
-from apache_beam.coders import VarIntCoder
 
 
 class GenerateSequence(External):
@@ -56,16 +55,10 @@ class GenerateSequence(External):
     self.elements_per_period = elements_per_period
     self.max_read_time = max_read_time
 
-  def get_config_args(self):
-    coder = VarIntCoder()
-    args = {
-        'start':
-        self.config_value(self.start, coder)
+  def get_config(self):
+    return {
+      'start': self.start,
+      'stop': self.stop,
+      'elements_per_period': self.elements_per_period,
+      'max_read_time': self.max_read_time,
     }
-    if self.stop:
-      args['stop'] = self.config_value(self.stop, coder)
-    if self.elements_per_period:
-      args['elements_per_period'] = self.config_value(self.elements_per_period, coder)
-    if self.max_read_time:
-      args['max_read_time'] = self.config_value(self.max_read_time, coder)
-    return args
