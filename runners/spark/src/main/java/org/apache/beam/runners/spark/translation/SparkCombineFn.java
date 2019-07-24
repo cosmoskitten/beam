@@ -175,7 +175,10 @@ public class SparkCombineFn<InputT, ValueT, AccumT, OutputT> extends SparkAbstra
         Function<InputT, ValueT> toValue, WindowedValue<AccumT> accumulator) {
       this.toValue = toValue;
       this.windowAccumulator = accumulator.getValue();
-      this.accTimestamp = accumulator.getTimestamp();
+      this.accTimestamp =
+          accumulator.getTimestamp().equals(BoundedWindow.TIMESTAMP_MIN_VALUE)
+              ? null
+              : accumulator.getTimestamp();
       this.accWindow = getWindow(accumulator);
     }
 
@@ -509,7 +512,10 @@ public class SparkCombineFn<InputT, ValueT, AccumT, OutputT> extends SparkAbstra
             (SingleWindowWindowedAccumulator<?, ?, AccumT>) value;
         accumCoder.encode(
             WindowedValue.of(
-                swwa.windowAccumulator, swwa.accTimestamp, swwa.accWindow, PaneInfo.NO_FIRING),
+                swwa.windowAccumulator,
+                swwa.accTimestamp == null ? BoundedWindow.TIMESTAMP_MIN_VALUE : swwa.accTimestamp,
+                swwa.accWindow,
+                PaneInfo.NO_FIRING),
             outStream);
       }
     }
