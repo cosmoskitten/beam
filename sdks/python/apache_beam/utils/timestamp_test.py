@@ -66,9 +66,9 @@ class TimestampTest(unittest.TestCase):
                        Timestamp.from_rfc3339(rfc3339_str).to_rfc3339())
 
   def test_from_rfc3339_failure(self):
-    with self.assertRaisesRegexp(ValueError, 'parse'):
+    with self.assertRaisesRegexp(ValueError, 'invalid'):
       Timestamp.from_rfc3339('not rfc3339')
-    with self.assertRaisesRegexp(ValueError, 'parse'):
+    with self.assertRaisesRegexp(ValueError, 'invalid'):
       Timestamp.from_rfc3339('2016-03-18T23:22:59.123456Z unparseable')
 
   def test_from_utc_datetime(self):
