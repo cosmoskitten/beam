@@ -93,6 +93,16 @@ class _ValueStateTag(_StateTag):
     return _ValueStateTag(prefix + self.tag)
 
 
+class _ReadModifyWriteStateTag(_StateTag):
+  """StateTag pointing to an element."""
+
+  def __repr__(self):
+    return 'ReadModifyWriteState(%s)' % (self.tag)
+
+  def with_prefix(self, prefix):
+    return _ReadModifyWriteStateTag(prefix + self.tag)
+
+
 class _CombiningValueStateTag(_StateTag):
   """StateTag pointing to an element, accumulated with a combiner.
 

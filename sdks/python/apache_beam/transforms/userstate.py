@@ -60,13 +60,13 @@ class BagStateSpec(StateSpec):
             element_coder_id=context.coders.get_id(self.coder)))
 
 
-class ValueStateSpec(StateSpec):
+class ReadModifyWriteStateSpec(StateSpec):
   """
-  Specification of a user DoFn value State Cell.
+  Specification of a user DoFn read modify write State Cell.
   """
   def __init__(self, name, coder):
     """
-    Initialize the specification for Value state.
+    Initialize the specification for Read modify write state.
 
     Args:
     name (str): The name by which the state is identified.
@@ -78,8 +78,8 @@ class ValueStateSpec(StateSpec):
     self.coder = coder
 
   def to_runner_api(self, context):
-    return beam_runner_api_pb2.ValueStateSpec(
-      value_spec=beam_runner_api_pb2.ValueStateSpec(
+    return beam_runner_api_pb2.StateSpec(
+      read_modify_write_spec=beam_runner_api_pb2.ReadModifyWriteStateSpec(
         coder_id=context.coders.get_id(self.coder)))
 
 
@@ -287,8 +287,8 @@ class RuntimeState(object):
     elif isinstance(state_spec, CombiningValueStateSpec):
       return CombiningValueRuntimeState(state_spec, state_tag,
                                         current_value_accessor)
-    if isinstance(state_spec, ValueStateSpec):
-      return ValueStateSpec(state_spec)
+    if isinstance(state_spec, ReadModifyWriteStateSpec):
+      return ReadModifyWriteRuntimeState(state_spec)
     else:
       raise ValueError('Invalid state spec: %s' % state_spec)
 
@@ -335,11 +335,11 @@ class BagRuntimeState(RuntimeState):
     self._new_values = []
 
 
-class ValueRuntimeState(RuntimeState):
+class ReadModifyWriteRuntimeState(RuntimeState):
   """Value state interface object passed to user code."""
 
   def __init__(self, state_spec, state_tag, current_value_accessor):
-    super(ValueRuntimeState, self).__init__(
+    super(ReadModifyWriteRuntimeState, self).__init__(
       state_spec, state_tag, current_value_accessor)
     self._value = UNREAD_VALUE
     self._modified = False
