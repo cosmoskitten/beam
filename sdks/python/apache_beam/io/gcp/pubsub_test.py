@@ -540,7 +540,7 @@ class TestReadFromPubSub(unittest.TestCase):
          | ReadFromPubSub(
              'projects/fakeprj/topics/a_topic', None, None,
              with_attributes=True, timestamp_attribute='time'))
-    with self.assertRaisesRegexp(ValueError, r'parse'):
+    with self.assertRaises(ValueError):
       p.run()
     mock_pubsub.return_value.acknowledge.assert_not_called()
 
