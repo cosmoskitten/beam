@@ -17,11 +17,11 @@
 
 from __future__ import absolute_import
 
-from apache_beam.transforms.external import ExternalRead
+from apache_beam.transforms.external import External
 from apache_beam.coders import VarIntCoder
 
 
-class GenerateSequence(ExternalRead):
+class GenerateSequence(External):
   """
     An external PTransform which provides a bounded or unbounded stream of
     integers.
