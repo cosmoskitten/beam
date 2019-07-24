@@ -45,9 +45,6 @@ except ImportError:
 # pylint: enable=wrong-import-order, wrong-import-position, ungrouped-imports
 
 DEFAULT_EXPANSION_SERVICE = 'localhost:8097'
-FILTERED_CODERS = {
-  'beam:coder:length_prefix:v1',
-}
 
 
 def iter_urns(coder, context=None):
@@ -79,8 +76,7 @@ class External(ptransform.PTransform):
     Helper to create a ConfigValue with an encoded value.
     """
     return ConfigValue(
-      coder_urn=[urn for urn in iter_urns(coder)
-                 if urn not in FILTERED_CODERS],
+      coder_urn=list(iter_urns(coder)),
       payload=coder.encode(obj))
 
   def expand(self, pvalue):
