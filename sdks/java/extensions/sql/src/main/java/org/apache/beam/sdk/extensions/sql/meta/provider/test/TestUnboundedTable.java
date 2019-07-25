@@ -21,6 +21,8 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import org.apache.beam.sdk.annotations.Experimental;
+import org.apache.beam.sdk.extensions.sql.impl.BeamTableStatistics;
+import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.testing.TestStream;
 import org.apache.beam.sdk.transforms.SerializableFunctions;
@@ -59,6 +61,31 @@ public class TestUnboundedTable extends TestTable {
    */
   public static TestUnboundedTable of(final Object... args) {
     return new TestUnboundedTable(TestTableUtils.buildBeamSqlSchema(args));
+  }
+
+  @Override
+  public BeamTableStatistics getRowCount(PipelineOptions options) {
+    if (timestampedRows.size() == 0) {
+      return BeamTableStatistics.createUnboundedTableStatistics(0d);
+    }
+
+    long firstRow =
+        timestampedRows.stream()
+            .map(pair -> pair.left.getStandardSeconds())
+            .reduce(Long::min)
+            .get();
+    long lastRow =
+        timestampedRows.stream()
+            .map(pair -> pair.left.getStandardSeconds())
+            .reduce(Long::max)
+            .get();
+
+    if (firstRow == lastRow) {
+      return BeamTableStatistics.createUnboundedTableStatistics(0d);
+    }
+
+    return BeamTableStatistics.createUnboundedTableStatistics(
+        ((double) timestampedRows.size()) / (lastRow - firstRow));
   }
 
   public TestUnboundedTable timestampColumnIndex(int idx) {
