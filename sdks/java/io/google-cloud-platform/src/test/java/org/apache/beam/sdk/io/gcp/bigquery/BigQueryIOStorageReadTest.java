@@ -757,9 +757,9 @@ public class BigQueryIOStorageReadTest {
         Lists.newArrayList(
             // N.B.: All floating point numbers used in this test can be represented without
             // a loss of precision.
-            createResponse(AVRO_SCHEMA, records.subList(0, 2), 0.25),
-            createResponse(AVRO_SCHEMA, records.subList(2, 4), 0.50),
-            createResponse(AVRO_SCHEMA, records.subList(4, 7), 0.9375));
+            createResponse(AVRO_SCHEMA, records.subList(0, 2), 0.250),
+            createResponse(AVRO_SCHEMA, records.subList(2, 4), 0.500),
+            createResponse(AVRO_SCHEMA, records.subList(4, 7), 0.875));
 
     StorageClient fakeStorageClient = mock(StorageClient.class);
     when(fakeStorageClient.readRows(expectedRequest))
@@ -778,28 +778,26 @@ public class BigQueryIOStorageReadTest {
     BoundedReader<TableRow> reader = streamSource.createReader(options);
 
     // Before call to BoundedReader#start, fraction consumed must be zero.
-    assertEquals(Double.valueOf(0.00), reader.getFractionConsumed());
+    assertEquals(Double.valueOf(0.000), reader.getFractionConsumed());
 
-    // Read A and B.
-    assertTrue(reader.start());
-    assertEquals(Double.valueOf(0.00), reader.getFractionConsumed());
-    assertTrue(reader.advance());
-    assertEquals(Double.valueOf(0.00), reader.getFractionConsumed());
+    assertTrue(reader.start()); // Reads A.
+    assertEquals(Double.valueOf(0.125), reader.getFractionConsumed());
+    assertTrue(reader.advance()); // Reads B.
+    assertEquals(Double.valueOf(0.250), reader.getFractionConsumed());
 
-    // Read C and D.
-    assertTrue(reader.advance());
-    assertEquals(Double.valueOf(0.25), reader.getFractionConsumed());
-    assertTrue(reader.advance());
-    assertEquals(Double.valueOf(0.25), reader.getFractionConsumed());
+    assertTrue(reader.advance()); // Reads C.
+    assertEquals(Double.valueOf(0.375), reader.getFractionConsumed());
+    assertTrue(reader.advance()); // Reads D.
+    assertEquals(Double.valueOf(0.500), reader.getFractionConsumed());
 
-    // Read E, F, and G.
-    assertTrue(reader.advance());
-    assertEquals(Double.valueOf(0.50), reader.getFractionConsumed());
-    assertTrue(reader.advance());
-    assertEquals(Double.valueOf(0.50), reader.getFractionConsumed());
-    assertTrue(reader.advance());
-    assertEquals(Double.valueOf(0.50), reader.getFractionConsumed());
-    assertFalse(reader.advance());
+    assertTrue(reader.advance()); // Reads E.
+    assertEquals(Double.valueOf(0.625), reader.getFractionConsumed());
+    assertTrue(reader.advance()); // Reads F.
+    assertEquals(Double.valueOf(0.750), reader.getFractionConsumed());
+    assertTrue(reader.advance()); // Reads G.
+    assertEquals(Double.valueOf(0.875), reader.getFractionConsumed());
+
+    assertFalse(reader.advance()); // Reaches the end.
 
     // We are done with the stream, so we should report 100% consumption.
     assertEquals(Double.valueOf(1.00), reader.getFractionConsumed());

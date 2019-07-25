@@ -165,8 +165,13 @@ public class BigQueryStorageStreamSource<T> extends BoundedSource<T> {
     private GenericRecord record;
     private T current;
     private long currentOffset;
+
+    // Values used for progress reporting.
     private double fractionConsumed;
-    private double fractionConsumedFromLastResponse;
+    private double fractionConsumedFromPreviousResponse;
+    private double fractionConsumedFromCurrentResponse;
+    private long rowsReadFromCurrentResponse;
+    private long rowCountFromCurrentResponse;
 
     private BigQueryStorageStreamReader(
         BigQueryStorageStreamSource<T> source, BigQueryOptions options) throws IOException {
@@ -178,7 +183,10 @@ public class BigQueryStorageStreamSource<T> extends BoundedSource<T> {
       this.storageClient = source.bqServices.getStorageClient(options);
       this.tableSchema = fromJsonString(source.jsonTableSchema, TableSchema.class);
       this.fractionConsumed = 0d;
-      this.fractionConsumedFromLastResponse = 0d;
+      this.fractionConsumedFromPreviousResponse = 0d;
+      this.fractionConsumedFromCurrentResponse = 0d;
+      this.rowsReadFromCurrentResponse = 0L;
+      this.rowCountFromCurrentResponse = 0L;
     }
 
     @Override
@@ -210,20 +218,28 @@ public class BigQueryStorageStreamSource<T> extends BoundedSource<T> {
           return false;
         }
 
-        // N.B.: For simplicity, we update fractionConsumed once a new response is fetched, not
-        // when we reach the end of the current response. In practice, this choice is not
-        // consequential.
-        fractionConsumed = fractionConsumedFromLastResponse;
+        fractionConsumedFromPreviousResponse = fractionConsumedFromCurrentResponse;
         ReadRowsResponse nextResponse = responseIterator.next();
         decoder =
             DecoderFactory.get()
                 .binaryDecoder(
                     nextResponse.getAvroRows().getSerializedBinaryRows().toByteArray(), decoder);
-        fractionConsumedFromLastResponse = getFractionConsumed(nextResponse);
+        rowsReadFromCurrentResponse = 0L;
+        rowCountFromCurrentResponse = nextResponse.getAvroRows().getRowCount();
+        fractionConsumedFromCurrentResponse = getFractionConsumed(nextResponse);
       }
 
       record = datumReader.read(record, decoder);
       current = parseFn.apply(new SchemaAndRecord(record, tableSchema));
+
+      rowsReadFromCurrentResponse++;
+      fractionConsumed =
+          fractionConsumedFromPreviousResponse
+              + (fractionConsumedFromCurrentResponse - fractionConsumedFromPreviousResponse)
+                  * rowsReadFromCurrentResponse
+                  * 1.0
+                  / rowCountFromCurrentResponse;
+
       return true;
     }
 
@@ -329,7 +345,9 @@ public class BigQueryStorageStreamSource<T> extends BoundedSource<T> {
       Metrics.counter(BigQueryStorageStreamReader.class, "split-at-fraction-calls-successful")
           .inc();
       LOGGER.info(
-          "Successfully split BigQuery Storage API stream. Split response: {}", splitResponse);
+          "Successfully split BigQuery Storage API stream at {}. Split response: {}",
+          fraction,
+          splitResponse);
       return source.fromExisting(splitResponse.getRemainderStream());
     }
 
