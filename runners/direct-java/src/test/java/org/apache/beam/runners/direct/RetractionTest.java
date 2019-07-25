@@ -21,12 +21,12 @@ import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Count;
 import org.apache.beam.sdk.transforms.Create;
-import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.junit.Rule;
 import org.junit.Test;
 
+/** RetractionTest. */
 public class RetractionTest {
   @Rule public final TestPipeline pipeline = TestPipeline.create();
 
@@ -36,7 +36,7 @@ public class RetractionTest {
         pipeline.apply(Create.of("Java", "Java", "Python", "Go")).apply(Count.perElement());
 
     PAssert.that(pc)
-        .inWindow(GlobalWindow.INSTANCE)
+        .filterAdditions()
         .containsInAnyOrder(KV.of("Java", 2L), KV.of("Python", 1L), KV.of("Go", 1L));
 
     pipeline.run();
