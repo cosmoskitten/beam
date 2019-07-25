@@ -30,7 +30,7 @@ import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.KV;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Iterators;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterators;
 import org.joda.time.Instant;
 import org.junit.Test;
 import org.spark_project.guava.collect.Iterables;
