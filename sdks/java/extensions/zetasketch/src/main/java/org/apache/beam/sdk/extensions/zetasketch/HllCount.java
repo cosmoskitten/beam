@@ -17,13 +17,8 @@
  */
 package org.apache.beam.sdk.extensions.zetasketch;
 
-import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
-import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkNotNull;
-
 import com.google.zetasketch.HyperLogLogPlusPlus;
 import org.apache.beam.sdk.annotations.Experimental;
-import org.apache.beam.sdk.coders.Coder;
-import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.transforms.Combine;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.PTransform;
@@ -57,12 +52,11 @@ import org.apache.beam.sdk.values.PCollection;
  * PCollection<byte[]> sketch = input.apply(HllCount.Init.longSketch().withPrecision(p).globally());
  * }</pre>
  *
- * <h4>Example 2: Create bytes-type sketch for a {@code PCollection<KV<String, MyType>>}</h4>
+ * <h4>Example 2: Create bytes-type sketch for a {@code PCollection<KV<String, byte[]>>}</h4>
  *
  * <pre>{@code
- * PCollection<KV<String, MyType>> input = ...;
- * PCollection<KV<String, byte[]>> sketch =
- *     input.apply(HllCount.Init.<MyType>bytesSketch().perKey());
+ * PCollection<KV<String, byte[]>> input = ...;
+ * PCollection<KV<String, byte[]>> sketch = input.apply(HllCount.Init.bytesSketch().perKey());
  * }</pre>
  *
  * <h4>Example 3: Merge existing sketches in a {@code PCollection<byte[]>} into a new one</h4>
@@ -91,11 +85,12 @@ public final class HllCount {
   private HllCount() {}
 
   /**
-   * Provide {@code PTransform}s to aggregate inputs into HLL++ sketches.
+   * Provide {@code PTransform}s to aggregate inputs into HLL++ sketches. The four supported input
+   * types are {@code Integer}, {@code Long}, {@code String}, and {@code byte[]}.
    *
    * <p>Sketches are represented using the {@code byte[]} type. Sketches of the same type and {@code
-   * precision} can be merged into a new sketch using {@link HllCount.MergePartial}. Final estimated
-   * count of distinct elements can be extracted from sketches using {@link HllCount.Extract}.
+   * precision} can be merged into a new sketch using {@link HllCount.MergePartial}. Estimated count
+   * of distinct elements can be extracted from sketches using {@link HllCount.Extract}.
    *
    * <p>Correspond to the {@code HLL_COUNT.INIT(input [, precision])} function in <a
    * href="https://cloud.google.com/bigquery/docs/reference/standard-sql/hll_functions">BigQuery</a>.
@@ -104,30 +99,6 @@ public final class HllCount {
 
     // Cannot be instantiated. This class is intended to be a namespace only.
     private Init() {}
-
-    private enum HllType {
-      INTEGER,
-      LONG,
-      STRING,
-      BYTES;
-
-      // Type recorded in HllType is guaranteed to match InputT
-      @SuppressWarnings("unchecked")
-      private <InputT> HllCountInitFn<InputT, ?> getFn(int precision, Coder<InputT> inputCoder) {
-        switch (this) {
-          case INTEGER:
-            return (HllCountInitFn<InputT, ?>) HllCountInitFn.forInteger(precision);
-          case LONG:
-            return (HllCountInitFn<InputT, ?>) HllCountInitFn.forLong(precision);
-          case STRING:
-            return (HllCountInitFn<InputT, ?>) HllCountInitFn.forString(precision);
-          case BYTES:
-            return HllCountInitFn.forBytes(precision, inputCoder);
-          default:
-            throw new IllegalStateException("Unknown type for computing HLL++ sketch: " + this);
-        }
-      }
-    }
 
     /**
      * Returns a {@link HllCount.Init.Builder<Integer>} for a {@code HllCount.Init} combining {@code
@@ -146,7 +117,7 @@ public final class HllCount {
      * <p>Integer-type sketches cannot be merged with sketches of other types.
      */
     public static Builder<Integer> integerSketch() {
-      return new Builder<>(DEFAULT_PRECISION, HllType.INTEGER);
+      return new Builder<>(HllCountInitFn.forInteger());
     }
 
     /**
@@ -166,7 +137,7 @@ public final class HllCount {
      * <p>Long-type sketches cannot be merged with sketches of other types.
      */
     public static Builder<Long> longSketch() {
-      return new Builder<>(DEFAULT_PRECISION, HllType.LONG);
+      return new Builder<>(HllCountInitFn.forLong());
     }
 
     /**
@@ -186,33 +157,27 @@ public final class HllCount {
      * <p>String-type sketches cannot be merged with sketches of other types.
      */
     public static Builder<String> stringSketch() {
-      return new Builder<>(DEFAULT_PRECISION, HllType.STRING);
+      return new Builder<>(HllCountInitFn.forString());
     }
 
     /**
-     * Returns a {@link HllCount.Init.Builder<InputT>} for a {@code HllCount.Init} combining {@code
+     * Returns a {@link HllCount.Init.Builder<byte[]>} for a {@code HllCount.Init} combining {@code
      * PTransform}. Call {@link Builder#globally()} or {@link Builder#perKey()} on the returning
      * {@link Builder} to finalize the {@code PTransform}.
      *
      * <p>Calling {@link Builder#globally()} returns a {@code PTransform} that takes an input {@code
-     * PCollection<InputT>} and returns a {@code PCollection<byte[]>} whose contents is the
-     * bytes-type HLL++ sketch computed from the serialized elements in the input {@code
-     * PCollection}.
+     * PCollection<byte[]>} and returns a {@code PCollection<byte[]>} whose contents is the
+     * bytes-type HLL++ sketch computed from the elements in the input {@code PCollection}.
      *
      * <p>Calling {@link Builder#perKey()} returns a {@code PTransform} that takes an input {@code
-     * PCollection<KV<K, InputT>>} and returns a {@code PCollection<KV<K, byte[]>>} whose contents
-     * is the per-key bytes-type HLL++ sketch computed from the serialized values matching each key
-     * in the input {@code PCollection}.
+     * PCollection<KV<K, byte[]>>} and returns a {@code PCollection<KV<K, byte[]>>} whose contents
+     * is the per-key bytes-type HLL++ sketch computed from the values matching each key in the
+     * input {@code PCollection}.
      *
      * <p>Bytes-type sketches cannot be merged with sketches of other types.
-     *
-     * @param <InputT> element type or value type in {@code KV}s of the input {@code PCollection} to
-     *     the {@code PTransform} being built. Consider calling {@link #integerSketch()}, {@link
-     *     #longSketch()}, or {@link #stringSketch()} if the type is {@code Integer}, {@code Long},
-     *     or {@code String}
      */
-    public static <InputT> Builder<InputT> bytesSketch() {
-      return new Builder<>(DEFAULT_PRECISION, HllType.BYTES);
+    public static Builder<byte[]> bytesSketch() {
+      return new Builder<>(HllCountInitFn.forBytes());
     }
 
     /**
@@ -228,12 +193,10 @@ public final class HllCount {
      */
     public static final class Builder<InputT> {
 
-      private final int precision;
-      private final HllType hllType;
+      private final HllCountInitFn<InputT, ?> initFn;
 
-      private Builder(int precision, HllType hllType) {
-        this.precision = precision;
-        this.hllType = hllType;
+      private Builder(HllCountInitFn<InputT, ?> initFn) {
+        this.initFn = initFn;
       }
 
       /**
@@ -246,76 +209,56 @@ public final class HllCount {
        * @param precision the {@code precision} parameter used to compute HLL++ sketch
        */
       public Builder<InputT> withPrecision(int precision) {
-        return new Builder<>(precision, hllType);
+        initFn.setPrecision(precision);
+        return this;
       }
 
       /**
        * Returns a {@code PTransform} that takes an input {@code PCollection<InputT>} and returns a
        * {@code PCollection<byte[]>} whose contents is the HLL++ sketch computed from the elements
-       * (or serialized elements, for bytes-type sketches) in the input {@code PCollection}.
+       * in the input {@code PCollection}.
        */
       public PTransform<PCollection<InputT>, PCollection<byte[]>> globally() {
-        return new Globally<>(precision, hllType);
+        return new Globally<>(initFn);
       }
 
       /**
        * Returns a {@code PTransform} that takes an input {@code PCollection<KV<K, InputT>>} and
-       * returns a {@code PCollection<KV<K, byte[]>>} whose contents is the per-key bytes-type HLL++
-       * sketch computed from the values (or serialized values, for bytes-type sketches) matching
-       * each key in the input {@code PCollection}.
+       * returns a {@code PCollection<KV<K, byte[]>>} whose contents is the per-key HLL++ sketch
+       * computed from the values matching each key in the input {@code PCollection}.
        */
       public <K> PTransform<PCollection<KV<K, InputT>>, PCollection<KV<K, byte[]>>> perKey() {
-        return new PerKey<>(precision, hllType);
+        return new PerKey<>(initFn);
       }
     }
 
     private static final class Globally<InputT>
         extends PTransform<PCollection<InputT>, PCollection<byte[]>> {
 
-      private final int precision;
-      private final HllType hllType;
+      private final HllCountInitFn<InputT, ?> initFn;
 
-      private Globally(int precision, HllType hllType) {
-        checkArgument(
-            precision >= MINIMUM_PRECISION && precision <= MAXIMUM_PRECISION,
-            "Invalid precision: %s. Valid range is [%s, %s].",
-            precision,
-            MINIMUM_PRECISION,
-            MAXIMUM_PRECISION);
-        this.precision = precision;
-        this.hllType = checkNotNull(hllType);
+      private Globally(HllCountInitFn<InputT, ?> initFn) {
+        this.initFn = initFn;
       }
 
       @Override
       public PCollection<byte[]> expand(PCollection<InputT> input) {
-        return input.apply(
-            "HllCount.Init.Globally", Combine.globally(hllType.getFn(precision, input.getCoder())));
+        return input.apply("HllCount.Init.Globally", Combine.globally(initFn));
       }
     }
 
     private static final class PerKey<K, V>
         extends PTransform<PCollection<KV<K, V>>, PCollection<KV<K, byte[]>>> {
 
-      private final int precision;
-      private final HllType hllType;
+      private final HllCountInitFn<V, ?> initFn;
 
-      private PerKey(int precision, HllType hllType) {
-        checkArgument(
-            precision >= MINIMUM_PRECISION && precision <= MAXIMUM_PRECISION,
-            "Invalid precision: %s. Valid range is [%s, %s].",
-            precision,
-            MINIMUM_PRECISION,
-            MAXIMUM_PRECISION);
-        this.precision = precision;
-        this.hllType = checkNotNull(hllType);
+      private PerKey(HllCountInitFn<V, ?> initFn) {
+        this.initFn = initFn;
       }
 
       @Override
       public PCollection<KV<K, byte[]>> expand(PCollection<KV<K, V>> input) {
-        return input.apply(
-            "HllCount.Init.PerKey",
-            Combine.perKey(
-                hllType.getFn(precision, ((KvCoder<K, V>) input.getCoder()).getValueCoder())));
+        return input.apply("HllCount.Init.PerKey", Combine.perKey(initFn));
       }
     }
   }

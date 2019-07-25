@@ -48,6 +48,7 @@ public class HllCountTest {
   @Rule public final transient TestPipeline p = TestPipeline.create();
   @Rule public transient ExpectedException thrown = ExpectedException.none();
 
+  // Integer
   private static final List<Integer> INTS1 = Arrays.asList(1, 2, 3, 3, 1, 4);
   private static final byte[] INTS1_SKETCH;
   private static final Long INTS1_ESTIMATE;
@@ -78,6 +79,7 @@ public class HllCountTest {
     INTS1_INTS2_SKETCH = hll.serializeToByteArray();
   }
 
+  // Long
   private static final List<Long> LONGS = Arrays.asList(1L, 2L, 3L, 3L, 1L, 4L);
   private static final byte[] LONGS_SKETCH;
 
@@ -87,20 +89,7 @@ public class HllCountTest {
     LONGS_SKETCH = hll.serializeToByteArray();
   }
 
-  private static final byte[] LONGS_BYTES_SKETCH;
-
-  static {
-    HyperLogLogPlusPlus<ByteString> hll = new HyperLogLogPlusPlus.Builder().buildForBytes();
-    try {
-      for (Long l : LONGS) {
-        hll.add(CoderUtils.encodeToByteArray(VarLongCoder.of(), l));
-      }
-    } catch (CoderException e) {
-      throw new IllegalArgumentException("Serializing test input LONGS failed.", e);
-    }
-    LONGS_BYTES_SKETCH = hll.serializeToByteArray();
-  }
-
+  // String
   private static final List<String> STRINGS = Arrays.asList("s1", "s2", "s3", "s3", "s1", "s4");
   private static final byte[] STRINGS_SKETCH;
 
@@ -118,6 +107,28 @@ public class HllCountTest {
         new HyperLogLogPlusPlus.Builder().normalPrecision(TEST_PRECISION).buildForStrings();
     STRINGS.forEach(hll::add);
     STRINGS_SKETCH_TEST_PRECISION = hll.serializeToByteArray();
+  }
+
+  // Bytes
+  private static final List<byte[]> BYTES;
+
+  static {
+    BYTES = new ArrayList<>();
+    try {
+      for (Long l : LONGS) {
+        BYTES.add(CoderUtils.encodeToByteArray(VarLongCoder.of(), l));
+      }
+    } catch (CoderException e) {
+      throw new IllegalArgumentException("Serializing test input LONGS failed.", e);
+    }
+  }
+
+  private static final byte[] BYTES_SKETCH;
+
+  static {
+    HyperLogLogPlusPlus<ByteString> hll = new HyperLogLogPlusPlus.Builder().buildForBytes();
+    BYTES.forEach(hll::add);
+    BYTES_SKETCH = hll.serializeToByteArray();
   }
 
   @Test
@@ -163,11 +174,18 @@ public class HllCountTest {
 
   @Test
   @Category(NeedsRunner.class)
+  public void testInitStringSketchGlobally_WithInvalidPrecision() {
+    thrown.expect(IllegalArgumentException.class);
+    p.apply(Create.of(STRINGS)).apply(HllCount.Init.stringSketch().withPrecision(0).globally());
+  }
+
+  @Test
+  @Category(NeedsRunner.class)
   public void testInitBytesSketchGlobally() {
     PCollection<byte[]> result =
-        p.apply(Create.of(LONGS)).apply(HllCount.Init.<Long>bytesSketch().globally());
+        p.apply(Create.of(BYTES)).apply(HllCount.Init.bytesSketch().globally());
 
-    PAssert.that(result).containsInAnyOrder(LONGS_BYTES_SKETCH);
+    PAssert.that(result).containsInAnyOrder(BYTES_SKETCH);
     p.run();
   }
 
@@ -227,14 +245,22 @@ public class HllCountTest {
 
   @Test
   @Category(NeedsRunner.class)
-  public void testInitBytesSketchPerKey() {
-    List<KV<String, Long>> input = new ArrayList<>();
-    LONGS.forEach(l -> input.add(KV.of("k", l)));
-    PCollection<KV<String, byte[]>> result =
-        p.apply(Create.of(input)).apply(HllCount.Init.<Long>bytesSketch().perKey());
+  public void testInitStringSketchPerKey_WithInvalidPrecision() {
+    List<KV<String, String>> input = new ArrayList<>();
+    STRINGS.forEach(s -> input.add(KV.of("k", s)));
+    thrown.expect(IllegalArgumentException.class);
+    p.apply(Create.of(input)).apply(HllCount.Init.stringSketch().withPrecision(0).perKey());
+  }
 
-    PAssert.that(result)
-        .containsInAnyOrder(Collections.singletonList(KV.of("k", LONGS_BYTES_SKETCH)));
+  @Test
+  @Category(NeedsRunner.class)
+  public void testInitBytesSketchPerKey() {
+    List<KV<String, byte[]>> input = new ArrayList<>();
+    BYTES.forEach(bs -> input.add(KV.of("k", bs)));
+    PCollection<KV<String, byte[]>> result =
+        p.apply(Create.of(input)).apply(HllCount.Init.bytesSketch().perKey());
+
+    PAssert.that(result).containsInAnyOrder(Collections.singletonList(KV.of("k", BYTES_SKETCH)));
     p.run();
   }
 
@@ -300,9 +326,7 @@ public class HllCountTest {
   public void testMergePartialPerKey_IncompatibleSketches() {
     p.apply(
             Create.of(
-                KV.of("k1", LONGS_SKETCH),
-                KV.of("k2", STRINGS_SKETCH),
-                KV.of("k1", LONGS_BYTES_SKETCH)))
+                KV.of("k1", LONGS_SKETCH), KV.of("k2", STRINGS_SKETCH), KV.of("k1", BYTES_SKETCH)))
         .apply(HllCount.MergePartial.perKey());
 
     thrown.expect(PipelineExecutionException.class);

@@ -17,13 +17,13 @@
  */
 package org.apache.beam.sdk.extensions.zetasketch;
 
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
+
 import com.google.zetasketch.HyperLogLogPlusPlus;
 import com.google.zetasketch.shaded.com.google.protobuf.ByteString;
 import org.apache.beam.sdk.coders.Coder;
-import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.coders.CoderRegistry;
 import org.apache.beam.sdk.transforms.Combine;
-import org.apache.beam.sdk.util.CoderUtils;
 
 /**
  * {@link Combine.CombineFn} for the {@link HllCount.Init} combiner.
@@ -34,9 +34,23 @@ import org.apache.beam.sdk.util.CoderUtils;
 abstract class HllCountInitFn<InputT, HllT>
     extends Combine.CombineFn<InputT, HyperLogLogPlusPlus<HllT>, byte[]> {
 
-  final int precision;
+  private int precision;
 
-  HllCountInitFn(int precision) {
+  private HllCountInitFn() {
+    setPrecision(HllCount.DEFAULT_PRECISION);
+  }
+
+  int getPrecision() {
+    return precision;
+  }
+
+  void setPrecision(int precision) {
+    checkArgument(
+        precision >= HllCount.MINIMUM_PRECISION && precision <= HllCount.MAXIMUM_PRECISION,
+        "Invalid precision: %s. Valid range is [%s, %s].",
+        precision,
+        HllCount.MINIMUM_PRECISION,
+        HllCount.MAXIMUM_PRECISION);
     this.precision = precision;
   }
 
@@ -63,33 +77,29 @@ abstract class HllCountInitFn<InputT, HllT>
     return accumulator.serializeToByteArray();
   }
 
-  static HllCountInitFn<Integer, Integer> forInteger(int precision) {
-    return new ForInteger(precision);
+  static HllCountInitFn<Integer, Integer> forInteger() {
+    return new ForInteger();
   }
 
-  static HllCountInitFn<Long, Long> forLong(int precision) {
-    return new ForLong(precision);
+  static HllCountInitFn<Long, Long> forLong() {
+    return new ForLong();
   }
 
-  static HllCountInitFn<String, String> forString(int precision) {
-    return new ForString(precision);
+  static HllCountInitFn<String, String> forString() {
+    return new ForString();
   }
 
-  static <InputT> HllCountInitFn<InputT, ByteString> forBytes(
-      int precision, Coder<InputT> inputCoder) {
-    return new ForBytes<InputT>(precision, inputCoder);
+  static HllCountInitFn<byte[], ByteString> forBytes() {
+    return new ForBytes();
   }
 
   private static class ForInteger extends HllCountInitFn<Integer, Integer> {
-    private ForInteger(int precision) {
-      super(precision);
-    }
 
     @Override
     public HyperLogLogPlusPlus<Integer> createAccumulator() {
       // TODO: check BigQuery's sparsePrecision (customized, default, or disabled), same below * 3
       // TODO: check BigQuery's INT64/STRING/BYTES type's compatibility with Beam, same below * 3
-      return new HyperLogLogPlusPlus.Builder().normalPrecision(precision).buildForIntegers();
+      return new HyperLogLogPlusPlus.Builder().normalPrecision(getPrecision()).buildForIntegers();
     }
 
     @Override
@@ -102,13 +112,9 @@ abstract class HllCountInitFn<InputT, HllT>
 
   private static class ForLong extends HllCountInitFn<Long, Long> {
 
-    private ForLong(int precision) {
-      super(precision);
-    }
-
     @Override
     public HyperLogLogPlusPlus<Long> createAccumulator() {
-      return new HyperLogLogPlusPlus.Builder().normalPrecision(precision).buildForLongs();
+      return new HyperLogLogPlusPlus.Builder().normalPrecision(getPrecision()).buildForLongs();
     }
 
     @Override
@@ -120,13 +126,9 @@ abstract class HllCountInitFn<InputT, HllT>
 
   private static class ForString extends HllCountInitFn<String, String> {
 
-    private ForString(int precision) {
-      super(precision);
-    }
-
     @Override
     public HyperLogLogPlusPlus<String> createAccumulator() {
-      return new HyperLogLogPlusPlus.Builder().normalPrecision(precision).buildForStrings();
+      return new HyperLogLogPlusPlus.Builder().normalPrecision(getPrecision()).buildForStrings();
     }
 
     @Override
@@ -137,35 +139,17 @@ abstract class HllCountInitFn<InputT, HllT>
     }
   }
 
-  private static class ForBytes<InputT> extends HllCountInitFn<InputT, ByteString> {
-
-    private final Coder<InputT> inputCoder;
-
-    private ForBytes(int precision, Coder<InputT> inputCoder) {
-      super(precision);
-      try {
-        inputCoder.verifyDeterministic();
-      } catch (Coder.NonDeterministicException e) {
-        throw new IllegalArgumentException(
-            "HllCount.Init cannot accept inputs without a deterministic serialized form.", e);
-      }
-      this.inputCoder = inputCoder;
-    }
+  private static class ForBytes extends HllCountInitFn<byte[], ByteString> {
 
     @Override
     public HyperLogLogPlusPlus<ByteString> createAccumulator() {
-      return new HyperLogLogPlusPlus.Builder().normalPrecision(precision).buildForBytes();
+      return new HyperLogLogPlusPlus.Builder().normalPrecision(getPrecision()).buildForBytes();
     }
 
     @Override
     public HyperLogLogPlusPlus<ByteString> addInput(
-        HyperLogLogPlusPlus<ByteString> accumulator, InputT input) {
-      try {
-        accumulator.add(CoderUtils.encodeToByteArray(inputCoder, input));
-      } catch (CoderException e) {
-        throw new IllegalArgumentException(
-            "HllCount.Init failed while serializing input to be added to an HLL++ sketch.", e);
-      }
+        HyperLogLogPlusPlus<ByteString> accumulator, byte[] input) {
+      accumulator.add(input);
       return accumulator;
     }
   }

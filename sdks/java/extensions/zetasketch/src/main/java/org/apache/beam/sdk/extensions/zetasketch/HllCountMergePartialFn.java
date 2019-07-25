@@ -54,7 +54,6 @@ class HllCountMergePartialFn<T>
    * sketches being merged at the creation of {@link HllCount.MergePartial} transform, which they
    * may or may not know.
    */
-  // TODO: check if we want to implement the alternative design (unsatisfactory)
   // TODO: check if it makes sense to add the "identity element" support in ZetaSketch
   static final class HyperLogLogPlusPlusWrapper<T> {
     @Nullable private HyperLogLogPlusPlus<T> hll;
@@ -129,7 +128,9 @@ class HllCountMergePartialFn<T>
       Iterable<HyperLogLogPlusPlusWrapper<T>> accumulators) {
     HyperLogLogPlusPlusWrapper<T> merged = createAccumulator();
     for (HyperLogLogPlusPlusWrapper<T> accumulator : accumulators) {
-      if (accumulator.hll == null) continue;
+      if (accumulator.hll == null) {
+        continue;
+      }
       if (merged.hll == null) {
         // Cannot set merged.hll to accumulator.hll directly because we shouldn't mutate accumulator
         @SuppressWarnings("unchecked")
