@@ -45,8 +45,6 @@ import org.apache.beam.sdk.metrics.Metrics;
 import org.apache.beam.sdk.runners.TransformHierarchy.Node;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
-import org.apache.beam.sdk.transforms.DoFn.ProcessContext;
-import org.apache.beam.sdk.transforms.DoFn.ProcessElement;
 import org.apache.beam.sdk.transforms.Flatten;
 import org.apache.beam.sdk.transforms.GroupByKey;
 import org.apache.beam.sdk.transforms.MapElements;
@@ -524,7 +522,7 @@ public class PAssert {
     };
   }
 
-  private static <T> DoFn<T, T> filterAdditionOnly() {
+  private static <T> DoFn<T, T> filterAdditionsOnly() {
     return new DoFn<T, T>() {
       @ProcessElement
       public void processElement(ProcessContext c) {
@@ -605,7 +603,7 @@ public class PAssert {
 
     @Override
     public IterableAssert<T> filterAdditions() {
-      return new PCollectionContentsAssert(actual, site, filterAdditionOnly());
+      return new PCollectionContentsAssert(actual, site, filterAdditionsOnly());
     }
 
     private PCollectionContentsAssert<T> withPane(
