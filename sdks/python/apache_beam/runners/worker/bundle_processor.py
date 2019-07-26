@@ -971,7 +971,7 @@ def create_dofn_javasdk(factory, transform_id, transform_proto, serialized_fn, c
 @BeamTransformFactory.register_urn(
     common_urns.sdf_components.PAIR_WITH_RESTRICTION.urn,
     beam_runner_api_pb2.ParDoPayload)
-def create(*args):
+def create_pair_with_restriction(*args):
 
   class PairWithRestriction(beam.DoFn):
     def __init__(self, fn, restriction_provider):
@@ -992,7 +992,7 @@ def create(*args):
 @BeamTransformFactory.register_urn(
     common_urns.sdf_components.SPLIT_AND_SIZE_RESTRICTIONS.urn,
     beam_runner_api_pb2.ParDoPayload)
-def create(*args):
+def create_split_and_size_restrictions(*args):
 
   class SplitAndSizeRestrictions(beam.DoFn):
     def __init__(self, fn, restriction_provider):
@@ -1010,7 +1010,8 @@ def create(*args):
 @BeamTransformFactory.register_urn(
     common_urns.sdf_components.PROCESS_SIZED_ELEMENTS_AND_RESTRICTIONS.urn,
     beam_runner_api_pb2.ParDoPayload)
-def create(factory, transform_id, transform_proto, parameter, consumers):
+def create_process_sized_elements_and_restrictions(
+    factory, transform_id, transform_proto, parameter, consumers):
   assert parameter.do_fn.spec.urn == python_urns.PICKLED_DOFN_INFO
   serialized_fn = parameter.do_fn.spec.payload
   return _create_pardo_operation(
@@ -1035,7 +1036,7 @@ def _create_sdf_operation(
 
 @BeamTransformFactory.register_urn(
     common_urns.primitives.PAR_DO.urn, beam_runner_api_pb2.ParDoPayload)
-def create(factory, transform_id, transform_proto, parameter, consumers):
+def create_par_do(factory, transform_id, transform_proto, parameter, consumers):
   assert parameter.do_fn.spec.urn == python_urns.PICKLED_DOFN_INFO
   serialized_fn = parameter.do_fn.spec.payload
   return _create_pardo_operation(
@@ -1158,7 +1159,8 @@ def _create_simple_pardo_operation(
 @BeamTransformFactory.register_urn(
     common_urns.primitives.ASSIGN_WINDOWS.urn,
     beam_runner_api_pb2.WindowingStrategy)
-def create(factory, transform_id, transform_proto, parameter, consumers):
+def create_assign_windows(
+    factory, transform_id, transform_proto, parameter, consumers):
   class WindowIntoDoFn(beam.DoFn):
     def __init__(self, windowing):
       self.windowing = windowing
@@ -1177,7 +1179,8 @@ def create(factory, transform_id, transform_proto, parameter, consumers):
 
 
 @BeamTransformFactory.register_urn(IDENTITY_DOFN_URN, None)
-def create(factory, transform_id, transform_proto, unused_parameter, consumers):
+def create_identity_dofn(
+    factory, transform_id, transform_proto, unused_parameter, consumers):
   return factory.augment_oldstyle_op(
       operations.FlattenOperation(
           transform_proto.unique_name,
@@ -1192,7 +1195,8 @@ def create(factory, transform_id, transform_proto, unused_parameter, consumers):
 @BeamTransformFactory.register_urn(
     common_urns.combine_components.COMBINE_PER_KEY_PRECOMBINE.urn,
     beam_runner_api_pb2.CombinePayload)
-def create(factory, transform_id, transform_proto, payload, consumers):
+def create_combine_per_key_precombine(
+    factory, transform_id, transform_proto, payload, consumers):
   serialized_combine_fn = pickler.dumps(
       (beam.CombineFn.from_runner_api(payload.combine_fn, factory.context),
        [], {}))
@@ -1212,7 +1216,8 @@ def create(factory, transform_id, transform_proto, payload, consumers):
 @BeamTransformFactory.register_urn(
     common_urns.combine_components.COMBINE_PER_KEY_MERGE_ACCUMULATORS.urn,
     beam_runner_api_pb2.CombinePayload)
-def create(factory, transform_id, transform_proto, payload, consumers):
+def create_combbine_per_key_merge_accumulators(
+    factory, transform_id, transform_proto, payload, consumers):
   return _create_combine_phase_operation(
       factory, transform_proto, payload, consumers, 'merge')
 
@@ -1220,7 +1225,8 @@ def create(factory, transform_id, transform_proto, payload, consumers):
 @BeamTransformFactory.register_urn(
     common_urns.combine_components.COMBINE_PER_KEY_EXTRACT_OUTPUTS.urn,
     beam_runner_api_pb2.CombinePayload)
-def create(factory, transform_id, transform_proto, payload, consumers):
+def create_combine_per_key_extract_outputs(
+    factory, transform_id, transform_proto, payload, consumers):
   return _create_combine_phase_operation(
       factory, transform_proto, payload, consumers, 'extract')
 
@@ -1228,7 +1234,8 @@ def create(factory, transform_id, transform_proto, payload, consumers):
 @BeamTransformFactory.register_urn(
     common_urns.combine_components.COMBINE_GROUPED_VALUES.urn,
     beam_runner_api_pb2.CombinePayload)
-def create(factory, transform_id, transform_proto, payload, consumers):
+def create_combine_grouped_values(
+    factory, transform_id, transform_proto, payload, consumers):
   return _create_combine_phase_operation(
       factory, transform_proto, payload, consumers, 'all')
 
@@ -1253,7 +1260,8 @@ def _create_combine_phase_operation(
 
 
 @BeamTransformFactory.register_urn(common_urns.primitives.FLATTEN.urn, None)
-def create(factory, transform_id, transform_proto, unused_parameter, consumers):
+def create_flatten(
+    factory, transform_id, transform_proto, unused_parameter, consumers):
   return factory.augment_oldstyle_op(
       operations.FlattenOperation(
           transform_proto.unique_name,
@@ -1269,7 +1277,7 @@ def create(factory, transform_id, transform_proto, unused_parameter, consumers):
 @BeamTransformFactory.register_urn(
     common_urns.primitives.MAP_WINDOWS.urn,
     beam_runner_api_pb2.SdkFunctionSpec)
-def create(factory, transform_id, transform_proto, mapping_fn_spec, consumers):
+def create_map_windows(factory, transform_id, transform_proto, mapping_fn_spec, consumers):
   assert mapping_fn_spec.spec.urn == python_urns.PICKLED_WINDOW_MAPPING_FN
   window_mapping_fn = pickler.loads(mapping_fn_spec.spec.payload)
 
