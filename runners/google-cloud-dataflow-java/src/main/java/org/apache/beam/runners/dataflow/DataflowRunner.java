@@ -238,6 +238,13 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
           "Missing required values: " + Joiner.on(',').join(missing));
     }
 
+    if (dataflowOptions.getRegion() == null) {
+      LOG.warn("--region not set; will default to us-central1. Future releases of Beam will "
+          + "require the user to set the region explicitly. "
+          + "https://cloud.google.com/compute/docs/regions-zones/regions-zones");
+      dataflowOptions.setRegion("us-central1");
+    }
+
     PathValidator validator = dataflowOptions.getPathValidator();
     String gcpTempLocation;
     try {
