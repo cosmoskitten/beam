@@ -642,6 +642,45 @@ message StandardCoders {
     // Components: Coder for a single element.
     // Experimental.
     STATE_BACKED_ITERABLE = 9 [(beam_urn) = "beam:coder:state_backed_iterable:v1"];
+
+    // Additional Standard Coders
+    // --------------------------
+    // The following coders are not required to be implemented for an SDK or
+    // runner to support the Beam model, but can enable additional
+    // functionality.
+
+    // Encodes a "row", an element with a known schema, defined by an
+    // instance of Schema from schema.proto.
+    //
+    // A row is encoded as the concatenation of:
+    //   - The number of attributes in the schema, encoded with
+    //     beam:coder:varint:v1. This is useful for detecting supported schema
+    //     changes (column additions/deletions).
+    //   - A packed bitset indicating null fields (a 1 indicating a null)
+    //     encoded with beam:coder:bytes:v1. If there are no nulls an empty byte
+    //     array is encoded.
+    //   - An encoding for each non-null field, concatenated together.
+    //
+    // Schema types are mapped to coders as follows:
+    //   AtomicType:
+    //     BYTE:      not yet a standard coder
+    //     INT16:     not yet a standard coder
+    //     INT32:     beam:coder:varint:v1
+    //     INT64:     beam:coder:varint:v1
+    //     FLOAT:     not yet a standard coder
+    //     DOUBLE:    beam:coder:double:v1
+    //     STRING:    beam:coder:string_utf8:v1
+    //     BOOLEAN:   not yet a standard coder
+    //     BYTES:     beam:coder:bytes:v1
+    //   ArrayType:   beam:coder:iterable:v1 (always has a known length)
+    //   MapType:     not yet a standard coder
+    //   RowType:     beam:coder:row:v1
+    //   LogicalType: Uses the coder for its representation.
+    //
+    // The payload for RowCoder is an instance of Schema.
+    // Components: None
+    // Experimenal.
+    ROW = 12 [(beam_urn) = "beam:coder:row:v1"];
   }
 }
 
