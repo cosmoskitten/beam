@@ -635,7 +635,7 @@ class BigQueryBatchFileLoads(beam.PTransform):
   def expand(self, pcoll):
     p = pcoll.pipeline
 
-    temp_location = p.options.view_as(GoogleCloudOptions).temp_location
+    temp_location = p.options.view_as(GoogleCloudOptions).gcp_temp_location
 
     load_job_name_pcv = pvalue.AsSingleton(
         p
