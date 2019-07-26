@@ -34,11 +34,12 @@ import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.apache.beam.sdk.schemas.Schema.TypeName;
 import org.apache.beam.sdk.util.SerializableUtils;
 import org.apache.beam.sdk.values.Row;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 
 /** A {@link Coder} for {@link Row}. It wraps the {@link Coder} for each element directly. */
 @Experimental
-public class RowCoder extends CustomCoder<Row> {
+public class RowCoder extends StructuredCoder<Row> {
   // This contains a map of primitive types to their coders.
   static final ImmutableMap<TypeName, Coder> CODER_MAP =
       ImmutableMap.<TypeName, Coder>builder()
@@ -240,6 +241,11 @@ public class RowCoder extends CustomCoder<Row> {
       default:
         return ESTIMATED_FIELD_SIZES.get(typeDescriptor.getTypeName());
     }
+  }
+
+  @Override
+  public List<? extends Coder<?>> getCoderArguments() {
+    return ImmutableList.of();
   }
 
   @Override
