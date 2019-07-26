@@ -251,7 +251,7 @@ public class SparkCombineFn<InputT, ValueT, AccumT, OutputT> extends SparkAbstra
       return Collections.emptyList();
     }
 
-    ValueT toValue(WindowedValue<InputT> input) {
+    private ValueT toValue(WindowedValue<InputT> input) {
       try {
         return toValue.call(input.getValue());
       } catch (Exception ex) {
@@ -606,10 +606,10 @@ public class SparkCombineFn<InputT, ValueT, AccumT, OutputT> extends SparkAbstra
             .anyMatch(t -> t.isSubtypeOf(TypeDescriptor.of(Comparable.class)))) {
       comparator = (Comparator) Comparator.naturalOrder();
     } else {
-      java.util.function.Function<BoundedWindow, ?> keyExtractor =
-          (java.util.function.Function<BoundedWindow, ?> & Serializable)
+      java.util.function.Function<BoundedWindow, Instant> keyExtractor =
+          (java.util.function.Function<BoundedWindow, Instant> & Serializable)
               BoundedWindow::maxTimestamp;
-      comparator = Comparator.comparing((java.util.function.Function) keyExtractor);
+      comparator = Comparator.comparing(keyExtractor);
     }
     return comparator;
   }
