@@ -212,7 +212,7 @@ public class SchemaTranslation {
         } else if (urn.equals(URN_BEAM_LOGICAL_DECIMAL)) {
           return FieldType.DECIMAL;
         } else {
-          // TODO: Look up logical type class by URN.
+          // TODO(BEAM-7855): Look up logical type class by URN.
           throw new IllegalArgumentException("Decoding logical types is not yet supported.");
         }
       default:
