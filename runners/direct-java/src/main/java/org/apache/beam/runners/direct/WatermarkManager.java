@@ -210,6 +210,59 @@ public class WatermarkManager<ExecutableT, CollectionT> {
     return res;
   }
 
+  private static class AutoCloseableLock implements AutoCloseable {
+
+    static AutoCloseableLock lock(Lock lock) {
+      return tryLock(lock, true);
+    }
+
+    static AutoCloseableLock tryLock(Lock lock, boolean force) {
+      AutoCloseableLock ret = new AutoCloseableLock(lock);
+      if (force) {
+        return ret.lock();
+      }
+      if (!ret.delegate.tryLock()) {
+        return ret.unlocked();
+      }
+      return ret.locked();
+    }
+
+    private final Lock delegate;
+    private boolean locked;
+
+    private AutoCloseableLock(Lock delegate) {
+      this.delegate = Objects.requireNonNull(delegate);
+    }
+
+    private AutoCloseableLock lock() {
+      delegate.lock();
+      locked = true;
+      return this;
+    }
+
+    private AutoCloseableLock locked() {
+      locked = true;
+      return this;
+    }
+
+    private AutoCloseableLock unlocked() {
+      if (locked) {
+        delegate.unlock();
+        locked = false;
+      }
+      return this;
+    }
+
+    private boolean isLocked() {
+      return locked;
+    }
+
+    @Override
+    public void close() {
+      unlocked();
+    }
+  }
+
   /**
    * The input {@link Watermark} of an {@link AppliedPTransform}.
    *
@@ -237,7 +290,7 @@ public class WatermarkManager<ExecutableT, CollectionT> {
     // This per-key sorted set allows quick retrieval of timers that should fire for a key
     private final Map<StructuralKey<?>, NavigableSet<TimerData>> objectTimers;
 
-    private AtomicReference<Instant> currentWatermark;
+    private final AtomicReference<Instant> currentWatermark;
 
     public AppliedPTransformInputWatermark(
         String name, Collection<? extends Watermark> inputWatermarks) {
@@ -1116,21 +1169,26 @@ public class WatermarkManager<ExecutableT, CollectionT> {
 
   private Set<ExecutableT> refreshAllOf(Set<ExecutableT> toRefresh) {
     Set<ExecutableT> newRefreshes = new HashSet<>();
+    int executablesToRefresh = toRefresh.size();
     for (ExecutableT executable : toRefresh) {
-      newRefreshes.addAll(refreshWatermarks(executable));
+      newRefreshes.addAll(refreshWatermarks(executable, executablesToRefresh == 1));
     }
     return newRefreshes;
   }
 
-  private Set<ExecutableT> refreshWatermarks(ExecutableT toRefresh) {
-    TransformWatermarks myWatermarks = transformToWatermarks.get(toRefresh);
-    WatermarkUpdate updateResult = myWatermarks.refresh();
-    if (updateResult.isAdvanced()) {
-      Set<ExecutableT> additionalRefreshes = new HashSet<>();
-      for (CollectionT outputPValue : graph.getProduced(toRefresh)) {
-        additionalRefreshes.addAll(graph.getPerElementConsumers(outputPValue));
+  private Set<ExecutableT> refreshWatermarks(final ExecutableT toRefresh, boolean force) {
+    try (AutoCloseableLock l = lockRefresh(toRefresh, force)) {
+      if (l.isLocked()) {
+        TransformWatermarks myWatermarks = transformToWatermarks.get(toRefresh);
+        WatermarkUpdate updateResult = myWatermarks.refresh();
+        if (updateResult.isAdvanced()) {
+          Set<ExecutableT> additionalRefreshes = new HashSet<>();
+          for (CollectionT outputPValue : graph.getProduced(toRefresh)) {
+            additionalRefreshes.addAll(graph.getPerElementConsumers(outputPValue));
+          }
+          return additionalRefreshes;
+        }
       }
-      return additionalRefreshes;
     }
     return Collections.emptySet();
   }
@@ -1153,6 +1211,16 @@ public class WatermarkManager<ExecutableT, CollectionT> {
     } finally {
       refreshLock.unlock();
     }
+  }
+
+  AutoCloseableLock lockRefresh(ExecutableT executable) {
+    return lockRefresh(executable, true);
+  }
+
+  private AutoCloseableLock lockRefresh(ExecutableT executable, boolean force) {
+
+    Lock lock = transformToWatermarks.get(executable).getWatermarkLock();
+    return AutoCloseableLock.tryLock(lock, force);
   }
 
   /**
@@ -1264,6 +1332,8 @@ public class WatermarkManager<ExecutableT, CollectionT> {
     private Instant latestSynchronizedInputWm;
     private Instant latestSynchronizedOutputWm;
 
+    private final Lock transformWatermarkLock = new ReentrantLock();
+
     private TransformWatermarks(
         ExecutableT executable,
         AppliedPTransformInputWatermark inputWatermark,
@@ -1316,6 +1386,10 @@ public class WatermarkManager<ExecutableT, CollectionT> {
               latestSynchronizedOutputWm,
               INSTANT_ORDERING.min(clock.now(), synchronizedProcessingOutputWatermark.get()));
       return latestSynchronizedOutputWm;
+    }
+
+    private Lock getWatermarkLock() {
+      return transformWatermarkLock;
     }
 
     private WatermarkUpdate refresh() {

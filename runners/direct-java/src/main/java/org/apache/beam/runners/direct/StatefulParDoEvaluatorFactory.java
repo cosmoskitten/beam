@@ -56,6 +56,7 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.cache.CacheBuild
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.cache.CacheLoader;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.cache.LoadingCache;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
+import org.joda.time.Instant;
 
 /** A {@link TransformEvaluatorFactory} for stateful {@link ParDo}. */
 final class StatefulParDoEvaluatorFactory<K, InputT, OutputT> implements TransformEvaluatorFactory {
@@ -244,6 +245,7 @@ final class StatefulParDoEvaluatorFactory<K, InputT, OutputT> implements Transfo
         delegateEvaluator.processElement(windowedValue);
       }
 
+      Instant lastFired = null;
       for (TimerData timer : gbkResult.getValue().timersIterable()) {
         checkState(
             timer.getNamespace() instanceof WindowNamespace,
@@ -251,6 +253,12 @@ final class StatefulParDoEvaluatorFactory<K, InputT, OutputT> implements Transfo
             timer,
             WindowNamespace.class.getSimpleName(),
             timer.getNamespace().getClass().getName());
+        checkState(
+            lastFired == null || !lastFired.isAfter(timer.getTimestamp()),
+            "lastFired was %s, current %s",
+            lastFired,
+            timer.getTimestamp());
+        lastFired = timer.getTimestamp();
         WindowNamespace<?> windowNamespace = (WindowNamespace) timer.getNamespace();
         BoundedWindow timerWindow = windowNamespace.getWindow();
         delegateEvaluator.onTimer(timer, timerWindow);
