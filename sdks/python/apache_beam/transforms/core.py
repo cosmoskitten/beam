@@ -308,14 +308,19 @@ class RunnerAPIPTransformHolder(PTransform):
   without a serialized Python `DoFn` object.
   """
 
-  def __init__(self, proto):
+  def __init__(self, proto, context):
     self._proto = proto
+    self._context = context
 
   def proto(self):
     """Runner API payload for a `PTransform`"""
     return self._proto
 
   def to_runner_api(self, context, has_parts=False):
+    id_to_proto_map = self._context.environments.get_id_to_proto_map()
+    for env_id in id_to_proto_map:
+      if env_id not in context.environments:
+        context.environments.put_proto(env_id, id_to_proto_map[env_id])
     return self._proto
 
   def get_restriction_coder(self):

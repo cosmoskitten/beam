@@ -67,6 +67,10 @@ from apache_beam.utils import retry
 _LEGACY_ENVIRONMENT_MAJOR_VERSION = '7'
 _FNAPI_ENVIRONMENT_MAJOR_VERSION = '7'
 
+JOB_TYPE_FNAPI_STREAMING = 'FNAPI_STREAMING'
+JOB_TYPE_FNAPI_BATCH = 'FNAPI_BATCH'
+JOB_TYPE_PYTHON_BATCH = 'PYTHON_BATCH'
+
 
 class Step(object):
   """Wrapper for a dataflow Step protobuf."""
@@ -165,12 +169,12 @@ class Environment(object):
     self.proto.version = dataflow.Environment.VersionValue()
     _verify_interpreter_version_is_supported(options)
     if self.standard_options.streaming:
-      job_type = 'FNAPI_STREAMING'
+      job_type = JOB_TYPE_FNAPI_STREAMING
     else:
       if _use_fnapi(options):
-        job_type = 'FNAPI_BATCH'
+        job_type = JOB_TYPE_FNAPI_BATCH
       else:
-        job_type = 'PYTHON_BATCH'
+        job_type = JOB_TYPE_PYTHON_BATCH
     self.proto.version.additionalProperties.extend([
         dataflow.Environment.VersionValue.AdditionalProperty(
             key='job_type',
@@ -905,6 +909,19 @@ def _get_container_image_tag():
   return base_version
 
 
+def get_job_type(options):
+  standard_options = options.view_as(StandardOptions)
+  if standard_options.streaming:
+    job_type = JOB_TYPE_FNAPI_STREAMING
+  else:
+    if _use_fnapi(options):
+      job_type = JOB_TYPE_FNAPI_BATCH
+    else:
+      job_type = JOB_TYPE_PYTHON_BATCH
+
+  return job_type
+
+
 def get_default_container_image_for_current_sdk(job_type):
   """For internal use only; no backwards-compatibility guarantees.
 
@@ -927,7 +944,7 @@ def get_default_container_image_for_current_sdk(job_type):
                     % str(sys.version_info[0:2]))
 
   # TODO(tvalentyn): Use enumerated type instead of strings for job types.
-  if job_type == 'FNAPI_BATCH' or job_type == 'FNAPI_STREAMING':
+  if job_type == JOB_TYPE_PYTHON_BATCH or job_type == JOB_TYPE_FNAPI_STREAMING:
     fnapi_suffix = '-fnapi'
   else:
     fnapi_suffix = ''
@@ -952,7 +969,8 @@ def _get_required_container_version(job_type=None):
         current version of the SDK.
     """
   if 'dev' in beam_version.__version__:
-    if job_type == 'FNAPI_BATCH' or job_type == 'FNAPI_STREAMING':
+    if (job_type == JOB_TYPE_PYTHON_BATCH or
+        job_type == JOB_TYPE_FNAPI_STREAMING):
       return names.BEAM_FNAPI_CONTAINER_VERSION
     else:
       return names.BEAM_CONTAINER_VERSION
