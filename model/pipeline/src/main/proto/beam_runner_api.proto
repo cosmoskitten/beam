@@ -642,6 +642,20 @@ message StandardCoders {
     // Components: Coder for a single element.
     // Experimental.
     STATE_BACKED_ITERABLE = 9 [(beam_urn) = "beam:coder:state_backed_iterable:v1"];
+
+    // Encodes a "row", an element with a particular schema defined by an
+    // instance of Schema (in schema.proto).
+    //
+    // The encoding for an element is a prefix representing the number of fields
+    // in this element's schema, followed by a byte array where each bit
+    // indicates whether or not the associated field is null. The prefix is
+    // followed by the concatenation of the encodings for each field in the
+    // schema. Each base type supported by schemas has a corresponding standard
+    // coder used by row coder.
+    //
+    // The payload for RowCoder is an instance of Schema.
+    // Components: None
+    ROW = 12 [(beam_urn) = "beam:coder:row:v1"];
   }
 }
 
