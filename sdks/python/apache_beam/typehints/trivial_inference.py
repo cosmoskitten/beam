@@ -458,16 +458,25 @@ def infer_return_type_func(f, input_types, debug=False, depth=0):
           pop_count = arg + 2
           return_type = Any
         elif opname == 'CALL_FUNCTION_EX':
+          # stack[-has_kwargs]: Map of keyword args.
+          # stack[-1 - has_kwargs]: Iterable of positional args.
+          # stack[-2 - has_kwargs]: Function to call.
           has_kwargs = arg & 1  # type: int
-          pop_count = has_kwargs + 1
+          pop_count = has_kwargs + 2
           if has_kwargs:
             # TODO(udim): Unimplemented. Requires same functionality as a
             #   CALL_FUNCTION_KW implementation.
             return_type = Any
           else:
-            args_and_callable = state.stack[-1]
-            return_type = infer_return_type(args_and_callable[-1].value,
-                                            args_and_callable[:-1],
+            args = state.stack[-1]
+            callable = state.stack[-2]
+            if isinstance(args, typehints.ListConstraint):
+              # Case where there's a single var_arg argument.
+              args = [args]
+            elif isinstance(args, typehints.TupleConstraint):
+              args = list(args._inner_types())
+            return_type = infer_return_type(callable.value,
+                                            args,
                                             debug=debug,
                                             depth=depth - 1)
         else:
