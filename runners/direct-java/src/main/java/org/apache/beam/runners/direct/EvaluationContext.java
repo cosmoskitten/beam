@@ -226,7 +226,11 @@ class EvaluationContext {
   private void fireAvailableCallbacks(AppliedPTransform<?, ?, ?> producingTransform) {
     TransformWatermarks watermarks = watermarkManager.getWatermarks(producingTransform);
     Instant outputWatermark = watermarks.getOutputWatermark();
-    callbackExecutor.fireForWatermark(producingTransform, outputWatermark);
+    try {
+      callbackExecutor.fireForWatermark(producingTransform, outputWatermark);
+    } catch (InterruptedException ex) {
+      Thread.currentThread().interrupt();
+    }
   }
 
   /** Create a {@link UncommittedBundle} for use by a source. */
@@ -355,6 +359,11 @@ class EvaluationContext {
   /** Returns the metrics container for this pipeline. */
   public DirectMetrics getMetrics() {
     return metrics;
+  }
+
+  <ExecutableT extends AppliedPTransform<?, ?, ?>> AutoCloseable lockWatermarkUpdates(
+      ExecutableT executable) {
+    return watermarkManager.lockRefresh(executable);
   }
 
   @VisibleForTesting
