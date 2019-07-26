@@ -1028,6 +1028,10 @@ class WriteImpl(ptransform.PTransform[T, T]):
                                _WriteKeyedBundleDoFn(self.sink),
                                AsSingleton(init_result_coll)))
     else:
+      def getitem(x):
+        # type: (Tuple[Any, Iterable[T]]) -> Iterable[T]
+        return x[1]
+
       min_shards = 1
       write_result_coll = (pcoll
                            | 'WriteBundles' >>
@@ -1036,7 +1040,7 @@ class WriteImpl(ptransform.PTransform[T, T]):
                            | 'Pair' >> core.Map(lambda x: (None, x))
                            | core.WindowInto(window.GlobalWindows())
                            | core.GroupByKey()
-                           | 'Extract' >> core.FlatMap(lambda x: x[1]))
+                           | 'Extract' >> core.FlatMap(getitem))
     # PreFinalize should run before FinalizeWrite, and the two should not be
     # fused.
     pre_finalize_coll = do_once | 'PreFinalize' >> core.FlatMap(
