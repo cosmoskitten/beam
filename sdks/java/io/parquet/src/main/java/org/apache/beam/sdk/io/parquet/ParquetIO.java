@@ -290,6 +290,7 @@ public class ParquetIO {
     }
 
     @Nullable private transient ParquetWriter<GenericRecord> writer;
+    @Nullable private transient OutputStream out;
 
     @Override
     public void open(WritableByteChannel channel) throws IOException {
@@ -297,11 +298,9 @@ public class ParquetIO {
 
       Schema schema = new Schema.Parser().parse(getJsonSchema());
 
-      BeamParquetOutputFile beamParquetOutputFile =
-          new BeamParquetOutputFile(Channels.newOutputStream(channel));
-
+      this.out = Channels.newOutputStream(channel);
       this.writer =
-          AvroParquetWriter.<GenericRecord>builder(beamParquetOutputFile)
+          AvroParquetWriter.<GenericRecord>builder(new BeamParquetOutputFile(out))
               .withSchema(schema)
               .withCompressionCodec(getCompressionCodec())
               .withWriteMode(OVERWRITE)
@@ -316,7 +315,8 @@ public class ParquetIO {
 
     @Override
     public void flush() throws IOException {
-      writer.close();
+      checkNotNull(out, "OutputStream cannot be null");
+      out.flush();
     }
 
     private static class BeamParquetOutputFile implements OutputFile {
