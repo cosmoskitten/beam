@@ -316,7 +316,7 @@ public class ParquetIO {
 
     @Override
     public void flush() throws IOException {
-      writer.close();
+      // nothing to do here.
     }
 
     private static class BeamParquetOutputFile implements OutputFile {
