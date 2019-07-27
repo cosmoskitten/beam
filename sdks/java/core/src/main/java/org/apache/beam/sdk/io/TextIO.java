@@ -1318,7 +1318,7 @@ public class TextIO {
       if (getFooter() != null) {
         writer.println(getFooter());
       }
-      writer.close();
+      writer.flush();
     }
   }
 
