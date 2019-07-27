@@ -65,8 +65,6 @@ abstract class HllCountInitFn<InputT, HllT>
       Iterable<HyperLogLogPlusPlus<HllT>> accumulators) {
     HyperLogLogPlusPlus<HllT> merged = createAccumulator();
     for (HyperLogLogPlusPlus<HllT> accumulator : accumulators) {
-      // TODO: check if the merge function can accept HyperLogLogPlusPlus<?>
-      // Type parameters for this class and MergePartialFn could be simpler (not exposing HllT?)
       merged.merge(accumulator);
     }
     return merged;
@@ -97,8 +95,6 @@ abstract class HllCountInitFn<InputT, HllT>
 
     @Override
     public HyperLogLogPlusPlus<Integer> createAccumulator() {
-      // TODO: check BigQuery's sparsePrecision (customized, default, or disabled), same below * 3
-      // TODO: check BigQuery's INT64/STRING/BYTES type's compatibility with Beam, same below * 3
       return new HyperLogLogPlusPlus.Builder().normalPrecision(getPrecision()).buildForIntegers();
     }
 

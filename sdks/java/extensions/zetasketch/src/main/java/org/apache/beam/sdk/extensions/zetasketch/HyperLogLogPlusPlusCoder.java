@@ -51,8 +51,6 @@ class HyperLogLogPlusPlusCoder<T> extends AtomicCoder<HyperLogLogPlusPlus<T>> {
   @Override
   @SuppressWarnings("unchecked")
   public HyperLogLogPlusPlus<T> decode(InputStream inStream) throws IOException {
-    // TODO: check if the forProto function can be made generic for type <T>
-    // This will remove the type cast here and at 2 places in MergePartialFn
     return (HyperLogLogPlusPlus<T>) HyperLogLogPlusPlus.forProto(BYTE_ARRAY_CODER.decode(inStream));
   }
 

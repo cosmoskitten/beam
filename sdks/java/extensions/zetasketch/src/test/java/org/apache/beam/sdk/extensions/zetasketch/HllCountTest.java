@@ -24,13 +24,10 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import org.apache.beam.sdk.Pipeline.PipelineExecutionException;
-import org.apache.beam.sdk.coders.CoderException;
-import org.apache.beam.sdk.coders.VarLongCoder;
 import org.apache.beam.sdk.testing.NeedsRunner;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
-import org.apache.beam.sdk.util.CoderUtils;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.TypeDescriptor;
@@ -60,7 +57,7 @@ public class HllCountTest {
     INTS1_ESTIMATE = hll.longResult();
   }
 
-  private static final List<Integer> INTS2 = Arrays.asList(2, 3, 4, 3, 2, 6, 5);
+  private static final List<Integer> INTS2 = Arrays.asList(3, 3, 3, 3);
   private static final byte[] INTS2_SKETCH;
   private static final Long INTS2_ESTIMATE;
 
@@ -80,7 +77,7 @@ public class HllCountTest {
   }
 
   // Long
-  private static final List<Long> LONGS = Arrays.asList(1L, 2L, 3L, 3L, 1L, 4L);
+  private static final List<Long> LONGS = Collections.singletonList(1L);
   private static final byte[] LONGS_SKETCH;
 
   static {
@@ -89,8 +86,15 @@ public class HllCountTest {
     LONGS_SKETCH = hll.serializeToByteArray();
   }
 
+  private static final byte[] LONGS_EMPTY_SKETCH;
+
+  static {
+    HyperLogLogPlusPlus<Long> hll = new HyperLogLogPlusPlus.Builder().buildForLongs();
+    LONGS_EMPTY_SKETCH = hll.serializeToByteArray();
+  }
+
   // String
-  private static final List<String> STRINGS = Arrays.asList("s1", "s2", "s3", "s3", "s1", "s4");
+  private static final List<String> STRINGS = Arrays.asList("s1", "s2", "s1", "s2");
   private static final byte[] STRINGS_SKETCH;
 
   static {
@@ -110,19 +114,9 @@ public class HllCountTest {
   }
 
   // Bytes
-  private static final List<byte[]> BYTES;
-
-  static {
-    BYTES = new ArrayList<>();
-    try {
-      for (Long l : LONGS) {
-        BYTES.add(CoderUtils.encodeToByteArray(VarLongCoder.of(), l));
-      }
-    } catch (CoderException e) {
-      throw new IllegalArgumentException("Serializing test input LONGS failed.", e);
-    }
-  }
-
+  private static final byte[] BYTES0 = {(byte) 0x1, (byte) 0xa};
+  private static final byte[] BYTES1 = {(byte) 0xf};
+  private static final List<byte[]> BYTES = Arrays.asList(BYTES0, BYTES1);
   private static final byte[] BYTES_SKETCH;
 
   static {
@@ -148,6 +142,17 @@ public class HllCountTest {
         p.apply(Create.of(LONGS)).apply(HllCount.Init.longSketch().globally());
 
     PAssert.that(result).containsInAnyOrder(LONGS_SKETCH);
+    p.run();
+  }
+
+  @Test
+  @Category(NeedsRunner.class)
+  public void testInitLongSketchGlobally_EmptyInput() {
+    PCollection<byte[]> result =
+        p.apply(Create.empty(TypeDescriptor.of(Long.class)))
+            .apply(HllCount.Init.longSketch().globally());
+
+    PAssert.that(result).containsInAnyOrder(LONGS_EMPTY_SKETCH);
     p.run();
   }
 
@@ -271,6 +276,17 @@ public class HllCountTest {
         p.apply(Create.of(INTS1_SKETCH, INTS2_SKETCH)).apply(HllCount.MergePartial.globally());
 
     PAssert.that(result).containsInAnyOrder(INTS1_INTS2_SKETCH);
+    p.run();
+  }
+
+  @Test
+  @Category(NeedsRunner.class)
+  public void testMergePartialGlobally_MergeWithSketchForEmptySet() {
+    PCollection<byte[]> result =
+        p.apply(Create.of(LONGS_SKETCH, LONGS_EMPTY_SKETCH))
+            .apply(HllCount.MergePartial.globally());
+
+    PAssert.that(result).containsInAnyOrder(LONGS_SKETCH);
     p.run();
   }
 

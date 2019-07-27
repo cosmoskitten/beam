@@ -49,12 +49,7 @@ class HllCountMergePartialFn<T>
    * HyperLogLogPlusPlus} directly because we need an "identity element" for the {@code merge}
    * operation, and we are not able to create such "identity element" of type {@link
    * HyperLogLogPlusPlus} without knowing the sketch precision and value type.
-   *
-   * <p>An alternative design is to force users to provide the precision and value type of the
-   * sketches being merged at the creation of {@link HllCount.MergePartial} transform, which they
-   * may or may not know.
    */
-  // TODO: check if it makes sense to add the "identity element" support in ZetaSketch
   static final class HyperLogLogPlusPlusWrapper<T> {
     @Nullable private HyperLogLogPlusPlus<T> hll;
 
