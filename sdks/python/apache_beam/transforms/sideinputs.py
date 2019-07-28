@@ -26,6 +26,7 @@ AsSingleton, AsIter, AsList and AsDict in apache_beam.pvalue.
 
 from __future__ import absolute_import
 
+import re
 from builtins import object
 from typing import TYPE_CHECKING
 
@@ -50,6 +51,15 @@ def default_window_mapping_fn(target_window_fn):
         window.WindowFn.AssignContext(source_window.max_timestamp())))[-1]
 
   return map_via_end
+
+
+def get_sideinput_index(tag):
+  # type: (str) -> int
+  match = re.match('side([0-9]+)(-.*)?$', tag)
+  if match:
+    return int(match.group(1))
+  else:
+    raise RuntimeError("Invalid tag %r" % tag)
 
 
 class SideInputMap(object):
