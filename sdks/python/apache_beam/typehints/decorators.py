@@ -377,7 +377,7 @@ def get_type_hints(fn):
       # but might have some restrictions anyways...
       hints = IOTypeHints()
       if isinstance(fn, _MethodDescriptorType):
-        hints.set_input_types(fn.__objclass__)
+        hints.set_input_types(fn.__objclass__)  # type: ignore
       return hints
   return fn._type_hints
   # pylint: enable=protected-access
