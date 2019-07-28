@@ -141,9 +141,11 @@ class _Bundle(common.Receiver):
       or as a list of copied WindowedValues.
     """
     if not self._stacked:
+      # we can safely assume self._elements contains only WindowedValues
+      elements = typing.cast('List[WindowedValue]', self._elements)
       if self._committed and not make_copy:
-        return self._elements
-      return list(self._elements)
+        return elements
+      return list(elements)
 
     def iterable_stacked_or_elements(elements):
       for e in elements:

@@ -948,15 +948,25 @@ class AppliedPTransform(object):
     main_inputs = [context.pcollections.get_by_id(id)
                    for tag, id in proto.inputs.items()
                    if not is_side_input(tag)]
+
+    def get_index(tag):
+      # type: (str) -> int
+      match = re.match('side([0-9]+)(-.*)?$', tag)
+      if match:
+        return int(match.group(1))  # type: ignore
+      else:
+        raise RuntimeError("Invalid tag %r" % tag)
+
     # Ordering is important here.
-    indexed_side_inputs = [(int(re.match('side([0-9]+)(-.*)?$', tag).group(1)),
-                            context.pcollections.get_by_id(id))
+    indexed_side_inputs = [(get_index(tag), context.pcollections.get_by_id(id))
                            for tag, id in proto.inputs.items()
                            if is_side_input(tag)]
     side_inputs = [si for _, si in sorted(indexed_side_inputs)]
+    transform = ptransform.PTransform.from_runner_api(proto.spec, context)
+    assert transform is not None
     result = AppliedPTransform(
         parent=None,
-        transform=ptransform.PTransform.from_runner_api(proto.spec, context),
+        transform=transform,
         full_label=proto.unique_name,
         inputs=main_inputs)
     if result.transform and result.transform.side_inputs:
@@ -973,6 +983,7 @@ class AppliedPTransform(object):
         for tag, id in proto.outputs.items()}
     # This annotation is expected by some runners.
     if proto.spec.urn == common_urns.primitives.PAR_DO.urn:
+      assert isinstance(result.transform, ptransform.ParDo)
       result.transform.output_tags = set(proto.outputs.keys()).difference(
           {'None'})
     if not result.parts:
