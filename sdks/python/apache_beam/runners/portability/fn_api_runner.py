@@ -47,6 +47,7 @@ from typing import Tuple
 from typing import Type
 from typing import TypeVar
 from typing import Union
+from typing import overload
 
 import grpc
 
@@ -126,8 +127,17 @@ class ControlConnection(object):
     for data in self._input:
       self._futures_by_id.pop(data.instruction_id).set(data)
 
+  @overload
   def push(self, req):
-    # type: (...) -> Optional[ControlFuture]
+    # type: (BeamFnControlServicer.DoneMarker) -> None
+    pass
+
+  @overload
+  def push(self, req):
+    # type: (beam_fn_api_pb2.InstructionRequest) -> ControlFuture
+    pass
+
+  def push(self, req):
     if req == BeamFnControlServicer._DONE_MARKER:
       self._push_queue.put(req)
       return None
@@ -166,7 +176,10 @@ class BeamFnControlServicer(beam_fn_api_pb2_grpc.BeamFnControlServicer):
   STARTED_STATE = 'started'
   DONE_STATE = 'done'
 
-  _DONE_MARKER = object()
+  class DoneMarker(object):
+    pass
+
+  _DONE_MARKER = DoneMarker()
 
   def __init__(self):
     self._lock = threading.Lock()
@@ -1690,6 +1703,7 @@ class BundleManager(object):
     if self._registered:
       registration_future = None
     else:
+      assert self._worker_handler is not None
       process_bundle_registration = beam_fn_api_pb2.InstructionRequest(
           register=beam_fn_api_pb2.RegisterRequest(
               process_bundle_descriptor=[self._bundle_descriptor]))
