@@ -156,14 +156,15 @@ class Timestamp(object):
     return self.micros // 1000000
 
   def __eq__(self, other):
-    # type: (Union[int, long, float, Timestamp, Duration]) -> bool
+    # type: (object) -> bool
     # Support equality with other types
     if not isinstance(other, (int, long, float, Timestamp, Duration)):
       return NotImplemented
     # Allow comparisons between Duration and Timestamp values.
     if not isinstance(other, Duration):
-      other = Timestamp.of(other)
-    return self.micros == other.micros
+      return self.micros == Timestamp.of(other).micros
+    else:
+      return self.micros == other.micros
 
   def __ne__(self, other):
     # type: (Any) -> bool
@@ -259,14 +260,15 @@ class Duration(object):
     return self.micros / 1000000
 
   def __eq__(self, other):
-    # type: (Union[int, long, float, Duration, Timestamp]) -> bool
+    # type: (object) -> bool
     # Support equality with other types
     if not isinstance(other, (int, long, float, Timestamp, Duration)):
       return NotImplemented
     # Allow comparisons between Duration and Timestamp values.
     if not isinstance(other, Timestamp):
-      other = Duration.of(other)
-    return self.micros == other.micros
+      return self.micros == Duration.of(other).micros
+    else:
+      return self.micros == other.micros
 
   def __ne__(self, other):
     # type: (Any) -> bool
