@@ -24,6 +24,7 @@ import json
 import logging
 import os
 import subprocess
+import sys
 import threading
 import time
 from concurrent import futures
@@ -39,15 +40,13 @@ from apache_beam.portability import common_urns
 from apache_beam.portability.api import beam_fn_api_pb2
 from apache_beam.portability.api import beam_fn_api_pb2_grpc
 from apache_beam.portability.api import beam_job_api_pb2
-from apache_beam.portability.api import beam_job_api_pb2_grpc
 from apache_beam.portability.api import beam_runner_api_pb2
 from apache_beam.portability.api import endpoints_pb2
 from apache_beam.runners import runner
 from apache_beam.runners.job import utils as job_utils
 from apache_beam.runners.portability import fn_api_runner_transforms
-from apache_beam.runners.portability import local_job_service
+from apache_beam.runners.portability import job_server
 from apache_beam.runners.portability import portable_stager
-from apache_beam.runners.portability.job_server import DockerizedJobServer
 from apache_beam.runners.worker import sdk_worker
 from apache_beam.runners.worker import sdk_worker_main
 
@@ -80,14 +79,31 @@ class PortableRunner(runner.PipelineRunner):
     running and managing the job lies with the job service used.
   """
   def __init__(self):
-    self._job_endpoint = None
+    self._dockerized_job_server = None
 
   @staticmethod
   def default_docker_image():
     if 'USER' in os.environ:
+      if sys.version_info[0] == 2:
+        version_suffix = ''
+      elif sys.version_info[0:2] == (3, 5):
+        version_suffix = '3'
+      else:
+        version_suffix = '3'
+        # TODO(BEAM-7474): Use an image which has correct Python minor version.
+        logging.warning('Make sure that locally built Python SDK docker image '
+                        'has Python %d.%d interpreter. See also: BEAM-7474.' % (
+                            sys.version_info[0], sys.version_info[1]))
+
       # Perhaps also test if this was built?
-      logging.info('Using latest locally built Python SDK docker image.')
-      return os.environ['USER'] + '-docker-apache.bintray.io/beam/python:latest'
+      image = ('{user}-docker-apache.bintray.io/beam/python'
+               '{version_suffix}:latest'.format(
+                   user=os.environ['USER'],
+                   version_suffix=version_suffix))
+      logging.info(
+          'Using latest locally built Python SDK docker image: %s.' % image)
+      return image
+
     else:
       logging.warning('Could not find a Python SDK docker image.')
       return 'unknown'
@@ -141,30 +157,32 @@ class PortableRunner(runner.PipelineRunner):
           payload=(portable_options.environment_config.encode('ascii')
                    if portable_options.environment_config else None))
 
-  def init_dockerized_job_server(self):
+  def default_job_server(self, options):
     # TODO Provide a way to specify a container Docker URL
     # https://issues.apache.org/jira/browse/BEAM-6328
-    docker = DockerizedJobServer()
-    self._job_endpoint = docker.start()
+    if not self._dockerized_job_server:
+      self._dockerized_job_server = job_server.StopOnExitJobServer(
+          job_server.DockerizedJobServer())
+    return self._dockerized_job_server
+
+  def create_job_service(self, options):
+    job_endpoint = options.view_as(PortableOptions).job_endpoint
+    if job_endpoint:
+      if job_endpoint == 'embed':
+        server = job_server.EmbeddedJobServer()
+      else:
+        server = job_server.ExternalJobServer(job_endpoint)
+    else:
+      server = self.default_job_server(options)
+    return server.start()
 
   def run_pipeline(self, pipeline, options):
     portable_options = options.view_as(PortableOptions)
-    job_endpoint = portable_options.job_endpoint
 
     # TODO: https://issues.apache.org/jira/browse/BEAM-5525
     # portable runner specific default
     if options.view_as(SetupOptions).sdk_location == 'default':
       options.view_as(SetupOptions).sdk_location = 'container'
-
-    if not job_endpoint:
-      if not self._job_endpoint:
-        self.init_dockerized_job_server()
-      job_endpoint = self._job_endpoint
-      job_service = None
-    elif job_endpoint == 'embed':
-      job_service = local_job_service.LocalJobServicer()
-    else:
-      job_service = None
 
     # This is needed as we start a worker server if one is requested
     # but none is provided.
@@ -176,7 +194,6 @@ class PortableRunner(runner.PipelineRunner):
           BeamFnExternalWorkerPoolServicer.start(
               sdk_worker_main._get_worker_count(options),
               use_process=use_loopback_process_worker))
-      globals()['x'] = server
       cleanup_callbacks = [functools.partial(server.stop, 1)]
     else:
       cleanup_callbacks = []
@@ -239,12 +256,7 @@ class PortableRunner(runner.PipelineRunner):
             known_runner_urns=flink_known_urns,
             partial=True)
 
-    if not job_service:
-      channel = grpc.insecure_channel(job_endpoint)
-      grpc.channel_ready_future(channel).result()
-      job_service = beam_job_api_pb2_grpc.JobServiceStub(channel)
-    else:
-      channel = None
+    job_service = self.create_job_service(options)
 
     # fetch runner options from job service
     # retries in case the channel is not ready
@@ -254,8 +266,6 @@ class PortableRunner(runner.PipelineRunner):
         try:
           # This reports channel is READY but connections may fail
           # Seems to be only an issue on Mac with port forwardings
-          if channel:
-            grpc.channel_ready_future(channel).result()
           return job_service.DescribePipelineOptions(
               beam_job_api_pb2.DescribePipelineOptionsRequest())
         except grpc._channel._Rendezvous as e:

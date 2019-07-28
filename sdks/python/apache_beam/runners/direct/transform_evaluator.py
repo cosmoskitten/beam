@@ -23,6 +23,7 @@ import collections
 import logging
 import random
 import time
+import typing
 from builtins import object
 
 from future.utils import iteritems
@@ -30,7 +31,6 @@ from future.utils import iteritems
 import apache_beam.io as io
 from apache_beam import coders
 from apache_beam import pvalue
-from apache_beam import typehints
 from apache_beam.internal import pickler
 from apache_beam.runners import common
 from apache_beam.runners.common import DoFnRunner
@@ -448,13 +448,6 @@ class _PubSubReadEvaluator(_TransformEvaluator):
   def _read_from_pubsub(self, timestamp_attribute):
     from apache_beam.io.gcp.pubsub import PubsubMessage
     from google.cloud import pubsub
-    # Because of the AutoAck, we are not able to reread messages if this
-    # evaluator fails with an exception before emitting a bundle. However,
-    # the DirectRunner currently doesn't retry work items anyway, so the
-    # pipeline would enter an inconsistent state on any error.
-    sub_client = pubsub.SubscriberClient()
-    response = sub_client.pull(self._sub_name, max_messages=10,
-                               return_immediately=True)
 
     def _get_element(message):
       parsed_message = PubsubMessage._from_message(message)
@@ -474,10 +467,20 @@ class _PubSubReadEvaluator(_TransformEvaluator):
 
       return timestamp, parsed_message
 
-    results = [_get_element(rm.message) for rm in response.received_messages]
-    ack_ids = [rm.ack_id for rm in response.received_messages]
-    if ack_ids:
-      sub_client.acknowledge(self._sub_name, ack_ids)
+    # Because of the AutoAck, we are not able to reread messages if this
+    # evaluator fails with an exception before emitting a bundle. However,
+    # the DirectRunner currently doesn't retry work items anyway, so the
+    # pipeline would enter an inconsistent state on any error.
+    sub_client = pubsub.SubscriberClient()
+    try:
+      response = sub_client.pull(self._sub_name, max_messages=10,
+                                 return_immediately=True)
+      results = [_get_element(rm.message) for rm in response.received_messages]
+      ack_ids = [rm.ack_id for rm in response.received_messages]
+      if ack_ids:
+        sub_client.acknowledge(self._sub_name, ack_ids)
+    finally:
+      sub_client.api.transport.channel.close()
 
     return results
 
@@ -599,11 +602,11 @@ class _ParDoEvaluator(_TransformEvaluator):
     self.user_timer_map = {}
     if is_stateful_dofn(dofn):
       kv_type_hint = self._applied_ptransform.inputs[0].element_type
-      if kv_type_hint and kv_type_hint != typehints.Any:
+      if kv_type_hint and kv_type_hint != typing.Any:
         coder = coders.registry.get_coder(kv_type_hint)
         self.key_coder = coder.key_coder()
       else:
-        self.key_coder = coders.registry.get_coder(typehints.Any)
+        self.key_coder = coders.registry.get_coder(typing.Any)
 
       self.user_state_context = DirectUserStateContext(
           self._step_context, dofn, self.key_coder)
@@ -666,7 +669,7 @@ class _GroupByKeyOnlyEvaluator(_TransformEvaluator):
     assert len(self._outputs) == 1
     self.output_pcollection = list(self._outputs)[0]
 
-    # The output type of a GroupByKey will be KV[Any, Any] or more specific.
+    # The output type of a GroupByKey will be Tuple[Any, Any] or more specific.
     # TODO(BEAM-2717): Infer coders earlier.
     kv_type_hint = (
         self._applied_ptransform.outputs[None].element_type
@@ -756,10 +759,10 @@ class _StreamingGroupByKeyOnlyEvaluator(_TransformEvaluator):
     assert len(self._outputs) == 1
     self.output_pcollection = list(self._outputs)[0]
 
-    # The input type of a GroupByKey will be KV[Any, Any] or more specific.
+    # The input type of a GroupByKey will be Tuple[Any, Any] or more specific.
     kv_type_hint = self._applied_ptransform.inputs[0].element_type
     key_type_hint = (kv_type_hint.tuple_types[0] if kv_type_hint
-                     else typehints.Any)
+                     else typing.Any)
     self.key_coder = coders.registry.get_coder(key_type_hint)
 
   def process_element(self, element):
@@ -812,10 +815,10 @@ class _StreamingGroupAlsoByWindowEvaluator(_TransformEvaluator):
     self.keyed_holds = {}
 
     # The input type (which is the same as the output type) of a
-    # GroupAlsoByWindow will be KV[Any, Iter[Any]] or more specific.
+    # GroupAlsoByWindow will be Tuple[Any, Iter[Any]] or more specific.
     kv_type_hint = self._applied_ptransform.outputs[None].element_type
     key_type_hint = (kv_type_hint.tuple_types[0] if kv_type_hint
-                     else typehints.Any)
+                     else typing.Any)
     self.key_coder = coders.registry.get_coder(key_type_hint)
 
   def process_element(self, element):

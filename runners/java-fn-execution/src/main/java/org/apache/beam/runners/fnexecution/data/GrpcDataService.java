@@ -36,8 +36,8 @@ import org.apache.beam.sdk.fn.data.InboundDataClient;
 import org.apache.beam.sdk.fn.data.LogicalEndpoint;
 import org.apache.beam.sdk.fn.stream.OutboundObserverFactory;
 import org.apache.beam.sdk.util.WindowedValue;
-import org.apache.beam.vendor.grpc.v1p13p1.io.grpc.stub.StreamObserver;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.util.concurrent.SettableFuture;
+import org.apache.beam.vendor.grpc.v1p21p0.io.grpc.stub.StreamObserver;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.util.concurrent.SettableFuture;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -133,9 +133,9 @@ public class GrpcDataService extends BeamFnDataGrpc.BeamFnDataImplBase
       Coder<WindowedValue<T>> coder,
       FnDataReceiver<WindowedValue<T>> listener) {
     LOG.debug(
-        "Registering receiver for instruction {} and target {}",
+        "Registering receiver for instruction {} and transform {}",
         inputLocation.getInstructionId(),
-        inputLocation.getTarget());
+        inputLocation.getPTransformId());
     final BeamFnDataInboundObserver<T> observer =
         BeamFnDataInboundObserver.forConsumer(coder, listener);
     if (connectedClient.isDone()) {
@@ -167,9 +167,9 @@ public class GrpcDataService extends BeamFnDataGrpc.BeamFnDataImplBase
   public <T> CloseableFnDataReceiver<WindowedValue<T>> send(
       LogicalEndpoint outputLocation, Coder<WindowedValue<T>> coder) {
     LOG.debug(
-        "Creating sender for instruction {} and target {}",
+        "Creating sender for instruction {} and transform {}",
         outputLocation.getInstructionId(),
-        outputLocation.getTarget());
+        outputLocation.getPTransformId());
     try {
       return BeamFnDataBufferingOutboundObserver.forLocation(
           outputLocation, coder, connectedClient.get(3, TimeUnit.MINUTES).getOutboundObserver());

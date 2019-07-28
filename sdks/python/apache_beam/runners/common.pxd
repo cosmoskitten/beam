@@ -37,6 +37,9 @@ cdef class MethodWrapper(object):
   cdef bint has_userstate_arguments
   cdef object state_args_to_replace
   cdef object timer_args_to_replace
+  cdef object timestamp_arg_name
+  cdef object window_arg_name
+  cdef object key_arg_name
 
 
 cdef class DoFnSignature(object):
@@ -88,6 +91,7 @@ cdef class PerWindowInvoker(DoFnInvoker):
   cdef bint is_splittable
   cdef object restriction_tracker
   cdef WindowedValue current_windowed_value
+  cdef bint is_key_param_required
 
 
 cdef class DoFnRunner(Receiver):

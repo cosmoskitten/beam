@@ -17,7 +17,7 @@
  */
 package org.apache.beam.sdk.extensions.sql.impl;
 
-import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkNotNull;
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkNotNull;
 
 import java.lang.reflect.Method;
 import java.sql.SQLException;
@@ -32,19 +32,23 @@ import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.extensions.sql.BeamSqlTable;
 import org.apache.beam.sdk.extensions.sql.BeamSqlUdf;
+import org.apache.beam.sdk.extensions.sql.impl.planner.BeamRuleSets;
 import org.apache.beam.sdk.extensions.sql.impl.rel.BeamRelNode;
 import org.apache.beam.sdk.extensions.sql.impl.udf.BeamBuiltinFunctionProvider;
 import org.apache.beam.sdk.extensions.sql.meta.provider.ReadOnlyTableProvider;
 import org.apache.beam.sdk.extensions.sql.meta.provider.TableProvider;
 import org.apache.beam.sdk.extensions.sql.meta.provider.UdfUdafProvider;
 import org.apache.beam.sdk.extensions.sql.meta.store.InMemoryMetaStore;
+import org.apache.beam.sdk.options.PipelineOptions;
+import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.transforms.Combine.CombineFn;
 import org.apache.beam.sdk.transforms.SerializableFunction;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Strings;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Strings;
 import org.apache.calcite.jdbc.CalcitePrepare;
 import org.apache.calcite.plan.RelOptUtil;
 import org.apache.calcite.schema.Function;
 import org.apache.calcite.sql.SqlExecutableStatement;
+import org.apache.calcite.tools.RuleSet;
 
 /**
  * Contains the metadata of tables/UDF functions, and exposes APIs to
@@ -66,14 +70,26 @@ public class BeamSqlEnv {
     return new BeamSqlEnvBuilder(tableProvider);
   }
 
+  /**
+   * This method creates {@link org.apache.beam.sdk.extensions.sql.impl.BeamSqlEnv} using empty
+   * Pipeline Options. It should only be used in tests.
+   */
   public static BeamSqlEnv readOnly(String tableType, Map<String, BeamSqlTable> tables) {
     return withTableProvider(new ReadOnlyTableProvider(tableType, tables));
   }
 
+  /**
+   * This method creates {@link org.apache.beam.sdk.extensions.sql.impl.BeamSqlEnv} using empty
+   * Pipeline Options. It should only be used in tests.
+   */
   public static BeamSqlEnv withTableProvider(TableProvider tableProvider) {
-    return builder(tableProvider).build();
+    return builder(tableProvider).setPipelineOptions(PipelineOptionsFactory.create()).build();
   }
 
+  /**
+   * This method creates {@link org.apache.beam.sdk.extensions.sql.impl.BeamSqlEnv} using empty *
+   * Pipeline Options. It should only be used in tests.
+   */
   public static BeamSqlEnv inMemory(TableProvider... tableProviders) {
     InMemoryMetaStore inMemoryMetaStore = new InMemoryMetaStore();
     for (TableProvider tableProvider : tableProviders) {
@@ -123,6 +139,8 @@ public class BeamSqlEnv {
     private Set<Map.Entry<String, Function>> functionSet;
     private boolean autoLoadBuiltinFunctions;
     private boolean autoLoadUdfs;
+    private PipelineOptions pipelineOptions;
+    private RuleSet[] ruleSets;
 
     private BeamSqlEnvBuilder(TableProvider tableProvider) {
       checkNotNull(tableProvider, "Table provider for the default schema must be sets.");
@@ -133,6 +151,8 @@ public class BeamSqlEnv {
       functionSet = new HashSet<>();
       autoLoadUdfs = false;
       autoLoadBuiltinFunctions = false;
+      pipelineOptions = null;
+      ruleSets = BeamRuleSets.getRuleSets();
     }
 
     /** Add a top-level schema backed by the table provider. */
@@ -151,6 +171,11 @@ public class BeamSqlEnv {
       return this;
     }
 
+    /** Set the ruleSet used for query optimizer. */
+    public BeamSqlEnvBuilder setRuleSets(RuleSet[] ruleSets) {
+      this.ruleSets = ruleSets;
+      return this;
+    }
     /** Register a UDF function which can be used in SQL expression. */
     public BeamSqlEnvBuilder addUdf(String functionName, Class<?> clazz, String method) {
       functionSet.add(new SimpleEntry<>(functionName, UdfImpl.create(clazz, method)));
@@ -194,14 +219,20 @@ public class BeamSqlEnv {
       return this;
     }
 
+    public BeamSqlEnvBuilder setPipelineOptions(PipelineOptions pipelineOptions) {
+      this.pipelineOptions = pipelineOptions;
+      return this;
+    }
+
     /**
      * Build function to create an instance of BeamSqlEnv based on preset fields.
      *
      * @return BeamSqlEnv.
      */
     public BeamSqlEnv build() {
+      checkNotNull(pipelineOptions);
 
-      JdbcConnection jdbcConnection = JdbcDriver.connect(defaultTableProvider);
+      JdbcConnection jdbcConnection = JdbcDriver.connect(defaultTableProvider, pipelineOptions);
 
       configureSchemas(jdbcConnection);
 
@@ -211,7 +242,7 @@ public class BeamSqlEnv {
 
       addUdfsUdafs(jdbcConnection);
 
-      QueryPlanner planner = instantiatePlanner(jdbcConnection);
+      QueryPlanner planner = instantiatePlanner(jdbcConnection, ruleSets);
 
       return new BeamSqlEnv(jdbcConnection, planner);
     }
@@ -272,10 +303,10 @@ public class BeamSqlEnv {
       }
     }
 
-    private QueryPlanner instantiatePlanner(JdbcConnection jdbcConnection) {
+    private QueryPlanner instantiatePlanner(JdbcConnection jdbcConnection, RuleSet[] ruleSets) {
 
       if (queryPlannerClassName.equals(CALCITE_PLANNER)) {
-        return new CalciteQueryPlanner(jdbcConnection);
+        return new CalciteQueryPlanner(jdbcConnection, ruleSets);
       }
 
       try {

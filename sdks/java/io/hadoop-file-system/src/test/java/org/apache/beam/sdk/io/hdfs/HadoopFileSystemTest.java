@@ -34,6 +34,7 @@ import java.nio.channels.ReadableByteChannel;
 import java.nio.channels.WritableByteChannel;
 import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 import org.apache.beam.sdk.io.FileSystems;
 import org.apache.beam.sdk.io.TextIO;
@@ -46,9 +47,9 @@ import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.util.MimeTypes;
 import org.apache.beam.sdk.values.PCollection;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableList;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Iterables;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.io.ByteStreams;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.io.ByteStreams;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hdfs.MiniDFSCluster;
 import org.junit.After;
@@ -197,6 +198,26 @@ public class HadoopFileSystemTest {
                 .setSizeBytes("testDataA".getBytes(StandardCharsets.UTF_8).length)
                 .setLastModifiedMillis(lastModified("testFileA"))
                 .build()));
+  }
+
+  @Test
+  public void testMatchDirectory() throws Exception {
+    create("dir/file", "data".getBytes(StandardCharsets.UTF_8));
+    final MatchResult matchResult =
+        Iterables.getOnlyElement(
+            fileSystem.match(Collections.singletonList(testPath("dir").toString())));
+    assertThat(
+        matchResult,
+        equalTo(
+            MatchResult.create(
+                Status.OK,
+                ImmutableList.of(
+                    Metadata.builder()
+                        .setResourceId(testPath("dir"))
+                        .setIsReadSeekEfficient(true)
+                        .setSizeBytes(0L)
+                        .setLastModifiedMillis(lastModified("dir"))
+                        .build()))));
   }
 
   @Test

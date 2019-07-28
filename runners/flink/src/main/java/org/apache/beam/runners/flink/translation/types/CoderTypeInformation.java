@@ -17,7 +17,7 @@
  */
 package org.apache.beam.runners.flink.translation.types;
 
-import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkNotNull;
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkNotNull;
 
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.flink.api.common.ExecutionConfig;
@@ -61,8 +61,7 @@ public class CoderTypeInformation<T> extends TypeInformation<T> implements Atomi
   @Override
   @SuppressWarnings("unchecked")
   public Class<T> getTypeClass() {
-    // We don't have the Class, so we have to pass null here. What a shame...
-    return (Class<T>) Object.class;
+    return (Class<T>) coder.getEncodedTypeDescriptor().getRawType();
   }
 
   @Override

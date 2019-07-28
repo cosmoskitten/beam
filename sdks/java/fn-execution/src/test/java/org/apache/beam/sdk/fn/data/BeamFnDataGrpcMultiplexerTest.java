@@ -31,27 +31,21 @@ import org.apache.beam.model.fnexecution.v1.BeamFnApi;
 import org.apache.beam.model.pipeline.v1.Endpoints;
 import org.apache.beam.sdk.fn.stream.OutboundObserverFactory;
 import org.apache.beam.sdk.fn.test.TestStreams;
-import org.apache.beam.vendor.grpc.v1p13p1.com.google.protobuf.ByteString;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.util.concurrent.Uninterruptibles;
+import org.apache.beam.vendor.grpc.v1p21p0.com.google.protobuf.ByteString;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.util.concurrent.Uninterruptibles;
 import org.junit.Test;
 
 /** Tests for {@link BeamFnDataGrpcMultiplexer}. */
 public class BeamFnDataGrpcMultiplexerTest {
   private static final Endpoints.ApiServiceDescriptor DESCRIPTOR =
       Endpoints.ApiServiceDescriptor.newBuilder().setUrl("test").build();
-  private static final LogicalEndpoint OUTPUT_LOCATION =
-      LogicalEndpoint.of(
-          "777L",
-          BeamFnApi.Target.newBuilder()
-              .setName("name")
-              .setPrimitiveTransformReference("888L")
-              .build());
+  private static final LogicalEndpoint OUTPUT_LOCATION = LogicalEndpoint.of("777L", "888L");
   private static final BeamFnApi.Elements ELEMENTS =
       BeamFnApi.Elements.newBuilder()
           .addData(
               BeamFnApi.Elements.Data.newBuilder()
                   .setInstructionReference(OUTPUT_LOCATION.getInstructionId())
-                  .setTarget(OUTPUT_LOCATION.getTarget())
+                  .setPtransformId(OUTPUT_LOCATION.getPTransformId())
                   .setData(ByteString.copyFrom(new byte[1])))
           .build();
   private static final BeamFnApi.Elements TERMINAL_ELEMENTS =
@@ -59,7 +53,7 @@ public class BeamFnDataGrpcMultiplexerTest {
           .addData(
               BeamFnApi.Elements.Data.newBuilder()
                   .setInstructionReference(OUTPUT_LOCATION.getInstructionId())
-                  .setTarget(OUTPUT_LOCATION.getTarget()))
+                  .setPtransformId(OUTPUT_LOCATION.getPTransformId()))
           .build();
 
   @Test

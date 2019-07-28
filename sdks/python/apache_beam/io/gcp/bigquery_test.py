@@ -38,9 +38,15 @@ from apache_beam.io.gcp.bigquery_file_loads_test import _ELEMENTS
 from apache_beam.io.gcp.bigquery_tools import JSON_COMPLIANCE_ERROR
 from apache_beam.io.gcp.internal.clients import bigquery
 from apache_beam.io.gcp.tests.bigquery_matcher import BigqueryFullResultMatcher
+from apache_beam.io.gcp.tests.bigquery_matcher import BigqueryFullResultStreamingMatcher
 from apache_beam.io.gcp.tests.bigquery_matcher import BigQueryTableMatcher
 from apache_beam.options import value_provider
+from apache_beam.options.pipeline_options import StandardOptions
+from apache_beam.runners.dataflow.test_dataflow_runner import TestDataflowRunner
+from apache_beam.runners.runner import PipelineState
+from apache_beam.testing.pipeline_verifiers import PipelineStateMatcher
 from apache_beam.testing.test_pipeline import TestPipeline
+from apache_beam.testing.test_stream import TestStream
 from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
 from apache_beam.transforms.display import DisplayData
@@ -479,6 +485,13 @@ class BigQueryStreamingInsertTransformTests(unittest.TestCase):
 class BigQueryStreamingInsertTransformIntegrationTests(unittest.TestCase):
   BIG_QUERY_DATASET_ID = 'python_bq_streaming_inserts_'
 
+  # Prevent nose from finding and running tests that were not
+  # specified in the Gradle file.
+  # See "More tests may be found" in:
+  # https://nose.readthedocs.io/en/latest/doc_tests/test_multiprocess
+  # /multiprocess.html#other-differences-in-test-running
+  _multiprocess_can_split_ = True
+
   def setUp(self):
     self.test_pipeline = TestPipeline(is_integration_test=True)
     self.runner_name = type(self.test_pipeline.runner).__name__
@@ -521,13 +534,13 @@ class BigQueryStreamingInsertTransformIntegrationTests(unittest.TestCase):
             expected_properties=additional_bq_parameters),
         BigqueryFullResultMatcher(
             project=self.project,
-            query="SELECT * FROM %s" % output_table_1,
+            query="SELECT name, language FROM %s" % output_table_1,
             data=[(d['name'], d['language'])
                   for d in _ELEMENTS
                   if 'language' in d]),
         BigqueryFullResultMatcher(
             project=self.project,
-            query="SELECT * FROM %s" % output_table_2,
+            query="SELECT name, language FROM %s" % output_table_2,
             data=[(d['name'], d['language'])
                   for d in _ELEMENTS
                   if 'language' in d])]
@@ -556,6 +569,10 @@ class BigQueryStreamingInsertTransformIntegrationTests(unittest.TestCase):
 
   @attr('IT')
   def test_multiple_destinations_transform(self):
+    streaming = self.test_pipeline.options.view_as(StandardOptions).streaming
+    if streaming and isinstance(self.test_pipeline.runner, TestDataflowRunner):
+      self.skipTest("TestStream is not supported on TestDataflowRunner")
+
     output_table_1 = '%s%s' % (self.output_table, 1)
     output_table_2 = '%s%s' % (self.output_table, 2)
 
@@ -571,26 +588,52 @@ class BigQueryStreamingInsertTransformIntegrationTests(unittest.TestCase):
 
     bad_record = {'language': 1, 'manguage': 2}
 
-    pipeline_verifiers = [
-        BigqueryFullResultMatcher(
-            project=self.project,
-            query="SELECT * FROM %s" % output_table_1,
-            data=[(d['name'], d['language'])
-                  for d in _ELEMENTS
-                  if 'language' in d]),
-        BigqueryFullResultMatcher(
-            project=self.project,
-            query="SELECT * FROM %s" % output_table_2,
-            data=[(d['name'], d['foundation'])
-                  for d in _ELEMENTS
-                  if 'foundation' in d])]
+    if streaming:
+      pipeline_verifiers = [
+          PipelineStateMatcher(PipelineState.RUNNING),
+          BigqueryFullResultStreamingMatcher(
+              project=self.project,
+              query="SELECT name, language FROM %s" % output_table_1,
+              data=[(d['name'], d['language'])
+                    for d in _ELEMENTS
+                    if 'language' in d]),
+          BigqueryFullResultStreamingMatcher(
+              project=self.project,
+              query="SELECT name, foundation FROM %s" % output_table_2,
+              data=[(d['name'], d['foundation'])
+                    for d in _ELEMENTS
+                    if 'foundation' in d])]
+    else:
+      pipeline_verifiers = [
+          BigqueryFullResultMatcher(
+              project=self.project,
+              query="SELECT name, language FROM %s" % output_table_1,
+              data=[(d['name'], d['language'])
+                    for d in _ELEMENTS
+                    if 'language' in d]),
+          BigqueryFullResultMatcher(
+              project=self.project,
+              query="SELECT name, foundation FROM %s" % output_table_2,
+              data=[(d['name'], d['foundation'])
+                    for d in _ELEMENTS
+                    if 'foundation' in d])]
 
     args = self.test_pipeline.get_full_options_as_args(
         on_success_matcher=hc.all_of(*pipeline_verifiers),
         experiments='use_beam_bq_sink')
 
     with beam.Pipeline(argv=args) as p:
-      input = p | beam.Create(_ELEMENTS)
+      if streaming:
+        _SIZE = len(_ELEMENTS)
+        test_stream = (TestStream()
+                       .advance_watermark_to(0)
+                       .add_elements(_ELEMENTS[:_SIZE//2])
+                       .advance_watermark_to(100)
+                       .add_elements(_ELEMENTS[_SIZE//2:])
+                       .advance_watermark_to_infinity())
+        input = p | test_stream
+      else:
+        input = p | beam.Create(_ELEMENTS)
 
       schema_table_pcv = beam.pvalue.AsDict(
           p | "MakeSchemas" >> beam.Create([(full_output_table_1, schema1),

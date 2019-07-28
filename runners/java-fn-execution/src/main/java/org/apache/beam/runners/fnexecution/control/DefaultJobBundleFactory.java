@@ -25,7 +25,6 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import javax.annotation.concurrent.ThreadSafe;
-import org.apache.beam.model.fnexecution.v1.BeamFnApi.Target;
 import org.apache.beam.model.pipeline.v1.RunnerApi.Environment;
 import org.apache.beam.model.pipeline.v1.RunnerApi.StandardEnvironments;
 import org.apache.beam.runners.core.construction.BeamUrns;
@@ -61,14 +60,14 @@ import org.apache.beam.sdk.function.ThrowingFunction;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PortablePipelineOptions;
 import org.apache.beam.sdk.util.WindowedValue;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.annotations.VisibleForTesting;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.cache.CacheBuilder;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.cache.CacheLoader;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.cache.LoadingCache;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.cache.RemovalNotification;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableMap;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Iterables;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.cache.CacheBuilder;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.cache.CacheLoader;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.cache.LoadingCache;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.cache.RemovalNotification;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -242,22 +241,22 @@ public class DefaultJobBundleFactory implements JobBundleFactory {
         throws Exception {
       // TODO: Consider having BundleProcessor#newBundle take in an OutputReceiverFactory rather
       // than constructing the receiver map here. Every bundle factory will need this.
-      ImmutableMap.Builder<Target, RemoteOutputReceiver<?>> outputReceivers =
+      ImmutableMap.Builder<String, RemoteOutputReceiver<?>> outputReceivers =
           ImmutableMap.builder();
-      for (Map.Entry<Target, Coder<WindowedValue<?>>> targetCoder :
-          processBundleDescriptor.getOutputTargetCoders().entrySet()) {
-        Target target = targetCoder.getKey();
-        Coder<WindowedValue<?>> coder = targetCoder.getValue();
+      for (Map.Entry<String, Coder<WindowedValue<?>>> remoteOutputCoder :
+          processBundleDescriptor.getRemoteOutputCoders().entrySet()) {
+        String outputTransform = remoteOutputCoder.getKey();
+        Coder<WindowedValue<?>> coder = remoteOutputCoder.getValue();
         String bundleOutputPCollection =
             Iterables.getOnlyElement(
                 processBundleDescriptor
                     .getProcessBundleDescriptor()
-                    .getTransformsOrThrow(target.getPrimitiveTransformReference())
+                    .getTransformsOrThrow(outputTransform)
                     .getInputsMap()
                     .values());
         FnDataReceiver<WindowedValue<?>> outputReceiver =
             outputReceiverFactory.create(bundleOutputPCollection);
-        outputReceivers.put(target, RemoteOutputReceiver.of(coder, outputReceiver));
+        outputReceivers.put(outputTransform, RemoteOutputReceiver.of(coder, outputReceiver));
       }
 
       if (environmentExpirationMillis == 0) {

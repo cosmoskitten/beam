@@ -32,7 +32,7 @@ import org.apache.beam.sdk.metrics.Gauge;
 import org.apache.beam.sdk.metrics.MetricKey;
 import org.apache.beam.sdk.metrics.MetricName;
 import org.apache.beam.sdk.metrics.MetricsContainer;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 
 /** Jet specific implementation of {@link MetricsContainer}. */
 public class JetMetricsContainer implements MetricsContainer {
@@ -71,13 +71,23 @@ public class JetMetricsContainer implements MetricsContainer {
     return gauges.computeIfAbsent(metricName, GaugeImpl::new);
   }
 
-  public void flush() {
+  @SuppressWarnings("FutureReturnValueIgnored")
+  public void flush(boolean async) {
+    if (counters.isEmpty() && distributions.isEmpty() && gauges.isEmpty()) {
+      return;
+    }
+
     ImmutableList<MetricUpdates.MetricUpdate<Long>> counters = extractUpdates(this.counters);
     ImmutableList<MetricUpdates.MetricUpdate<DistributionData>> distributions =
         extractUpdates(this.distributions);
     ImmutableList<MetricUpdates.MetricUpdate<GaugeData>> gauges = extractUpdates(this.gauges);
     MetricUpdates updates = new MetricUpdatesImpl(counters, distributions, gauges);
-    accumulator.put(metricsKey, updates);
+
+    if (async) {
+      accumulator.setAsync(metricsKey, updates);
+    } else {
+      accumulator.set(metricsKey, updates);
+    }
   }
 
   private <UpdateT, CellT extends AbstractMetric<UpdateT>>

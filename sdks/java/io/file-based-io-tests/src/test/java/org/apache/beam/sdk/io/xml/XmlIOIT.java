@@ -42,8 +42,6 @@ import org.apache.beam.sdk.options.Description;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.testutils.NamedTestResult;
-import org.apache.beam.sdk.testutils.metrics.ByteMonitor;
-import org.apache.beam.sdk.testutils.metrics.CountMonitor;
 import org.apache.beam.sdk.testutils.metrics.IOITMetrics;
 import org.apache.beam.sdk.testutils.metrics.MetricsReader;
 import org.apache.beam.sdk.testutils.metrics.TimeMonitor;
@@ -54,7 +52,7 @@ import org.apache.beam.sdk.transforms.SimpleFunction;
 import org.apache.beam.sdk.transforms.Values;
 import org.apache.beam.sdk.transforms.View;
 import org.apache.beam.sdk.values.PCollection;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableMap;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 import org.junit.BeforeClass;
 import org.junit.Rule;
 import org.junit.Test;
@@ -130,11 +128,6 @@ public class XmlIOIT {
             .apply(
                 "Gather write start time",
                 ParDo.of(new TimeMonitor<>(XMLIOIT_NAMESPACE, "writeStart")))
-            .apply(
-                "Gather byte count", ParDo.of(new ByteMonitor<>(XMLIOIT_NAMESPACE, "byte_count")))
-            .apply(
-                "Gather element count",
-                ParDo.of(new CountMonitor<>(XMLIOIT_NAMESPACE, "item_count")))
             .apply(
                 "Write xml files",
                 FileIO.<Bird>write()
@@ -218,19 +211,6 @@ public class XmlIOIT {
           double runTime = (readEnd - writeStart) / 1e3;
           return NamedTestResult.create(uuid, timestamp, "run_time", runTime);
         });
-
-    suppliers.add(
-        reader -> {
-          double totalBytes = reader.getCounterMetric("byteCount");
-          return NamedTestResult.create(uuid, timestamp, "byte_count", totalBytes);
-        });
-
-    suppliers.add(
-        reader -> {
-          double totalBytes = reader.getCounterMetric("itemCount");
-          return NamedTestResult.create(uuid, timestamp, "item_count", totalBytes);
-        });
-
     return suppliers;
   }
 

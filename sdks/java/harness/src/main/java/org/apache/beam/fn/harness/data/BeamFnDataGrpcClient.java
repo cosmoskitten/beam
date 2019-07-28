@@ -38,7 +38,7 @@ import org.apache.beam.sdk.fn.stream.OutboundObserverFactory;
 import org.apache.beam.sdk.options.ExperimentalOptions;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.util.WindowedValue;
-import org.apache.beam.vendor.grpc.v1p13p1.io.grpc.ManagedChannel;
+import org.apache.beam.vendor.grpc.v1p21p0.io.grpc.ManagedChannel;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -81,9 +81,9 @@ public class BeamFnDataGrpcClient implements BeamFnDataClient {
       Coder<WindowedValue<T>> coder,
       FnDataReceiver<WindowedValue<T>> consumer) {
     LOG.debug(
-        "Registering consumer for instruction {} and target {}",
+        "Registering consumer for instruction {} and transform {}",
         inputLocation.getInstructionId(),
-        inputLocation.getTarget());
+        inputLocation.getPTransformId());
 
     BeamFnDataGrpcMultiplexer client = getClientFor(apiServiceDescriptor);
     BeamFnDataInboundObserver<T> inboundObserver =
@@ -110,9 +110,9 @@ public class BeamFnDataGrpcClient implements BeamFnDataClient {
     BeamFnDataGrpcMultiplexer client = getClientFor(apiServiceDescriptor);
 
     LOG.debug(
-        "Creating output consumer for instruction {} and target {}",
+        "Creating output consumer for instruction {} and transform {}",
         outputLocation.getInstructionId(),
-        outputLocation.getTarget());
+        outputLocation.getPTransformId());
     Optional<Integer> bufferLimit = getBufferLimit(options);
     if (bufferLimit.isPresent()) {
       return BeamFnDataBufferingOutboundObserver.forLocationWithBufferLimit(

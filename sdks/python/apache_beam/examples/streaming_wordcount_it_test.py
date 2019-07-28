@@ -40,7 +40,7 @@ INPUT_SUB = 'wc_subscription_input'
 OUTPUT_SUB = 'wc_subscription_output'
 
 DEFAULT_INPUT_NUMBERS = 500
-WAIT_UNTIL_FINISH_DURATION = 3 * 60 * 1000   # in milliseconds
+WAIT_UNTIL_FINISH_DURATION = 6 * 60 * 1000   # in milliseconds
 
 
 class StreamingWordCountIT(unittest.TestCase):
@@ -64,7 +64,8 @@ class StreamingWordCountIT(unittest.TestCase):
         self.input_topic.name)
     self.output_sub = self.sub_client.create_subscription(
         self.sub_client.subscription_path(self.project, OUTPUT_SUB + self.uuid),
-        self.output_topic.name)
+        self.output_topic.name,
+        ack_deadline_seconds=60)
 
   def _inject_numbers(self, topic, num_messages):
     """Inject numbers as test data to PubSub."""
@@ -81,7 +82,8 @@ class StreamingWordCountIT(unittest.TestCase):
   @attr('IT')
   def test_streaming_wordcount_it(self):
     # Build expected dataset.
-    expected_msg = [('%d: 1' % num) for num in range(DEFAULT_INPUT_NUMBERS)]
+    expected_msg = [('%d: 1' % num).encode('utf-8')
+                    for num in range(DEFAULT_INPUT_NUMBERS)]
 
     # Set extra options to the pipeline for test purpose
     state_verifier = PipelineStateMatcher(PipelineState.RUNNING)

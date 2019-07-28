@@ -33,7 +33,6 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.atomic.AtomicReference;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi;
-import org.apache.beam.model.fnexecution.v1.BeamFnApi.Target;
 import org.apache.beam.model.fnexecution.v1.BeamFnDataGrpc;
 import org.apache.beam.model.pipeline.v1.Endpoints;
 import org.apache.beam.sdk.coders.Coder;
@@ -48,13 +47,13 @@ import org.apache.beam.sdk.fn.test.TestStreams;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.util.WindowedValue;
-import org.apache.beam.vendor.grpc.v1p13p1.com.google.protobuf.ByteString;
-import org.apache.beam.vendor.grpc.v1p13p1.io.grpc.ManagedChannel;
-import org.apache.beam.vendor.grpc.v1p13p1.io.grpc.Server;
-import org.apache.beam.vendor.grpc.v1p13p1.io.grpc.inprocess.InProcessChannelBuilder;
-import org.apache.beam.vendor.grpc.v1p13p1.io.grpc.inprocess.InProcessServerBuilder;
-import org.apache.beam.vendor.grpc.v1p13p1.io.grpc.stub.CallStreamObserver;
-import org.apache.beam.vendor.grpc.v1p13p1.io.grpc.stub.StreamObserver;
+import org.apache.beam.vendor.grpc.v1p21p0.com.google.protobuf.ByteString;
+import org.apache.beam.vendor.grpc.v1p21p0.io.grpc.ManagedChannel;
+import org.apache.beam.vendor.grpc.v1p21p0.io.grpc.Server;
+import org.apache.beam.vendor.grpc.v1p21p0.io.grpc.inprocess.InProcessChannelBuilder;
+import org.apache.beam.vendor.grpc.v1p21p0.io.grpc.inprocess.InProcessServerBuilder;
+import org.apache.beam.vendor.grpc.v1p21p0.io.grpc.stub.CallStreamObserver;
+import org.apache.beam.vendor.grpc.v1p21p0.io.grpc.stub.StreamObserver;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -73,18 +72,9 @@ public class QueueingBeamFnDataClientTest {
   private static final Coder<WindowedValue<String>> CODER =
       LengthPrefixCoder.of(
           WindowedValue.getFullCoder(StringUtf8Coder.of(), GlobalWindow.Coder.INSTANCE));
-  private static final LogicalEndpoint ENDPOINT_A =
-      LogicalEndpoint.of(
-          "12L",
-          Target.newBuilder().setPrimitiveTransformReference("34L").setName("targetA").build());
+  private static final LogicalEndpoint ENDPOINT_A = LogicalEndpoint.of("12L", "34L");
 
-  private static final LogicalEndpoint ENDPOINT_B =
-      LogicalEndpoint.of(
-          "56L",
-          BeamFnApi.Target.newBuilder()
-              .setPrimitiveTransformReference("78L")
-              .setName("targetB")
-              .build());
+  private static final LogicalEndpoint ENDPOINT_B = LogicalEndpoint.of("56L", "78L");
 
   private static final BeamFnApi.Elements ELEMENTS_A_1;
   private static final BeamFnApi.Elements ELEMENTS_A_2;
@@ -97,7 +87,7 @@ public class QueueingBeamFnDataClientTest {
               .addData(
                   BeamFnApi.Elements.Data.newBuilder()
                       .setInstructionReference(ENDPOINT_A.getInstructionId())
-                      .setTarget(ENDPOINT_A.getTarget())
+                      .setPtransformId(ENDPOINT_A.getPTransformId())
                       .setData(
                           ByteString.copyFrom(encodeToByteArray(CODER, valueInGlobalWindow("ABC")))
                               .concat(
@@ -109,21 +99,21 @@ public class QueueingBeamFnDataClientTest {
               .addData(
                   BeamFnApi.Elements.Data.newBuilder()
                       .setInstructionReference(ENDPOINT_A.getInstructionId())
-                      .setTarget(ENDPOINT_A.getTarget())
+                      .setPtransformId(ENDPOINT_A.getPTransformId())
                       .setData(
                           ByteString.copyFrom(
                               encodeToByteArray(CODER, valueInGlobalWindow("GHI")))))
               .addData(
                   BeamFnApi.Elements.Data.newBuilder()
                       .setInstructionReference(ENDPOINT_A.getInstructionId())
-                      .setTarget(ENDPOINT_A.getTarget()))
+                      .setPtransformId(ENDPOINT_A.getPTransformId()))
               .build();
       ELEMENTS_B_1 =
           BeamFnApi.Elements.newBuilder()
               .addData(
                   BeamFnApi.Elements.Data.newBuilder()
                       .setInstructionReference(ENDPOINT_B.getInstructionId())
-                      .setTarget(ENDPOINT_B.getTarget())
+                      .setPtransformId(ENDPOINT_B.getPTransformId())
                       .setData(
                           ByteString.copyFrom(encodeToByteArray(CODER, valueInGlobalWindow("JKL")))
                               .concat(
@@ -132,7 +122,7 @@ public class QueueingBeamFnDataClientTest {
               .addData(
                   BeamFnApi.Elements.Data.newBuilder()
                       .setInstructionReference(ENDPOINT_B.getInstructionId())
-                      .setTarget(ENDPOINT_B.getTarget()))
+                      .setPtransformId(ENDPOINT_B.getPTransformId()))
               .build();
     } catch (Exception e) {
       throw new ExceptionInInitializerError(e);

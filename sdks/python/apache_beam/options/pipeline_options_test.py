@@ -25,9 +25,11 @@ import unittest
 import hamcrest as hc
 
 from apache_beam.options.pipeline_options import DebugOptions
+from apache_beam.options.pipeline_options import GoogleCloudOptions
 from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.options.pipeline_options import ProfilingOptions
 from apache_beam.options.pipeline_options import TypeOptions
+from apache_beam.options.pipeline_options import WorkerOptions
 from apache_beam.options.value_provider import RuntimeValueProvider
 from apache_beam.options.value_provider import StaticValueProvider
 from apache_beam.transforms.display import DisplayData
@@ -46,6 +48,12 @@ class PipelineOptionsTest(unittest.TestCase):
                     'mock_option': None,
                     'mock_multi_option': None},
        'display_data': [DisplayDataItemMatcher('num_workers', 5)]},
+      {'flags': ['--direct_num_workers', '5'],
+       'expected': {'direct_num_workers': 5,
+                    'mock_flag': False,
+                    'mock_option': None,
+                    'mock_multi_option': None},
+       'display_data': [DisplayDataItemMatcher('direct_num_workers', 5)]},
       {
           'flags': [
               '--profile_cpu', '--profile_location', 'gs://bucket/', 'ignored'],
@@ -252,6 +260,18 @@ class PipelineOptionsTest(unittest.TestCase):
     options = PipelineOptions(flags=[''])
     self.assertEqual(options.get_all_options()['experiments'], None)
 
+  def test_worker_options(self):
+    options = PipelineOptions(['--machine_type', 'abc', '--disk_type', 'def'])
+    worker_options = options.view_as(WorkerOptions)
+    self.assertEqual(worker_options.machine_type, 'abc')
+    self.assertEqual(worker_options.disk_type, 'def')
+
+    options = PipelineOptions(
+        ['--worker_machine_type', 'abc', '--worker_disk_type', 'def'])
+    worker_options = options.view_as(WorkerOptions)
+    self.assertEqual(worker_options.machine_type, 'abc')
+    self.assertEqual(worker_options.disk_type, 'def')
+
   def test_option_modifications_are_shared_between_views(self):
     pipeline_options = PipelineOptions([
         '--mock_option', 'value', '--mock_flag',
@@ -457,6 +477,11 @@ class PipelineOptionsTest(unittest.TestCase):
     self.assertEqual(
         True,
         debug_options.lookup_experiment('existing_experiment'))
+
+  def test_transform_name_mapping(self):
+    options = PipelineOptions(['--transform_name_mapping={\"from\":\"to\"}'])
+    mapping = options.view_as(GoogleCloudOptions).transform_name_mapping
+    self.assertEqual(mapping['from'], 'to')
 
 
 if __name__ == '__main__':

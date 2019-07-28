@@ -17,8 +17,9 @@
  */
 package org.apache.beam.runners.spark.coders;
 
-import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkNotNull;
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkNotNull;
 
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
@@ -27,6 +28,7 @@ import java.util.Collection;
 import java.util.List;
 import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
+import javax.annotation.Nonnull;
 import org.apache.beam.runners.spark.util.ByteArray;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.spark.api.java.function.Function;
@@ -142,19 +144,40 @@ public final class CoderHelpers {
   }
 
   /**
-   * A function wrapper for converting a byte array pair to a key-value pair.
+   * A function for converting a byte array pair to a key-value pair.
    *
-   * @param keyCoder Coder to deserialize keys.
-   * @param valueCoder Coder to deserialize values.
    * @param <K> The type of the key being deserialized.
    * @param <V> The type of the value being deserialized.
-   * @return A function that accepts a pair of byte arrays and returns a key-value pair.
    */
-  public static <K, V> PairFunction<Tuple2<ByteArray, byte[]>, K, V> fromByteFunction(
-      final Coder<K> keyCoder, final Coder<V> valueCoder) {
-    return tuple ->
-        new Tuple2<>(
-            fromByteArray(tuple._1().getValue(), keyCoder), fromByteArray(tuple._2(), valueCoder));
+  public static class FromByteFunction<K, V>
+      implements PairFunction<Tuple2<ByteArray, byte[]>, K, V>,
+          org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Function<
+              Tuple2<ByteArray, byte[]>, Tuple2<K, V>> {
+    private final Coder<K> keyCoder;
+    private final Coder<V> valueCoder;
+
+    /**
+     * @param keyCoder Coder to deserialize keys.
+     * @param valueCoder Coder to deserialize values.
+     */
+    public FromByteFunction(final Coder<K> keyCoder, final Coder<V> valueCoder) {
+      this.keyCoder = keyCoder;
+      this.valueCoder = valueCoder;
+    }
+
+    @Override
+    public Tuple2<K, V> call(Tuple2<ByteArray, byte[]> tuple) {
+      return new Tuple2<>(
+          fromByteArray(tuple._1().getValue(), keyCoder), fromByteArray(tuple._2(), valueCoder));
+    }
+
+    @SuppressFBWarnings(
+        value = "NP_METHOD_PARAMETER_TIGHTENS_ANNOTATION",
+        justification = "https://github.com/google/guava/issues/920")
+    @Override
+    public Tuple2<K, V> apply(@Nonnull Tuple2<ByteArray, byte[]> tuple) {
+      return call(tuple);
+    }
   }
 
   /**

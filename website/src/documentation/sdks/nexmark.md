@@ -618,7 +618,7 @@ Set these up first so the below command is valid
 Launch:
 
     ./gradlew :sdks:java:testing:nexmark:run \
-        -Pnexmark.runner=":beam-runners-google-cloud-dataflow" \
+        -Pnexmark.runner=":runners:google-cloud-dataflow-java" \
         -Pnexmark.args="
             --runner=DataflowRunner
             --suite=SMOKE
@@ -630,17 +630,14 @@ Launch:
             --zone=${ZONE}
             --workerMachineType=n1-highmem-8
             --stagingLocation=${STAGING_LOCATION}
-            --streaming=true
             --sourceType=PUBSUB
             --pubSubMode=PUBLISH_ONLY
             --pubsubTopic=${PUBSUB_TOPIC}
             --resourceNameMode=VERBATIM
             --manageResources=false
-            --monitorJobs=false
             --numEventGenerators=64
             --numWorkers=16
             --maxNumWorkers=16
-            --suite=SMOKE
             --firstEventRate=100000
             --nextEventRate=100000
             --ratePeriodSec=3600

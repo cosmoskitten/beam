@@ -38,7 +38,7 @@ import org.apache.beam.sdk.transforms.Sum;
 import org.apache.beam.sdk.transforms.Top;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions;
 
 /**
  * Load test for {@link ParDo} operation.
@@ -124,7 +124,7 @@ public class CombineLoadTest extends LoadTest<CombineLoadTest.Options> {
                 ParDo.of(new TimeMonitor<>(METRICS_NAMESPACE, "runtime")))
             .apply(
                 "Collect metrics",
-                ParDo.of(new ByteMonitor<>(METRICS_NAMESPACE, "totalBytes.count")));
+                ParDo.of(new ByteMonitor(METRICS_NAMESPACE, "totalBytes.count")));
 
     input = applyWindowing(input);
 

@@ -33,13 +33,19 @@ from hamcrest.core.core.is_ import is_
 from nose.plugins.attrib import attr
 
 import apache_beam as beam
+from apache_beam import coders
 from apache_beam.io.filebasedsink_test import _TestCaseWithTempDirCleanUp
 from apache_beam.io.gcp import bigquery_file_loads as bqfl
 from apache_beam.io.gcp import bigquery
 from apache_beam.io.gcp import bigquery_tools
 from apache_beam.io.gcp.internal.clients import bigquery as bigquery_api
 from apache_beam.io.gcp.tests.bigquery_matcher import BigqueryFullResultMatcher
+from apache_beam.io.gcp.tests.bigquery_matcher import BigqueryFullResultStreamingMatcher
+from apache_beam.runners.dataflow.test_dataflow_runner import TestDataflowRunner
+from apache_beam.runners.runner import PipelineState
+from apache_beam.testing.pipeline_verifiers import PipelineStateMatcher
 from apache_beam.testing.test_pipeline import TestPipeline
+from apache_beam.testing.test_stream import TestStream
 from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
 
@@ -83,6 +89,23 @@ _DISTINCT_DESTINATIONS = list(
 _ELEMENTS = list([json.loads(elm[1]) for elm in _DESTINATION_ELEMENT_PAIRS])
 
 
+class CustomRowCoder(coders.Coder):
+  """
+  Custom row coder that also expects strings as input data when encoding
+  """
+
+  def __init__(self):
+    self.coder = bigquery_tools.RowAsDictJsonCoder()
+
+  def encode(self, table_row):
+    if type(table_row) == str:
+      table_row = json.loads(table_row)
+    return self.coder.encode(table_row)
+
+  def decode(self, encoded_table_row):
+    return self.coder.decode(encoded_table_row)
+
+
 @unittest.skipIf(HttpError is None, 'GCP dependencies are not installed')
 class TestWriteRecordsToFile(_TestCaseWithTempDirCleanUp):
   maxDiff = None
@@ -104,7 +127,7 @@ class TestWriteRecordsToFile(_TestCaseWithTempDirCleanUp):
   def test_files_created(self):
     """Test that the files are created and written."""
 
-    fn = bqfl.WriteRecordsToFile()
+    fn = bqfl.WriteRecordsToFile(coder=CustomRowCoder())
     self.tmpdir = self._new_tempdir()
 
     def check_files_created(output_pcs):
@@ -133,7 +156,7 @@ class TestWriteRecordsToFile(_TestCaseWithTempDirCleanUp):
     file length is very small, so only a couple records fit in each file.
     """
 
-    fn = bqfl.WriteRecordsToFile(max_file_size=50)
+    fn = bqfl.WriteRecordsToFile(max_file_size=50, coder=CustomRowCoder())
     self.tmpdir = self._new_tempdir()
 
     def check_many_files(output_pcs):
@@ -163,12 +186,13 @@ class TestWriteRecordsToFile(_TestCaseWithTempDirCleanUp):
   def test_records_are_spilled(self):
     """Forces records to be written to many files.
 
-    For each destination multiple files are necessary, and at most two files can
-    be created. This forces records to be spilled to the next stage of
+    For each destination multiple files are necessary, and at most two files
+    can be created. This forces records to be spilled to the next stage of
     processing.
     """
 
-    fn = bqfl.WriteRecordsToFile(max_files_per_bundle=2)
+    fn = bqfl.WriteRecordsToFile(max_files_per_bundle=2,
+                                 coder=CustomRowCoder())
     self.tmpdir = self._new_tempdir()
 
     def check_many_files(output_pcs):
@@ -222,7 +246,7 @@ class TestWriteGroupedRecordsToFile(_TestCaseWithTempDirCleanUp):
   def test_files_are_created(self):
     """Test that the files are created and written."""
 
-    fn = bqfl.WriteGroupedRecordsToFile()
+    fn = bqfl.WriteGroupedRecordsToFile(coder=CustomRowCoder())
     self.tmpdir = self._new_tempdir()
 
     def check_files_created(output_pc):
@@ -249,7 +273,8 @@ class TestWriteGroupedRecordsToFile(_TestCaseWithTempDirCleanUp):
     For each destination multiple files are necessary. This is because the max
     file length is very small, so only a couple records fit in each file.
     """
-    fn = bqfl.WriteGroupedRecordsToFile(max_file_size=50)
+    fn = bqfl.WriteGroupedRecordsToFile(max_file_size=50,
+                                        coder=CustomRowCoder())
     self.tmpdir = self._new_tempdir()
 
     def check_multiple_files(output_pc):
@@ -296,7 +321,8 @@ class TestBigQueryFileLoads(_TestCaseWithTempDirCleanUp):
         destination,
         custom_gcs_temp_location=self._new_tempdir(),
         test_client=bq_client,
-        validate=False)
+        validate=False,
+        coder=CustomRowCoder())
 
     # Need to test this with the DirectRunner to avoid serializing mocks
     with TestPipeline('DirectRunner') as p:
@@ -347,6 +373,10 @@ class BigQueryFileLoadsIT(unittest.TestCase):
       '{"name": "foundation","type": "STRING"}]}'
   )
 
+  BIG_QUERY_STREAMING_SCHEMA = (
+      {'fields': [{'name': 'Integr', 'type': 'INTEGER', 'mode': 'NULLABLE'}]}
+  )
+
   def setUp(self):
     self.test_pipeline = TestPipeline(is_integration_test=True)
     self.runner_name = type(self.test_pipeline.runner).__name__
@@ -379,25 +409,25 @@ class BigQueryFileLoadsIT(unittest.TestCase):
     pipeline_verifiers = [
         BigqueryFullResultMatcher(
             project=self.project,
-            query="SELECT * FROM %s" % output_table_1,
+            query="SELECT name, language FROM %s" % output_table_1,
             data=[(d['name'], d['language'])
                   for d in _ELEMENTS
                   if 'language' in d]),
         BigqueryFullResultMatcher(
             project=self.project,
-            query="SELECT * FROM %s" % output_table_2,
+            query="SELECT name, foundation FROM %s" % output_table_2,
             data=[(d['name'], d['foundation'])
                   for d in _ELEMENTS
                   if 'foundation' in d]),
         BigqueryFullResultMatcher(
             project=self.project,
-            query="SELECT * FROM %s" % output_table_3,
+            query="SELECT name, language FROM %s" % output_table_3,
             data=[(d['name'], d['language'])
                   for d in _ELEMENTS
                   if 'language' in d]),
         BigqueryFullResultMatcher(
             project=self.project,
-            query="SELECT * FROM %s" % output_table_4,
+            query="SELECT name, foundation FROM %s" % output_table_4,
             data=[(d['name'], d['foundation'])
                   for d in _ELEMENTS
                   if 'foundation' in d])]
@@ -446,6 +476,50 @@ class BigQueryFileLoadsIT(unittest.TestCase):
                max_files_per_bundle=-1))
 
   @attr('IT')
+  def test_bqfl_streaming(self):
+    if isinstance(self.test_pipeline.runner, TestDataflowRunner):
+      self.skipTest("TestStream is not supported on TestDataflowRunner")
+    output_table = '%s_%s' % (self.output_table, 'ints')
+    _SIZE = 100
+    schema = self.BIG_QUERY_STREAMING_SCHEMA
+    l = [{'Integr': i} for i in range(_SIZE)]
+
+    state_matcher = PipelineStateMatcher(PipelineState.RUNNING)
+    bq_matcher = BigqueryFullResultStreamingMatcher(
+        project=self.project,
+        query="SELECT Integr FROM %s"
+        % output_table,
+        data=[(i,) for i in range(100)])
+
+    args = self.test_pipeline.get_full_options_as_args(
+        on_success_matcher=all_of(state_matcher, bq_matcher),
+        experiments='use_beam_bq_sink',
+        streaming=True)
+    with beam.Pipeline(argv=args) as p:
+      stream_source = (TestStream()
+                       .advance_watermark_to(0)
+                       .advance_processing_time(100)
+                       .add_elements(l[:_SIZE//4])
+                       .advance_processing_time(100)
+                       .advance_watermark_to(100)
+                       .add_elements(l[_SIZE//4:2*_SIZE//4])
+                       .advance_processing_time(100)
+                       .advance_watermark_to(200)
+                       .add_elements(l[2*_SIZE//4:3*_SIZE//4])
+                       .advance_processing_time(100)
+                       .advance_watermark_to(300)
+                       .add_elements(l[3*_SIZE//4:])
+                       .advance_processing_time(100)
+                       .advance_watermark_to_infinity())
+      _ = (p
+           | stream_source
+           | bigquery.WriteToBigQuery(output_table,
+                                      schema=schema,
+                                      method=bigquery.WriteToBigQuery \
+                                        .Method.FILE_LOADS,
+                                      triggering_frequency=100))
+
+  @attr('IT')
   def test_one_job_fails_all_jobs_fail(self):
 
     # If one of the import jobs fails, then other jobs must not be performed.
@@ -466,11 +540,11 @@ class BigQueryFileLoadsIT(unittest.TestCase):
     pipeline_verifiers = [
         BigqueryFullResultMatcher(
             project=self.project,
-            query="SELECT * FROM %s" % output_table_1,
+            query="SELECT name, language FROM %s" % output_table_1,
             data=[]),
         BigqueryFullResultMatcher(
             project=self.project,
-            query="SELECT * FROM %s" % output_table_2,
+            query="SELECT name, foundation FROM %s" % output_table_2,
             data=[])]
 
     args = self.test_pipeline.get_full_options_as_args(

@@ -54,12 +54,12 @@ import org.apache.beam.sdk.util.WindowedValue.FullWindowedValueCoder;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.WindowingStrategy;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Joiner;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Predicate;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.AbstractIterator;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.FluentIterable;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Lists;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Table;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Joiner;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Predicate;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.AbstractIterator;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.FluentIterable;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Table;
 import org.apache.spark.api.java.JavaSparkContext$;
 import org.apache.spark.api.java.function.FlatMapFunction;
 import org.apache.spark.streaming.Duration;
@@ -532,7 +532,7 @@ public class SparkGroupAlsoByWindowViaWindowSet implements Serializable {
   }
 
   private static <K, InputT> PairDStreamFunctions<ByteArray, byte[]> buildPairDStream(
-      final JavaDStream<WindowedValue<KV<K, Iterable<WindowedValue<InputT>>>>> inputDStream,
+      final JavaDStream<KV<K, Iterable<WindowedValue<InputT>>>> inputDStream,
       final Coder<K> keyCoder,
       final Coder<WindowedValue<InputT>> wvCoder) {
 
@@ -553,10 +553,7 @@ public class SparkGroupAlsoByWindowViaWindowSet implements Serializable {
         inputDStream
             .transformToPair(
                 (rdd, time) ->
-                    rdd.mapPartitions(
-                            TranslationUtils.functionToFlatMapFunction(WindowedValue::getValue),
-                            true)
-                        .mapPartitionsToPair(TranslationUtils.toPairFlatMapFunction(), true)
+                    rdd.mapPartitionsToPair(TranslationUtils.toPairFlatMapFunction(), true)
                         .mapValues(
                             // add the batch timestamp for visibility (e.g., debugging)
                             values -> KV.of(time.milliseconds(), values))
@@ -579,7 +576,7 @@ public class SparkGroupAlsoByWindowViaWindowSet implements Serializable {
 
   public static <K, InputT, W extends BoundedWindow>
       JavaDStream<WindowedValue<KV<K, Iterable<InputT>>>> groupAlsoByWindow(
-          final JavaDStream<WindowedValue<KV<K, Iterable<WindowedValue<InputT>>>>> inputDStream,
+          final JavaDStream<KV<K, Iterable<WindowedValue<InputT>>>> inputDStream,
           final Coder<K> keyCoder,
           final Coder<WindowedValue<InputT>> wvCoder,
           final WindowingStrategy<?, W> windowingStrategy,

@@ -194,10 +194,10 @@ func (c *control) handleInstruction(ctx context.Context, req *fnpb.InstructionRe
 		}
 
 		data := NewScopedDataManager(c.data, id)
-		side := NewScopedSideInputReader(c.state, id)
-		err := plan.Execute(ctx, id, exec.DataContext{Data: data, SideInput: side})
+		state := NewScopedStateReader(c.state, id)
+		err := plan.Execute(ctx, id, exec.DataContext{Data: data, State: state})
 		data.Close()
-		side.Close()
+		state.Close()
 
 		m := plan.Metrics()
 		// Move the plan back to the candidate state
@@ -256,7 +256,7 @@ func (c *control) handleInstruction(ctx context.Context, req *fnpb.InstructionRe
 		}
 
 		// Get the desired splits for the root FnAPI read operation.
-		ds := msg.GetDesiredSplits()["0"]
+		ds := msg.GetDesiredSplits()[plan.SourcePTransformID()]
 		if ds == nil {
 			return fail(id, "failed to split: desired splits for root was empty.")
 		}

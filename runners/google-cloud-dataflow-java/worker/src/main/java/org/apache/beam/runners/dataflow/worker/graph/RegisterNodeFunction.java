@@ -20,7 +20,7 @@ package org.apache.beam.runners.dataflow.worker.graph;
 import static org.apache.beam.runners.dataflow.util.Structs.getBytes;
 import static org.apache.beam.runners.dataflow.util.Structs.getString;
 import static org.apache.beam.runners.dataflow.worker.graph.LengthPrefixUnknownCoders.forSideInputInfos;
-import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.api.services.dataflow.model.InstructionOutput;
@@ -80,13 +80,13 @@ import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.WindowingStrategy;
-import org.apache.beam.vendor.grpc.v1p13p1.com.google.protobuf.ByteString;
-import org.apache.beam.vendor.grpc.v1p13p1.com.google.protobuf.InvalidProtocolBufferException;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableList;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableMap;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Iterables;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.graph.MutableNetwork;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.graph.Network;
+import org.apache.beam.vendor.grpc.v1p21p0.com.google.protobuf.ByteString;
+import org.apache.beam.vendor.grpc.v1p21p0.com.google.protobuf.InvalidProtocolBufferException;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.graph.MutableNetwork;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.graph.Network;
 
 /**
  * Converts a {@link Network} representation of {@link MapTask} destined for the SDK harness into an
@@ -248,11 +248,7 @@ public class RegisterNodeFunction implements Function<MutableNetwork<Node, Edge>
           processBundleDescriptor.putCoders(
               coderId,
               RunnerApi.Coder.newBuilder()
-                  .setSpec(
-                      RunnerApi.SdkFunctionSpec.newBuilder()
-                          .setSpec(
-                              RunnerApi.FunctionSpec.newBuilder()
-                                  .setPayload(output.toByteString())))
+                  .setSpec(RunnerApi.FunctionSpec.newBuilder().setPayload(output.toByteString()))
                   .build());
         }
       } catch (IOException e) {
@@ -417,7 +413,8 @@ public class RegisterNodeFunction implements Function<MutableNetwork<Node, Edge>
       Set<Node> successors = input.successors(node);
       if (predecessors.isEmpty() && !successors.isEmpty()) {
         pTransform.putOutputs(
-            node.getInputId(), nodesToPCollections.get(Iterables.getOnlyElement(successors)));
+            "generatedOutput" + idGenerator.getId(),
+            nodesToPCollections.get(Iterables.getOnlyElement(successors)));
         pTransform.setSpec(
             RunnerApi.FunctionSpec.newBuilder()
                 .setUrn(DATA_INPUT_URN)
@@ -425,7 +422,8 @@ public class RegisterNodeFunction implements Function<MutableNetwork<Node, Edge>
                 .build());
       } else if (!predecessors.isEmpty() && successors.isEmpty()) {
         pTransform.putInputs(
-            node.getOutputId(), nodesToPCollections.get(Iterables.getOnlyElement(predecessors)));
+            "generatedInput" + idGenerator.getId(),
+            nodesToPCollections.get(Iterables.getOnlyElement(predecessors)));
         pTransform.setSpec(
             RunnerApi.FunctionSpec.newBuilder()
                 .setUrn(DATA_OUTPUT_URN)

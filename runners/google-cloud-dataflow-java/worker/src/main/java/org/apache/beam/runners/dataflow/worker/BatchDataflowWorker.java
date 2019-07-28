@@ -52,11 +52,11 @@ import org.apache.beam.sdk.fn.IdGenerator;
 import org.apache.beam.sdk.fn.IdGenerators;
 import org.apache.beam.sdk.util.Weighted;
 import org.apache.beam.sdk.util.WeightedValue;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.annotations.VisibleForTesting;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Optional;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.cache.Cache;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.cache.CacheBuilder;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.graph.MutableNetwork;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Optional;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.cache.Cache;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.cache.CacheBuilder;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.graph.MutableNetwork;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -209,7 +209,9 @@ public class BatchDataflowWorker implements Closeable {
             .build();
 
     this.memoryMonitor = MemoryMonitor.fromOptions(options);
-    this.statusPages = WorkerStatusPages.create(DEFAULT_STATUS_PORT, this.memoryMonitor);
+    this.statusPages =
+        WorkerStatusPages.create(
+            DEFAULT_STATUS_PORT, this.memoryMonitor, sdkHarnessRegistry::sdkHarnessesAreHealthy);
 
     if (!DataflowRunner.hasExperiment(options, "disable_debug_capture")) {
       this.debugCaptureManager =
@@ -278,15 +280,12 @@ public class BatchDataflowWorker implements Closeable {
     return result;
   }
 
-  private Node createPortNode(String predecessorId, String successorId) {
+  private Node createPortNode() {
     return RemoteGrpcPortNode.create(
         RemoteGrpcPort.newBuilder()
             .setApiServiceDescriptor(sdkHarnessRegistry.beamFnDataApiServiceDescriptor())
             .build(),
-        idGenerator.getId(),
-        idGenerator.getId(),
-        predecessorId,
-        successorId);
+        idGenerator.getId());
   }
 
   /**

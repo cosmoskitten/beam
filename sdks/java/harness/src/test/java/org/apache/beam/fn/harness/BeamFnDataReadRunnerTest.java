@@ -62,11 +62,11 @@ import org.apache.beam.sdk.fn.test.TestExecutors.TestExecutorService;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.util.WindowedValue;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Suppliers;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableList;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableMap;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Iterables;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.util.concurrent.Uninterruptibles;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Suppliers;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.util.concurrent.Uninterruptibles;
 import org.hamcrest.collection.IsMapContaining;
 import org.junit.Before;
 import org.junit.Rule;
@@ -111,8 +111,7 @@ public class BeamFnDataReadRunnerTest {
     }
   }
 
-  private static final BeamFnApi.Target INPUT_TARGET =
-      BeamFnApi.Target.newBuilder().setPrimitiveTransformReference("1").setName("out").build();
+  private static final String INPUT_TRANSFORM_ID = "1";
 
   @Rule public TestExecutorService executor = TestExecutors.from(Executors::newCachedThreadPool);
   @Mock private BeamFnDataClient mockBeamFnDataClient;
@@ -175,13 +174,7 @@ public class BeamFnDataReadRunnerTest {
     verify(mockBeamFnDataClient)
         .receive(
             eq(PORT_SPEC.getApiServiceDescriptor()),
-            eq(
-                LogicalEndpoint.of(
-                    bundleId,
-                    BeamFnApi.Target.newBuilder()
-                        .setPrimitiveTransformReference("pTransformId")
-                        .setName(Iterables.getOnlyElement(pTransform.getOutputsMap().keySet()))
-                        .build())),
+            eq(LogicalEndpoint.of(bundleId, pTransformId)),
             eq(CODER),
             consumerCaptor.capture());
 
@@ -211,9 +204,9 @@ public class BeamFnDataReadRunnerTest {
     AtomicReference<String> bundleId = new AtomicReference<>("0");
     BeamFnDataReadRunner<String> readRunner =
         new BeamFnDataReadRunner<>(
+            INPUT_TRANSFORM_ID,
             RemoteGrpcPortRead.readFromPort(PORT_SPEC, "localOutput").toPTransform(),
             bundleId::get,
-            INPUT_TARGET,
             CODER_SPEC,
             COMPONENTS.getCodersMap(),
             mockBeamFnDataClient,
@@ -225,7 +218,7 @@ public class BeamFnDataReadRunnerTest {
     verify(mockBeamFnDataClient)
         .receive(
             eq(PORT_SPEC.getApiServiceDescriptor()),
-            eq(LogicalEndpoint.of(bundleId.get(), INPUT_TARGET)),
+            eq(LogicalEndpoint.of(bundleId.get(), INPUT_TRANSFORM_ID)),
             eq(CODER),
             consumerCaptor.capture());
 
@@ -258,7 +251,7 @@ public class BeamFnDataReadRunnerTest {
     verify(mockBeamFnDataClient)
         .receive(
             eq(PORT_SPEC.getApiServiceDescriptor()),
-            eq(LogicalEndpoint.of(bundleId.get(), INPUT_TARGET)),
+            eq(LogicalEndpoint.of(bundleId.get(), INPUT_TRANSFORM_ID)),
             eq(CODER),
             consumerCaptor.capture());
 

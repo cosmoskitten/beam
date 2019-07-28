@@ -20,7 +20,7 @@ package org.apache.beam.runners.dataflow.worker.graph;
 import static org.apache.beam.runners.dataflow.util.Structs.getBytes;
 import static org.apache.beam.runners.dataflow.util.Structs.getString;
 import static org.apache.beam.runners.dataflow.worker.graph.LengthPrefixUnknownCoders.forSideInputInfos;
-import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.api.services.dataflow.model.InstructionOutput;
@@ -78,13 +78,13 @@ import org.apache.beam.sdk.util.WindowedValue.FullWindowedValueCoder;
 import org.apache.beam.sdk.util.WindowedValue.WindowedValueCoder;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.WindowingStrategy;
-import org.apache.beam.vendor.grpc.v1p13p1.com.google.protobuf.ByteString;
-import org.apache.beam.vendor.grpc.v1p13p1.com.google.protobuf.InvalidProtocolBufferException;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableList;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableMap;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Iterables;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.graph.MutableNetwork;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.graph.Network;
+import org.apache.beam.vendor.grpc.v1p21p0.com.google.protobuf.ByteString;
+import org.apache.beam.vendor.grpc.v1p21p0.com.google.protobuf.InvalidProtocolBufferException;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.graph.MutableNetwork;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.graph.Network;
 import org.joda.time.Duration;
 
 /**
@@ -249,11 +249,7 @@ public class CreateExecutableStageNodeFunction
           componentsBuilder.putCoders(
               coderId,
               RunnerApi.Coder.newBuilder()
-                  .setSpec(
-                      RunnerApi.SdkFunctionSpec.newBuilder()
-                          .setSpec(
-                              RunnerApi.FunctionSpec.newBuilder()
-                                  .setPayload(output.toByteString())))
+                  .setSpec(RunnerApi.FunctionSpec.newBuilder().setPayload(output.toByteString()))
                   .build());
           // For non-java coder, hope it's GlobalWindows by default.
           // TODO(BEAM-6231): Actually discover the right windowing strategy.

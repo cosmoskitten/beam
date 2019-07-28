@@ -63,9 +63,9 @@ import org.apache.beam.runners.dataflow.worker.util.common.worker.ReadOperation;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.WorkExecutor;
 import org.apache.beam.sdk.metrics.MetricKey;
 import org.apache.beam.sdk.util.MoreFutures;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.annotations.VisibleForTesting;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Iterables;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -86,7 +86,7 @@ public class BeamFnMapTaskExecutor extends DataflowMapTaskExecutor {
       ExecutionStateTracker executionStateTracker) {
     super(operations, counters, executionStateTracker);
     this.progressTracker = createProgressTracker();
-    LOG.info("Creating BeamFnMapTaskExecutor");
+    LOG.debug("Creating BeamFnMapTaskExecutor");
   }
 
   /**
@@ -481,7 +481,7 @@ public class BeamFnMapTaskExecutor extends DataflowMapTaskExecutor {
 
     @Override
     public void start() {
-      LOG.info("Starting BeamFnMapTaskExecutor, launching progress thread");
+      LOG.debug("Starting BeamFnMapTaskExecutor, launching progress thread");
       progressErrors = 0;
       nextProgressFuture =
           scheduler.scheduleAtFixedRate(
@@ -493,7 +493,7 @@ public class BeamFnMapTaskExecutor extends DataflowMapTaskExecutor {
 
     @Override
     public void stop() {
-      LOG.info("Stopping BeamFnMapTaskExecutor, grabbing final metric updates");
+      LOG.debug("Stopping BeamFnMapTaskExecutor, grabbing final metric updates");
       nextProgressFuture.cancel(true);
       try {
         nextProgressFuture.get();

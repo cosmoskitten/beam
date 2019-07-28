@@ -17,11 +17,13 @@
  */
 package org.apache.beam.runners.spark.translation;
 
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.io.Serializable;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import javax.annotation.Nonnull;
 import org.apache.beam.runners.core.InMemoryStateInternals;
 import org.apache.beam.runners.core.StateInternals;
 import org.apache.beam.runners.core.StateInternalsFactory;
@@ -44,9 +46,9 @@ import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.PValue;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.WindowingStrategy;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableMap;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Iterators;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Maps;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterators;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Maps;
 import org.apache.spark.api.java.JavaSparkContext;
 import org.apache.spark.api.java.function.FlatMapFunction;
 import org.apache.spark.api.java.function.Function;
@@ -140,8 +142,22 @@ public final class TranslationUtils {
   }
 
   /** A pair to {@link KV} function . */
-  static <K, V> Function<Tuple2<K, V>, KV<K, V>> fromPairFunction() {
-    return t2 -> KV.of(t2._1(), t2._2());
+  static class FromPairFunction<K, V>
+      implements Function<Tuple2<K, V>, KV<K, V>>,
+          org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Function<
+              Tuple2<K, V>, KV<K, V>> {
+    @Override
+    public KV<K, V> call(Tuple2<K, V> t2) {
+      return KV.of(t2._1(), t2._2());
+    }
+
+    @SuppressFBWarnings(
+        value = "NP_METHOD_PARAMETER_TIGHTENS_ANNOTATION",
+        justification = "https://github.com/google/guava/issues/920")
+    @Override
+    public KV<K, V> apply(@Nonnull Tuple2<K, V> t2) {
+      return call(t2);
+    }
   }
 
   /** A pair to {@link KV} flatmap function . */
@@ -160,11 +176,24 @@ public final class TranslationUtils {
   }
 
   /** Extract window from a {@link KV} with {@link WindowedValue} value. */
-  static <K, V> Function<KV<K, WindowedValue<V>>, WindowedValue<KV<K, V>>> toKVByWindowInValue() {
-    return kv -> {
+  static class ToKVByWindowInValueFunction<K, V>
+      implements Function<KV<K, WindowedValue<V>>, WindowedValue<KV<K, V>>>,
+          org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Function<
+              KV<K, WindowedValue<V>>, WindowedValue<KV<K, V>>> {
+
+    @Override
+    public WindowedValue<KV<K, V>> call(KV<K, WindowedValue<V>> kv) {
       WindowedValue<V> wv = kv.getValue();
       return wv.withValue(KV.of(kv.getKey(), wv.getValue()));
-    };
+    }
+
+    @SuppressFBWarnings(
+        value = "NP_METHOD_PARAMETER_TIGHTENS_ANNOTATION",
+        justification = "https://github.com/google/guava/issues/920")
+    @Override
+    public WindowedValue<KV<K, V>> apply(@Nonnull KV<K, WindowedValue<V>> kv) {
+      return call(kv);
+    }
   }
 
   /**

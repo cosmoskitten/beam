@@ -47,8 +47,8 @@ import org.apache.beam.sdk.coders.VarLongCoder;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.transforms.windowing.IntervalWindow.IntervalWindowCoder;
 import org.apache.beam.sdk.util.WindowedValue.FullWindowedValueCoder;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableList;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableSet;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableSet;
 import org.hamcrest.Matchers;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -151,7 +151,7 @@ public class CoderTranslationTest {
       if (KNOWN_CODERS.contains(coder)) {
         for (RunnerApi.Coder encodedCoder : encodedComponents.getCodersMap().values()) {
           assertThat(
-              encodedCoder.getSpec().getSpec().getUrn(),
+              encodedCoder.getSpec().getUrn(),
               not(equalTo(CoderTranslation.JAVA_SERIALIZED_CODER_URN)));
         }
       }

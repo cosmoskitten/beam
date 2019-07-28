@@ -17,7 +17,7 @@
  */
 package org.apache.beam.fn.harness;
 
-import static org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Iterables.getOnlyElement;
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables.getOnlyElement;
 
 import com.google.auto.service.AutoService;
 import java.io.IOException;
@@ -44,7 +44,7 @@ import org.apache.beam.sdk.fn.data.LogicalEndpoint;
 import org.apache.beam.sdk.fn.data.RemoteGrpcPortRead;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.util.WindowedValue;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableMap;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -89,11 +89,6 @@ public class BeamFnDataReadRunner<OutputT> {
         BundleSplitListener splitListener)
         throws IOException {
 
-      BeamFnApi.Target target =
-          BeamFnApi.Target.newBuilder()
-              .setPrimitiveTransformReference(pTransformId)
-              .setName(getOnlyElement(pTransform.getOutputsMap().keySet()))
-              .build();
       RunnerApi.Coder coderSpec;
       if (RemoteGrpcPortRead.fromPTransform(pTransform).getPort().getCoderId().isEmpty()) {
         LOG.error(
@@ -113,9 +108,9 @@ public class BeamFnDataReadRunner<OutputT> {
 
       BeamFnDataReadRunner<OutputT> runner =
           new BeamFnDataReadRunner<>(
+              pTransformId,
               pTransform,
               processBundleInstructionId,
-              target,
               coderSpec,
               coders,
               beamFnDataClient,
@@ -126,27 +121,27 @@ public class BeamFnDataReadRunner<OutputT> {
     }
   }
 
+  private final String pTransformId;
   private final Endpoints.ApiServiceDescriptor apiServiceDescriptor;
   private final FnDataReceiver<WindowedValue<OutputT>> consumer;
   private final Supplier<String> processBundleInstructionIdSupplier;
   private final BeamFnDataClient beamFnDataClient;
   private final Coder<WindowedValue<OutputT>> coder;
-  private final BeamFnApi.Target inputTarget;
 
   private InboundDataClient readFuture;
 
   BeamFnDataReadRunner(
+      String pTransformId,
       RunnerApi.PTransform grpcReadNode,
       Supplier<String> processBundleInstructionIdSupplier,
-      BeamFnApi.Target inputTarget,
       RunnerApi.Coder coderSpec,
       Map<String, RunnerApi.Coder> coders,
       BeamFnDataClient beamFnDataClient,
       FnDataReceiver<WindowedValue<OutputT>> consumer)
       throws IOException {
+    this.pTransformId = pTransformId;
     RemoteGrpcPort port = RemoteGrpcPortRead.fromPTransform(grpcReadNode).getPort();
     this.apiServiceDescriptor = port.getApiServiceDescriptor();
-    this.inputTarget = inputTarget;
     this.processBundleInstructionIdSupplier = processBundleInstructionIdSupplier;
     this.beamFnDataClient = beamFnDataClient;
     this.consumer = consumer;
@@ -170,16 +165,16 @@ public class BeamFnDataReadRunner<OutputT> {
     this.readFuture =
         beamFnDataClient.receive(
             apiServiceDescriptor,
-            LogicalEndpoint.of(processBundleInstructionIdSupplier.get(), inputTarget),
+            LogicalEndpoint.of(processBundleInstructionIdSupplier.get(), pTransformId),
             coder,
             consumer);
   }
 
   public void blockTillReadFinishes() throws Exception {
     LOG.debug(
-        "Waiting for process bundle instruction {} and target {} to close.",
+        "Waiting for process bundle instruction {} and transform {} to close.",
         processBundleInstructionIdSupplier.get(),
-        inputTarget);
+        pTransformId);
     readFuture.awaitCompletion();
   }
 }

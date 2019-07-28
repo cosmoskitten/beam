@@ -30,7 +30,7 @@ import org.apache.beam.sdk.options.Validation;
 import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TypeDescriptor;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Strings;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Strings;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -91,7 +91,7 @@ public class BeamSqlDataCatalogExample {
           "ERROR: SQL query or output file is not specified."
               + "To run this example:\n"
               + "./gradlew "
-              + ":beam-sdks-java-extensions-sql-datacatalog:runDataCatalogExample "
+              + ":sdks:java:extensions:sql:datacatalog:runDataCatalogExample "
               + "-PgcpProject=<project> "
               + "-PgcsTempRoot=<GCS temp location> "
               + "-PqueryString=<query> "

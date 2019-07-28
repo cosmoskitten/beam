@@ -56,8 +56,8 @@ import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.transforms.display.DisplayDataEvaluator;
 import org.apache.beam.sdk.util.CoderUtils;
 import org.apache.beam.sdk.values.PCollection;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.base.MoreObjects;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.MoreObjects;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.junit.After;
 import org.junit.Rule;
 import org.junit.Test;
@@ -241,6 +241,23 @@ public class PubsubIOTest {
         "PubsubIO.Read should include the topic in its primitive display data",
         displayData,
         hasItem(hasDisplayItem("topic")));
+  }
+
+  @Test
+  public void testReadWithPubsubGrpcClientFactory() {
+    String topic = "projects/project/topics/topic";
+    PubsubIO.Read<String> read =
+        PubsubIO.readStrings()
+            .fromTopic(StaticValueProvider.of(topic))
+            .withClientFactory(PubsubGrpcClient.FACTORY)
+            .withTimestampAttribute("myTimestamp")
+            .withIdAttribute("myId");
+
+    DisplayData displayData = DisplayData.from(read);
+
+    assertThat(displayData, hasDisplayItem("topic", topic));
+    assertThat(displayData, hasDisplayItem("timestampAttribute", "myTimestamp"));
+    assertThat(displayData, hasDisplayItem("idAttribute", "myId"));
   }
 
   @Test
@@ -434,5 +451,22 @@ public class PubsubIOTest {
                 .withClientFactory(clientFactory));
     PAssert.that(read).containsInAnyOrder(inputs);
     readPipeline.run();
+  }
+
+  @Test
+  public void testWriteWithPubsubGrpcClientFactory() {
+    String topic = "projects/project/topics/topic";
+    PubsubIO.Write<?> write =
+        PubsubIO.writeStrings()
+            .to(topic)
+            .withClientFactory(PubsubGrpcClient.FACTORY)
+            .withTimestampAttribute("myTimestamp")
+            .withIdAttribute("myId");
+
+    DisplayData displayData = DisplayData.from(write);
+
+    assertThat(displayData, hasDisplayItem("topic", topic));
+    assertThat(displayData, hasDisplayItem("timestampAttribute", "myTimestamp"));
+    assertThat(displayData, hasDisplayItem("idAttribute", "myId"));
   }
 }

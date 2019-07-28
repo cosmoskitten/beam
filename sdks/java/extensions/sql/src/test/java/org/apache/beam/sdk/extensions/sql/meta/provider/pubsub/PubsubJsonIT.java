@@ -57,10 +57,10 @@ import org.apache.beam.sdk.transforms.SerializableFunctions;
 import org.apache.beam.sdk.util.common.ReflectHelpers;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.Row;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Supplier;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableList;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableMap;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableSet;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Supplier;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableSet;
 import org.apache.calcite.jdbc.CalciteConnection;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
@@ -255,6 +255,7 @@ public class PubsubJsonIT implements Serializable {
   }
 
   @Test
+  @Ignore("https://jira.apache.org/jira/browse/BEAM-7582")
   public void testSQLLimit() throws Exception {
     String createTableString =
         "CREATE EXTERNAL TABLE message (\n"
@@ -348,7 +349,7 @@ public class PubsubJsonIT implements Serializable {
       inMemoryMetaStore.registerProvider(tableProvider);
     }
 
-    JdbcConnection connection = JdbcDriver.connect(inMemoryMetaStore);
+    JdbcConnection connection = JdbcDriver.connect(inMemoryMetaStore, options);
     connection.setPipelineOptionsMap(argsMap);
     return connection;
   }

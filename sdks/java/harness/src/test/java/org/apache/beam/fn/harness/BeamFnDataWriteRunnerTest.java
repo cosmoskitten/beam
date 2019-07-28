@@ -57,9 +57,9 @@ import org.apache.beam.sdk.fn.data.RemoteGrpcPortWrite;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.util.WindowedValue;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Suppliers;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableMap;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Iterables;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Suppliers;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
 import org.hamcrest.collection.IsMapContaining;
 import org.junit.Before;
 import org.junit.Test;
@@ -103,8 +103,7 @@ public class BeamFnDataWriteRunnerTest {
     }
   }
 
-  private static final BeamFnApi.Target OUTPUT_TARGET =
-      BeamFnApi.Target.newBuilder().setPrimitiveTransformReference("1").setName("out").build();
+  private static final String TRANSFORM_ID = "1";
 
   @Mock private BeamFnDataClient mockBeamFnDataClient;
 
@@ -136,7 +135,7 @@ public class BeamFnDataWriteRunnerTest {
             PipelineOptionsFactory.create(),
             mockBeamFnDataClient,
             null /* beamFnStateClient */,
-            "ptransformId",
+            TRANSFORM_ID,
             pTransform,
             Suppliers.ofInstance(bundleId)::get,
             ImmutableMap.of(
@@ -176,15 +175,7 @@ public class BeamFnDataWriteRunnerTest {
     verify(mockBeamFnDataClient)
         .send(
             eq(PORT_SPEC.getApiServiceDescriptor()),
-            eq(
-                LogicalEndpoint.of(
-                    bundleId,
-                    BeamFnApi.Target.newBuilder()
-                        .setPrimitiveTransformReference("ptransformId")
-                        // The local input name is arbitrary, so use whatever the
-                        // RemoteGrpcPortWrite uses
-                        .setName(Iterables.getOnlyElement(pTransform.getInputsMap().keySet()))
-                        .build())),
+            eq(LogicalEndpoint.of(bundleId, TRANSFORM_ID)),
             eq(WIRE_CODER));
 
     assertThat(consumers.keySet(), containsInAnyOrder(localInputId));
@@ -209,9 +200,9 @@ public class BeamFnDataWriteRunnerTest {
     AtomicReference<String> bundleId = new AtomicReference<>("0");
     BeamFnDataWriteRunner<String> writeRunner =
         new BeamFnDataWriteRunner<>(
+            TRANSFORM_ID,
             RemoteGrpcPortWrite.writeToPort("myWrite", PORT_SPEC).toPTransform(),
             bundleId::get,
-            OUTPUT_TARGET,
             WIRE_CODER_SPEC,
             COMPONENTS.getCodersMap(),
             mockBeamFnDataClient);
@@ -222,7 +213,7 @@ public class BeamFnDataWriteRunnerTest {
     verify(mockBeamFnDataClient)
         .send(
             eq(PORT_SPEC.getApiServiceDescriptor()),
-            eq(LogicalEndpoint.of(bundleId.get(), OUTPUT_TARGET)),
+            eq(LogicalEndpoint.of(bundleId.get(), TRANSFORM_ID)),
             eq(WIRE_CODER));
 
     writeRunner.consume(valueInGlobalWindow("ABC"));
@@ -241,7 +232,7 @@ public class BeamFnDataWriteRunnerTest {
     verify(mockBeamFnDataClient)
         .send(
             eq(PORT_SPEC.getApiServiceDescriptor()),
-            eq(LogicalEndpoint.of(bundleId.get(), OUTPUT_TARGET)),
+            eq(LogicalEndpoint.of(bundleId.get(), TRANSFORM_ID)),
             eq(WIRE_CODER));
 
     writeRunner.consume(valueInGlobalWindow("GHI"));

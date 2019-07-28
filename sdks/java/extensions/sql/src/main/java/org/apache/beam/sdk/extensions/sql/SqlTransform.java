@@ -40,8 +40,8 @@ import org.apache.beam.sdk.values.PInput;
 import org.apache.beam.sdk.values.PValue;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TupleTag;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableList;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableMap;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 
 /**
  * {@link SqlTransform} is the DSL interface of Beam SQL. It translates a SQL query as a {@link
@@ -117,6 +117,8 @@ public abstract class SqlTransform extends PTransform<PInput, PCollection<Row>> 
 
     sqlEnvBuilder.setQueryPlannerClassName(
         input.getPipeline().getOptions().as(BeamSqlPipelineOptions.class).getPlannerName());
+
+    sqlEnvBuilder.setPipelineOptions(input.getPipeline().getOptions());
 
     BeamSqlEnv sqlEnv = sqlEnvBuilder.build();
     return BeamSqlRelUtils.toPCollection(input.getPipeline(), sqlEnv.parseQuery(queryString()));

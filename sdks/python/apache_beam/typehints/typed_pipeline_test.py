@@ -69,7 +69,7 @@ class MainInputTest(unittest.TestCase):
       [1, 2, 3] | beam.Map(str.upper)
 
   def test_loose_bounds(self):
-    @typehints.with_input_types(typehints.Union[int, float])
+    @typehints.with_input_types(typing.Union[int, float])
     @typehints.with_output_types(str)
     def format_number(x):
       return '%g' % x
@@ -112,7 +112,7 @@ class MainInputTest(unittest.TestCase):
     def filter_fn(data):
       return data % 2
 
-    self.assertEquals([1, 3], [1, 2, 3] | beam.Filter(filter_fn))
+    self.assertEqual([1, 3], [1, 2, 3] | beam.Filter(filter_fn))
 
 
 class NativeTypesTest(unittest.TestCase):
@@ -224,7 +224,7 @@ class SideInputTest(unittest.TestCase):
       main_input | 'bis' >> beam.Map(repeat, pvalue.AsSingleton(bad_side_input))
 
   def test_deferred_side_input_iterable(self):
-    @typehints.with_input_types(str, typehints.Iterable[str])
+    @typehints.with_input_types(str, typing.Iterable[str])
     def concat(glue, items):
       return glue.join(sorted(items))
     with TestPipeline() as p:

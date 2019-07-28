@@ -20,12 +20,13 @@ package org.apache.beam.runners.dataflow.worker.status;
 import java.io.IOException;
 import java.util.Arrays;
 import java.util.List;
+import java.util.function.BooleanSupplier;
 import javax.servlet.ServletException;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import org.apache.beam.runners.dataflow.worker.status.DebugCapture.Capturable;
 import org.apache.beam.runners.dataflow.worker.util.MemoryMonitor;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
 import org.eclipse.jetty.server.Server;
 import org.eclipse.jetty.servlet.ServletHandler;
 import org.eclipse.jetty.servlet.ServletHolder;
@@ -43,13 +44,13 @@ public class WorkerStatusPages {
   private final ServletHandler servletHandler = new ServletHandler();
 
   @VisibleForTesting
-  WorkerStatusPages(Server server, MemoryMonitor memoryMonitor) {
+  WorkerStatusPages(Server server, MemoryMonitor memoryMonitor, BooleanSupplier healthyIndicator) {
     this.statusServer = server;
     this.statusServer.setHandler(servletHandler);
 
     // Install the default servlets (threadz, healthz, heapz, statusz)
     addServlet(threadzServlet);
-    addServlet(new HealthzServlet());
+    addServlet(new HealthzServlet(healthyIndicator));
     addServlet(new HeapzServlet(memoryMonitor));
     addServlet(statuszServlet);
 
@@ -57,12 +58,13 @@ public class WorkerStatusPages {
     addStatusDataProvider("resources", "Resources", memoryMonitor);
   }
 
-  public static WorkerStatusPages create(int defaultStatusPort, MemoryMonitor memoryMonitor) {
+  public static WorkerStatusPages create(
+      int defaultStatusPort, MemoryMonitor memoryMonitor, BooleanSupplier healthyIndicator) {
     int statusPort = defaultStatusPort;
     if (System.getProperties().containsKey("status_port")) {
       statusPort = Integer.parseInt(System.getProperty("status_port"));
     }
-    return new WorkerStatusPages(new Server(statusPort), memoryMonitor);
+    return new WorkerStatusPages(new Server(statusPort), memoryMonitor, healthyIndicator);
   }
 
   /** Start the server. */

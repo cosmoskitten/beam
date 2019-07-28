@@ -23,6 +23,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.io.Serializable;
+import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
@@ -66,12 +67,14 @@ import org.apache.beam.sdk.coders.StructuredCoder;
 import org.apache.beam.sdk.coders.VarIntCoder;
 import org.apache.beam.sdk.io.FileSystems;
 import org.apache.beam.sdk.options.PipelineOptions;
+import org.apache.beam.sdk.state.StateSpec;
 import org.apache.beam.sdk.state.TimeDomain;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.DoFnSchemaInformation;
 import org.apache.beam.sdk.transforms.join.RawUnionValue;
 import org.apache.beam.sdk.transforms.reflect.DoFnInvoker;
 import org.apache.beam.sdk.transforms.reflect.DoFnInvokers;
+import org.apache.beam.sdk.transforms.reflect.DoFnSignature;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignatures;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.util.WindowedValue;
@@ -79,10 +82,10 @@ import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.WindowingStrategy;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Joiner;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableMap;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Iterables;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Joiner;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.state.ListState;
 import org.apache.flink.api.common.state.ListStateDescriptor;
@@ -119,7 +122,7 @@ import org.joda.time.Instant;
 public class DoFnOperator<InputT, OutputT> extends AbstractStreamOperator<WindowedValue<OutputT>>
     implements OneInputStreamOperator<WindowedValue<InputT>, WindowedValue<OutputT>>,
         TwoInputStreamOperator<WindowedValue<InputT>, RawUnionValue, WindowedValue<OutputT>>,
-        Triggerable<Object, TimerData> {
+        Triggerable<ByteBuffer, TimerData> {
 
   protected DoFn<InputT, OutputT> doFn;
 
@@ -355,6 +358,17 @@ public class DoFnOperator<InputT, OutputT> extends AbstractStreamOperator<Window
     if (keyCoder != null) {
       keyedStateInternals =
           new FlinkStateInternals<>((KeyedStateBackend) getKeyedStateBackend(), keyCoder);
+
+      if (doFn != null) {
+        DoFnSignature signature = DoFnSignatures.getSignature(doFn.getClass());
+        FlinkStateInternals.EarlyBinder earlyBinder =
+            new FlinkStateInternals.EarlyBinder(getKeyedStateBackend());
+        for (DoFnSignature.StateDeclaration value : signature.stateDeclarations().values()) {
+          StateSpec<?> spec =
+              (StateSpec<?>) signature.stateDeclarations().get(value.id()).field().get(doFn);
+          spec.bind(value.id(), earlyBinder);
+        }
+      }
 
       if (timerService == null) {
         timerService =
@@ -765,20 +779,20 @@ public class DoFnOperator<InputT, OutputT> extends AbstractStreamOperator<Window
   }
 
   @Override
-  public void onEventTime(InternalTimer<Object, TimerData> timer) throws Exception {
+  public void onEventTime(InternalTimer<ByteBuffer, TimerData> timer) throws Exception {
     // We don't have to cal checkInvokeStartBundle() because it's already called in
     // processWatermark*().
     fireTimer(timer);
   }
 
   @Override
-  public void onProcessingTime(InternalTimer<Object, TimerData> timer) throws Exception {
+  public void onProcessingTime(InternalTimer<ByteBuffer, TimerData> timer) throws Exception {
     checkInvokeStartBundle();
     fireTimer(timer);
   }
 
   // allow overriding this in WindowDoFnOperator
-  public void fireTimer(InternalTimer<?, TimerData> timer) {
+  protected void fireTimer(InternalTimer<ByteBuffer, TimerData> timer) {
     TimerInternals.TimerData timerData = timer.getNamespace();
     StateNamespace namespace = timerData.getNamespace();
     // This is a user timer, so namespace must be WindowNamespace

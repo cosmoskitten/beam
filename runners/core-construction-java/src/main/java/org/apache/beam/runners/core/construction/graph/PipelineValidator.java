@@ -18,7 +18,7 @@
 package org.apache.beam.runners.core.construction.graph;
 
 import static org.apache.beam.runners.core.construction.BeamUrns.getUrn;
-import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
 
 import java.util.Map;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
@@ -35,8 +35,8 @@ import org.apache.beam.model.pipeline.v1.RunnerApi.StandardPTransforms.Splittabl
 import org.apache.beam.model.pipeline.v1.RunnerApi.TestStreamPayload;
 import org.apache.beam.model.pipeline.v1.RunnerApi.WindowIntoPayload;
 import org.apache.beam.model.pipeline.v1.RunnerApi.WindowingStrategy;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableMap;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Maps;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Maps;
 
 /**
  * Validates well-formedness of a pipeline. It is recommended to use this class on any user-supplied
@@ -59,12 +59,6 @@ public class PipelineValidator {
           .put(getUrn(Composites.COMBINE_PER_KEY), PipelineValidator::validateCombine)
           .put(getUrn(Composites.COMBINE_GLOBALLY), PipelineValidator::validateCombine)
           // Nothing to validate for RESHUFFLE and WRITE_FILES
-          .put(getUrn(CombineComponents.COMBINE_PGBKCV), PipelineValidator::validateCombine)
-          .put(
-              getUrn(CombineComponents.COMBINE_MERGE_ACCUMULATORS),
-              PipelineValidator::validateCombine)
-          .put(
-              getUrn(CombineComponents.COMBINE_EXTRACT_OUTPUTS), PipelineValidator::validateCombine)
           .put(
               getUrn(CombineComponents.COMBINE_PER_KEY_PRECOMBINE),
               PipelineValidator::validateCombine)

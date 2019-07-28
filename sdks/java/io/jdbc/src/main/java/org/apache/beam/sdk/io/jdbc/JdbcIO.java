@@ -17,7 +17,8 @@
  */
 package org.apache.beam.sdk.io.jdbc;
 
-import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.sdk.io.jdbc.SchemaUtil.checkNullabilityForFields;
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
 
 import com.google.auto.value.AutoValue;
 import java.io.IOException;
@@ -28,12 +29,20 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
+import java.util.Optional;
 import java.util.function.Predicate;
+import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 import javax.annotation.Nullable;
 import javax.sql.DataSource;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.coders.RowCoder;
 import org.apache.beam.sdk.options.ValueProvider;
+import org.apache.beam.sdk.schemas.NoSuchSchemaException;
+import org.apache.beam.sdk.schemas.Schema;
+import org.apache.beam.sdk.schemas.SchemaRegistry;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.Filter;
@@ -54,6 +63,8 @@ import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.PDone;
+import org.apache.beam.sdk.values.Row;
+import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.commons.dbcp2.BasicDataSource;
 import org.apache.commons.dbcp2.DataSourceConnectionFactory;
 import org.apache.commons.dbcp2.PoolableConnectionFactory;
@@ -183,6 +194,15 @@ public class JdbcIO {
    */
   public static <T> Read<T> read() {
     return new AutoValue_JdbcIO_Read.Builder<T>()
+        .setFetchSize(DEFAULT_FETCH_SIZE)
+        .setOutputParallelization(true)
+        .build();
+  }
+
+  /** Read Beam {@link Row}s from a JDBC data source. */
+  @Experimental(Experimental.Kind.SCHEMAS)
+  public static ReadRows readRows() {
+    return new AutoValue_JdbcIO_ReadRows.Builder()
         .setFetchSize(DEFAULT_FETCH_SIZE)
         .setOutputParallelization(true)
         .build();
@@ -389,6 +409,123 @@ public class JdbcIO {
   @FunctionalInterface
   public interface StatementPreparator extends Serializable {
     void setParameters(PreparedStatement preparedStatement) throws Exception;
+  }
+
+  /** Implementation of {@link #readRows()}. */
+  @AutoValue
+  @Experimental(Experimental.Kind.SCHEMAS)
+  public abstract static class ReadRows extends PTransform<PBegin, PCollection<Row>> {
+    @Nullable
+    abstract SerializableFunction<Void, DataSource> getDataSourceProviderFn();
+
+    @Nullable
+    abstract ValueProvider<String> getQuery();
+
+    @Nullable
+    abstract StatementPreparator getStatementPreparator();
+
+    abstract int getFetchSize();
+
+    abstract boolean getOutputParallelization();
+
+    abstract Builder toBuilder();
+
+    @AutoValue.Builder
+    abstract static class Builder {
+      abstract Builder setDataSourceProviderFn(
+          SerializableFunction<Void, DataSource> dataSourceProviderFn);
+
+      abstract Builder setQuery(ValueProvider<String> query);
+
+      abstract Builder setStatementPreparator(StatementPreparator statementPreparator);
+
+      abstract Builder setFetchSize(int fetchSize);
+
+      abstract Builder setOutputParallelization(boolean outputParallelization);
+
+      abstract ReadRows build();
+    }
+
+    public ReadRows withDataSourceProviderFn(
+        SerializableFunction<Void, DataSource> dataSourceProviderFn) {
+      return toBuilder().setDataSourceProviderFn(dataSourceProviderFn).build();
+    }
+
+    public ReadRows withQuery(String query) {
+      checkArgument(query != null, "query can not be null");
+      return withQuery(ValueProvider.StaticValueProvider.of(query));
+    }
+
+    public ReadRows withQuery(ValueProvider<String> query) {
+      checkArgument(query != null, "query can not be null");
+      return toBuilder().setQuery(query).build();
+    }
+
+    public ReadRows withStatementPreparator(StatementPreparator statementPreparator) {
+      checkArgument(statementPreparator != null, "statementPreparator can not be null");
+      return toBuilder().setStatementPreparator(statementPreparator).build();
+    }
+
+    /**
+     * This method is used to set the size of the data that is going to be fetched and loaded in
+     * memory per every database call. Please refer to: {@link java.sql.Statement#setFetchSize(int)}
+     * It should ONLY be used if the default value throws memory errors.
+     */
+    public ReadRows withFetchSize(int fetchSize) {
+      checkArgument(fetchSize > 0, "fetch size must be > 0");
+      return toBuilder().setFetchSize(fetchSize).build();
+    }
+
+    /**
+     * Whether to reshuffle the resulting PCollection so results are distributed to all workers. The
+     * default is to parallelize and should only be changed if this is known to be unnecessary.
+     */
+    public ReadRows withOutputParallelization(boolean outputParallelization) {
+      return toBuilder().setOutputParallelization(outputParallelization).build();
+    }
+
+    @Override
+    public PCollection<Row> expand(PBegin input) {
+      checkArgument(getQuery() != null, "withQuery() is required");
+      checkArgument(
+          (getDataSourceProviderFn() != null),
+          "withDataSourceConfiguration() or withDataSourceProviderFn() is required");
+
+      Schema schema = inferBeamSchema();
+      PCollection<Row> rows =
+          input.apply(
+              JdbcIO.<Row>read()
+                  .withDataSourceProviderFn(getDataSourceProviderFn())
+                  .withQuery(getQuery())
+                  .withCoder(RowCoder.of(schema))
+                  .withRowMapper(SchemaUtil.BeamRowMapper.of(schema))
+                  .withFetchSize(getFetchSize())
+                  .withOutputParallelization(getOutputParallelization())
+                  .withStatementPreparator(getStatementPreparator()));
+      rows.setRowSchema(schema);
+      return rows;
+    }
+
+    private Schema inferBeamSchema() {
+      DataSource ds = getDataSourceProviderFn().apply(null);
+      try (Connection conn = ds.getConnection();
+          PreparedStatement statement =
+              conn.prepareStatement(
+                  getQuery().get(), ResultSet.TYPE_FORWARD_ONLY, ResultSet.CONCUR_READ_ONLY)) {
+        return SchemaUtil.toBeamSchema(statement.getMetaData());
+      } catch (SQLException e) {
+        throw new BeamSchemaInferenceException("Failed to infer Beam schema", e);
+      }
+    }
+
+    @Override
+    public void populateDisplayData(DisplayData.Builder builder) {
+      super.populateDisplayData(builder);
+      builder.add(DisplayData.item("query", getQuery()));
+      if (getDataSourceProviderFn() instanceof HasDisplayData) {
+        ((HasDisplayData) getDataSourceProviderFn()).populateDisplayData(builder);
+      }
+    }
   }
 
   /** Implementation of {@link #read}. */
@@ -671,6 +808,16 @@ public class JdbcIO {
         output = output.apply(new Reparallelize<>());
       }
 
+      try {
+        TypeDescriptor<OutputT> typeDesc = getCoder().getEncodedTypeDescriptor();
+        SchemaRegistry registry = input.getPipeline().getSchemaRegistry();
+        Schema schema = registry.getSchema(typeDesc);
+        output.setSchema(
+            schema, registry.getToRowFunction(typeDesc), registry.getFromRowFunction(typeDesc));
+      } catch (NoSuchSchemaException e) {
+        // ignore
+      }
+
       return output;
     }
 
@@ -762,7 +909,7 @@ public class JdbcIO {
    * <p>All methods in this class delegate to the appropriate method of {@link JdbcIO.WriteVoid}.
    */
   public static class Write<T> extends PTransform<PCollection<T>, PDone> {
-    final WriteVoid<T> inner;
+    WriteVoid<T> inner;
 
     Write() {
       this(JdbcIO.writeVoid());
@@ -806,6 +953,11 @@ public class JdbcIO {
       return new Write(inner.withRetryStrategy(retryStrategy));
     }
 
+    /** See {@link WriteVoid#withTable(String)}. */
+    public Write<T> withTable(String table) {
+      return new Write(inner.withTable(table));
+    }
+
     /**
      * Returns {@link WriteVoid} transform which can be used in {@link Wait#on(PCollection[])} to
      * wait until all data is written.
@@ -830,11 +982,142 @@ public class JdbcIO {
       inner.populateDisplayData(builder);
     }
 
+    private boolean hasStatementAndSetter() {
+      return inner.getStatement() != null && inner.getPreparedStatementSetter() != null;
+    }
+
     @Override
     public PDone expand(PCollection<T> input) {
+      // fixme: validate invalid table input
+      if (input.hasSchema() && !hasStatementAndSetter()) {
+        checkArgument(
+            inner.getTable() != null, "table cannot be null if statement is not provided");
+        Schema schema = input.getSchema();
+        List<SchemaUtil.FieldWithIndex> fields = getFilteredFields(schema);
+        inner =
+            inner.withStatement(
+                JdbcUtil.generateStatement(
+                    inner.getTable(),
+                    fields.stream()
+                        .map(SchemaUtil.FieldWithIndex::getField)
+                        .collect(Collectors.toList())));
+        inner =
+            inner.withPreparedStatementSetter(
+                new AutoGeneratedPreparedStatementSetter(fields, input.getToRowFunction()));
+      }
+
       inner.expand(input);
       return PDone.in(input.getPipeline());
     }
+
+    private List<SchemaUtil.FieldWithIndex> getFilteredFields(Schema schema) {
+      Schema tableSchema;
+
+      try (Connection connection = inner.getDataSourceProviderFn().apply(null).getConnection();
+          PreparedStatement statement =
+              connection.prepareStatement((String.format("SELECT * FROM %s", inner.getTable())))) {
+        tableSchema = SchemaUtil.toBeamSchema(statement.getMetaData());
+        statement.close();
+      } catch (SQLException e) {
+        throw new RuntimeException(
+            "Error while determining columns from table: " + inner.getTable(), e);
+      }
+
+      if (tableSchema.getFieldCount() < schema.getFieldCount()) {
+        throw new RuntimeException("Input schema has more fields than actual table.");
+      }
+
+      // filter out missing fields from output table
+      List<Schema.Field> missingFields =
+          tableSchema.getFields().stream()
+              .filter(
+                  line ->
+                      schema.getFields().stream()
+                          .noneMatch(s -> s.getName().equalsIgnoreCase(line.getName())))
+              .collect(Collectors.toList());
+
+      // allow insert only if missing fields are nullable
+      if (checkNullabilityForFields(missingFields)) {
+        throw new RuntimeException("Non nullable fields are not allowed without schema.");
+      }
+
+      List<SchemaUtil.FieldWithIndex> tableFilteredFields =
+          tableSchema.getFields().stream()
+              .map(
+                  (tableField) -> {
+                    Optional<Schema.Field> optionalSchemaField =
+                        schema.getFields().stream()
+                            .filter((f) -> SchemaUtil.compareSchemaField(tableField, f))
+                            .findFirst();
+                    return (optionalSchemaField.isPresent())
+                        ? SchemaUtil.FieldWithIndex.of(
+                            tableField, schema.getFields().indexOf(optionalSchemaField.get()))
+                        : null;
+                  })
+              .filter(Objects::nonNull)
+              .collect(Collectors.toList());
+
+      if (tableFilteredFields.size() != schema.getFieldCount()) {
+        throw new RuntimeException("Provided schema doesn't match with database schema.");
+      }
+
+      return tableFilteredFields;
+    }
+
+    /**
+     * A {@link org.apache.beam.sdk.io.jdbc.JdbcIO.PreparedStatementSetter} implementation that
+     * calls related setters on prepared statement.
+     */
+    private class AutoGeneratedPreparedStatementSetter implements PreparedStatementSetter<T> {
+
+      private List<SchemaUtil.FieldWithIndex> fields;
+      private SerializableFunction<T, Row> toRowFn;
+      private List<PreparedStatementSetCaller> preparedStatementFieldSetterList = new ArrayList<>();
+
+      AutoGeneratedPreparedStatementSetter(
+          List<SchemaUtil.FieldWithIndex> fieldsWithIndex, SerializableFunction<T, Row> toRowFn) {
+        this.fields = fieldsWithIndex;
+        this.toRowFn = toRowFn;
+        populatePreparedStatementFieldSetter();
+      }
+
+      private void populatePreparedStatementFieldSetter() {
+        IntStream.range(0, fields.size())
+            .forEach(
+                (index) -> {
+                  Schema.FieldType fieldType = fields.get(index).getField().getType();
+                  preparedStatementFieldSetterList.add(
+                      JdbcUtil.getPreparedStatementSetCaller(fieldType));
+                });
+      }
+
+      @Override
+      public void setParameters(T element, PreparedStatement preparedStatement) throws Exception {
+        Row row = (element instanceof Row) ? (Row) element : toRowFn.apply(element);
+        IntStream.range(0, fields.size())
+            .forEach(
+                (index) -> {
+                  try {
+                    preparedStatementFieldSetterList
+                        .get(index)
+                        .set(row, preparedStatement, index, fields.get(index));
+                  } catch (SQLException | NullPointerException e) {
+                    throw new RuntimeException("Error while setting data to preparedStatement", e);
+                  }
+                });
+      }
+    }
+  }
+
+  /** Interface implemented by functions that sets prepared statement data. */
+  @FunctionalInterface
+  interface PreparedStatementSetCaller extends Serializable {
+    void set(
+        Row element,
+        PreparedStatement preparedStatement,
+        int prepareStatementIndex,
+        SchemaUtil.FieldWithIndex schemaFieldWithIndex)
+        throws SQLException;
   }
 
   /** A {@link PTransform} to write to a JDBC datasource. */
@@ -859,6 +1142,9 @@ public class JdbcIO {
     @Nullable
     abstract RetryStrategy getRetryStrategy();
 
+    @Nullable
+    abstract String getTable();
+
     abstract Builder<T> toBuilder();
 
     @AutoValue.Builder
@@ -877,6 +1163,8 @@ public class JdbcIO {
       abstract Builder<T> setPreparedStatementSetter(PreparedStatementSetter<T> setter);
 
       abstract Builder<T> setRetryStrategy(RetryStrategy deadlockPredicate);
+
+      abstract Builder<T> setTable(String table);
 
       abstract WriteVoid<T> build();
     }
@@ -921,6 +1209,11 @@ public class JdbcIO {
     public WriteVoid<T> withRetryStrategy(RetryStrategy retryStrategy) {
       checkArgument(retryStrategy != null, "retryStrategy can not be null");
       return toBuilder().setRetryStrategy(retryStrategy).build();
+    }
+
+    public WriteVoid<T> withTable(String table) {
+      checkArgument(table != null, "table name can not be null");
+      return toBuilder().setTable(table).build();
     }
 
     @Override

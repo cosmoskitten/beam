@@ -18,9 +18,9 @@
 package org.apache.beam.sdk.io;
 
 import static org.apache.beam.sdk.io.FileIO.ReadMatches.DirectoryTreatment;
-import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkArgument;
-import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkNotNull;
-import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkState;
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkNotNull;
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkState;
 import static org.apache.commons.compress.utils.CharsetNames.UTF_8;
 
 import com.google.auto.value.AutoValue;
@@ -57,10 +57,10 @@ import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PDone;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.annotations.VisibleForTesting;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Predicates;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Iterables;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Lists;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Predicates;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
 import org.joda.time.Duration;
 
 /**
@@ -180,6 +180,8 @@ import org.joda.time.Duration;
  * DynamicDestinations} interface for advanced features via {@link Write#to(DynamicDestinations)}.
  */
 public class TextIO {
+  private static final long DEFAULT_BUNDLE_SIZE_BYTES = 64 * 1024 * 1024L;
+
   /**
    * A {@link PTransform} that reads from one or more text files and returns a bounded {@link
    * PCollection} containing one element for each line of the input files.
@@ -224,7 +226,7 @@ public class TextIO {
         // 64MB is a reasonable value that allows to amortize the cost of opening files,
         // but is not so large as to exhaust a typical runner's maximum amount of output per
         // ProcessElement call.
-        .setDesiredBundleSizeBytes(64 * 1024 * 1024L)
+        .setDesiredBundleSizeBytes(DEFAULT_BUNDLE_SIZE_BYTES)
         .build();
   }
 

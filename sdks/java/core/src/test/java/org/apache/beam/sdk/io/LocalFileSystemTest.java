@@ -34,17 +34,19 @@ import java.nio.channels.Channels;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.Collections;
 import java.util.List;
 import org.apache.beam.sdk.io.fs.CreateOptions.StandardCreateOptions;
 import org.apache.beam.sdk.io.fs.MatchResult;
 import org.apache.beam.sdk.io.fs.ResolveOptions.StandardResolveOptions;
 import org.apache.beam.sdk.testing.RestoreSystemProperties;
 import org.apache.beam.sdk.util.MimeTypes;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.FluentIterable;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableList;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Lists;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.io.Files;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.io.LineReader;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.FluentIterable;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.io.Files;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.io.LineReader;
 import org.apache.commons.lang3.SystemUtils;
 import org.hamcrest.Matchers;
 import org.junit.Rule;
@@ -194,6 +196,25 @@ public class LocalFileSystemTest {
     assertThat(
         toFilenames(matchResults),
         containsInAnyOrder(expected.toArray(new String[expected.size()])));
+  }
+
+  @Test
+  public void testMatchDirectory() throws Exception {
+    final Path dir = temporaryFolder.newFolder("dir").toPath();
+    final MatchResult matchResult =
+        Iterables.getOnlyElement(localFileSystem.match(Collections.singletonList(dir.toString())));
+    assertThat(
+        matchResult,
+        equalTo(
+            MatchResult.create(
+                MatchResult.Status.OK,
+                ImmutableList.of(
+                    MatchResult.Metadata.builder()
+                        .setResourceId(LocalResourceId.fromPath(dir, true))
+                        .setIsReadSeekEfficient(true)
+                        .setSizeBytes(dir.toFile().length())
+                        .setLastModifiedMillis(dir.toFile().lastModified())
+                        .build()))));
   }
 
   @Test

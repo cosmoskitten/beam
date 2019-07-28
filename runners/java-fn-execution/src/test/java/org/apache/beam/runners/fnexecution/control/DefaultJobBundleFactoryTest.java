@@ -33,7 +33,6 @@ import org.apache.beam.model.pipeline.v1.RunnerApi.Environment;
 import org.apache.beam.model.pipeline.v1.RunnerApi.ExecutableStagePayload;
 import org.apache.beam.model.pipeline.v1.RunnerApi.FunctionSpec;
 import org.apache.beam.model.pipeline.v1.RunnerApi.PCollection;
-import org.apache.beam.model.pipeline.v1.RunnerApi.SdkFunctionSpec;
 import org.apache.beam.model.pipeline.v1.RunnerApi.WindowingStrategy;
 import org.apache.beam.runners.core.construction.ModelCoders;
 import org.apache.beam.runners.core.construction.PipelineOptionsTranslation;
@@ -56,9 +55,9 @@ import org.apache.beam.sdk.fn.IdGenerators;
 import org.apache.beam.sdk.fn.data.CloseableFnDataReceiver;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.options.PortablePipelineOptions;
-import org.apache.beam.vendor.grpc.v1p13p1.com.google.protobuf.ByteString;
-import org.apache.beam.vendor.grpc.v1p13p1.com.google.protobuf.Struct;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableMap;
+import org.apache.beam.vendor.grpc.v1p21p0.com.google.protobuf.ByteString;
+import org.apache.beam.vendor.grpc.v1p21p0.com.google.protobuf.Struct;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
@@ -351,11 +350,8 @@ public class DefaultJobBundleFactoryTest {
                         "coder-id",
                         Coder.newBuilder()
                             .setSpec(
-                                SdkFunctionSpec.newBuilder()
-                                    .setSpec(
-                                        FunctionSpec.newBuilder()
-                                            .setUrn(ModelCoders.INTERVAL_WINDOW_CODER_URN)
-                                            .build())
+                                FunctionSpec.newBuilder()
+                                    .setUrn(ModelCoders.INTERVAL_WINDOW_CODER_URN)
                                     .build())
                             .build())
                     .build())

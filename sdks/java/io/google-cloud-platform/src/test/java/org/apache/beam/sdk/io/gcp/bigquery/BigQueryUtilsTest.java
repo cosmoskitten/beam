@@ -24,6 +24,7 @@ import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.nullValue;
 import static org.hamcrest.collection.IsMapContaining.hasEntry;
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertThrows;
 
@@ -31,12 +32,17 @@ import com.google.api.services.bigquery.model.TableFieldSchema;
 import com.google.api.services.bigquery.model.TableRow;
 import com.google.api.services.bigquery.model.TableSchema;
 import java.util.Arrays;
+import java.util.Base64;
+import java.util.Collections;
 import java.util.List;
+import org.apache.avro.generic.GenericData;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryUtils.ConversionOptions.TruncateTimestamps;
 import org.apache.beam.sdk.schemas.Schema;
+import org.apache.beam.sdk.schemas.utils.AvroUtils;
 import org.apache.beam.sdk.values.Row;
 import org.joda.time.DateTime;
 import org.joda.time.Instant;
+import org.joda.time.chrono.ISOChronology;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -51,6 +57,7 @@ public class BigQueryUtilsTest {
           .addNullableField("name", Schema.FieldType.STRING)
           .addNullableField("timestamp", Schema.FieldType.DATETIME)
           .addNullableField("valid", Schema.FieldType.BOOLEAN)
+          .addNullableField("binary", Schema.FieldType.BYTES)
           .build();
 
   private static final Schema ARRAY_TYPE =
@@ -77,33 +84,115 @@ public class BigQueryUtilsTest {
   private static final TableFieldSchema VALID =
       new TableFieldSchema().setName("valid").setType(StandardSQLTypeName.BOOL.toString());
 
+  private static final TableFieldSchema BINARY =
+      new TableFieldSchema().setName("binary").setType(StandardSQLTypeName.BYTES.toString());
+
   private static final TableFieldSchema IDS =
       new TableFieldSchema()
           .setName("ids")
           .setType(StandardSQLTypeName.INT64.toString())
           .setMode(Mode.REPEATED.toString());
 
+  private static final TableFieldSchema ROW =
+      new TableFieldSchema()
+          .setName("row")
+          .setType(StandardSQLTypeName.STRUCT.toString())
+          .setMode(Mode.NULLABLE.toString())
+          .setFields(Arrays.asList(ID, VALUE, NAME, TIMESTAMP, VALID, BINARY));
+
+  private static final TableFieldSchema ROWS =
+      new TableFieldSchema()
+          .setName("rows")
+          .setType(StandardSQLTypeName.STRUCT.toString())
+          .setMode(Mode.REPEATED.toString())
+          .setFields(Arrays.asList(ID, VALUE, NAME, TIMESTAMP, VALID, BINARY));
+
+  // Make sure that chosen BYTES test value is the same after a full base64 round trip.
   private static final Row FLAT_ROW =
       Row.withSchema(FLAT_TYPE)
-          .addValues(123L, 123.456, "test", new DateTime(123456), false)
+          .addValues(
+              123L,
+              123.456,
+              "test",
+              new DateTime(123456),
+              false,
+              Base64.getDecoder().decode("ABCD1234"))
           .build();
 
+  private static final TableRow BQ_FLAT_ROW =
+      new TableRow()
+          .set("id", "123")
+          .set("value", "123.456")
+          .set("name", "test")
+          .set(
+              "timestamp",
+              String.valueOf(
+                  new DateTime(123456L, ISOChronology.getInstanceUTC()).getMillis() / 1000.0D))
+          .set("valid", "false")
+          .set("binary", "ABCD1234");
+
   private static final Row NULL_FLAT_ROW =
-      Row.withSchema(FLAT_TYPE).addValues(null, null, null, null, null).build();
+      Row.withSchema(FLAT_TYPE).addValues(null, null, null, null, null, null).build();
+
+  private static final TableRow BQ_NULL_FLAT_ROW =
+      new TableRow()
+          .set("id", null)
+          .set("value", null)
+          .set("name", null)
+          .set("timestamp", null)
+          .set("valid", null)
+          .set("binary", null);
 
   private static final Row ARRAY_ROW =
       Row.withSchema(ARRAY_TYPE).addValues((Object) Arrays.asList(123L, 124L)).build();
 
+  private static final TableRow BQ_ARRAY_ROW =
+      new TableRow()
+          .set(
+              "ids",
+              Arrays.asList(
+                  Collections.singletonMap("v", "123"), Collections.singletonMap("v", "124")));
+
   private static final Row ROW_ROW = Row.withSchema(ROW_TYPE).addValues(FLAT_ROW).build();
+
+  private static final TableRow BQ_ROW_ROW = new TableRow().set("row", BQ_FLAT_ROW);
 
   private static final Row ARRAY_ROW_ROW =
       Row.withSchema(ARRAY_ROW_TYPE).addValues((Object) Arrays.asList(FLAT_ROW)).build();
+
+  private static final TableRow BQ_ARRAY_ROW_ROW =
+      new TableRow()
+          .set("rows", Collections.singletonList(Collections.singletonMap("v", BQ_FLAT_ROW)));
+
+  private static final TableSchema BQ_FLAT_TYPE =
+      new TableSchema().setFields(Arrays.asList(ID, VALUE, NAME, TIMESTAMP, VALID, BINARY));
+
+  private static final TableSchema BQ_ARRAY_TYPE = new TableSchema().setFields(Arrays.asList(IDS));
+
+  private static final TableSchema BQ_ROW_TYPE = new TableSchema().setFields(Arrays.asList(ROW));
+
+  private static final TableSchema BQ_ARRAY_ROW_TYPE =
+      new TableSchema().setFields(Arrays.asList(ROWS));
+
+  private static final Schema AVRO_FLAT_TYPE =
+      Schema.builder()
+          .addNullableField("id", Schema.FieldType.INT64)
+          .addNullableField("value", Schema.FieldType.DOUBLE)
+          .addNullableField("name", Schema.FieldType.STRING)
+          .addNullableField("valid", Schema.FieldType.BOOLEAN)
+          .build();
+
+  private static final Schema AVRO_ARRAY_TYPE =
+      Schema.builder().addArrayField("rows", Schema.FieldType.row(AVRO_FLAT_TYPE)).build();
+
+  private static final Schema AVRO_ARRAY_ARRAY_TYPE =
+      Schema.builder().addArrayField("array_rows", Schema.FieldType.row(AVRO_ARRAY_TYPE)).build();
 
   @Test
   public void testToTableSchema_flat() {
     TableSchema schema = toTableSchema(FLAT_TYPE);
 
-    assertThat(schema.getFields(), containsInAnyOrder(ID, VALUE, NAME, TIMESTAMP, VALID));
+    assertThat(schema.getFields(), containsInAnyOrder(ID, VALUE, NAME, TIMESTAMP, VALID, BINARY));
   }
 
   @Test
@@ -122,7 +211,7 @@ public class BigQueryUtilsTest {
     assertThat(field.getName(), equalTo("row"));
     assertThat(field.getType(), equalTo(StandardSQLTypeName.STRUCT.toString()));
     assertThat(field.getMode(), nullValue());
-    assertThat(field.getFields(), containsInAnyOrder(ID, VALUE, NAME, TIMESTAMP, VALID));
+    assertThat(field.getFields(), containsInAnyOrder(ID, VALUE, NAME, TIMESTAMP, VALID, BINARY));
   }
 
   @Test
@@ -134,18 +223,20 @@ public class BigQueryUtilsTest {
     assertThat(field.getName(), equalTo("rows"));
     assertThat(field.getType(), equalTo(StandardSQLTypeName.STRUCT.toString()));
     assertThat(field.getMode(), equalTo(Mode.REPEATED.toString()));
-    assertThat(field.getFields(), containsInAnyOrder(ID, VALUE, NAME, TIMESTAMP, VALID));
+    assertThat(field.getFields(), containsInAnyOrder(ID, VALUE, NAME, TIMESTAMP, VALID, BINARY));
   }
 
   @Test
   public void testToTableRow_flat() {
     TableRow row = toTableRow().apply(FLAT_ROW);
+    System.out.println(row);
 
-    assertThat(row.size(), equalTo(5));
+    assertThat(row.size(), equalTo(6));
     assertThat(row, hasEntry("id", "123"));
     assertThat(row, hasEntry("value", "123.456"));
     assertThat(row, hasEntry("name", "test"));
     assertThat(row, hasEntry("valid", "false"));
+    assertThat(row, hasEntry("binary", "ABCD1234"));
   }
 
   @Test
@@ -162,11 +253,12 @@ public class BigQueryUtilsTest {
 
     assertThat(row.size(), equalTo(1));
     row = (TableRow) row.get("row");
-    assertThat(row.size(), equalTo(5));
+    assertThat(row.size(), equalTo(6));
     assertThat(row, hasEntry("id", "123"));
     assertThat(row, hasEntry("value", "123.456"));
     assertThat(row, hasEntry("name", "test"));
     assertThat(row, hasEntry("valid", "false"));
+    assertThat(row, hasEntry("binary", "ABCD1234"));
   }
 
   @Test
@@ -175,23 +267,25 @@ public class BigQueryUtilsTest {
 
     assertThat(row.size(), equalTo(1));
     row = ((List<TableRow>) row.get("rows")).get(0);
-    assertThat(row.size(), equalTo(5));
+    assertThat(row.size(), equalTo(6));
     assertThat(row, hasEntry("id", "123"));
     assertThat(row, hasEntry("value", "123.456"));
     assertThat(row, hasEntry("name", "test"));
     assertThat(row, hasEntry("valid", "false"));
+    assertThat(row, hasEntry("binary", "ABCD1234"));
   }
 
   @Test
   public void testToTableRow_null_row() {
     TableRow row = toTableRow().apply(NULL_FLAT_ROW);
 
-    assertThat(row.size(), equalTo(5));
+    assertThat(row.size(), equalTo(6));
     assertThat(row, hasEntry("id", null));
     assertThat(row, hasEntry("value", null));
     assertThat(row, hasEntry("name", null));
     assertThat(row, hasEntry("timestamp", null));
     assertThat(row, hasEntry("valid", null));
+    assertThat(row, hasEntry("binary", null));
   }
 
   private static final BigQueryUtils.ConversionOptions TRUNCATE_OPTIONS =
@@ -211,7 +305,9 @@ public class BigQueryUtilsTest {
         IllegalArgumentException.class,
         () ->
             BigQueryUtils.convertAvroFormat(
-                Schema.Field.of("dummy", Schema.FieldType.DATETIME), 1000000001L, REJECT_OPTIONS));
+                Schema.Field.of("dummy", Schema.FieldType.DATETIME).getType(),
+                1000000001L,
+                REJECT_OPTIONS));
   }
 
   @Test
@@ -219,7 +315,9 @@ public class BigQueryUtilsTest {
     long millis = 123456789L;
     assertThat(
         BigQueryUtils.convertAvroFormat(
-            Schema.Field.of("dummy", Schema.FieldType.DATETIME), millis * 1000, REJECT_OPTIONS),
+            Schema.Field.of("dummy", Schema.FieldType.DATETIME).getType(),
+            millis * 1000,
+            REJECT_OPTIONS),
         equalTo(new Instant(millis)));
   }
 
@@ -228,7 +326,7 @@ public class BigQueryUtilsTest {
     long millis = 123456789L;
     assertThat(
         BigQueryUtils.convertAvroFormat(
-            Schema.Field.of("dummy", Schema.FieldType.DATETIME),
+            Schema.Field.of("dummy", Schema.FieldType.DATETIME).getType(),
             millis * 1000 + 123,
             TRUNCATE_OPTIONS),
         equalTo(new Instant(millis)));
@@ -241,7 +339,8 @@ public class BigQueryUtilsTest {
         IllegalArgumentException.class,
         () ->
             BigQueryUtils.convertAvroFormat(
-                Schema.Field.of("dummy", Schema.FieldType.logicalType(new FakeSqlTimeType())),
+                Schema.Field.of("dummy", Schema.FieldType.logicalType(new FakeSqlTimeType()))
+                    .getType(),
                 1000000001L,
                 REJECT_OPTIONS));
   }
@@ -251,7 +350,7 @@ public class BigQueryUtilsTest {
     long millis = 123456789L;
     assertThat(
         BigQueryUtils.convertAvroFormat(
-            Schema.Field.of("dummy", Schema.FieldType.logicalType(new FakeSqlTimeType())),
+            Schema.Field.of("dummy", Schema.FieldType.logicalType(new FakeSqlTimeType())).getType(),
             millis * 1000,
             REJECT_OPTIONS),
         equalTo(new Instant(millis)));
@@ -262,7 +361,7 @@ public class BigQueryUtilsTest {
     long millis = 123456789L;
     assertThat(
         BigQueryUtils.convertAvroFormat(
-            Schema.Field.of("dummy", Schema.FieldType.logicalType(new FakeSqlTimeType())),
+            Schema.Field.of("dummy", Schema.FieldType.logicalType(new FakeSqlTimeType())).getType(),
             millis * 1000 + 123,
             TRUNCATE_OPTIONS),
         equalTo(new Instant(millis)));
@@ -289,5 +388,105 @@ public class BigQueryUtilsTest {
     public Long toInputType(Instant base) {
       return base.getMillis();
     }
+  }
+
+  @Test
+  public void testFromTableSchema_flat() {
+    Schema beamSchema = BigQueryUtils.fromTableSchema(BQ_FLAT_TYPE);
+    assertEquals(FLAT_TYPE, beamSchema);
+  }
+
+  @Test
+  public void testFromTableSchema_array() {
+    Schema beamSchema = BigQueryUtils.fromTableSchema(BQ_ARRAY_TYPE);
+    assertEquals(ARRAY_TYPE, beamSchema);
+  }
+
+  @Test
+  public void testFromTableSchema_row() {
+    Schema beamSchema = BigQueryUtils.fromTableSchema(BQ_ROW_TYPE);
+    assertEquals(ROW_TYPE, beamSchema);
+  }
+
+  @Test
+  public void testFromTableSchema_array_row() {
+    Schema beamSchema = BigQueryUtils.fromTableSchema(BQ_ARRAY_ROW_TYPE);
+    assertEquals(ARRAY_ROW_TYPE, beamSchema);
+  }
+
+  @Test
+  public void testToBeamRow_flat() {
+    Row beamRow = BigQueryUtils.toBeamRow(FLAT_TYPE, BQ_FLAT_ROW);
+    assertEquals(FLAT_ROW, beamRow);
+  }
+
+  @Test
+  public void testToBeamRow_null() {
+    Row beamRow = BigQueryUtils.toBeamRow(FLAT_TYPE, BQ_NULL_FLAT_ROW);
+    assertEquals(NULL_FLAT_ROW, beamRow);
+  }
+
+  @Test
+  public void testToBeamRow_array() {
+    Row beamRow = BigQueryUtils.toBeamRow(ARRAY_TYPE, BQ_ARRAY_ROW);
+    assertEquals(ARRAY_ROW, beamRow);
+  }
+
+  @Test
+  public void testToBeamRow_row() {
+    Row beamRow = BigQueryUtils.toBeamRow(ROW_TYPE, BQ_ROW_ROW);
+    assertEquals(ROW_ROW, beamRow);
+  }
+
+  @Test
+  public void testToBeamRow_array_row() {
+    Row beamRow = BigQueryUtils.toBeamRow(ARRAY_ROW_TYPE, BQ_ARRAY_ROW_ROW);
+    assertEquals(ARRAY_ROW_ROW, beamRow);
+  }
+
+  @Test
+  public void testToBeamRow_avro_array_row() {
+    Row flatRowExpected =
+        Row.withSchema(AVRO_FLAT_TYPE).addValues(123L, 123.456, "test", false).build();
+    Row expected =
+        Row.withSchema(AVRO_ARRAY_TYPE).addValues((Object) Arrays.asList(flatRowExpected)).build();
+    GenericData.Record record = new GenericData.Record(AvroUtils.toAvroSchema(AVRO_ARRAY_TYPE));
+    GenericData.Record flat = new GenericData.Record(AvroUtils.toAvroSchema(AVRO_FLAT_TYPE));
+    flat.put("id", 123L);
+    flat.put("value", 123.456);
+    flat.put("name", "test");
+    flat.put("valid", false);
+    record.put("rows", Arrays.asList(flat));
+    Row beamRow =
+        BigQueryUtils.toBeamRow(
+            record, AVRO_ARRAY_TYPE, BigQueryUtils.ConversionOptions.builder().build());
+    assertEquals(expected, beamRow);
+  }
+
+  @Test
+  public void testToBeamRow_avro_array_array_row() {
+    Row flatRowExpected =
+        Row.withSchema(AVRO_FLAT_TYPE).addValues(123L, 123.456, "test", false).build();
+    Row arrayRowExpected =
+        Row.withSchema(AVRO_ARRAY_TYPE).addValues((Object) Arrays.asList(flatRowExpected)).build();
+    Row expected =
+        Row.withSchema(AVRO_ARRAY_ARRAY_TYPE)
+            .addValues((Object) Arrays.asList(arrayRowExpected))
+            .build();
+    GenericData.Record arrayRecord =
+        new GenericData.Record(AvroUtils.toAvroSchema(AVRO_ARRAY_TYPE));
+    GenericData.Record flat = new GenericData.Record(AvroUtils.toAvroSchema(AVRO_FLAT_TYPE));
+    GenericData.Record record =
+        new GenericData.Record(AvroUtils.toAvroSchema(AVRO_ARRAY_ARRAY_TYPE));
+    flat.put("id", 123L);
+    flat.put("value", 123.456);
+    flat.put("name", "test");
+    flat.put("valid", false);
+    arrayRecord.put("rows", Arrays.asList(flat));
+    record.put("array_rows", Arrays.asList(arrayRecord));
+    Row beamRow =
+        BigQueryUtils.toBeamRow(
+            record, AVRO_ARRAY_ARRAY_TYPE, BigQueryUtils.ConversionOptions.builder().build());
+    assertEquals(expected, beamRow);
   }
 }

@@ -23,9 +23,8 @@ from __future__ import division
 import heapq
 import math
 import sys
+import typing
 from builtins import round
-
-import mmh3
 
 from apache_beam import coders
 from apache_beam import typehints
@@ -37,9 +36,9 @@ __all__ = [
 ]
 
 # Type variables
-T = typehints.TypeVariable('T')
-K = typehints.TypeVariable('K')
-V = typehints.TypeVariable('V')
+T = typing.TypeVar('T')
+K = typing.TypeVar('K')
+V = typing.TypeVar('V')
 
 
 class ApproximateUnique(object):
@@ -114,8 +113,8 @@ class ApproximateUnique(object):
              >> (CombineGlobally(ApproximateUniqueCombineFn(self._sample_size,
                                                             coder)))
 
-  @typehints.with_input_types(typehints.KV[K, V])
-  @typehints.with_output_types(typehints.KV[K, int])
+  @typehints.with_input_types(typing.Tuple[K, V])
+  @typehints.with_output_types(typing.Tuple[K, int])
   class PerKey(PTransform):
     """ Approximate.PerKey approximate number of unique values per key"""
 
@@ -214,7 +213,7 @@ class ApproximateUniqueCombineFn(CombineFn):
 
   def add_input(self, accumulator, element, *args, **kwargs):
     try:
-      accumulator.add(mmh3.hash64(self._coder.encode(element))[1])
+      accumulator.add(hash(self._coder.encode(element)))
       return accumulator
     except Exception as e:
       raise RuntimeError("Runtime exception: %s", e)

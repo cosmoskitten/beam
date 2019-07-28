@@ -17,7 +17,7 @@
  */
 package org.apache.beam.runners.dataflow.worker;
 
-import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
 
 import com.google.api.client.util.Throwables;
 import com.google.api.services.dataflow.model.InstructionOutput;
@@ -36,7 +36,6 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Function;
-import org.apache.beam.model.fnexecution.v1.BeamFnApi.Target;
 import org.apache.beam.model.pipeline.v1.Endpoints;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.runners.core.ElementByteSizeObservable;
@@ -102,12 +101,12 @@ import org.apache.beam.sdk.util.common.ElementByteSizeObserver;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.WindowingStrategy;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableMap;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableTable;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Iterables;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Lists;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.graph.MutableNetwork;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.graph.Network;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableTable;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.graph.MutableNetwork;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.graph.Network;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -289,11 +288,6 @@ public class BeamFnMapTaskExecutorFactory implements DataflowMapTaskExecutorFact
             Iterables.filter(network.successors(input), OutputReceiverNode.class);
         Operation operation;
         if (outputReceiverNodes.iterator().hasNext()) {
-          Target target =
-              Target.newBuilder()
-                  .setPrimitiveTransformReference(input.getPrimitiveTransformId())
-                  .setName(input.getOutputId())
-                  .build();
           OutputReceiver[] outputReceivers =
               new OutputReceiver[] {
                 Iterables.getOnlyElement(outputReceiverNodes).getOutputReceiver()
@@ -302,22 +296,16 @@ public class BeamFnMapTaskExecutorFactory implements DataflowMapTaskExecutorFact
           operation =
               new RemoteGrpcPortReadOperation<>(
                   beamFnDataService,
-                  target,
+                  input.getPrimitiveTransformId(),
                   registerFnOperation::getProcessBundleInstructionId,
                   (Coder) coder,
                   outputReceivers,
                   context);
         } else {
-          Target target =
-              Target.newBuilder()
-                  .setPrimitiveTransformReference(input.getPrimitiveTransformId())
-                  .setName(input.getInputId())
-                  .build();
-
           operation =
               new RemoteGrpcPortWriteOperation<>(
                   beamFnDataService,
-                  target,
+                  input.getPrimitiveTransformId(),
                   registerFnOperation::getProcessBundleInstructionId,
                   (Coder) coder,
                   context);

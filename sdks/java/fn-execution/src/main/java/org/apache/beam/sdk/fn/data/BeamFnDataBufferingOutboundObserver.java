@@ -21,9 +21,9 @@ import java.io.IOException;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.util.WindowedValue;
-import org.apache.beam.vendor.grpc.v1p13p1.com.google.protobuf.ByteString;
-import org.apache.beam.vendor.grpc.v1p13p1.io.grpc.stub.StreamObserver;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.grpc.v1p21p0.com.google.protobuf.ByteString;
+import org.apache.beam.vendor.grpc.v1p21p0.io.grpc.stub.StreamObserver;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -100,13 +100,13 @@ public class BeamFnDataBufferingOutboundObserver<T>
     elements
         .addDataBuilder()
         .setInstructionReference(outputLocation.getInstructionId())
-        .setTarget(outputLocation.getTarget());
+        .setPtransformId(outputLocation.getPTransformId());
 
     LOG.debug(
         "Closing stream for instruction {} and "
-            + "target {} having transmitted {} values {} bytes",
+            + "transform {} having transmitted {} values {} bytes",
         outputLocation.getInstructionId(),
-        outputLocation.getTarget(),
+        outputLocation.getPTransformId(),
         counter,
         byteCounter);
     outboundObserver.onNext(elements.build());
@@ -140,7 +140,7 @@ public class BeamFnDataBufferingOutboundObserver<T>
     elements
         .addDataBuilder()
         .setInstructionReference(outputLocation.getInstructionId())
-        .setTarget(outputLocation.getTarget())
+        .setPtransformId(outputLocation.getPTransformId())
         .setData(bufferedElements.toByteString());
 
     byteCounter += bufferedElements.size();

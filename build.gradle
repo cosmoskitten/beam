@@ -100,12 +100,15 @@ rat {
     "ownership/**/*",
     "**/OWNERS",
 
-    // FIXME add licencse header
+    // FIXME add license header
     "project-mappings",
     "deprecation-warning.txt",
 
     // Json doesn't support comments.
     "**/*.json",
+      
+    // Katas files
+    "learning/katas/*/IO/**/*.txt"
   ]
 
   // Add .gitignore excludes to the Apache Rat exclusion list. We re-create the behavior
@@ -164,13 +167,13 @@ task javaPostCommitPortabilityApi () {
 task goPreCommit() {
   dependsOn ":sdks:go:goTest"
 
-  dependsOn ":sdks:go:examples:build"
-  dependsOn ":sdks:go:test:build"
+  dependsOn ":sdks:go:examples:goBuild"
+  dependsOn ":sdks:go:test:goBuild"
 
   // Ensure all container Go boot code builds as well.
-  dependsOn ":sdks:java:container:build"
-  dependsOn ":sdks:python:container:build"
-  dependsOn ":sdks:go:container:build"
+  dependsOn ":sdks:java:container:goBuild"
+  dependsOn ":sdks:python:container:goBuild"
+  dependsOn ":sdks:go:container:goBuild"
 }
 
 task goPostCommit() {
@@ -194,24 +197,35 @@ task pythonPreCommit() {
   dependsOn ":sdks:python:test-suites:tox:py36:preCommitPy36"
   dependsOn ":sdks:python:test-suites:tox:py37:preCommitPy37"
   dependsOn ":sdks:python:test-suites:dataflow:preCommitIT"
+  dependsOn ":sdks:python:test-suites:dataflow:py37:preCommitIT"
+  // We don't include Py35, Py36 precommit ITs to reduce quota footprint.
+  // We can reconsider if we ever see an issue that these suites would
+  // have caught. Note that the same tests will still run in postcommit.
 }
 
-task pythonPostCommit() {
+task python2PostCommit() {
   dependsOn ":sdks:python:postCommit"
 }
 
-task python3PostCommit() {
+task python35PostCommit() {
   dependsOn ":sdks:python:test-suites:dataflow:py35:postCommitIT"
-  dependsOn ":sdks:python:test-suites:dataflow:py36:postCommitIT"
-  dependsOn ":sdks:python:test-suites:dataflow:py37:postCommitIT"
-  dependsOn ":sdks:python:test-suites:dataflow:py35:validatesRunnerBatchTests"
   dependsOn ":sdks:python:test-suites:direct:py35:postCommitIT"
+}
+
+task python36PostCommit() {
+  dependsOn ":sdks:python:test-suites:dataflow:py36:postCommitIT"
   dependsOn ":sdks:python:test-suites:direct:py36:postCommitIT"
+}
+
+task python37PostCommit() {
+  dependsOn ":sdks:python:test-suites:dataflow:py37:postCommitIT"
   dependsOn ":sdks:python:test-suites:direct:py37:postCommitIT"
+  dependsOn ":sdks:python:test-suites:direct:py37:hdfsIntegrationTest"
 }
 
 task portablePythonPreCommit() {
-  dependsOn ":sdks:python:portablePreCommit"
+  dependsOn "sdks:python:portablePreCommitPy2"
+  dependsOn "sdks:python:test-suites:portable:py35:portablePreCommitPy35"
 }
 
 task websitePreCommit() {
