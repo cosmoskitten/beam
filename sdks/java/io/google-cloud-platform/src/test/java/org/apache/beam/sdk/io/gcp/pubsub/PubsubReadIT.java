@@ -30,10 +30,13 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /** Integration test for PubsubIO. */
 @RunWith(JUnit4.class)
 public class PubsubReadIT {
+  private static final Logger LOG = LoggerFactory.getLogger(PubsubReadIT.class);
 
   @Rule public transient TestPubsubSignal signal = TestPubsubSignal.create();
   @Rule public transient TestPipeline pipeline = TestPipeline.create();
@@ -98,8 +101,10 @@ public class PubsubReadIT {
     @Override
     public Boolean apply(Set<PubsubMessage> input) {
       for (PubsubMessage message : input) {
+        LOG.info(message.toString());
         if (Strings.isNullOrEmpty(message.getMessageId())) {
-          throw new IllegalStateException("PubsubMessage does not have message_id populated.");
+          LOG.error("PubsubMessage does not have message_id populated.");
+          return false;
         }
       }
       return true;
