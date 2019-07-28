@@ -138,7 +138,7 @@ class PortableRunner(runner.PipelineRunner):
               os=(config.get('os') or ''),
               arch=(config.get('arch') or ''),
               command=config.get('command'),
-              env=(config.get('env') or '')
+              env=(config.get('env'))
           ).SerializeToString())
     elif environment_urn == common_urns.environments.EXTERNAL.urn:
       return beam_runner_api_pb2.Environment(
