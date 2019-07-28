@@ -35,7 +35,7 @@ from typing import List
 from typing import Optional
 
 import grpc
-from google.protobuf import text_format
+from google.protobuf import text_format  # type: ignore # not in typeshed
 
 from apache_beam.portability.api import beam_artifact_api_pb2
 from apache_beam.portability.api import beam_artifact_api_pb2_grpc

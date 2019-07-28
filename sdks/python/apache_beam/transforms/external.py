@@ -120,7 +120,7 @@ class ExternalTransform(ptransform.PTransform):
                   urn=common_urns.primitives.IMPULSE.urn),
               outputs={'out': transform_proto.inputs[tag]}))
     components = context.to_runner_api()
-    request = beam_expansion_api_pb2.ExpansionRequest(
+    request = beam_expansion_api_pb2.ExpansionRequest(  # type: ignore  # mypy thinks self._namespace is threading.local
         components=components,
         namespace=self._namespace,
         transform=transform_proto)
