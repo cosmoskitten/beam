@@ -630,6 +630,7 @@ class DoOperation(Operation):
     with self.scoped_process_state:
       delayed_application = self.dofn_receiver.receive(o)
       if delayed_application:
+        assert self.execution_context is not None
         self.execution_context.delayed_applications.append(
             (self, delayed_application))
 
@@ -725,6 +726,7 @@ class SdfProcessSizedElements(DoOperation):
         # the lock.
         delayed_application = self.dofn_runner.process_with_sized_restriction(o)
         if delayed_application:
+          assert self.execution_context is not None
           self.execution_context.delayed_applications.append(
               (self, delayed_application))
       finally:
