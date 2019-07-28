@@ -17,9 +17,11 @@
  */
 package org.apache.beam.sdk.io.gcp.pubsub;
 
+import java.util.Set;
 import org.apache.beam.runners.direct.DirectOptions;
 import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.testing.TestPipeline;
+import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Strings;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Supplier;
@@ -75,12 +77,7 @@ public class PubsubReadIT {
 
     messages.apply(
         "isMessageIdNonNull",
-        signal.signalSuccessWhen(
-            messages.getCoder(),
-            pubsubMessages ->
-                pubsubMessages.stream()
-                    .limit(2)
-                    .noneMatch(m -> Strings.isNullOrEmpty(m.getMessageId()))));
+        signal.signalSuccessWhen(messages.getCoder(), new NonEmptyMessageIdCheckCombiner()));
 
     Supplier<Void> start = signal.waitForStart(Duration.standardMinutes(5));
     pipeline.apply(signal.signalStart());
@@ -93,6 +90,19 @@ public class PubsubReadIT {
       job.cancel();
     } catch (UnsupportedOperationException exc) {
       // noop
+    }
+  }
+
+  public static class NonEmptyMessageIdCheckCombiner
+      implements SerializableFunction<Set<PubsubMessage>, Boolean> {
+    @Override
+    public Boolean apply(Set<PubsubMessage> input) {
+      for (PubsubMessage message : input) {
+        if (Strings.isNullOrEmpty(message.getMessageId())) {
+          return false;
+        }
+      }
+      return true;
     }
   }
 }
