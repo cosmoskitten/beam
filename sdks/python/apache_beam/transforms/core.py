@@ -1633,14 +1633,15 @@ def Filter(fn, *args, **kwargs):  # pylint: disable=invalid-name
     wrapper.__name__ = fn.__name__
   # Proxy the type-hint information from the function being wrapped, setting the
   # output type to be the same as the input type.
-  get_type_hints(wrapper).input_types = get_type_hints(fn).input_types
+  wrapper_hints = get_type_hints(wrapper)
+  wrapper_hints.input_types = get_type_hints(fn).input_types
   output_hint = get_type_hints(fn).simple_output_type(label)
   if (output_hint is None
-      and get_type_hints(wrapper).input_types
-      and get_type_hints(wrapper).input_types[0]):
-    output_hint = get_type_hints(wrapper).input_types[0][0]
+      and wrapper_hints.input_types
+      and wrapper_hints.input_types[0]):
+    output_hint = wrapper_hints.input_types[0][0]
   if output_hint:
-    get_type_hints(wrapper).set_output_types(typehints.Iterable[output_hint])
+    wrapper_hints.set_output_types(typehints.Iterable[output_hint])
   # pylint: disable=protected-access
   wrapper._argspec_fn = fn
   # pylint: enable=protected-access
