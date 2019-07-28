@@ -26,6 +26,7 @@ from __future__ import print_function
 
 import collections
 import threading
+from typing import Union
 
 import pydot
 
@@ -37,9 +38,10 @@ class PipelineGraph(object):
   """Creates a DOT representation of the pipeline. Thread-safe."""
 
   def __init__(self,
-               pipeline,
+               pipeline,  # type: Union[beam_runner_api_pb2.Pipeline, beam.Pipeline]
                default_vertex_attrs=None,
-               default_edge_attrs=None):
+               default_edge_attrs=None
+               ):
     """Constructor of PipelineGraph.
 
     Examples:
@@ -57,7 +59,7 @@ class PipelineGraph(object):
       default_edge_attrs: (Dict[str, str]) a dict of default edge attributes
     """
     self._lock = threading.Lock()
-    self._graph = None
+    self._graph = None  # type: pydot.Dot
 
     if isinstance(pipeline, beam_runner_api_pb2.Pipeline):
       self._pipeline_proto = pipeline
@@ -93,6 +95,7 @@ class PipelineGraph(object):
                           default_edge_attrs)
 
   def get_dot(self):
+    # type: () -> str
     return self._get_graph().to_string()
 
   def _top_level_transforms(self):

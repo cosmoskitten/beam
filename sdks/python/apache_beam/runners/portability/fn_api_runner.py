@@ -31,9 +31,16 @@ import subprocess
 import sys
 import threading
 import time
+import typing
 import uuid
 from builtins import object
 from concurrent import futures
+from typing import Any
+from typing import Callable
+from typing import Dict
+from typing import Optional
+from typing import Tuple
+from typing import Union
 
 import grpc
 
@@ -73,6 +80,15 @@ from apache_beam.transforms import trigger
 from apache_beam.transforms.window import GlobalWindows
 from apache_beam.utils import profiler
 from apache_beam.utils import proto_utils
+
+if typing.TYPE_CHECKING:
+  from google.protobuf import message
+  from apache_beam.runners.portability import fn_api_runner
+
+ConstructorFn = Callable[[Union['message.Message', bytes],
+                          'FnApiRunner.StateServicer',
+                          Optional['fn_api_runner.ExtendedProvisionInfo']],
+                         Any]
 
 # This module is experimental. No backwards-compatibility guarantees.
 
@@ -944,7 +960,7 @@ class WorkerHandler(object):
   it.
   """
 
-  _registered_environments = {}
+  _registered_environments = {}  # type: Dict[str, Tuple[ConstructorFn, Optional[message.Message]]]
 
   def __init__(
       self, control_handler, data_plane_handler, state, provision_info):

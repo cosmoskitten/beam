@@ -29,11 +29,21 @@ This module is experimental. No backwards-compatibility guarantees.
 
 from __future__ import absolute_import
 
+import typing
 from builtins import object
+from typing import Generic
+from typing import Iterable
+from typing import Optional
+from typing import TypeVar
 
 from apache_beam.utils.timestamp import MAX_TIMESTAMP
 from apache_beam.utils.timestamp import MIN_TIMESTAMP
 from apache_beam.utils.timestamp import Timestamp
+
+if typing.TYPE_CHECKING:
+  from apache_beam.transforms.window import BoundedWindow
+
+T = TypeVar('T')
 
 
 class PaneInfoTiming(object):
@@ -155,7 +165,7 @@ _BYTE_TO_PANE_INFO = _construct_well_known_pane_infos()
 PANE_INFO_UNKNOWN = _BYTE_TO_PANE_INFO[0xF]
 
 
-class WindowedValue(object):
+class WindowedValue(Generic[T]):
   """A windowed value having a value, a timestamp and set of windows.
 
   Attributes:
@@ -168,7 +178,12 @@ class WindowedValue(object):
       PANE_INFO_UNKNOWN.
   """
 
-  def __init__(self, value, timestamp, windows, pane_info=PANE_INFO_UNKNOWN):
+  def __init__(self,
+               value,  # type: T
+               timestamp,  # type: Timestamp
+               windows,  # type: Iterable[BoundedWindow]
+               pane_info=PANE_INFO_UNKNOWN
+              ):
     # For performance reasons, only timestamp_micros is stored by default
     # (as a C int). The Timestamp object is created on demand below.
     self.value = value
@@ -176,13 +191,14 @@ class WindowedValue(object):
       self.timestamp_micros = timestamp * 1000000
     else:
       self.timestamp_object = (timestamp if isinstance(timestamp, Timestamp)
-                               else Timestamp.of(timestamp))
+    else Timestamp.of(timestamp))  # type: Optional[Timestamp]
       self.timestamp_micros = self.timestamp_object.micros
     self.windows = windows
     self.pane_info = pane_info
 
   @property
   def timestamp(self):
+    # type: () -> Timestamp
     if self.timestamp_object is None:
       self.timestamp_object = Timestamp(0, self.timestamp_micros)
     return self.timestamp_object
@@ -237,6 +253,7 @@ def create(value, timestamp_micros, windows, pane_info=PANE_INFO_UNKNOWN):
 
 
 try:
+  # FIXME: for review: why not add this as a class attribute?
   WindowedValue.timestamp_object = None
 except TypeError:
   # When we're compiled, we can't dynamically add attributes to

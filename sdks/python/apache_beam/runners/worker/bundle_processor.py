@@ -30,6 +30,7 @@ import re
 import threading
 from builtins import next
 from builtins import object
+from typing import Callable
 
 from future.utils import itervalues
 from google.protobuf import timestamp_pb2
@@ -781,7 +782,9 @@ class BeamTransformFactory(object):
 
   @classmethod
   def register_urn(cls, urn, parameter_type):
+    # type: (...) -> Callable[[Callable], Callable]
     def wrapper(func):
+      # type: (Callable) -> Callable
       cls._known_urns[urn] = func, parameter_type
       return func
     return wrapper
@@ -857,7 +860,7 @@ class TimerConsumer(operations.Operation):
 
 @BeamTransformFactory.register_urn(
     DATA_INPUT_URN, beam_fn_api_pb2.RemoteGrpcPort)
-def create(factory, transform_id, transform_proto, grpc_port, consumers):
+def create_source_runner(factory, transform_id, transform_proto, grpc_port, consumers):
   # Timers are the one special case where we don't want to call the
   # (unlabeled) operation.process() method, which we detect here.
   # TODO(robertwb): Consider generalizing if there are any more cases.
@@ -892,7 +895,7 @@ def create(factory, transform_id, transform_proto, grpc_port, consumers):
 
 @BeamTransformFactory.register_urn(
     DATA_OUTPUT_URN, beam_fn_api_pb2.RemoteGrpcPort)
-def create(factory, transform_id, transform_proto, grpc_port, consumers):
+def create_sink_runner(factory, transform_id, transform_proto, grpc_port, consumers):
   if grpc_port.coder_id:
     output_coder = factory.get_coder(grpc_port.coder_id)
   else:
@@ -913,7 +916,7 @@ def create(factory, transform_id, transform_proto, grpc_port, consumers):
 
 
 @BeamTransformFactory.register_urn(OLD_DATAFLOW_RUNNER_HARNESS_READ_URN, None)
-def create(factory, transform_id, transform_proto, parameter, consumers):
+def create_source_java(factory, transform_id, transform_proto, parameter, consumers):
   # The Dataflow runner harness strips the base64 encoding.
   source = pickler.loads(base64.b64encode(parameter))
   spec = operation_specs.WorkerRead(
@@ -948,7 +951,7 @@ def create(factory, transform_id, transform_proto, parameter, consumers):
 
 @BeamTransformFactory.register_urn(
     python_urns.IMPULSE_READ_TRANSFORM, beam_runner_api_pb2.ReadPayload)
-def create(factory, transform_id, transform_proto, parameter, consumers):
+def create_read_from_impulse_python(factory, transform_id, transform_proto, parameter, consumers):
   return operations.ImpulseReadOperation(
       transform_proto.unique_name,
       factory.counter_factory,
@@ -960,7 +963,7 @@ def create(factory, transform_id, transform_proto, parameter, consumers):
 
 
 @BeamTransformFactory.register_urn(OLD_DATAFLOW_RUNNER_HARNESS_PARDO_URN, None)
-def create(factory, transform_id, transform_proto, serialized_fn, consumers):
+def create_dofn_javasdk(factory, transform_id, transform_proto, serialized_fn, consumers):
   return _create_pardo_operation(
       factory, transform_id, transform_proto, consumers, serialized_fn)
 

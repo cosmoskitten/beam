@@ -52,8 +52,11 @@ import os
 import re
 import shutil
 import tempfile
+import typing
 from builtins import object
 from builtins import zip
+from typing import Dict
+from typing import Union
 
 from future.utils import with_metaclass
 
@@ -76,6 +79,9 @@ from apache_beam.transforms import ptransform
 from apache_beam.typehints import TypeCheckError
 from apache_beam.typehints import typehints
 from apache_beam.utils.annotations import deprecated
+
+if typing.TYPE_CHECKING:
+  from apache_beam.portability.api import beam_runner_api_pb2
 
 __all__ = ['Pipeline', 'PTransformOverride']
 
@@ -610,6 +616,7 @@ class Pipeline(object):
   def to_runner_api(
       self, return_context=False, context=None, use_fake_coders=False,
       default_environment=None):
+    # type: (...) -> beam_runner_api_pb2.Pipeline
     """For internal use only; no backwards-compatibility guarantees."""
     from apache_beam.runners import pipeline_context
     from apache_beam.portability.api import beam_runner_api_pb2
@@ -660,7 +667,7 @@ class Pipeline(object):
     proto.components.transforms[root_transform_id].unique_name = (
         root_transform_id)
     if return_context:
-      return proto, context
+      return proto, context  # type: ignore  # too complicated for now
     else:
       return proto
 
@@ -694,7 +701,7 @@ class Pipeline(object):
         transform.inputs = (pvalue.PBegin(p),)
 
     if return_context:
-      return p, context
+      return p, context  # type: ignore  # too complicated for now
     else:
       return p
 
@@ -736,7 +743,12 @@ class AppliedPTransform(object):
   (used internally by Pipeline for bookeeping purposes).
   """
 
-  def __init__(self, parent, transform, full_label, inputs):
+  def __init__(self,
+               parent,
+               transform,  # type: ptransform.PTransform
+               full_label,
+               inputs
+               ):
     self.parent = parent
     self.transform = transform
     # Note that we want the PipelineVisitor classes to use the full_label,
@@ -747,7 +759,7 @@ class AppliedPTransform(object):
     self.full_label = full_label
     self.inputs = inputs or ()
     self.side_inputs = () if transform is None else tuple(transform.side_inputs)
-    self.outputs = {}
+    self.outputs = {}  # type: Dict[Union[str, int, None], pvalue.PValue]
     self.parts = []
 
   def __repr__(self):
@@ -768,7 +780,11 @@ class AppliedPTransform(object):
     else:
       raise TypeError("Unexpected output type: %s" % output)
 
-  def add_output(self, output, tag=None):
+  def add_output(self,
+                 output,  # type: Union[pvalue.DoOutputsTuple, pvalue.PValue]
+                 tag=None  # type: Union[str, int, None]
+                 ):
+    # type: (...) -> None
     if isinstance(output, pvalue.DoOutputsTuple):
       self.add_output(output[output._main_tag])
     elif isinstance(output, pvalue.PValue):

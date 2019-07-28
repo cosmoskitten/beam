@@ -31,6 +31,14 @@ import itertools
 import typing
 from builtins import hex
 from builtins import object
+from typing import Any
+from typing import Dict
+from typing import Generic
+from typing import Iterator
+from typing import Optional
+from typing import Sequence
+from typing import TypeVar
+from typing import Union
 
 from past.builtins import unicode
 
@@ -39,6 +47,11 @@ from apache_beam.internal import pickler
 from apache_beam.portability import common_urns
 from apache_beam.portability import python_urns
 from apache_beam.portability.api import beam_runner_api_pb2
+
+if typing.TYPE_CHECKING:
+    from apache_beam.transforms.ptransform import PTransform
+    from apache_beam.transforms.core import Windowing, ParDo
+    from apache_beam.pipeline import Pipeline, AppliedPTransform
 
 __all__ = [
     'PCollection',
@@ -50,8 +63,12 @@ __all__ = [
     'EmptySideInput',
 ]
 
+T = TypeVar('T')
+OutT = TypeVar('OutT')
+InT = TypeVar('InT')
 
-class PValue(object):
+
+class PValue(Generic[T]):
   """Base class for PCollection.
 
   Dataflow users should not construct PValue objects directly in their
@@ -63,7 +80,12 @@ class PValue(object):
     (3) Has a value which is meaningful if the transform was executed.
   """
 
-  def __init__(self, pipeline, tag=None, element_type=None, windowing=None):
+  def __init__(self,
+               pipeline,  # type: Pipeline
+               tag=None,  # type: Optional[str]
+               element_type=None,  # this should eventually be Optional[T]
+               windowing=None  # type: Optional[Windowing]
+               ):
     """Initializes a PValue with all arguments hidden behind keyword arguments.
 
     Args:
@@ -77,7 +99,7 @@ class PValue(object):
     # The AppliedPTransform instance for the application of the PTransform
     # generating this PValue. The field gets initialized when a transform
     # gets applied.
-    self.producer = None
+    self.producer = None  # type: Optional[AppliedPTransform]
     if windowing:
       self._windowing = windowing
 
@@ -107,11 +129,13 @@ class PValue(object):
     arglist.insert(1, self)
     return self.pipeline.apply(*arglist, **kwargs)
 
+  # use InT instead of T, to preserve the TypeVar for the plugin
   def __or__(self, ptransform):
+    # type: (PTransform[InT, OutT]) -> PCollection[OutT]
     return self.pipeline.apply(ptransform, self)
 
 
-class PCollection(PValue, typing.Generic[typing.TypeVar('T')]):
+class PCollection(PValue[T]):
   """A multiple values (potentially huge) container.
 
   Dataflow users should not construct PCollection objects directly in their
@@ -172,7 +196,7 @@ class _InvalidUnpickledPCollection(object):
   pass
 
 
-class PBegin(PValue):
+class PBeginType(object):
   """A pipeline begin marker used as input to create/read transforms.
 
   The class is used internally to represent inputs to Create and Read
@@ -182,16 +206,27 @@ class PBegin(PValue):
   pass
 
 
-class PDone(PValue):
+PBegin = PValue[PBeginType]
+
+
+class PDoneType(object):
   """PDone is the output of a transform that has a trivial result such as Write.
   """
   pass
 
 
+PDone = PValue[PDoneType]
+
+
 class DoOutputsTuple(object):
   """An object grouping the multiple outputs of a ParDo or FlatMap transform."""
 
-  def __init__(self, pipeline, transform, tags, main_tag):
+  def __init__(self,
+               pipeline,  # type: Pipeline
+               transform,  # type: ParDo
+               tags,  # type: Sequence[str]
+               main_tag  # type: Optional[str]
+               ):
     self._pipeline = pipeline
     self._tags = tags
     self._main_tag = main_tag
@@ -199,9 +234,9 @@ class DoOutputsTuple(object):
     # The ApplyPTransform instance for the application of the multi FlatMap
     # generating this value. The field gets initialized when a transform
     # gets applied.
-    self.producer = None
+    self.producer = None  # type: Optional[AppliedPTransform]
     # Dictionary of PCollections already associated with tags.
-    self._pcolls = {}
+    self._pcolls = {}  # type: Dict[Optional[str], PCollection]
 
   def __str__(self):
     return '<%s>' % self._str_internal()
@@ -214,6 +249,7 @@ class DoOutputsTuple(object):
         self.__class__.__name__, self._main_tag, self._tags, self._transform)
 
   def __iter__(self):
+    # type: () -> Iterator[PCollection]
     """Iterates over tags returning for each call a (tag, pvalue) pair."""
     if self._main_tag is not None:
       yield self[self._main_tag]
@@ -228,6 +264,7 @@ class DoOutputsTuple(object):
     return self[tag]
 
   def __getitem__(self, tag):
+    # type: (Union[int, str, None]) -> PCollection
     # Accept int tags so that we can look at Partition tags with the
     # same ints that we used in the partition function.
     # TODO(gildea): Consider requiring string-based tags everywhere.
@@ -245,6 +282,7 @@ class DoOutputsTuple(object):
     if tag in self._pcolls:
       return self._pcolls[tag]
 
+    assert self.producer is not None
     if tag is not None:
       self._transform.output_tags.add(tag)
       pcoll = PCollection(self._pipeline, tag=tag)
@@ -263,7 +301,7 @@ class DoOutputsTuple(object):
     return pcoll
 
 
-class TaggedOutput(object):
+class TaggedOutput(Generic[T]):
   """An object representing a tagged value.
 
   ParDo, Map, and FlatMap transforms can emit values on multiple outputs which
@@ -273,6 +311,7 @@ class TaggedOutput(object):
   """
 
   def __init__(self, tag, value):
+    # type: (str, T) -> None
     if not isinstance(tag, (str, unicode)):
       raise TypeError(
           'Attempting to create a TaggedOutput with non-string tag %s' % (tag,))
@@ -292,6 +331,7 @@ class AsSideInput(object):
   """
 
   def __init__(self, pcoll):
+    # type: (PCollection) -> None
     from apache_beam.transforms import sideinputs
     self.pvalue = pcoll
     self._window_mapping_fn = sideinputs.default_window_mapping_fn(
@@ -405,6 +445,7 @@ class AsSingleton(AsSideInput):
   _NO_DEFAULT = object()
 
   def __init__(self, pcoll, default_value=_NO_DEFAULT):
+    # type: (PCollection, Any) -> None
     super(AsSingleton, self).__init__(pcoll)
     self.default_value = default_value
 

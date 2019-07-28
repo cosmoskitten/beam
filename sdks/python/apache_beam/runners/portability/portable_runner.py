@@ -27,7 +27,9 @@ import subprocess
 import sys
 import threading
 import time
+import typing
 from concurrent import futures
+from typing import Any
 
 import grpc
 
@@ -49,6 +51,9 @@ from apache_beam.runners.portability import job_server
 from apache_beam.runners.portability import portable_stager
 from apache_beam.runners.worker import sdk_worker
 from apache_beam.runners.worker import sdk_worker_main
+
+if typing.TYPE_CHECKING:
+  from apache_beam.pipeline import Pipeline
 
 __all__ = ['PortableRunner']
 
@@ -110,6 +115,7 @@ class PortableRunner(runner.PipelineRunner):
 
   @staticmethod
   def _create_environment(options):
+    # type: (...) -> beam_runner_api_pb2.Environment
     portable_options = options.view_as(PortableOptions)
     environment_urn = common_urns.environments.DOCKER.urn
     if portable_options.environment_type == 'DOCKER':
@@ -142,7 +148,7 @@ class PortableRunner(runner.PipelineRunner):
               os=(config.get('os') or ''),
               arch=(config.get('arch') or ''),
               command=config.get('command'),
-              env=(config.get('env') or '')
+              env=(config.get('env'))
           ).SerializeToString())
     elif environment_urn == common_urns.environments.EXTERNAL.urn:
       return beam_runner_api_pb2.Environment(
@@ -177,6 +183,7 @@ class PortableRunner(runner.PipelineRunner):
     return server.start()
 
   def run_pipeline(self, pipeline, options):
+    # type: (Pipeline, Any) -> PipelineResult
     portable_options = options.view_as(PortableOptions)
 
     # TODO: https://issues.apache.org/jira/browse/BEAM-5525

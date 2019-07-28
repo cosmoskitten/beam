@@ -32,6 +32,8 @@ import traceback
 from builtins import object
 from builtins import range
 from concurrent import futures
+from typing import Dict
+from typing import Optional
 
 import grpc
 from future.utils import raise_
@@ -80,7 +82,7 @@ class SdkHarness(object):
         data_channel_factory=self._data_channel_factory,
         fns=self._fns)
     # workers for process/finalize bundle.
-    self.workers = queue.Queue()
+    self.workers = queue.Queue()  # type: queue.Queue[SdkWorker]
     # one worker for progress/split request.
     self.progress_worker = SdkWorker(self._bundle_processor_cache,
                                      profiler_factory=self._profiler_factory)
@@ -330,7 +332,10 @@ class BundleProcessorCache(object):
 
 class SdkWorker(object):
 
-  def __init__(self, bundle_processor_cache, profiler_factory=None):
+  def __init__(self,
+               bundle_processor_cache,  # type: BundleProcessorCache
+               profiler_factory=None
+               ):
     self.bundle_processor_cache = bundle_processor_cache
     self.profiler_factory = profiler_factory
 
@@ -526,10 +531,11 @@ class GrpcStateHandler(object):
   _DONE = object()
 
   def __init__(self, state_stub):
+    # type: (beam_fn_api_pb2_grpc.BeamFnStateStub) -> None
     self._lock = threading.Lock()
     self._state_stub = state_stub
-    self._requests = queue.Queue()
-    self._responses_by_id = {}
+    self._requests = queue.Queue()  # type: queue.Queue[beam_fn_api_pb2.StateRequest]
+    self._responses_by_id = {}  # type: Dict[str, _Future]
     self._last_id = 0
     self._exc_info = None
     self._context = threading.local()
@@ -591,12 +597,14 @@ class GrpcStateHandler(object):
             append=beam_fn_api_pb2.StateAppendRequest(data=data)))
 
   def blocking_clear(self, state_key):
+    # type: (Optional[beam_fn_api_pb2.StateKey]) -> None
     self._blocking_request(
         beam_fn_api_pb2.StateRequest(
             state_key=state_key,
             clear=beam_fn_api_pb2.StateClearRequest()))
 
   def _blocking_request(self, request):
+    # type: (beam_fn_api_pb2.StateRequest) -> beam_fn_api_pb2.StateResponse
     request.id = self._next_id()
     request.instruction_reference = self._context.process_instruction_id
     self._responses_by_id[request.id] = future = _Future()
@@ -615,6 +623,7 @@ class GrpcStateHandler(object):
       return response
 
   def _next_id(self):
+    # type: () -> str
     self._last_id += 1
     return str(self._last_id)
 

@@ -23,6 +23,14 @@ For internal use only; no backwards-compatibility guarantees.
 from __future__ import absolute_import
 
 from builtins import object
+import typing
+from typing import Any
+from typing import Dict
+from typing import Generic
+from typing import Optional
+from typing import Type
+from typing import TypeVar
+from typing_extensions import Protocol
 
 from apache_beam import coders
 from apache_beam import pipeline
@@ -32,6 +40,24 @@ from apache_beam.portability.api import beam_fn_api_pb2
 from apache_beam.portability.api import beam_runner_api_pb2
 from apache_beam.transforms import core
 from apache_beam.typehints import native_type_compatibility
+
+if typing.TYPE_CHECKING:
+  from google.protobuf import message
+
+
+class PortableObject(Protocol):
+  def to_runner_api(self, __context):
+    # type: (PipelineContext) -> Any
+    pass
+
+  @classmethod
+  def from_runner_api(cls, __proto, __context):
+    # type: (message.Message, PipelineContext) -> Any
+    pass
+
+
+T = TypeVar('T')
+PortableObjectT = TypeVar('PortableObjectT', bound=PortableObject)
 
 
 class Environment(object):
@@ -50,18 +76,23 @@ class Environment(object):
     return Environment(proto)
 
 
-class _PipelineContextMap(object):
+class _PipelineContextMap(Generic[PortableObjectT]):
   """This is a bi-directional map between objects and ids.
 
   Under the hood it encodes and decodes these objects into runner API
   representations.
   """
-  def __init__(self, context, obj_type, namespace, proto_map=None):
+  def __init__(self,
+               context,  # type: PipelineContext
+               obj_type,  # type: Type[PortableObjectT]
+               namespace,  # type: str
+               proto_map=None
+               ):
     self._pipeline_context = context
     self._obj_type = obj_type
     self._namespace = namespace
-    self._obj_to_id = {}
-    self._id_to_obj = {}
+    self._obj_to_id = {}  # type: Dict[PortableObjectT, str]
+    self._id_to_obj = {}  # type: Dict[str, PortableObjectT]
     self._id_to_proto = dict(proto_map) if proto_map else {}
     self._counter = 0
 
@@ -78,6 +109,7 @@ class _PipelineContextMap(object):
       proto_map[id].CopyFrom(proto)
 
   def get_id(self, obj, label=None):
+    # type: (PortableObjectT, Optional[str]) -> str
     if obj not in self._obj_to_id:
       id = self._unique_ref(obj, label)
       self._id_to_obj[id] = obj
@@ -127,6 +159,12 @@ class PipelineContext(object):
       'windowing_strategies': core.Windowing,
       'environments': Environment,
   }
+
+  transforms = None  # type: _PipelineContextMap[pipeline.AppliedPTransform]
+  pcollections = None  # type: _PipelineContextMap[pvalue.PCollection]
+  coders = None  # type: _PipelineContextMap[coders.Coder]
+  windowing_strategies = None  # type: _PipelineContextMap[core.Windowing]
+  environments = None  # type: _PipelineContextMap[Environment]
 
   def __init__(
       self, proto=None, default_environment=None, use_fake_coders=False,

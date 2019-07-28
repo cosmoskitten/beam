@@ -30,6 +30,7 @@ from builtins import zip
 from typing import Any
 from typing import Dict
 from typing import Iterable
+from typing import Iterator
 from typing import List
 from typing import Tuple
 from typing import TypeVar
@@ -82,10 +83,10 @@ class Mean(object):
 
 
 # TODO(laolu): This type signature is overly restrictive. This should be
-# more general.
+# more general.  consider typing.SupportsFloat
 @with_input_types(Union[float, int, long])
 @with_output_types(float)
-class MeanCombineFn(core.CombineFn):
+class MeanCombineFn(core.CombineFn[Union[float, int, long], float]):
   """CombineFn for computing an arithmetic mean."""
 
   def create_accumulator(self):
@@ -141,7 +142,7 @@ class Count(object):
 
 @with_input_types(Any)
 @with_output_types(int)
-class CountCombineFn(core.CombineFn):
+class CountCombineFn(core.CombineFn[Any, int]):
   """CombineFn for computing PCollection size."""
 
   def create_accumulator(self):
@@ -217,10 +218,12 @@ class Top(object):
       self._py2__init__(n, None, **kwargs)
 
     # Python 3 sort does not accept a comparison operator, and nor do we.
+    # FIXME: mypy would handle this better if we placed the _py*__init__ funcs
+    #  inside the if/else block below:
     if sys.version_info[0] < 3:
-      __init__ = _py2__init__
+      __init__ = _py2__init__  # type: ignore
     else:
-      __init__ = _py3__init__
+      __init__ = _py3__init__  # type: ignore
 
     def default_label(self):
       return 'Top(%d)' % self._n
@@ -305,9 +308,9 @@ class Top(object):
 
     # Python 3 sort does not accept a comparison operator, and nor do we.
     if sys.version_info[0] < 3:
-      __init__ = _py2__init__
+      __init__ = _py2__init__  # type: ignore
     else:
-      __init__ = _py3__init__
+      __init__ = _py3__init__  # type: ignore
 
     def default_label(self):
       return 'TopPerKey(%d)' % self._n
@@ -355,7 +358,7 @@ class Top(object):
 
 @with_input_types(T)
 @with_output_types(Tuple[None, List[T]])
-class _TopPerBundle(core.DoFn):
+class _TopPerBundle(core.DoFn[T, Tuple[None, List[T]]]):
   def __init__(self, n, less_than, key):
     self._n = n
     self._less_than = None if less_than is operator.le else less_than
@@ -391,13 +394,15 @@ class _TopPerBundle(core.DoFn):
 
 @with_input_types(Tuple[None, Iterable[List[T]]])
 @with_output_types(List[T])
-class _MergeTopPerBundle(core.DoFn):
+class _MergeTopPerBundle(core.DoFn[Tuple[None, Iterable[List[T]]],
+                                   List[T]]):
   def __init__(self, n, less_than, key):
     self._n = n
     self._less_than = None if less_than is operator.lt else less_than
     self._key = key
 
   def process(self, key_and_bundles):
+    # type: (Tuple[None, Iterable[List[T]]]) -> Iterator[List[T]]
     _, bundles = key_and_bundles
     heap = []
     for bundle in bundles:
@@ -431,7 +436,7 @@ class _MergeTopPerBundle(core.DoFn):
 
 @with_input_types(T)
 @with_output_types(List[T])
-class TopCombineFn(core.CombineFn):
+class TopCombineFn(core.CombineFn[T, List[T]]):
   """CombineFn doing the combining for all of the Top transforms.
 
   This CombineFn uses a key or comparison operator to rank the elements.
@@ -645,7 +650,7 @@ class Sample(object):
 
 @with_input_types(T)
 @with_output_types(List[T])
-class SampleCombineFn(core.CombineFn):
+class SampleCombineFn(core.CombineFn[T, List[T]]):
   """CombineFn for all Sample transforms."""
 
   def __init__(self, n):
@@ -743,7 +748,7 @@ class ToList(ptransform.PTransform):
 
 @with_input_types(T)
 @with_output_types(List[T])
-class ToListCombineFn(core.CombineFn):
+class ToListCombineFn(core.CombineFn[T, List[T]]):
   """CombineFn for to_list."""
 
   def create_accumulator(self):
@@ -777,7 +782,7 @@ class ToDict(ptransform.PTransform):
 
 @with_input_types(Tuple[K, V])
 @with_output_types(Dict[K, V])
-class ToDictCombineFn(core.CombineFn):
+class ToDictCombineFn(core.CombineFn[Tuple[K, V], Dict[K, V]]):
   """CombineFn for to_dict."""
 
   def create_accumulator(self):
@@ -869,7 +874,7 @@ class Latest(object):
 
   @with_input_types(T)
   @with_output_types(T)
-  class Globally(ptransform.PTransform):
+  class Globally(ptransform.PTransform[T, T]):
     """Compute the element with the latest timestamp from a
     PCollection."""
 
@@ -885,7 +890,7 @@ class Latest(object):
 
   @with_input_types(Tuple[K, V])
   @with_output_types(Tuple[K, V])
-  class PerKey(ptransform.PTransform):
+  class PerKey(ptransform.PTransform[Tuple[K, V], Tuple[K, V]]):
     """Compute elements with the latest timestamp for each key
     from a keyed PCollection"""
 
@@ -903,7 +908,7 @@ class Latest(object):
 
 @with_input_types(Tuple[T, TimestampType])
 @with_output_types(T)
-class LatestCombineFn(core.CombineFn):
+class LatestCombineFn(core.CombineFn[Tuple[T, TimestampType], T]):
   """CombineFn to get the element with the latest timestamp
   from a PCollection."""
 

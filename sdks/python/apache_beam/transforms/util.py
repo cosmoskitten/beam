@@ -63,6 +63,9 @@ from apache_beam.utils import windowed_value
 from apache_beam.utils.annotations import deprecated
 from apache_beam.utils.annotations import experimental
 
+if typing.TYPE_CHECKING:
+  from apache_beam import pvalue
+
 __all__ = [
     'BatchElements',
     'CoGroupByKey',
@@ -81,6 +84,10 @@ __all__ = [
 K = typing.TypeVar('K')
 V = typing.TypeVar('V')
 T = typing.TypeVar('T')
+
+T_ = typing.TypeVar('T_')
+InT = typing.TypeVar('InT')
+OutT = typing.TypeVar('OutT')
 
 
 class CoGroupByKey(PTransform):
@@ -482,7 +489,7 @@ class _WindowAwareBatchingDoFn(DoFn):
 
 @typehints.with_input_types(T)
 @typehints.with_output_types(typing.List[T])
-class BatchElements(PTransform):
+class BatchElements(PTransform[InT, typing.List[OutT]]):
   """A Transform that batches elements for amortized processing.
 
   This transform is designed to precede operations whose processing cost
@@ -644,7 +651,7 @@ class ReshufflePerKey(PTransform):
 
 @typehints.with_input_types(T)
 @typehints.with_output_types(T)
-class Reshuffle(PTransform):
+class Reshuffle(PTransform[T_, T_]):
   """PTransform that returns a PCollection equivalent to its input,
   but operationally provides some of the side effects of a GroupByKey,
   in particular preventing fusion of the surrounding transforms,
@@ -657,6 +664,8 @@ class Reshuffle(PTransform):
   """
 
   def expand(self, pcoll):
+    # type: (pvalue.PValue[T_]) -> pvalue.PCollection[T_]
+    # FIXME: mypy plugin causing mypy to crash here:
     return (pcoll
             | 'AddRandomKeys' >> Map(lambda t: (random.getrandbits(32), t))
             | ReshufflePerKey()

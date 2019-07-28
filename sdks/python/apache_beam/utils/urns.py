@@ -21,13 +21,27 @@ from __future__ import absolute_import
 
 import abc
 import inspect
+import typing
 from builtins import object
+from typing import Any
+from typing import Dict
+from typing import Callable
+from typing import Optional
+from typing import Type
+from typing import Tuple
+from typing import Union
 
 from google.protobuf import message
 from google.protobuf import wrappers_pb2
 
 from apache_beam.internal import pickler
 from apache_beam.utils import proto_utils
+
+if typing.TYPE_CHECKING:
+  from apache_beam.portability.api import beam_runner_api_pb2
+  from apache_beam.runners.pipeline_context import PipelineContext
+
+ConstructorFn = Callable[[Union['message.Message', bytes], 'PipelineContext'], Any]
 
 
 class RunnerApiFn(object):
@@ -44,10 +58,10 @@ class RunnerApiFn(object):
   # TODO(BEAM-2685): Issue with dill + local classes + abc metaclass
   # __metaclass__ = abc.ABCMeta
 
-  _known_urns = {}
+  _known_urns = {}  # type: Dict[str, Tuple[Optional[Type[message.Message]], ConstructorFn]]
 
-  @abc.abstractmethod
   def to_runner_api_parameter(self, unused_context):
+    # type: (PipelineContext) -> Tuple[str, Any]
     """Returns the urn and payload for this Fn.
 
     The returned urn(s) should be registered with `register_urn`.
@@ -55,7 +69,11 @@ class RunnerApiFn(object):
     pass
 
   @classmethod
-  def register_urn(cls, urn, parameter_type, fn=None):
+  def register_urn(cls,
+                   urn,  # type: str
+                   parameter_type,  # type: Optional[Union[Type[message.Message], Type[bytes]]]
+                   fn=None  # type: Optional[ConstructorFn]
+                  ):
     """Registers a urn with a constructor.
 
     For example, if 'beam:fn:foo' had parameter type FooPayload, one could
@@ -90,6 +108,7 @@ class RunnerApiFn(object):
         lambda proto, unused_context: pickler.loads(proto.value))
 
   def to_runner_api(self, context):
+    # type: (PipelineContext) -> beam_runner_api_pb2.SdkFunctionSpec
     """Returns an SdkFunctionSpec encoding this Fn.
 
     Prefer overriding self.to_runner_api_parameter.
@@ -106,6 +125,7 @@ class RunnerApiFn(object):
 
   @classmethod
   def from_runner_api(cls, fn_proto, context):
+    # type: (beam_runner_api_pb2.SdkFunctionSpec, PipelineContext) -> Any
     """Converts from an SdkFunctionSpec to a Fn object.
 
     Prefer registering a urn with its parameter type and constructor.

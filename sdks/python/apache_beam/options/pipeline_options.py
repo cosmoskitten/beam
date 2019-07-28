@@ -24,6 +24,9 @@ import json
 import logging
 from builtins import list
 from builtins import object
+from typing import Any
+from typing import Dict
+from typing import List
 
 from apache_beam.options.value_provider import RuntimeValueProvider
 from apache_beam.options.value_provider import StaticValueProvider
@@ -891,7 +894,7 @@ class OptionsContext(object):
 
   Can also be used as a decorator.
   """
-  overrides = []
+  overrides = []  # type: List[Dict[str, Any]]
 
   def __init__(self, **options):
     self.options = options

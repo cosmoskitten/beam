@@ -26,6 +26,8 @@ from __future__ import absolute_import
 
 import re
 from builtins import object
+from typing import Optional
+from typing import Union
 
 from future.utils import iteritems
 from past.builtins import unicode
@@ -121,6 +123,7 @@ class PubsubMessage(object):
 
   @staticmethod
   def _from_message(msg):
+    # type: () -> PubsubMessage
     """Construct from ``google.cloud.pubsub_v1.subscriber.message.Message``.
 
     https://googleapis.github.io/google-cloud-python/latest/pubsub/subscriber/api/message.html
@@ -134,8 +137,13 @@ class ReadFromPubSub(PTransform):
   """A ``PTransform`` for reading from Cloud Pub/Sub."""
   # Implementation note: This ``PTransform`` is overridden by Directrunner.
 
-  def __init__(self, topic=None, subscription=None, id_label=None,
-               with_attributes=False, timestamp_attribute=None):
+  def __init__(self,
+               topic=None,  # type: Optional[str]
+               subscription=None,  # type: Optional[str]
+               id_label=None,  # type: Optional[str]
+               with_attributes=False,  # type: bool
+               timestamp_attribute=None  # type: Optional[str]
+               ):
     """Initializes ``ReadFromPubSub``.
 
     Args:
@@ -327,8 +335,13 @@ class _PubSubSource(dataflow_io.NativeSource):
       fetches ``PubsubMessage`` protobufs.
   """
 
-  def __init__(self, topic=None, subscription=None, id_label=None,
-               with_attributes=False, timestamp_attribute=None):
+  def __init__(self,
+               topic=None,  # type: Optional[str]
+               subscription=None,  # type: Optional[str]
+               id_label=None,  # type: Optional[str]
+               with_attributes=False,  # type: bool
+               timestamp_attribute=None  # type: Optional[str]
+               ):
     self.coder = coders.BytesCoder()
     self.full_topic = topic
     self.full_subscription = subscription

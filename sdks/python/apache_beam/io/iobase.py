@@ -39,6 +39,11 @@ import uuid
 from builtins import object
 from builtins import range
 from collections import namedtuple
+from typing import Any
+from typing import Iterator
+from typing import Sequence
+from typing import Tuple
+from typing import TypeVar
 
 from apache_beam import coders
 from apache_beam import pvalue
@@ -59,6 +64,9 @@ from apache_beam.utils.windowed_value import WindowedValue
 __all__ = ['BoundedSource', 'RangeTracker', 'Read', 'RestrictionTracker',
            'Sink', 'Write', 'Writer']
 
+InT = TypeVar('InT')
+OutT = TypeVar('OutT')
+T = TypeVar('T')
 
 # Encapsulates information about a bundle of a source generated when method
 # BoundedSource.split() is invoked.
@@ -833,10 +841,11 @@ class Writer(object):
     raise NotImplementedError
 
 
-class Read(ptransform.PTransform):
+class Read(ptransform.PTransform[pvalue.PBeginType, OutT]):
   """A transform that reads a PCollection."""
 
   def __init__(self, source):
+    # type: (BoundedSource) -> None
     """Initializes a Read transform.
 
     Args:
@@ -856,6 +865,7 @@ class Read(ptransform.PTransform):
     return chunk_size
 
   def expand(self, pbegin):
+    # type: (pvalue.PBegin) -> pvalue.PCollection[OutT]
     from apache_beam.options.pipeline_options import DebugOptions
     from apache_beam.transforms import util
 
@@ -870,14 +880,17 @@ class Read(ptransform.PTransform):
         return source.split(
             self.get_desired_chunk_size(self.source.estimate_size()))
 
+      def read_splits(split):
+        return split.source.read(
+              split.source.get_range_tracker(
+                  split.start_position, split.stop_position))
+
       return (
           pbegin
           | core.Impulse()
           | 'Split' >> core.FlatMap(split_source)
           | util.Reshuffle()
-          | 'ReadSplits' >> core.FlatMap(lambda split: split.source.read(
-              split.source.get_range_tracker(
-                  split.start_position, split.stop_position))))
+          | 'ReadSplits' >> core.FlatMap(read_splits))
     else:
       # Treat Read itself as a primitive.
       return pvalue.PCollection(self.pipeline)
@@ -915,7 +928,7 @@ ptransform.PTransform.register_urn(
     Read.from_runner_api_parameter)
 
 
-class Write(ptransform.PTransform):
+class Write(ptransform.PTransform[InT, None]):
   """A ``PTransform`` that writes to a sink.
 
   A sink should inherit ``iobase.Sink``. Such implementations are
@@ -944,6 +957,7 @@ class Write(ptransform.PTransform):
   """
 
   def __init__(self, sink):
+    # type: (Sink) -> None
     """Initializes a Write transform.
 
     Args:
@@ -957,6 +971,7 @@ class Write(ptransform.PTransform):
             'sink_dd': self.sink}
 
   def expand(self, pcoll):
+    # type: (pvalue.PCollection[InT]) -> pvalue.PCollection[None]
     from apache_beam.runners.dataflow.native_io import iobase as dataflow_io
     if isinstance(self.sink, dataflow_io.NativeSink):
       # A native sink
@@ -972,7 +987,7 @@ class Write(ptransform.PTransform):
                        'or be a PTransform. Received : %r' % self.sink)
 
 
-class WriteImpl(ptransform.PTransform):
+class WriteImpl(ptransform.PTransform[InT, None]):
   """Implements the writing of custom sinks."""
 
   def __init__(self, sink):
@@ -980,6 +995,7 @@ class WriteImpl(ptransform.PTransform):
     self.sink = sink
 
   def expand(self, pcoll):
+    # type: (pvalue.PCollection[InT]) -> pvalue.PCollection[None]
     do_once = pcoll.pipeline | 'DoOnce' >> core.Create([None])
     init_result_coll = do_once | 'InitializeWrite' >> core.Map(
         lambda _, sink: sink.initialize_write(), self.sink)
@@ -1085,7 +1101,7 @@ def _finalize_write(unused_element, sink, init_result, write_results,
         window.TimestampedValue(v, timestamp.MAX_TIMESTAMP) for v in outputs)
 
 
-class _RoundRobinKeyFn(core.DoFn):
+class _RoundRobinKeyFn(core.DoFn[T, T]):
 
   def __init__(self, count):
     self.count = count
@@ -1093,7 +1109,8 @@ class _RoundRobinKeyFn(core.DoFn):
   def start_bundle(self):
     self.counter = random.randint(0, self.count - 1)
 
-  def process(self, element):
+  def process(self, element, *args, **kwargs):
+    # type: (T, *Any, **Any) -> Iterator[Tuple[int, T]]
     self.counter += 1
     if self.counter >= self.count:
       self.counter -= self.count
