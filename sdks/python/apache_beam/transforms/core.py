@@ -109,6 +109,10 @@ __all__ = [
 T = TypeVar('T')
 K = TypeVar('K')
 V = TypeVar('V')
+T1 = TypeVar('T1')
+T2 = TypeVar('T2')
+T3 = TypeVar('T3')
+
 AccumulatorT = TypeVar('AccumulatorT')
 
 
@@ -421,6 +425,12 @@ class _BundleFinalizerParam(_DoFnParam):
     del self._callbacks[:]
 
 
+class DoFnCallable(Protocol[InT, OutT]):
+  def __call__(self, __element):
+    # type: (InT) -> Iterable[OutT]
+    pass
+
+
 class DoFn(WithTypeHints[InT, OutT], HasDisplayData, urns.RunnerApiFn):
   """A function object used by a transform with custom processing.
 
@@ -458,6 +468,7 @@ class DoFn(WithTypeHints[InT, OutT], HasDisplayData, urns.RunnerApiFn):
 
   @staticmethod
   def from_callable(fn):
+    # type: (DoFnCallable[InT, OutT]) -> CallableWrapperDoFn[InT, OutT]
     return CallableWrapperDoFn(fn)
 
   def default_label(self):
@@ -608,7 +619,7 @@ class CallableWrapperDoFn(DoFn[InT, OutT]):
   """
 
   def __init__(self, fn):
-    # type: (Callable[[InT], Iterable[OutT]]) -> None
+    # type: (DoFnCallable[InT, OutT]) -> None
     """Initializes a CallableWrapperDoFn object wrapping a callable.
 
     Args:
@@ -623,13 +634,13 @@ class CallableWrapperDoFn(DoFn[InT, OutT]):
     self._fn = fn
     if isinstance(fn, (
         types.BuiltinFunctionType, types.MethodType, types.FunctionType)):
-      self.process = fn
+      self.process = fn  # type: ignore  # cannot assign to method
     else:
       # For cases such as set / list where fn is callable but not a function
       def process(element):
         # type: (InT) -> Iterable[OutT]
         return fn(element)
-      self.process = process  # type: ignore  # this would be ok if we added *arg, **kwargs to process
+      self.process = process  # type: ignore  # cannot assign to method
 
     super(CallableWrapperDoFn, self).__init__()
 
@@ -856,7 +867,13 @@ class _ReiterableChain(object):
     return False
 
 
-class CallableWrapperCombineFn(CombineFn[T, T]):
+class CombineFnCallable(Protocol[T]):
+  def __call__(self, __element):
+    # type: (Iterable[T]) -> T
+    pass
+
+
+class CallableWrapperCombineFn(CombineFn[T, T, List[T]]):
   """For internal use only; no backwards-compatibility guarantees.
 
   A CombineFn (function) object wrapping a callable object.
@@ -867,7 +884,7 @@ class CallableWrapperCombineFn(CombineFn[T, T]):
   _DEFAULT_BUFFER_SIZE = 10
 
   def __init__(self, fn, buffer_size=_DEFAULT_BUFFER_SIZE):
-    # type: (Callable[[Iterable[T]], T], int) -> None
+    # type: (CombineFnCallable[T], int) -> None
     """Initializes a CallableFn object wrapping a callable.
 
     Args:
@@ -896,17 +913,19 @@ class CallableWrapperCombineFn(CombineFn[T, T]):
     # type: (*Any, **Any) -> List[T]
     return []
 
-  def add_input(self, accumulator, element, *args, **kwargs):
-    accumulator.append(element)
-    if len(accumulator) > self._buffer_size:
-      accumulator = [self._fn(accumulator, *args, **kwargs)]
-    return accumulator
+  def add_input(self, mutable_accumulator, element, *args, **kwargs):
+    # type: (List[T], T, *Any, **Any) -> List[T]
+    mutable_accumulator.append(element)
+    if len(mutable_accumulator) > self._buffer_size:
+      accumulator = [self._fn(mutable_accumulator, *args, **kwargs)]
+    return mutable_accumulator
 
-  def add_inputs(self, accumulator, elements, *args, **kwargs):
-    accumulator.extend(elements)
-    if len(accumulator) > self._buffer_size:
-      accumulator = [self._fn(accumulator, *args, **kwargs)]
-    return accumulator
+  def add_inputs(self, mutable_accumulator, elements, *args, **kwargs):
+    # type: (List[T], Iterable[T], *Any, **Any) -> List[T]
+    mutable_accumulator.extend(elements)
+    if len(mutable_accumulator) > self._buffer_size:
+      mutable_accumulator = [self._fn(mutable_accumulator, *args, **kwargs)]
+    return mutable_accumulator
 
   def merge_accumulators(self, accumulators, *args, **kwargs):
     return [self._fn(_ReiterableChain(accumulators), *args, **kwargs)]
@@ -999,12 +1018,6 @@ class NoSideInputsCallableWrapperCombineFn(CallableWrapperCombineFn):
     return self._fn(accumulator)
 
 
-class PartitionCallable(Protocol[T]):
-  def __call__(self, __element, __num_partions, *args, **kwargs):
-    # type: (T, int, *Any, **Any) -> int
-    pass
-
-
 class PartitionFn(WithTypeHints[T, T], Generic[T]):
   """A function object used by a Partition transform.
 
@@ -1028,6 +1041,12 @@ class PartitionFn(WithTypeHints[T, T], Generic[T]):
     Returns:
       An integer in [0, num_partitions).
     """
+    pass
+
+
+class PartitionCallable(Protocol[T]):
+  def __call__(self, __element, __num_partions, *args, **kwargs):
+    # type: (T, int, *Any, **Any) -> int
     pass
 
 
@@ -1115,7 +1134,7 @@ class ParDo(PTransformWithSideInputs[InT, OutT]):
         self.fn.infer_output_type(input_type))
 
   def make_fn(self, fn, has_side_inputs):
-    # type: (Union[DoFn, Callable[[InT], Iterable[OutT]]], bool) -> DoFn
+    # type: (Union[DoFn[InT, OutT], DoFnCallable[InT, OutT]], bool) -> DoFn[InT, OutT]
     if isinstance(fn, DoFn):
       return fn
     return CallableWrapperDoFn(fn)
@@ -1314,7 +1333,13 @@ def FlatMap(fn,  # type: Callable[[InT], Iterable[OutT]]
   return pardo
 
 
-def Map(fn,  # type: Union[MapCallable[InT, OutT], MapCallableWithSideInputs[InT, OutT]]
+class MapCallable(Protocol[InT, OutT]):
+  def __call__(self, __element):
+    # type: (InT) -> OutT
+    pass
+
+
+def Map(fn,  # type: MapCallable[InT, OutT]
         *args, **kwargs):  # pylint: disable=invalid-name
   # type: (...) -> ParDo[InT, OutT]
   """:func:`Map` is like :func:`FlatMap` except its callable returns only a
@@ -2256,10 +2281,28 @@ class Flatten(PTransform[Tuple[pvalue.PCollection[T], ...], T]):
                        'Got a value of type %s instead.' % type(pvalueish))
     return pvalueish, pvalueish
 
-  def expand(self,  # type: ignore  # incompatible with supertype
-             pcolls  # type: Tuple[pvalue.PCollection[T], ...]
+  @typing.overload  # type: ignore  # incompatible with supertype
+  def expand(self,
+             pcolls  # type: Tuple[pvalue.PCollection[T]]
             ):
     # type: (...) -> pvalue.PCollection[T]
+    pass
+
+  @typing.overload
+  def expand(self,
+             pcolls  # type: Tuple[pvalue.PCollection[T1], pvalue.PCollection[T2]]
+            ):
+    # type: (...) -> pvalue.PCollection[Union[T1, T2]]
+    pass
+
+  @typing.overload
+  def expand(self,
+             pcolls  # type: Tuple[pvalue.PCollection[T1], pvalue.PCollection[T2], pvalue.PCollection[T3]]
+            ):
+    # type: (...) -> pvalue.PCollection[Union[T1, T2, T3]]
+    pass
+
+  def expand(self, pcolls):
     for pcoll in pcolls:
       self._check_pcollection(pcoll)
     result = pvalue.PCollection(self.pipeline)
