@@ -26,7 +26,6 @@ import collections
 import json
 import logging
 import random
-import re
 import threading
 from builtins import next
 from builtins import object
@@ -1262,8 +1261,7 @@ def _create_pardo_operation(
         (tag, beam.pvalue.SideInputData.from_runner_api(si, factory.context))
         for tag, si in pardo_proto.side_inputs.items()]
     tagged_side_inputs.sort(
-        key=lambda tag_si: int(re.match('side([0-9]+)(-.*)?$',
-                                        tag_si[0]).group(1)))
+        key=lambda tag_si: sideinputs.get_sideinput_index(tag_si[0]))
     side_input_maps = [
         StateBackedSideInputMap(
             factory.state_handler,

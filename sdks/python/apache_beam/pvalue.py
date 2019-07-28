@@ -158,7 +158,7 @@ class PCollection(PValue):
   def windowing(self):
     # type: () -> Windowing
     if not hasattr(self, '_windowing'):
-      assert self.producer is not None
+      assert self.producer is not None and self.producer.transform is not None
       self._windowing = self.producer.transform.get_windowing(
           self.producer.inputs)
     return self._windowing
