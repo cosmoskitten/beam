@@ -39,7 +39,9 @@ import java.util.TreeSet;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.locks.Lock;
+import java.util.concurrent.locks.ReadWriteLock;
 import java.util.concurrent.locks.ReentrantLock;
+import java.util.concurrent.locks.ReentrantReadWriteLock;
 import java.util.function.Function;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -212,49 +214,87 @@ public class WatermarkManager<ExecutableT, CollectionT> {
 
   private static class AutoCloseableLock implements AutoCloseable {
 
-    static AutoCloseableLock lock(Lock lock) {
-      return tryLock(lock, true);
+    static AutoCloseableLock lockRead(ReadWriteLock lock) {
+      return tryLockRead(lock, true);
     }
 
-    static AutoCloseableLock tryLock(Lock lock, boolean force) {
+    static AutoCloseableLock lockWrite(ReadWriteLock lock) {
+      return tryLockWrite(lock, true);
+    }
+
+    static AutoCloseableLock tryLockWrite(ReadWriteLock lock, boolean force) {
       AutoCloseableLock ret = new AutoCloseableLock(lock);
       if (force) {
-        return ret.lock();
+        return ret.lockWrite();
       }
-      if (!ret.delegate.tryLock()) {
+      if (!ret.delegate.writeLock().tryLock()) {
         return ret.unlocked();
       }
-      return ret.locked();
+      return ret.lockedWrite();
     }
 
-    private final Lock delegate;
-    private boolean locked;
+    static AutoCloseableLock tryLockRead(ReadWriteLock lock, boolean force) {
+      AutoCloseableLock ret = new AutoCloseableLock(lock);
+      if (force) {
+        return ret.lockRead();
+      }
+      if (!ret.delegate.readLock().tryLock()) {
+        return ret.unlocked();
+      }
+      return ret.lockedRead();
+    }
 
-    private AutoCloseableLock(Lock delegate) {
+    private static enum LOCKED {
+      NONE,
+      READ,
+      WRITE
+    }
+
+    private final ReadWriteLock delegate;
+    private LOCKED locked = LOCKED.NONE;
+
+    private AutoCloseableLock(ReadWriteLock delegate) {
       this.delegate = Objects.requireNonNull(delegate);
     }
 
-    private AutoCloseableLock lock() {
-      delegate.lock();
-      locked = true;
+    private AutoCloseableLock lockWrite() {
+      delegate.writeLock().lock();
+      locked = LOCKED.WRITE;
       return this;
     }
 
-    private AutoCloseableLock locked() {
-      locked = true;
+    private AutoCloseableLock lockedWrite() {
+      locked = LOCKED.WRITE;
+      return this;
+    }
+
+    private AutoCloseableLock lockRead() {
+      delegate.readLock().lock();
+      locked = LOCKED.READ;
+      return this;
+    }
+
+    private AutoCloseableLock lockedRead() {
+      locked = LOCKED.READ;
       return this;
     }
 
     private AutoCloseableLock unlocked() {
-      if (locked) {
-        delegate.unlock();
-        locked = false;
+      switch (locked) {
+        case READ:
+          delegate.readLock().unlock();
+          break;
+        case WRITE:
+          delegate.writeLock().unlock();
+          break;
+        case NONE:
+          // pass
       }
       return this;
     }
 
     private boolean isLocked() {
-      return locked;
+      return locked != LOCKED.NONE;
     }
 
     @Override
@@ -1177,7 +1217,7 @@ public class WatermarkManager<ExecutableT, CollectionT> {
   }
 
   private Set<ExecutableT> refreshWatermarks(final ExecutableT toRefresh, boolean force) {
-    try (AutoCloseableLock l = lockRefresh(toRefresh, force)) {
+    try (AutoCloseableLock l = lockRefresh(toRefresh, false /* write */, force)) {
       if (l.isLocked()) {
         TransformWatermarks myWatermarks = transformToWatermarks.get(toRefresh);
         WatermarkUpdate updateResult = myWatermarks.refresh();
@@ -1203,9 +1243,14 @@ public class WatermarkManager<ExecutableT, CollectionT> {
     try {
       for (Map.Entry<ExecutableT, TransformWatermarks> watermarksEntry :
           transformToWatermarks.entrySet()) {
-        Collection<FiredTimers<ExecutableT>> firedTimers =
-            watermarksEntry.getValue().extractFiredTimers();
-        allTimers.addAll(firedTimers);
+        try (AutoCloseableLock lock =
+            lockRefresh(watermarksEntry.getKey(), false /* write */, false)) {
+          if (lock.isLocked()) {
+            Collection<FiredTimers<ExecutableT>> firedTimers =
+                watermarksEntry.getValue().extractFiredTimers();
+            allTimers.addAll(firedTimers);
+          }
+        }
       }
       return allTimers;
     } finally {
@@ -1213,14 +1258,16 @@ public class WatermarkManager<ExecutableT, CollectionT> {
     }
   }
 
-  AutoCloseableLock lockRefresh(ExecutableT executable) {
-    return lockRefresh(executable, true);
+  AutoCloseableLock lockRefresh(ExecutableT executable, boolean read) {
+    return lockRefresh(executable, read, true);
   }
 
-  private AutoCloseableLock lockRefresh(ExecutableT executable, boolean force) {
+  private AutoCloseableLock lockRefresh(ExecutableT executable, boolean read, boolean force) {
 
-    Lock lock = transformToWatermarks.get(executable).getWatermarkLock();
-    return AutoCloseableLock.tryLock(lock, force);
+    ReadWriteLock lock = transformToWatermarks.get(executable).getWatermarkLock();
+    return read
+        ? AutoCloseableLock.tryLockRead(lock, force)
+        : AutoCloseableLock.tryLockWrite(lock, force);
   }
 
   /**
@@ -1332,7 +1379,7 @@ public class WatermarkManager<ExecutableT, CollectionT> {
     private Instant latestSynchronizedInputWm;
     private Instant latestSynchronizedOutputWm;
 
-    private final Lock transformWatermarkLock = new ReentrantLock();
+    private final ReadWriteLock transformWatermarkLock = new ReentrantReadWriteLock();
 
     private TransformWatermarks(
         ExecutableT executable,
@@ -1388,7 +1435,7 @@ public class WatermarkManager<ExecutableT, CollectionT> {
       return latestSynchronizedOutputWm;
     }
 
-    private Lock getWatermarkLock() {
+    private ReadWriteLock getWatermarkLock() {
       return transformWatermarkLock;
     }
 

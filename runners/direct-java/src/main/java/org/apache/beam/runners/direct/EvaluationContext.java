@@ -363,7 +363,7 @@ class EvaluationContext {
 
   <ExecutableT extends AppliedPTransform<?, ?, ?>> AutoCloseable lockWatermarkUpdates(
       ExecutableT executable) {
-    return watermarkManager.lockRefresh(executable);
+    return watermarkManager.lockRefresh(executable, true /* read */);
   }
 
   @VisibleForTesting
