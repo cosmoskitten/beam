@@ -626,7 +626,10 @@ class CallableWrapperDoFn(DoFn[InT, OutT]):
       self.process = fn
     else:
       # For cases such as set / list where fn is callable but not a function
-      self.process = lambda element: fn(element)
+      def process(element):
+        # type: (InT) -> Iterable[OutT]
+        return fn(element)
+      self.process = process  # type: ignore  # this would be ok if we added *arg, **kwargs to process
 
     super(CallableWrapperDoFn, self).__init__()
 
