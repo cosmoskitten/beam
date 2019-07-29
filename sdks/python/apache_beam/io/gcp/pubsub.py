@@ -26,8 +26,8 @@ from __future__ import absolute_import
 
 import re
 from builtins import object
+from typing import Any
 from typing import Optional
-from typing import Union
 
 from future.utils import iteritems
 from past.builtins import unicode
@@ -123,7 +123,7 @@ class PubsubMessage(object):
 
   @staticmethod
   def _from_message(msg):
-    # type: () -> PubsubMessage
+    # type: (Any) -> PubsubMessage
     """Construct from ``google.cloud.pubsub_v1.subscriber.message.Message``.
 
     https://googleapis.github.io/google-cloud-python/latest/pubsub/subscriber/api/message.html
