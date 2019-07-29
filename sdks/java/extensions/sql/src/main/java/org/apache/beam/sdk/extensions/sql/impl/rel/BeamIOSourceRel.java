@@ -23,6 +23,7 @@ import java.util.Map;
 import org.apache.beam.sdk.extensions.sql.BeamSqlTable;
 import org.apache.beam.sdk.extensions.sql.impl.BeamCalciteTable;
 import org.apache.beam.sdk.extensions.sql.impl.BeamTableStatistics;
+import org.apache.beam.sdk.extensions.sql.impl.planner.RowRateWindow;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionList;
@@ -61,6 +62,11 @@ public class BeamIOSourceRel extends TableScan implements BeamRelNode {
     } else {
       return rowCountStatistics.getRate();
     }
+  }
+
+  @Override
+  public RowRateWindow estimateRowRateWindow(RelMetadataQuery mq) {
+    return new RowRateWindow(mq.getRowCount(this), 0d, 0d);
   }
 
   @Override

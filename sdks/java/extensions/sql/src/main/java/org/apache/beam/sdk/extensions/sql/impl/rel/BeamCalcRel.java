@@ -31,6 +31,7 @@ import java.util.List;
 import java.util.Map;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.extensions.sql.impl.planner.BeamJavaTypeFactory;
+import org.apache.beam.sdk.extensions.sql.impl.planner.RowRateWindow;
 import org.apache.beam.sdk.extensions.sql.impl.utils.CalciteUtils;
 import org.apache.beam.sdk.extensions.sql.impl.utils.CalciteUtils.CharType;
 import org.apache.beam.sdk.extensions.sql.impl.utils.CalciteUtils.DateType;
@@ -205,6 +206,11 @@ public class BeamCalcRel extends Calc implements BeamRelNode {
     }
 
     throw new RuntimeException("Could not get the limit count from a non BeamSortRel input.");
+  }
+
+  @Override
+  public RowRateWindow estimateRowRateWindow(RelMetadataQuery mq) {
+    return new RowRateWindow(mq.getRowCount(this), 0d, 0d);
   }
 
   public boolean isInputSortRelAndLimitOnly() {
