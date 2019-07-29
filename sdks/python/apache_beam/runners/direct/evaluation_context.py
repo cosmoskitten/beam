@@ -23,6 +23,12 @@ import collections
 import threading
 import typing
 from builtins import object
+from typing import DefaultDict
+from typing import Dict
+from typing import Iterable
+from typing import List
+from typing import Optional
+from typing import Tuple
 
 from apache_beam.runners.direct.direct_metrics import DirectMetrics
 from apache_beam.runners.direct.executor import TransformExecutor
@@ -32,8 +38,10 @@ from apache_beam.transforms.trigger import InMemoryUnmergedState
 from apache_beam.utils import counters
 
 if typing.TYPE_CHECKING:
+  from apache_beam.pipeline import AppliedPTransform
+  from apache_beam.pvalue import AsSideInput, PCollection
   from apache_beam.runners.direct.bundle_factory import BundleFactory
-
+  from apache_beam.utils.timestamp import Timestamp
 
 class _ExecutionContext(object):
   """Contains the context for the execution of a single PTransform.
@@ -79,10 +87,11 @@ class _SideInputsContainer(object):
   """
 
   def __init__(self, side_inputs):
+    # type: (Iterable[AsSideInput]) -> None
     self._lock = threading.Lock()
-    self._views = {}
-    self._transform_to_side_inputs = collections.defaultdict(list)
-    self._side_input_to_blocked_tasks = collections.defaultdict(list)
+    self._views = {}  # type: Dict[AsSideInput, _SideInputView]
+    self._transform_to_side_inputs = collections.defaultdict(list)  # type: DefaultDict[Optional[AppliedPTransform], List[AsSideInput]]
+    self._side_input_to_blocked_tasks = collections.defaultdict(list)  # type: ignore  # usused?
 
     for side in side_inputs:
       self._views[side] = _SideInputView(side)
@@ -93,7 +102,12 @@ class _SideInputsContainer(object):
                     if self._views else '[]')
     return '_SideInputsContainer(_views=%s)' % views_string
 
-  def get_value_or_block_until_ready(self, side_input, task, block_until):
+  def get_value_or_block_until_ready(self,
+                                     side_input,
+                                     task,  # type: TransformExecutor
+                                     block_until  # type: Timestamp
+                                    ):
+    # type: (...) -> None
     """Returns the value of a view whose task is unblocked or blocks its task.
 
     It gets the value of a view whose watermark has been updated and
@@ -125,6 +139,7 @@ class _SideInputsContainer(object):
   def update_watermarks_for_transform_and_unblock_tasks(self,
                                                         ptransform,
                                                         watermark):
+    # type: (...) -> List[Tuple[TransformExecutor, Timestamp]]
     """Updates _SideInputsContainer after a watermark update and unbloks tasks.
 
     It traverses the list of side inputs per PTransform and calls
@@ -147,6 +162,7 @@ class _SideInputsContainer(object):
   def _update_watermarks_for_side_input_and_unblock_tasks(self,
                                                           side_input,
                                                           watermark):
+    # type: (...) -> List[Tuple[TransformExecutor, Timestamp]]
     """Helps update _SideInputsContainer after a watermark update.
 
     For each view of the side input, it updates the value of the watermark
@@ -220,16 +236,16 @@ class EvaluationContext(object):
                root_transforms,
                value_to_consumers,
                step_names,
-               views,
+               views,  # type: Iterable[AsSideInput]
                clock
-               ):
+              ):
     self.pipeline_options = pipeline_options
     self._bundle_factory = bundle_factory
     self._root_transforms = root_transforms
     self._value_to_consumers = value_to_consumers
     self._step_names = step_names
     self.views = views
-    self._pcollection_to_views = collections.defaultdict(list)
+    self._pcollection_to_views = collections.defaultdict(list)  # type: DefaultDict[PCollection, List[AsSideInput]]
     for view in views:
       self._pcollection_to_views[view.pvalue].append(view)
     self._transform_keyed_states = self._initialize_keyed_states(
@@ -238,7 +254,7 @@ class EvaluationContext(object):
     self._watermark_manager = WatermarkManager(
         clock, root_transforms, value_to_consumers,
         self._transform_keyed_states)
-    self._pending_unblocked_tasks = []
+    self._pending_unblocked_tasks = []  # type: List[Tuple[TransformExecutor, Timestamp]]
     self._counter_factory = counters.CounterFactory()
     self._metrics = DirectMetrics()
 

@@ -56,6 +56,7 @@ import typing
 from builtins import object
 from builtins import zip
 from typing import Dict
+from typing import List
 from typing import Union
 
 from future.utils import with_metaclass
@@ -760,7 +761,7 @@ class AppliedPTransform(object):
     self.inputs = inputs or ()
     self.side_inputs = () if transform is None else tuple(transform.side_inputs)
     self.outputs = {}  # type: Dict[Union[str, int, None], pvalue.PValue]
-    self.parts = []
+    self.parts = []  # type: List[AppliedPTransform]
 
   def __repr__(self):
     return "%s(%s, %s)" % (self.__class__.__name__, self.full_label,
@@ -797,6 +798,7 @@ class AppliedPTransform(object):
       raise TypeError("Unexpected output type: %s" % output)
 
   def add_part(self, part):
+    # type: (AppliedPTransform) -> None
     assert isinstance(part, AppliedPTransform)
     self.parts.append(part)
 

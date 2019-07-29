@@ -26,8 +26,12 @@ from __future__ import print_function
 
 import collections
 import threading
+from typing import DefaultDict
+from typing import Dict
+from typing import Iterator
+from typing import List
+from typing import Tuple
 from typing import Union
-
 import pydot
 
 import apache_beam as beam
@@ -71,9 +75,9 @@ class PipelineGraph(object):
                          type(pipeline)))
 
     # A dict from PCollection ID to a list of its consuming Transform IDs
-    self._consumers = collections.defaultdict(list)
+    self._consumers = collections.defaultdict(list)  # type: DefaultDict[str, List[str]]
     # A dict from PCollection ID to its producing Transform ID
-    self._producers = {}
+    self._producers = {}  # type: Dict[str, str]
 
     for transform_id, transform_proto in self._top_level_transforms():
       for pcoll_id in transform_proto.inputs.values():
@@ -99,6 +103,7 @@ class PipelineGraph(object):
     return self._get_graph().to_string()
 
   def _top_level_transforms(self):
+    # type: () -> Iterator[Tuple[str, beam_runner_api_pb2.PTransform]]
     """Yields all top level PTransforms (subtransforms of the root PTransform).
 
     Yields: (str, PTransform proto) ID, proto pair of top level PTransforms.

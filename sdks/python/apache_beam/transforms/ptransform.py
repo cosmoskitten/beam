@@ -53,6 +53,7 @@ from typing import Any
 from typing import Callable
 from typing import Dict
 from typing import Optional
+from typing import Sequence
 from typing import Tuple
 from typing import Type
 from typing import TypeVar
@@ -329,7 +330,7 @@ class PTransform(WithTypeHints[InT, OutT], HasDisplayData):
   with input as an argument.
   """
   # By default, transforms don't have any side inputs.
-  side_inputs = ()
+  side_inputs = ()  # type: Sequence[pvalue.AsSideInput]
 
   # Used for nullary transforms.
   pipeline = None  # type: Optional[Pipeline]
