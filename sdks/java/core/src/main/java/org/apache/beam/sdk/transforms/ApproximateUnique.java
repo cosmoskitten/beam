@@ -43,7 +43,7 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.io.ByteStreams;
  * {@code PTransform}s for estimating the number of distinct elements in a {@code PCollection}, or
  * the number of distinct values associated with each key in a {@code PCollection} of {@code KV}s.
  *
- * Consider using {@code HllCount} in the {@code zetasketch} extension module if you need better
+ * <p>Consider using {@code HllCount} in the {@code zetasketch} extension module if you need better
  * performance or need to save intermediate aggregation result into a sketch for later processing.
  */
 public class ApproximateUnique {
