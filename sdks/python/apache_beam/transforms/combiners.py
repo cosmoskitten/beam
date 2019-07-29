@@ -401,9 +401,9 @@ class _MergeTopPerBundle(core.DoFn[Tuple[None, Iterable[List[T]]],
     self._less_than = None if less_than is operator.lt else less_than
     self._key = key
 
-  def process(self, key_and_bundles):
-    # type: (Tuple[None, Iterable[List[T]]]) -> Iterator[List[T]]
-    _, bundles = key_and_bundles
+  def process(self, element, *args, **kwargs):
+    # type: (Tuple[None, Iterable[List[T]]], *Any, **Any) -> Iterator[List[T]]
+    _, bundles = element
 
     def push(hp, e):
       if len(hp) < self._n:
@@ -422,12 +422,12 @@ class _MergeTopPerBundle(core.DoFn[Tuple[None, Iterable[List[T]]],
       for bundle in bundles:
         if not heapc:
           heapc = [
-            cy_combiners.ComparableValue(element, self._less_than, self._key)
-            for element in bundle]
+            cy_combiners.ComparableValue(item, self._less_than, self._key)
+            for item in bundle]
           continue
-        for element in reversed(bundle):
+        for item in reversed(bundle):
           if push(heapc, cy_combiners.ComparableValue(
-              element, self._less_than, self._key)):
+              item, self._less_than, self._key)):
             break
       heapc.sort()
       yield [wrapper.value for wrapper in reversed(heapc)]
@@ -438,8 +438,8 @@ class _MergeTopPerBundle(core.DoFn[Tuple[None, Iterable[List[T]]],
         if not heap:
           heap = bundle
           continue
-        for element in reversed(bundle):
-          if push(heap, element):
+        for item in reversed(bundle):
+          if push(heap, item):
             break
       heap.sort()
       yield heap[::-1]
