@@ -375,7 +375,6 @@ class EvaluationContext {
   /**
    * Extracts all timers that have been fired and have not already been extracted.
    *
-   * be included in timer extraction
    * <p>This is a destructive operation. Timers will only appear in the result of this method once
    * for each time they are set.
    */
@@ -412,5 +411,4 @@ class EvaluationContext {
   Clock getClock() {
     return clock;
   }
-
 }

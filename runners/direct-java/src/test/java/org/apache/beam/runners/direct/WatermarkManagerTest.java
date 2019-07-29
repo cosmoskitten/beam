@@ -1310,7 +1310,6 @@ public class WatermarkManagerTest implements Serializable {
     // signal finished processing to the manager
     manager.executableTimersProcessingFinished(firstFired.getExecutable());
 
-
     clock.set(new Instant(50_000L));
     manager.updateWatermarks(
         null,

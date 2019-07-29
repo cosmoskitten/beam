@@ -479,7 +479,6 @@ public class WatermarkManager<ExecutableT, CollectionT> {
           .add("currentWatermark", currentWatermark)
           .toString();
     }
-
   }
 
   /**
@@ -556,7 +555,6 @@ public class WatermarkManager<ExecutableT, CollectionT> {
           .add("currentWatermark", currentWatermark)
           .toString();
     }
-
   }
 
   /**
@@ -767,7 +765,6 @@ public class WatermarkManager<ExecutableT, CollectionT> {
           .add("earliestHold", earliestHold)
           .toString();
     }
-
   }
 
   /**
@@ -845,7 +842,6 @@ public class WatermarkManager<ExecutableT, CollectionT> {
           .add("latestRefresh", latestRefresh)
           .toString();
     }
-
   }
 
   /**
@@ -935,13 +931,12 @@ public class WatermarkManager<ExecutableT, CollectionT> {
   private final Set<ExecutableT> pendingRefreshes;
 
   /**
-   * A set of executables with currently extracted timers, that are to be processed.
-   * Note that, due to consistency, we can have only single extracted set of
-   * timers that are being processed by bundle processor at a time.
+   * A set of executables with currently extracted timers, that are to be processed. Note that, due
+   * to consistency, we can have only single extracted set of timers that are being processed by
+   * bundle processor at a time.
    */
   private final Set<ExecutableT> transformsWithAlreadyExtractedTimers =
-    Collections.synchronizedSet(new HashSet<>());
-
+      Collections.synchronizedSet(new HashSet<>());
 
   /**
    * Creates a new {@link WatermarkManager}. All watermarks within the newly created {@link
@@ -1667,11 +1662,12 @@ public class WatermarkManager<ExecutableT, CollectionT> {
     }
 
     /**
-     * Returns a {@link TimerUpdate} that is like this one, but with the setTimers
-     * added by the provided setTimers.
+     * Returns a {@link TimerUpdate} that is like this one, but with the setTimers added by the
+     * provided setTimers.
      */
     public TimerUpdate withAdditionalSetTimers(Iterable<TimerData> setTimers) {
-      Set<TimerData> deletedTimersSet = StreamSupport.stream(deletedTimers.spliterator(), false).collect(Collectors.toSet());
+      Set<TimerData> deletedTimersSet =
+          StreamSupport.stream(deletedTimers.spliterator(), false).collect(Collectors.toSet());
       Set<TimerData> modifiableSetTimers = Sets.newHashSet(this.setTimers);
       for (TimerData t : setTimers) {
         if (!deletedTimersSet.contains(t)) {
