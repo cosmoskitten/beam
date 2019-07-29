@@ -261,7 +261,7 @@ public class JdbcIOTest implements Serializable {
     }
   }
 
-  @Test
+  @Test /*(timeout = 10000) */
   public void testRead() {
     PCollection<TestRow> rows =
         pipeline.apply(

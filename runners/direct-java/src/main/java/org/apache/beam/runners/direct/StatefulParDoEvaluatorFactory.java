@@ -20,8 +20,10 @@ package org.apache.beam.runners.direct;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkState;
 
 import com.google.auto.value.AutoValue;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 import org.apache.beam.runners.core.KeyedWorkItem;
@@ -34,6 +36,7 @@ import org.apache.beam.runners.core.StateTags;
 import org.apache.beam.runners.core.TimerInternals.TimerData;
 import org.apache.beam.runners.direct.DirectExecutionContext.DirectStepContext;
 import org.apache.beam.runners.direct.ParDoMultiOverrideFactory.StatefulParDo;
+import org.apache.beam.runners.direct.WatermarkManager.TimerUpdate;
 import org.apache.beam.runners.local.StructuralKey;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.options.PipelineOptions;
@@ -232,6 +235,7 @@ final class StatefulParDoEvaluatorFactory<K, InputT, OutputT> implements Transfo
       implements TransformEvaluator<KeyedWorkItem<K, KV<K, InputT>>> {
 
     private final DoFnLifecycleManagerRemovingTransformEvaluator<KV<K, InputT>> delegateEvaluator;
+    private final List<TimerData> pushedBackTimers = new ArrayList<>();
 
     public StatefulParDoEvaluator(
         DoFnLifecycleManagerRemovingTransformEvaluator<KV<K, InputT>> delegateEvaluator) {
@@ -258,21 +262,27 @@ final class StatefulParDoEvaluatorFactory<K, InputT, OutputT> implements Transfo
             "lastFired was %s, current %s",
             lastFired,
             timer.getTimestamp());
-        lastFired = timer.getTimestamp();
-        WindowNamespace<?> windowNamespace = (WindowNamespace) timer.getNamespace();
-        BoundedWindow timerWindow = windowNamespace.getWindow();
-        delegateEvaluator.onTimer(timer, timerWindow);
+        if (lastFired != null && lastFired.isBefore(timer.getTimestamp())) {
+          pushedBackTimers.add(timer);
+        } else {
+          lastFired = timer.getTimestamp();
+          WindowNamespace<?> windowNamespace = (WindowNamespace) timer.getNamespace();
+          BoundedWindow timerWindow = windowNamespace.getWindow();
+          delegateEvaluator.onTimer(timer, timerWindow);
+        }
       }
     }
 
     @Override
     public TransformResult<KeyedWorkItem<K, KV<K, InputT>>> finishBundle() throws Exception {
       TransformResult<KV<K, InputT>> delegateResult = delegateEvaluator.finishBundle();
+      TimerUpdate timerUpdate = delegateResult.getTimerUpdate().withAdditionalSetTimers(pushedBackTimers);
+      pushedBackTimers.clear();
 
       StepTransformResult.Builder<KeyedWorkItem<K, KV<K, InputT>>> regroupedResult =
           StepTransformResult.<KeyedWorkItem<K, KV<K, InputT>>>withHold(
                   delegateResult.getTransform(), delegateResult.getWatermarkHold())
-              .withTimerUpdate(delegateResult.getTimerUpdate())
+              .withTimerUpdate(timerUpdate)
               .withState(delegateResult.getState())
               .withMetricUpdates(delegateResult.getLogicalMetricUpdates())
               .addOutput(Lists.newArrayList(delegateResult.getOutputBundles()));

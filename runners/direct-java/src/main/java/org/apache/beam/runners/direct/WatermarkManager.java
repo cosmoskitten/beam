@@ -19,6 +19,7 @@ package org.apache.beam.runners.direct;
 
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkNotNull;
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkState;
 
 import com.google.auto.value.AutoValue;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
@@ -43,6 +44,8 @@ import java.util.concurrent.locks.ReadWriteLock;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 import java.util.function.Function;
+import java.util.stream.Collectors;
+import java.util.stream.StreamSupport;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.GuardedBy;
@@ -66,6 +69,7 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.HashBase
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Ordering;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Sets;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.SortedMultiset;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Table;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.TreeMultiset;
@@ -224,6 +228,9 @@ public class WatermarkManager<ExecutableT, CollectionT> {
 
     static AutoCloseableLock tryLockWrite(ReadWriteLock lock, boolean force) {
       AutoCloseableLock ret = new AutoCloseableLock(lock);
+      if (true) {
+        return ret.lockedWrite();
+      }
       if (force) {
         return ret.lockWrite();
       }
@@ -235,6 +242,10 @@ public class WatermarkManager<ExecutableT, CollectionT> {
 
     static AutoCloseableLock tryLockRead(ReadWriteLock lock, boolean force) {
       AutoCloseableLock ret = new AutoCloseableLock(lock);
+      if (true) {
+        return ret.lockedRead();
+      }
+
       if (force) {
         return ret.lockRead();
       }
@@ -244,7 +255,7 @@ public class WatermarkManager<ExecutableT, CollectionT> {
       return ret.lockedRead();
     }
 
-    private static enum LOCKED {
+    private enum LOCKED {
       NONE,
       READ,
       WRITE
@@ -258,23 +269,27 @@ public class WatermarkManager<ExecutableT, CollectionT> {
     }
 
     private AutoCloseableLock lockWrite() {
+      checkState(locked != LOCKED.READ, "Cannot lock read AND write");
       delegate.writeLock().lock();
       locked = LOCKED.WRITE;
       return this;
     }
 
     private AutoCloseableLock lockedWrite() {
+      checkState(locked != LOCKED.READ, "Cannot lock read AND write");
       locked = LOCKED.WRITE;
       return this;
     }
 
     private AutoCloseableLock lockRead() {
+      checkState(locked != LOCKED.WRITE, "Cannot lock read AND write");
       delegate.readLock().lock();
       locked = LOCKED.READ;
       return this;
     }
 
     private AutoCloseableLock lockedRead() {
+      checkState(locked != LOCKED.WRITE, "Cannot lock read AND write");
       locked = LOCKED.READ;
       return this;
     }
@@ -282,10 +297,10 @@ public class WatermarkManager<ExecutableT, CollectionT> {
     private AutoCloseableLock unlocked() {
       switch (locked) {
         case READ:
-          delegate.readLock().unlock();
+          //delegate.readLock().unlock();
           break;
         case WRITE:
-          delegate.writeLock().unlock();
+          //delegate.writeLock().unlock();
           break;
         case NONE:
           // pass
@@ -471,6 +486,7 @@ public class WatermarkManager<ExecutableT, CollectionT> {
           .add("currentWatermark", currentWatermark)
           .toString();
     }
+
   }
 
   /**
@@ -547,6 +563,7 @@ public class WatermarkManager<ExecutableT, CollectionT> {
           .add("currentWatermark", currentWatermark)
           .toString();
     }
+
   }
 
   /**
@@ -757,6 +774,7 @@ public class WatermarkManager<ExecutableT, CollectionT> {
           .add("earliestHold", earliestHold)
           .toString();
     }
+
   }
 
   /**
@@ -834,6 +852,7 @@ public class WatermarkManager<ExecutableT, CollectionT> {
           .add("latestRefresh", latestRefresh)
           .toString();
     }
+
   }
 
   /**
@@ -1209,9 +1228,8 @@ public class WatermarkManager<ExecutableT, CollectionT> {
 
   private Set<ExecutableT> refreshAllOf(Set<ExecutableT> toRefresh) {
     Set<ExecutableT> newRefreshes = new HashSet<>();
-    int executablesToRefresh = toRefresh.size();
     for (ExecutableT executable : toRefresh) {
-      newRefreshes.addAll(refreshWatermarks(executable, executablesToRefresh == 1));
+      newRefreshes.addAll(refreshWatermarks(executable, false));
     }
     return newRefreshes;
   }
@@ -1243,14 +1261,9 @@ public class WatermarkManager<ExecutableT, CollectionT> {
     try {
       for (Map.Entry<ExecutableT, TransformWatermarks> watermarksEntry :
           transformToWatermarks.entrySet()) {
-        try (AutoCloseableLock lock =
-            lockRefresh(watermarksEntry.getKey(), false /* write */, false)) {
-          if (lock.isLocked()) {
-            Collection<FiredTimers<ExecutableT>> firedTimers =
-                watermarksEntry.getValue().extractFiredTimers();
-            allTimers.addAll(firedTimers);
-          }
-        }
+        TransformWatermarks watermarks = watermarksEntry.getValue();
+        Collection<FiredTimers<ExecutableT>> firedTimers = watermarks.extractFiredTimers();
+        allTimers.addAll(firedTimers);
       }
       return allTimers;
     } finally {
@@ -1640,6 +1653,21 @@ public class WatermarkManager<ExecutableT, CollectionT> {
      */
     public TimerUpdate withCompletedTimers(Iterable<TimerData> completedTimers) {
       return new TimerUpdate(this.key, completedTimers, setTimers, deletedTimers);
+    }
+
+    /**
+     * Returns a {@link TimerUpdate} that is like this one, but with the setTimers
+     * added by the provided setTimers.
+     */
+    public TimerUpdate withAdditionalSetTimers(Iterable<TimerData> setTimers) {
+      Set<TimerData> deletedTimersSet = StreamSupport.stream(deletedTimers.spliterator(), false).collect(Collectors.toSet());
+      Set<TimerData> modifiableSetTimers = Sets.newHashSet(this.setTimers);
+      for (TimerData t : setTimers) {
+        if (!deletedTimersSet.contains(t)) {
+          modifiableSetTimers.add(t);
+        }
+      }
+      return new TimerUpdate(this.key, completedTimers, modifiableSetTimers, deletedTimers);
     }
 
     @Override
