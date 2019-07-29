@@ -42,19 +42,23 @@ spec:
           value: "true"
         - name: GF_AUTH_ANONYMOUS_ORG_NAME
           value: Beam
-        - name: GF_INSTALL_PLUGINS
-          value: vonage-status-panel
         - name: GF_SECURITY_ADMIN_PASSWORD
           valueFrom:
             secretKeyRef:
               name: grafana-admin-pwd
               key: grafana_admin_password
-        - name: PSQL_DB_USER
+        - name: DB_HOST
+          value: 127.0.0.1
+        - name: DB_PORT
+          value: "5432"
+        - name: DB_DBNAME
+          value: beammetrics
+        - name: DB_DBUSERNAME
           valueFrom:
             secretKeyRef:
               name: beammetrics-psql-db-credentials
               key: username
-        - name: DB_PASSWORD
+        - name: DB_DBPWD
           valueFrom:
             secretKeyRef:
               name: beammetrics-psql-db-credentials
