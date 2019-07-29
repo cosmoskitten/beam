@@ -375,12 +375,17 @@ class EvaluationContext {
   /**
    * Extracts all timers that have been fired and have not already been extracted.
    *
+   * be included in timer extraction
    * <p>This is a destructive operation. Timers will only appear in the result of this method once
    * for each time they are set.
    */
-  public Collection<FiredTimers<AppliedPTransform<?, ?, ?>>> extractFiredTimers() {
+  Collection<FiredTimers<AppliedPTransform<?, ?, ?>>> extractFiredTimers() {
     forceRefresh();
     return watermarkManager.extractFiredTimers();
+  }
+
+  void unblockTimerExtractionFor(AppliedPTransform<?, ?, ?> executable) {
+    watermarkManager.executableTimersProcessingFinished(executable);
   }
 
   /** Returns true if the step will not produce additional output. */
@@ -407,4 +412,5 @@ class EvaluationContext {
   Clock getClock() {
     return clock;
   }
+
 }

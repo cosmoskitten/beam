@@ -228,9 +228,6 @@ public class WatermarkManager<ExecutableT, CollectionT> {
 
     static AutoCloseableLock tryLockWrite(ReadWriteLock lock, boolean force) {
       AutoCloseableLock ret = new AutoCloseableLock(lock);
-      if (true) {
-        return ret.lockedWrite();
-      }
       if (force) {
         return ret.lockWrite();
       }
@@ -242,10 +239,6 @@ public class WatermarkManager<ExecutableT, CollectionT> {
 
     static AutoCloseableLock tryLockRead(ReadWriteLock lock, boolean force) {
       AutoCloseableLock ret = new AutoCloseableLock(lock);
-      if (true) {
-        return ret.lockedRead();
-      }
-
       if (force) {
         return ret.lockRead();
       }
@@ -297,10 +290,10 @@ public class WatermarkManager<ExecutableT, CollectionT> {
     private AutoCloseableLock unlocked() {
       switch (locked) {
         case READ:
-          //delegate.readLock().unlock();
+          delegate.readLock().unlock();
           break;
         case WRITE:
-          //delegate.writeLock().unlock();
+          delegate.writeLock().unlock();
           break;
         case NONE:
           // pass
@@ -942,6 +935,15 @@ public class WatermarkManager<ExecutableT, CollectionT> {
   private final Set<ExecutableT> pendingRefreshes;
 
   /**
+   * A set of executables with currently extracted timers, that are to be processed.
+   * Note that, due to consistency, we can have only single extracted set of
+   * timers that are being processed by bundle processor at a time.
+   */
+  private final Set<ExecutableT> transformsWithAlreadyExtractedTimers =
+    Collections.synchronizedSet(new HashSet<>());
+
+
+  /**
    * Creates a new {@link WatermarkManager}. All watermarks within the newly created {@link
    * WatermarkManager} start at {@link BoundedWindow#TIMESTAMP_MIN_VALUE}, the minimum watermark,
    * with no watermark holds or pending elements.
@@ -1261,14 +1263,23 @@ public class WatermarkManager<ExecutableT, CollectionT> {
     try {
       for (Map.Entry<ExecutableT, TransformWatermarks> watermarksEntry :
           transformToWatermarks.entrySet()) {
-        TransformWatermarks watermarks = watermarksEntry.getValue();
-        Collection<FiredTimers<ExecutableT>> firedTimers = watermarks.extractFiredTimers();
-        allTimers.addAll(firedTimers);
+        if (!transformsWithAlreadyExtractedTimers.contains(watermarksEntry.getKey())) {
+          TransformWatermarks watermarks = watermarksEntry.getValue();
+          Collection<FiredTimers<ExecutableT>> firedTimers = watermarks.extractFiredTimers();
+          if (!firedTimers.isEmpty()) {
+            transformsWithAlreadyExtractedTimers.add(watermarksEntry.getKey());
+            allTimers.addAll(firedTimers);
+          }
+        }
       }
       return allTimers;
     } finally {
       refreshLock.unlock();
     }
+  }
+
+  public void executableTimersProcessingFinished(ExecutableT executable) {
+    transformsWithAlreadyExtractedTimers.remove(executable);
   }
 
   AutoCloseableLock lockRefresh(ExecutableT executable, boolean read) {
