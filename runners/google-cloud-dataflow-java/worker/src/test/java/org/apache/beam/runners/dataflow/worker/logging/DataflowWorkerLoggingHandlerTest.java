@@ -228,12 +228,11 @@ public class DataflowWorkerLoggingHandlerTest {
             + "\"worker\":\"testWorkerId\",\"work\":\"testWorkId\",\"logger\":\"LoggerName\","
             + "\"exception\":\"java.lang.Throwable: exception.test.message"
             + escapedNewline
-            + "\\tat declaringClass1.method1(file1.java:1)"
+            + "\\t declaringClass1.method1(file1.java:1)"
             + escapedNewline
-            + "\\tat declaringClass2.method2(file2.java:1)"
+            + "\\t declaringClass2.method2(file2.java:1)"
             + escapedNewline
-            + "\\tat declaringClass3.method3(file3.java:1)"
-            + escapedNewline
+            + "\\t declaringClass3.method3(file3.java:1)"
             + "\"}"
             + System.lineSeparator(),
         createJson(createLogRecord("test.message", createThrowable())));
@@ -251,12 +250,11 @@ public class DataflowWorkerLoggingHandlerTest {
             + "\"work\":\"testWorkId\",\"logger\":\"LoggerName\","
             + "\"exception\":\"java.lang.Throwable: exception.test.message"
             + escapedNewline
-            + "\\tat declaringClass1.method1(file1.java:1)"
+            + "\\t declaringClass1.method1(file1.java:1)"
             + escapedNewline
-            + "\\tat declaringClass2.method2(file2.java:1)"
+            + "\\t declaringClass2.method2(file2.java:1)"
             + escapedNewline
-            + "\\tat declaringClass3.method3(file3.java:1)"
-            + escapedNewline
+            + "\\t declaringClass3.method3(file3.java:1)"
             + "\"}"
             + System.lineSeparator(),
         createJson(createLogRecord(null /* message */, createThrowable())));
