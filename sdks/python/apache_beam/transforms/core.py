@@ -943,17 +943,19 @@ class CallableWrapperCombineFn(CombineFn):
   def create_accumulator(self, *args, **kwargs):
     return []
 
-  def add_input(self, accumulator, element, *args, **kwargs):
-    accumulator.append(element)
-    if len(accumulator) > self._buffer_size:
-      accumulator = [self._fn(accumulator, *args, **kwargs)]
-    return accumulator
+  def add_input(self, mutable_accumulator, element, *args, **kwargs):
+    # type: (List[T], T, *Any, **Any) -> List[T]
+    mutable_accumulator.append(element)
+    if len(mutable_accumulator) > self._buffer_size:
+      accumulator = [self._fn(mutable_accumulator, *args, **kwargs)]
+    return mutable_accumulator
 
-  def add_inputs(self, accumulator, elements, *args, **kwargs):
-    accumulator.extend(elements)
-    if len(accumulator) > self._buffer_size:
-      accumulator = [self._fn(accumulator, *args, **kwargs)]
-    return accumulator
+  def add_inputs(self, mutable_accumulator, elements, *args, **kwargs):
+    # type: (List[T], Iterable[T], *Any, **Any) -> List[T]
+    mutable_accumulator.extend(elements)
+    if len(mutable_accumulator) > self._buffer_size:
+      mutable_accumulator = [self._fn(mutable_accumulator, *args, **kwargs)]
+    return mutable_accumulator
 
   def merge_accumulators(self, accumulators, *args, **kwargs):
     return [self._fn(_ReiterableChain(accumulators), *args, **kwargs)]
@@ -2186,8 +2188,11 @@ class Partition(PTransformWithSideInputs):
   class ApplyPartitionFnFn(DoFn):
     """A DoFn that applies a PartitionFn."""
 
-    def process(self, element, partitionfn, n, *args, **kwargs):
-      partition = partitionfn.partition_for(element, n, *args, **kwargs)
+    def process(self, element, *args, **kwargs):
+      # type: (T, *Any, **Any) -> Iterator[pvalue.TaggedOutput[T]]
+      partitionfn = args[0]  # type: PartitionFn[T]
+      n = args[1]  # type: int
+      partition = partitionfn.partition_for(element, n, *args[2:], **kwargs)
       if not 0 <= partition < n:
         raise ValueError(
             'PartitionFn specified out-of-bounds partition index: '
