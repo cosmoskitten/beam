@@ -26,7 +26,8 @@ from builtins import object
 from builtins import range
 from functools import partial
 
-from past.builtins import long, unicode
+from past.builtins import long
+from past.builtins import unicode
 
 from apache_beam.coders import coders
 from apache_beam.io import filebasedsink
