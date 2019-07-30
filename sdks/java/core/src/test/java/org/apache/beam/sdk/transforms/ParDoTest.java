@@ -53,8 +53,10 @@ import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Set;
+import java.util.function.IntFunction;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
+import java.util.stream.StreamSupport;
 import org.apache.beam.sdk.coders.AtomicCoder;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderException;
@@ -3229,7 +3231,17 @@ public class ParDoTest implements Serializable {
             }
 
             @OnTimer(timerIdGc)
-            public void onTimer(@StateId(bag) BagState<TimestampedValue<String>> bagState) {
+            public void onTimer(
+                OnTimerContext context, @StateId(bag) BagState<TimestampedValue<String>> bagState) {
+
+              String output =
+                  Joiner.on(":")
+                          .join(
+                              StreamSupport.stream(bagState.read().spliterator(), false)
+                                  .map(TimestampedValue::getValue)
+                                  .iterator())
+                      + ":cleanup";
+              context.output(output);
               bagState.clear();
             }
           };
@@ -3239,8 +3251,7 @@ public class ParDoTest implements Serializable {
               .advanceWatermarkTo(new Instant(0));
 
       for (int i = 0; i < numTestElements; i++) {
-        builder =
-            builder.addElements(TimestampedValue.of(KV.of("dummy", "" + i), now.plus(i)));
+        builder = builder.addElements(TimestampedValue.of(KV.of("dummy", "" + i), now.plus(i)));
         builder = builder.advanceWatermarkTo(now.plus(i / 10 * 10));
       }
 
@@ -3248,14 +3259,21 @@ public class ParDoTest implements Serializable {
 
       PCollection<String> output = pipeline.apply(stream).apply(ParDo.of(fn));
       List<String> expected =
-          IntStream.range(0, numTestElements)
-              .mapToObj(
-                  i ->
-                      Joiner.on(":")
-                          .join(IntStream.rangeClosed(0, i).mapToObj(in -> "" + in).iterator()))
+          IntStream.rangeClosed(0, numTestElements)
+              .mapToObj(expandFn(numTestElements))
               .collect(Collectors.toList());
       PAssert.that(output).containsInAnyOrder(expected);
       pipeline.run();
+    }
+
+    private IntFunction<String> expandFn(int numTestElements) {
+      return i ->
+          Joiner.on(":")
+                  .join(
+                      IntStream.rangeClosed(0, Math.min(numTestElements - 1, i))
+                          .mapToObj(String::valueOf)
+                          .iterator())
+              + (i == numTestElements ? ":cleanup" : "");
     }
 
     @Test

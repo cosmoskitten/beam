@@ -277,9 +277,8 @@ final class StatefulParDoEvaluatorFactory<K, InputT, OutputT> implements Transfo
     public TransformResult<KeyedWorkItem<K, KV<K, InputT>>> finishBundle() throws Exception {
       TransformResult<KV<K, InputT>> delegateResult = delegateEvaluator.finishBundle();
       TimerUpdate timerUpdate =
-          delegateResult.getTimerUpdate().withAdditionalSetTimers(pushedBackTimers);
+          delegateResult.getTimerUpdate().withPushedBackTimers(pushedBackTimers);
       pushedBackTimers.clear();
-
       StepTransformResult.Builder<KeyedWorkItem<K, KV<K, InputT>>> regroupedResult =
           StepTransformResult.<KeyedWorkItem<K, KV<K, InputT>>>withHold(
                   delegateResult.getTransform(), delegateResult.getWatermarkHold())

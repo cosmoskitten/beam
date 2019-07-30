@@ -44,8 +44,6 @@ import java.util.concurrent.locks.ReadWriteLock;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 import java.util.function.Function;
-import java.util.stream.Collectors;
-import java.util.stream.StreamSupport;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.GuardedBy;
@@ -434,12 +432,15 @@ public class WatermarkManager<ExecutableT, CollectionT> {
           if (existingTimer == null) {
             pendingTimers.add(timer);
             keyTimers.add(timer);
-          } else if (!existingTimer.equals(timer)) {
+          } else {
+            // reinitialize the timer even if identical,
+            // because it might be removed from objectTimers
+            // by timer push back
             pendingTimers.remove(existingTimer);
             keyTimers.remove(existingTimer);
             pendingTimers.add(timer);
             keyTimers.add(timer);
-          } // else the timer is already set identically, so noop
+          }
 
           existingTimersForKey.put(timer.getNamespace(), timer.getTimerId(), timer);
         }
@@ -1663,18 +1664,21 @@ public class WatermarkManager<ExecutableT, CollectionT> {
 
     /**
      * Returns a {@link TimerUpdate} that is like this one, but with the setTimers added by the
-     * provided setTimers.
+     * provided setTimers, if those timers are not in deletedTimers. Moreover, setTimers are removed
+     * from completedTimers (if present).
      */
-    public TimerUpdate withAdditionalSetTimers(Iterable<TimerData> setTimers) {
-      Set<TimerData> deletedTimersSet =
-          StreamSupport.stream(deletedTimers.spliterator(), false).collect(Collectors.toSet());
+    public TimerUpdate withPushedBackTimers(Iterable<TimerData> setTimers) {
+      Set<TimerData> deletedTimersSet = Sets.newHashSet(this.deletedTimers);
       Set<TimerData> modifiableSetTimers = Sets.newHashSet(this.setTimers);
+      Set<TimerData> modifiableCompletedTimers = Sets.newHashSet(this.completedTimers);
       for (TimerData t : setTimers) {
         if (!deletedTimersSet.contains(t)) {
           modifiableSetTimers.add(t);
+          modifiableCompletedTimers.remove(t);
         }
       }
-      return new TimerUpdate(this.key, completedTimers, modifiableSetTimers, deletedTimers);
+      return new TimerUpdate(
+          this.key, modifiableCompletedTimers, modifiableSetTimers, deletedTimers);
     }
 
     @Override
@@ -1692,6 +1696,19 @@ public class WatermarkManager<ExecutableT, CollectionT> {
           && Objects.equals(this.completedTimers, that.completedTimers)
           && Objects.equals(this.setTimers, that.setTimers)
           && Objects.equals(this.deletedTimers, that.deletedTimers);
+    }
+
+    @Override
+    public String toString() {
+      return "TimerUpdate(key="
+          + key
+          + ", setTimers="
+          + setTimers
+          + ", completedTimers="
+          + completedTimers
+          + ", deletedTimers="
+          + deletedTimers
+          + ")";
     }
   }
 
