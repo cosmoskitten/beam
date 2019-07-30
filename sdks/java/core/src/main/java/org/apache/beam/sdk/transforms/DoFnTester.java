@@ -191,6 +191,7 @@ public class DoFnTester<InputT, OutputT> implements AutoCloseable {
     processTimestampedElement(TimestampedValue.atMinimumTimestamp(element));
   }
 
+  /** @deprecated Use {@link TestPipeline} with the {@code DirectRunner}. */
   @Deprecated
   public void processRetraction(InputT element) throws Exception {
     processTimestampedRetraction(TimestampedValue.atMinimumTimestamp(element));
@@ -799,66 +800,68 @@ public class DoFnTester<InputT, OutputT> implements AutoCloseable {
           });
     }
 
+    if (signature.processRetraction() != null) {
       for (DoFnSignature.Parameter param : signature.processRetraction().extraParameters()) {
-          param.match(
-                  new DoFnSignature.Parameter.Cases.WithDefault<Void>() {
-                      @Override
-                      @Nullable
-                      public Void dispatch(DoFnSignature.Parameter.ProcessContextParameter p) {
-                          // ProcessContext parameter is obviously supported.
-                          return null;
-                      }
+        param.match(
+            new DoFnSignature.Parameter.Cases.WithDefault<Void>() {
+              @Override
+              @Nullable
+              public Void dispatch(DoFnSignature.Parameter.ProcessContextParameter p) {
+                // ProcessContext parameter is obviously supported.
+                return null;
+              }
 
-                      @Override
-                      @Nullable
-                      public Void dispatch(DoFnSignature.Parameter.WindowParameter p) {
-                          // We also support the BoundedWindow parameter.
-                          return null;
-                      }
+              @Override
+              @Nullable
+              public Void dispatch(DoFnSignature.Parameter.WindowParameter p) {
+                // We also support the BoundedWindow parameter.
+                return null;
+              }
 
-                      @Override
-                      @Nullable
-                      public Void dispatch(DoFnSignature.Parameter.ElementParameter p) {
-                          return null;
-                      }
+              @Override
+              @Nullable
+              public Void dispatch(DoFnSignature.Parameter.ElementParameter p) {
+                return null;
+              }
 
-                      @Override
-                      @Nullable
-                      public Void dispatch(DoFnSignature.Parameter.TimestampParameter p) {
-                          return null;
-                      }
+              @Override
+              @Nullable
+              public Void dispatch(DoFnSignature.Parameter.TimestampParameter p) {
+                return null;
+              }
 
-                      @Override
-                      @Nullable
-                      public Void dispatch(DoFnSignature.Parameter.TimeDomainParameter p) {
-                          return null;
-                      }
+              @Override
+              @Nullable
+              public Void dispatch(DoFnSignature.Parameter.TimeDomainParameter p) {
+                return null;
+              }
 
-                      @Override
-                      @Nullable
-                      public Void dispatch(DoFnSignature.Parameter.OutputReceiverParameter p) {
-                          return null;
-                      }
+              @Override
+              @Nullable
+              public Void dispatch(DoFnSignature.Parameter.OutputReceiverParameter p) {
+                return null;
+              }
 
-                      @Override
-                      @Nullable
-                      public Void dispatch(DoFnSignature.Parameter.TaggedOutputReceiverParameter p) {
-                          return null;
-                      }
+              @Override
+              @Nullable
+              public Void dispatch(DoFnSignature.Parameter.TaggedOutputReceiverParameter p) {
+                return null;
+              }
 
-                      @Override
-                      @Nullable
-                      public Void dispatch(DoFnSignature.Parameter.PaneInfoParameter p) {
-                          return null;
-                      }
+              @Override
+              @Nullable
+              public Void dispatch(DoFnSignature.Parameter.PaneInfoParameter p) {
+                return null;
+              }
 
-                      @Override
-                      protected Void dispatchDefault(DoFnSignature.Parameter p) {
-                          throw new UnsupportedOperationException(
-                                  "Parameter " + p + " not supported by DoFnTester");
-                      }
-                  });
+              @Override
+              protected Void dispatchDefault(DoFnSignature.Parameter p) {
+                throw new UnsupportedOperationException(
+                    "Parameter " + p + " not supported by DoFnTester");
+              }
+            });
       }
+    }
   }
 
   @SuppressWarnings("unchecked")

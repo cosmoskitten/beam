@@ -683,23 +683,18 @@ public abstract class DoFnSignature {
     @Override
     public abstract TypeDescriptor<? extends BoundedWindow> windowT();
 
-    /** Whether this {@link DoFn} returns a {@link ProcessContinuation} or void. */
-    public abstract boolean hasReturnValue();
-
     static ProcessRetractionMethod create(
         Method targetMethod,
         List<Parameter> extraParameters,
         boolean requiresStableInput,
         TypeDescriptor<?> trackerT,
-        @Nullable TypeDescriptor<? extends BoundedWindow> windowT,
-        boolean hasReturnValue) {
+        @Nullable TypeDescriptor<? extends BoundedWindow> windowT) {
       return new AutoValue_DoFnSignature_ProcessRetractionMethod(
           targetMethod,
           Collections.unmodifiableList(extraParameters),
           requiresStableInput,
           trackerT,
-          windowT,
-          hasReturnValue);
+          windowT);
     }
 
     /**

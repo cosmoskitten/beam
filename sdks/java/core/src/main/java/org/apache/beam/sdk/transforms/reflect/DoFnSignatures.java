@@ -800,11 +800,7 @@ public class DoFnSignatures {
       TypeDescriptor<?> inputT,
       TypeDescriptor<?> outputT,
       FnAnalysisContext fnContext) {
-    errors.checkArgument(
-        void.class.equals(m.getReturnType())
-            || DoFn.ProcessContinuation.class.equals(m.getReturnType()),
-        "Must return void or %s",
-        DoFn.ProcessContinuation.class.getSimpleName());
+    errors.checkArgument(void.class.equals(m.getReturnType()), "Must return void");
 
     MethodAnalysisContext methodContext = MethodAnalysisContext.create();
 
@@ -855,12 +851,7 @@ public class DoFnSignatures {
     }
 
     return DoFnSignature.ProcessRetractionMethod.create(
-        m,
-        methodContext.getExtraParameters(),
-        requiresStableInput,
-        trackerT,
-        windowT,
-        DoFn.ProcessContinuation.class.equals(m.getReturnType()));
+        m, methodContext.getExtraParameters(), requiresStableInput, trackerT, windowT);
   }
 
   @VisibleForTesting
