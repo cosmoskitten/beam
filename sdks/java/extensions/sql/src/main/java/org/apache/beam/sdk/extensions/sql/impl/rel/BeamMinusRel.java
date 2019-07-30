@@ -54,6 +54,11 @@ public class BeamMinusRel extends Minus implements BeamRelNode {
 
   @Override
   public RowRateWindow estimateRowRateWindow(RelMetadataQuery mq) {
-    return new RowRateWindow(mq.getRowCount(this), 0d, 0d);
+    RowRateWindow firstInputEstimates = BeamSqlRelUtils.getRowRateWindow(inputs.get(0), mq);
+    for (int i = 1; i < inputs.size(); i++) {
+      RowRateWindow inputEstimate = BeamSqlRelUtils.getRowRateWindow(inputs.get(i), mq);
+      firstInputEstimates = firstInputEstimates.minus(inputEstimate.multiply(0.5));
+    }
+    return firstInputEstimates;
   }
 }

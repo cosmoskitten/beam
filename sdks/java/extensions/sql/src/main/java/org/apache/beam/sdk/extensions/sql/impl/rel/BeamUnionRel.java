@@ -81,6 +81,11 @@ public class BeamUnionRel extends Union implements BeamRelNode {
 
   @Override
   public RowRateWindow estimateRowRateWindow(RelMetadataQuery mq) {
-    return new RowRateWindow(mq.getRowCount(this), 0d, 0d);
+    RowRateWindow summationOfEstimates =
+        inputs.stream()
+            .map(input -> BeamSqlRelUtils.getRowRateWindow(input, mq))
+            .reduce(new RowRateWindow(0, 0, 0), RowRateWindow::plus);
+    summationOfEstimates = all ? summationOfEstimates : summationOfEstimates.multiply(0.5);
+    return summationOfEstimates;
   }
 }

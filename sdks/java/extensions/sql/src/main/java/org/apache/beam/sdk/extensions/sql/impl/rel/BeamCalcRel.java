@@ -68,6 +68,8 @@ import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.core.Calc;
 import org.apache.calcite.rel.metadata.RelMetadataQuery;
 import org.apache.calcite.rex.RexBuilder;
+import org.apache.calcite.rex.RexLocalRef;
+import org.apache.calcite.rex.RexNode;
 import org.apache.calcite.rex.RexProgram;
 import org.apache.calcite.rex.RexSimplify;
 import org.apache.calcite.rex.RexUtil;
@@ -201,6 +203,19 @@ public class BeamCalcRel extends Calc implements BeamRelNode {
     }
   }
 
+  private static double estimateFilterSelectivity(
+      RelNode child, RexProgram program, RelMetadataQuery mq) {
+    // convert the program's RexLocalRef condition to an expanded RexNode
+    RexLocalRef programCondition = program.getCondition();
+    RexNode condition;
+    if (programCondition == null) {
+      condition = null;
+    } else {
+      condition = program.expandLocalRef(programCondition);
+    }
+    return mq.getSelectivity(child, condition);
+  }
+
   public int getLimitCountOfSortRel() {
     if (input instanceof BeamSortRel) {
       return ((BeamSortRel) input).getCount();
@@ -211,7 +226,10 @@ public class BeamCalcRel extends Calc implements BeamRelNode {
 
   @Override
   public RowRateWindow estimateRowRateWindow(RelMetadataQuery mq) {
-    return new RowRateWindow(mq.getRowCount(this), 0d, 0d);
+    RowRateWindow inputStat = BeamSqlRelUtils.getRowRateWindow(this.input, mq);
+    double selectivity = estimateFilterSelectivity(getInput(), program, mq);
+
+    return inputStat.multiply(selectivity);
   }
 
   public boolean isInputSortRelAndLimitOnly() {

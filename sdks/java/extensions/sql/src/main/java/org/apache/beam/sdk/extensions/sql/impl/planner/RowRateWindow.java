@@ -17,6 +17,8 @@
  */
 package org.apache.beam.sdk.extensions.sql.impl.planner;
 
+import java.util.Objects;
+
 /** This is a utility class to represent rowCount, rate and window. */
 public class RowRateWindow {
   private final double window;
@@ -28,6 +30,9 @@ public class RowRateWindow {
           Double.POSITIVE_INFINITY, Double.POSITIVE_INFINITY, Double.POSITIVE_INFINITY);
 
   public RowRateWindow(double rowCount, double rate, double window) {
+    if (window < 0 || rate < 0 || rowCount < 0) {
+      throw new IllegalArgumentException("All the estimates in RowRateWindow should be positive");
+    }
     this.window = window;
     this.rate = rate;
     this.rowCount = rowCount;
@@ -47,5 +52,44 @@ public class RowRateWindow {
 
   public boolean isUnknown() {
     return Double.isInfinite(rowCount) || Double.isInfinite(rate) || Double.isInfinite(window);
+  }
+
+  public RowRateWindow multiply(double factor) {
+    return new RowRateWindow(rowCount * factor, rate * factor, window * factor);
+  }
+
+  public RowRateWindow plus(RowRateWindow that) {
+    if (this.isUnknown() || that.isUnknown()) {
+      return UNKNOWN;
+    }
+    return new RowRateWindow(
+        this.getRowCount() + that.getRowCount(),
+        this.getRate() + that.getRate(),
+        this.getWindow() + that.getWindow());
+  }
+
+  public RowRateWindow minus(RowRateWindow that) {
+    if (this.isUnknown() || that.isUnknown()) {
+      return UNKNOWN;
+    }
+    return new RowRateWindow(
+        Math.max(this.getRowCount() - that.getRowCount(), 0),
+        Math.max(this.getRate() - that.getRate(), 0),
+        Math.max(this.getWindow() - that.getWindow(), 0));
+  }
+
+  @Override
+  public boolean equals(Object obj) {
+    if (!(obj instanceof RowRateWindow)) {
+      return false;
+    }
+    return ((RowRateWindow) obj).rate == this.rate
+        && ((RowRateWindow) obj).rowCount == this.rowCount
+        && ((RowRateWindow) obj).window == this.window;
+  }
+
+  @Override
+  public int hashCode() {
+    return Objects.hash(rowCount, rate, window);
   }
 }

@@ -82,9 +82,44 @@ public class BeamAggregationRel extends Aggregate implements BeamRelNode {
     this.windowFieldIndex = windowFieldIndex;
   }
 
+  private RowRateWindow computeWindowingCostEffect(RowRateWindow inputStat) {
+    if (windowFn == null) {
+      return inputStat;
+    }
+    WindowFn w = windowFn;
+    double multiplicationFactor = 1;
+    if (w instanceof SlidingWindows) {
+      multiplicationFactor =
+          ((double) ((SlidingWindows) w).getSize().getStandardSeconds())
+              / ((SlidingWindows) w).getPeriod().getStandardSeconds();
+    }
+
+    return new RowRateWindow(
+        inputStat.getRowCount() * multiplicationFactor,
+        inputStat.getRate() * multiplicationFactor,
+        BeamIOSourceRel.CONSTANT_WINDOW_SIZE);
+  }
+
   @Override
   public RowRateWindow estimateRowRateWindow(RelMetadataQuery mq) {
-    return new RowRateWindow(mq.getRowCount(this), 0d, 0d);
+
+    RowRateWindow inputEstimate = BeamSqlRelUtils.getRowRateWindow(this.input, mq);
+
+    inputEstimate = computeWindowingCostEffect(inputEstimate);
+
+    RowRateWindow estimate;
+    int groupCount = groupSet.cardinality() - (windowFn == null ? 0 : 1);
+    if (groupCount == 0) {
+      estimate =
+          new RowRateWindow(
+              Math.min(inputEstimate.getRowCount(), 1d),
+              inputEstimate.getRate() / inputEstimate.getWindow(),
+              1d);
+    } else {
+      double multiplier = 1.0 - Math.pow(.5, groupCount);
+      estimate = inputEstimate.multiply(multiplier);
+    }
+    return estimate;
   }
 
   @Override

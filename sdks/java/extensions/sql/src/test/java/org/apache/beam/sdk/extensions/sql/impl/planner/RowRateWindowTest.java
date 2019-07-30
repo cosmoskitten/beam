@@ -18,10 +18,12 @@
 package org.apache.beam.sdk.extensions.sql.impl.planner;
 
 import org.apache.beam.sdk.extensions.sql.impl.rel.BaseRelTest;
+import org.apache.beam.sdk.extensions.sql.impl.rel.BeamSqlRelUtils;
 import org.apache.beam.sdk.extensions.sql.meta.provider.test.TestBoundedTable;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.calcite.plan.RelOptCluster;
 import org.apache.calcite.plan.RelTraitSet;
+import org.apache.calcite.plan.volcano.RelSubset;
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.SingleRel;
 import org.junit.Assert;
@@ -31,19 +33,19 @@ import org.junit.Test;
 /** This tests the RowRateWindow Metadata handler and the estimations. */
 public class RowRateWindowTest extends BaseRelTest {
   static class UnknownRel extends SingleRel {
-    protected UnknownRel(RelOptCluster cluster, RelTraitSet traits, RelNode input) {
+    UnknownRel(RelOptCluster cluster, RelTraitSet traits, RelNode input) {
       super(cluster, traits, input);
     }
   }
 
-  public static final TestBoundedTable ORDER_DETAILS1 =
+  private static final TestBoundedTable ORDER_DETAILS1 =
       TestBoundedTable.of(
               Schema.FieldType.INT32, "order_id",
               Schema.FieldType.INT32, "site_id",
               Schema.FieldType.INT32, "price")
           .addRows(1, 2, 3, 2, 3, 3, 3, 4, 5);
 
-  public static final TestBoundedTable ORDER_DETAILS2 =
+  private static final TestBoundedTable ORDER_DETAILS2 =
       TestBoundedTable.of(
               Schema.FieldType.INT32, "order_id",
               Schema.FieldType.INT32, "site_id",
@@ -76,5 +78,19 @@ public class RowRateWindowTest extends BaseRelTest {
         root.metadata(RowRateWindowMetadata.class, root.getCluster().getMetadataQuery())
             .getRowRateWindow();
     Assert.assertFalse(rowRateWindow.isUnknown());
+  }
+
+  @Test
+  public void testSubsetHavingBest() {
+    String sql = " select * from ORDER_DETAILS1 ";
+    RelNode root = env.parseQuery(sql);
+    root = root.getCluster().getPlanner().getRoot();
+
+    // tests if we are actually testing what we want.
+    Assert.assertTrue(root instanceof RelSubset);
+
+    RowRateWindow estimates =
+        BeamSqlRelUtils.getRowRateWindow(root, root.getCluster().getMetadataQuery());
+    Assert.assertFalse(estimates.isUnknown());
   }
 }

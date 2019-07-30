@@ -138,7 +138,7 @@ public class BeamSortRel extends Sort implements BeamRelNode {
 
   @Override
   public RowRateWindow estimateRowRateWindow(RelMetadataQuery mq) {
-    return new RowRateWindow(mq.getRowCount(this), 0d, 0d);
+    return BeamSqlRelUtils.getRowRateWindow(this.input, mq);
   }
 
   public boolean isLimitOnly() {

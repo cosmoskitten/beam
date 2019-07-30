@@ -96,6 +96,6 @@ public class BeamValuesRel extends Values implements BeamRelNode {
 
   @Override
   public RowRateWindow estimateRowRateWindow(RelMetadataQuery mq) {
-    return new RowRateWindow(mq.getRowCount(this), 0d, 0d);
+    return new RowRateWindow(tuples.size(), 0, tuples.size());
   }
 }

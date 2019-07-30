@@ -74,7 +74,7 @@ public class BeamIOSinkRel extends TableModify
 
   @Override
   public RowRateWindow estimateRowRateWindow(RelMetadataQuery mq) {
-    return new RowRateWindow(mq.getRowCount(this), 0d, 0d);
+    return BeamSqlRelUtils.getRowRateWindow(this.input, mq);
   }
 
   @Override

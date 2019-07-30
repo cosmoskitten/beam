@@ -23,20 +23,15 @@ import org.apache.beam.sdk.extensions.sql.impl.planner.RowRateWindow;
 import org.apache.beam.sdk.extensions.sql.meta.provider.test.TestBoundedTable;
 import org.apache.beam.sdk.extensions.sql.meta.provider.test.TestUnboundedTable;
 import org.apache.beam.sdk.schemas.Schema;
-import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.calcite.rel.RelNode;
-import org.apache.calcite.rel.metadata.RelMetadataQuery;
 import org.joda.time.DateTime;
 import org.joda.time.Duration;
 import org.junit.Assert;
 import org.junit.BeforeClass;
-import org.junit.Rule;
 import org.junit.Test;
 
-/** Test for {@code BeamIOSourceRel}. */
-public class BeamIOSourceRelTest extends BaseRelTest {
-  @Rule public final TestPipeline pipeline = TestPipeline.create();
-
+/** Tests related to {@code BeamCalcRel}. */
+public class BeamCalcRelTest extends BaseRelTest {
   private static final DateTime FIRST_DATE = new DateTime(1);
   private static final DateTime SECOND_DATE = new DateTime(1 + 3600 * 1000);
 
@@ -102,64 +97,69 @@ public class BeamIOSourceRelTest extends BaseRelTest {
   }
 
   @Test
-  public void boundedRowCount() {
-    String sql = "SELECT * FROM ORDER_DETAILS_BOUNDED";
+  public void testProjectionRowRateWindow() {
+    String sql = "SELECT order_id FROM ORDER_DETAILS_BOUNDED";
 
     RelNode root = env.parseQuery(sql);
 
-    while (!(root instanceof BeamIOSourceRel)) {
-      root = root.getInput(0);
-    }
-
-    Assert.assertEquals(5d, root.estimateRowCount(RelMetadataQuery.instance()), 0.001);
-  }
-
-  @Test
-  public void unboundedRowCount() {
-    String sql = "SELECT * FROM ORDER_DETAILS_UNBOUNDED";
-
-    RelNode root = env.parseQuery(sql);
-
-    while (!(root instanceof BeamIOSourceRel)) {
-      root = root.getInput(0);
-    }
-
-    Assert.assertEquals(2d, root.estimateRowCount(RelMetadataQuery.instance()), 0.001);
-  }
-
-  @Test
-  public void testBoundedRowRateWindow() {
-    String sql = "SELECT * FROM ORDER_DETAILS_BOUNDED";
-
-    RelNode root = env.parseQuery(sql);
-
-    while (!(root instanceof BeamIOSourceRel)) {
-      root = root.getInput(0);
-    }
+    Assert.assertTrue(root instanceof BeamCalcRel);
 
     RowRateWindow estimate =
         BeamSqlRelUtils.getRowRateWindow(root, root.getCluster().getMetadataQuery());
 
-    Assert.assertEquals(5d, estimate.getRowCount(), 0.01);
-    Assert.assertEquals(0d, estimate.getRate(), 0.01);
-    Assert.assertEquals(5d, estimate.getWindow(), 0.01);
+    Assert.assertEquals(5d, estimate.getRowCount(), 0.001);
+    Assert.assertEquals(5d, estimate.getWindow(), 0.001);
+    Assert.assertEquals(0., estimate.getRate(), 0.001);
   }
 
   @Test
-  public void testUnboundedRowRateWindow() {
-    String sql = "SELECT * FROM ORDER_DETAILS_UNBOUNDED";
+  public void testFilterRowRateWindow() {
+    String sql = "SELECT * FROM ORDER_DETAILS_BOUNDED where order_id=1";
 
     RelNode root = env.parseQuery(sql);
 
-    while (!(root instanceof BeamIOSourceRel)) {
-      root = root.getInput(0);
-    }
+    Assert.assertTrue(root instanceof BeamCalcRel);
 
     RowRateWindow estimate =
         BeamSqlRelUtils.getRowRateWindow(root, root.getCluster().getMetadataQuery());
 
-    Assert.assertEquals(0d, estimate.getRowCount(), 0.01);
-    Assert.assertEquals(2d, estimate.getRate(), 0.01);
-    Assert.assertEquals(BeamIOSourceRel.CONSTANT_WINDOW_SIZE, estimate.getWindow(), 0.01);
+    Assert.assertTrue(5d > estimate.getRowCount());
+    Assert.assertTrue(5d > estimate.getWindow());
+    Assert.assertEquals(0., estimate.getRate(), 0.001);
+  }
+
+  @Test
+  public void testRowRateWindowConditionType() {
+    String equalSql = "SELECT * FROM ORDER_DETAILS_BOUNDED where order_id=1";
+    String geqSql = "SELECT * FROM ORDER_DETAILS_BOUNDED where order_id>=1";
+
+    RelNode equalRoot = env.parseQuery(equalSql);
+    RelNode geqRoot = env.parseQuery(geqSql);
+
+    RowRateWindow equalEstimate =
+        BeamSqlRelUtils.getRowRateWindow(equalRoot, equalRoot.getCluster().getMetadataQuery());
+    RowRateWindow geqEstimate =
+        BeamSqlRelUtils.getRowRateWindow(geqRoot, geqRoot.getCluster().getMetadataQuery());
+
+    Assert.assertTrue(geqEstimate.getRowCount() > equalEstimate.getRowCount());
+    Assert.assertTrue(geqEstimate.getWindow() > equalEstimate.getWindow());
+  }
+
+  @Test
+  public void testRowRateWindowNumberOfConditions() {
+    String equalSql = "SELECT * FROM ORDER_DETAILS_BOUNDED where order_id=1";
+    String doubleEqualSql = "SELECT * FROM ORDER_DETAILS_BOUNDED WHERE order_id=1 AND site_id=2 ";
+
+    RelNode equalRoot = env.parseQuery(equalSql);
+    RelNode doubleEqualRoot = env.parseQuery(doubleEqualSql);
+
+    RowRateWindow equalEstimate =
+        BeamSqlRelUtils.getRowRateWindow(equalRoot, equalRoot.getCluster().getMetadataQuery());
+    RowRateWindow doubleEqualEstimate =
+        BeamSqlRelUtils.getRowRateWindow(
+            doubleEqualRoot, doubleEqualRoot.getCluster().getMetadataQuery());
+
+    Assert.assertTrue(doubleEqualEstimate.getRowCount() < equalEstimate.getRowCount());
+    Assert.assertTrue(doubleEqualEstimate.getWindow() < equalEstimate.getWindow());
   }
 }

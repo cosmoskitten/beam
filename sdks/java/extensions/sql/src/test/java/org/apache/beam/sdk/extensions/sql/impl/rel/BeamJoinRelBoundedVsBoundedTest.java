@@ -18,13 +18,16 @@
 package org.apache.beam.sdk.extensions.sql.impl.rel;
 
 import org.apache.beam.sdk.extensions.sql.TestUtils;
+import org.apache.beam.sdk.extensions.sql.impl.planner.RowRateWindow;
 import org.apache.beam.sdk.extensions.sql.meta.provider.test.TestBoundedTable;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.Row;
+import org.apache.calcite.rel.RelNode;
 import org.hamcrest.core.StringContains;
+import org.junit.Assert;
 import org.junit.BeforeClass;
 import org.junit.Rule;
 import org.junit.Test;
@@ -79,6 +82,79 @@ public class BeamJoinRelBoundedVsBoundedTest extends BaseRelTest {
                 .addRows(2, 3, 3, 1, 2, 3)
                 .getRows());
     pipeline.run();
+  }
+
+  @Test
+  public void testRowRateWindowEstimation() {
+    String sql =
+        "SELECT *  "
+            + " FROM ORDER_DETAILS1 o1 "
+            + " JOIN ORDER_DETAILS2 o2 "
+            + " on "
+            + " o1.order_id=o2.site_id ";
+
+    RelNode root = env.parseQuery(sql);
+
+    while (!(root instanceof BeamJoinRel)) {
+      root = root.getInput(0);
+    }
+
+    RowRateWindow estimate =
+        BeamSqlRelUtils.getRowRateWindow(root, root.getCluster().getMetadataQuery());
+    RowRateWindow leftEstimate =
+        BeamSqlRelUtils.getRowRateWindow(
+            ((BeamJoinRel) root).getLeft(), root.getCluster().getMetadataQuery());
+    RowRateWindow rightEstimate =
+        BeamSqlRelUtils.getRowRateWindow(
+            ((BeamJoinRel) root).getRight(), root.getCluster().getMetadataQuery());
+
+    Assert.assertFalse(estimate.isUnknown());
+    Assert.assertEquals(0d, estimate.getRate(), 0.01);
+
+    Assert.assertNotEquals(0d, estimate.getRowCount(), 0.001);
+    Assert.assertTrue(
+        estimate.getRowCount() < leftEstimate.getRowCount() * rightEstimate.getRowCount());
+
+    Assert.assertNotEquals(0d, estimate.getWindow(), 0.001);
+    Assert.assertTrue(estimate.getWindow() < leftEstimate.getWindow() * rightEstimate.getWindow());
+  }
+
+  @Test
+  public void testRowRateWindowEstimationOfMoreConditions() {
+    String sql1 =
+        "SELECT *  "
+            + " FROM ORDER_DETAILS1 o1 "
+            + " JOIN ORDER_DETAILS2 o2 "
+            + " on "
+            + " o1.order_id=o2.site_id ";
+
+    String sql2 =
+        "SELECT *  "
+            + " FROM ORDER_DETAILS1 o1 "
+            + " JOIN ORDER_DETAILS2 o2 "
+            + " on "
+            + " o1.order_id=o2.site_id AND o2.price=o1.site_id";
+
+    RelNode root1 = env.parseQuery(sql1);
+
+    while (!(root1 instanceof BeamJoinRel)) {
+      root1 = root1.getInput(0);
+    }
+
+    RelNode root2 = env.parseQuery(sql2);
+
+    while (!(root2 instanceof BeamJoinRel)) {
+      root2 = root2.getInput(0);
+    }
+
+    RowRateWindow estimate1 =
+        BeamSqlRelUtils.getRowRateWindow(root1, root1.getCluster().getMetadataQuery());
+    RowRateWindow estimate2 =
+        BeamSqlRelUtils.getRowRateWindow(root2, root1.getCluster().getMetadataQuery());
+
+    Assert.assertNotEquals(0d, estimate2.getRowCount(), 0.001);
+    // A join with two conditions should have lower estimate.
+    Assert.assertTrue(estimate2.getRowCount() < estimate1.getRowCount());
   }
 
   @Test

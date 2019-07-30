@@ -144,7 +144,20 @@ public class BeamJoinRel extends Join implements BeamRelNode {
 
   @Override
   public RowRateWindow estimateRowRateWindow(RelMetadataQuery mq) {
-    return new RowRateWindow(mq.getRowCount(this), 0d, 0d);
+    double selectivity = mq.getSelectivity(this, getCondition());
+    RowRateWindow leftEstimates = BeamSqlRelUtils.getRowRateWindow(this.left, mq);
+    RowRateWindow rightEstimates = BeamSqlRelUtils.getRowRateWindow(this.right, mq);
+
+    if (leftEstimates.isUnknown() || rightEstimates.isUnknown()) {
+      return RowRateWindow.UNKNOWN;
+    }
+
+    return new RowRateWindow(
+        leftEstimates.getRowCount() * rightEstimates.getRowCount() * selectivity,
+        (leftEstimates.getRate() * rightEstimates.getWindow()
+                + rightEstimates.getRate() * leftEstimates.getWindow())
+            * selectivity,
+        leftEstimates.getWindow() * rightEstimates.getWindow() * selectivity);
   }
 
   /**

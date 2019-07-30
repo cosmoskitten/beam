@@ -78,7 +78,7 @@ public class BeamUnnestRel extends Uncollect implements BeamRelNode {
 
   @Override
   public RowRateWindow estimateRowRateWindow(RelMetadataQuery mq) {
-    return new RowRateWindow(mq.getRowCount(this), 0d, 0d);
+    return BeamSqlRelUtils.getRowRateWindow(this.input, mq).multiply(2);
   }
 
   @Override
