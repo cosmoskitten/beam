@@ -131,7 +131,7 @@ public class HllCountTest {
     PCollection<byte[]> result =
         p.apply(Create.of(INTS1)).apply(HllCount.Init.integerSketch().globally());
 
-    PAssert.that(result).containsInAnyOrder(INTS1_SKETCH);
+    PAssert.thatSingleton(result).isEqualTo(INTS1_SKETCH);
     p.run();
   }
 
@@ -141,7 +141,7 @@ public class HllCountTest {
     PCollection<byte[]> result =
         p.apply(Create.of(LONGS)).apply(HllCount.Init.longSketch().globally());
 
-    PAssert.that(result).containsInAnyOrder(LONGS_SKETCH);
+    PAssert.thatSingleton(result).isEqualTo(LONGS_SKETCH);
     p.run();
   }
 
@@ -152,7 +152,7 @@ public class HllCountTest {
         p.apply(Create.empty(TypeDescriptor.of(Long.class)))
             .apply(HllCount.Init.longSketch().globally());
 
-    PAssert.that(result).containsInAnyOrder(LONGS_EMPTY_SKETCH);
+    PAssert.that(result).empty();
     p.run();
   }
 
@@ -162,7 +162,7 @@ public class HllCountTest {
     PCollection<byte[]> result =
         p.apply(Create.of(STRINGS)).apply(HllCount.Init.stringSketch().globally());
 
-    PAssert.that(result).containsInAnyOrder(STRINGS_SKETCH);
+    PAssert.thatSingleton(result).isEqualTo(STRINGS_SKETCH);
     p.run();
   }
 
@@ -173,7 +173,7 @@ public class HllCountTest {
         p.apply(Create.of(STRINGS))
             .apply(HllCount.Init.stringSketch().withPrecision(TEST_PRECISION).globally());
 
-    PAssert.that(result).containsInAnyOrder(STRINGS_SKETCH_TEST_PRECISION);
+    PAssert.thatSingleton(result).isEqualTo(STRINGS_SKETCH_TEST_PRECISION);
     p.run();
   }
 
@@ -190,7 +190,7 @@ public class HllCountTest {
     PCollection<byte[]> result =
         p.apply(Create.of(BYTES)).apply(HllCount.Init.bytesSketch().globally());
 
-    PAssert.that(result).containsInAnyOrder(BYTES_SKETCH);
+    PAssert.thatSingleton(result).isEqualTo(BYTES_SKETCH);
     p.run();
   }
 
@@ -275,7 +275,7 @@ public class HllCountTest {
     PCollection<byte[]> result =
         p.apply(Create.of(INTS1_SKETCH, INTS2_SKETCH)).apply(HllCount.MergePartial.globally());
 
-    PAssert.that(result).containsInAnyOrder(INTS1_INTS2_SKETCH);
+    PAssert.thatSingleton(result).isEqualTo(INTS1_INTS2_SKETCH);
     p.run();
   }
 
@@ -286,7 +286,7 @@ public class HllCountTest {
         p.apply(Create.of(LONGS_SKETCH, LONGS_EMPTY_SKETCH))
             .apply(HllCount.MergePartial.globally());
 
-    PAssert.that(result).containsInAnyOrder(LONGS_SKETCH);
+    PAssert.thatSingleton(result).isEqualTo(LONGS_SKETCH);
     p.run();
   }
 
@@ -296,7 +296,7 @@ public class HllCountTest {
     PCollection<byte[]> result =
         p.apply(Create.of(LONGS_SKETCH)).apply(HllCount.MergePartial.globally());
 
-    PAssert.that(result).containsInAnyOrder(LONGS_SKETCH);
+    PAssert.thatSingleton(result).isEqualTo(LONGS_SKETCH);
     p.run();
   }
 

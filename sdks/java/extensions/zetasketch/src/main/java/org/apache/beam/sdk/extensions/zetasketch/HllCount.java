@@ -214,51 +214,24 @@ public final class HllCount {
       }
 
       /**
-       * Returns a {@code PTransform} that takes an input {@code PCollection<InputT>} and returns a
-       * {@code PCollection<byte[]>} whose contents is the HLL++ sketch computed from the elements
-       * in the input {@code PCollection}.
+       * Returns a {@link Combine.Globally} {@code PTransform} that takes an input {@code
+       * PCollection<InputT>} and returns a {@code PCollection<byte[]>} whose contents is the HLL++
+       * sketch computed from the elements in the input {@code PCollection}.
+       *
+       * <p>Returns an empty output {@code PCollection} if the input {@code PCollection} is empty.
        */
-      public PTransform<PCollection<InputT>, PCollection<byte[]>> globally() {
-        return new Globally<>(initFn);
+      public Combine.Globally<InputT, byte[]> globally() {
+        return Combine.globally(initFn).withoutDefaults();
       }
 
       /**
-       * Returns a {@code PTransform} that takes an input {@code PCollection<KV<K, InputT>>} and
-       * returns a {@code PCollection<KV<K, byte[]>>} whose contents is the per-key HLL++ sketch
-       * computed from the values matching each key in the input {@code PCollection}.
+       * Returns a {@link Combine.PerKey} {@code PTransform} that takes an input {@code
+       * PCollection<KV<K, InputT>>} and returns a {@code PCollection<KV<K, byte[]>>} whose contents
+       * is the per-key HLL++ sketch computed from the values matching each key in the input {@code
+       * PCollection}.
        */
-      public <K> PTransform<PCollection<KV<K, InputT>>, PCollection<KV<K, byte[]>>> perKey() {
-        return new PerKey<>(initFn);
-      }
-    }
-
-    private static final class Globally<InputT>
-        extends PTransform<PCollection<InputT>, PCollection<byte[]>> {
-
-      private final HllCountInitFn<InputT, ?> initFn;
-
-      private Globally(HllCountInitFn<InputT, ?> initFn) {
-        this.initFn = initFn;
-      }
-
-      @Override
-      public PCollection<byte[]> expand(PCollection<InputT> input) {
-        return input.apply("HllCount.Init.Globally", Combine.globally(initFn));
-      }
-    }
-
-    private static final class PerKey<K, V>
-        extends PTransform<PCollection<KV<K, V>>, PCollection<KV<K, byte[]>>> {
-
-      private final HllCountInitFn<V, ?> initFn;
-
-      private PerKey(HllCountInitFn<V, ?> initFn) {
-        this.initFn = initFn;
-      }
-
-      @Override
-      public PCollection<KV<K, byte[]>> expand(PCollection<KV<K, V>> input) {
-        return input.apply("HllCount.Init.PerKey", Combine.perKey(initFn));
+      public <K> Combine.PerKey<K, InputT, byte[]> perKey() {
+        return Combine.perKey(initFn);
       }
     }
   }
@@ -278,46 +251,30 @@ public final class HllCount {
     private MergePartial() {}
 
     /**
-     * Returns a {@code PTransform} that takes an input {@code PCollection<byte[]>} of HLL++
-     * sketches and returns a {@code PCollection<byte[]>} of a new sketch merged from the input
-     * sketches.
+     * Returns a {@link Combine.Globally} {@code PTransform} that takes an input {@code
+     * PCollection<byte[]>} of HLL++ sketches and returns a {@code PCollection<byte[]>} of a new
+     * sketch merged from the input sketches.
      *
      * <p>Only sketches of the same type and {@code precision} can be merged together. If
      * incompatible sketches are provided, a runtime error will occur.
+     *
+     * <p>Returns an empty output {@code PCollection} if the input {@code PCollection} is empty.
      */
-    public static PTransform<PCollection<byte[]>, PCollection<byte[]>> globally() {
-      return new Globally();
+    public static Combine.Globally<byte[], byte[]> globally() {
+      return Combine.globally(HllCountMergePartialFn.create()).withoutDefaults();
     }
 
     /**
-     * Returns a {@code PTransform} that takes an input {@code PCollection<KV<K, byte[]>>} of (key,
-     * HLL++ sketch) pairs and returns a {@code PCollection<KV<K, byte[]>>} of (key, new sketch
-     * merged from the input sketches under the key).
+     * Returns a {@link Combine.PerKey} {@code PTransform} that takes an input {@code
+     * PCollection<KV<K, byte[]>>} of (key, HLL++ sketch) pairs and returns a {@code
+     * PCollection<KV<K, byte[]>>} of (key, new sketch merged from the input sketches under the
+     * key).
      *
      * <p>Only sketches of the same type and {@code precision} can be merged together. If
      * incompatible sketches are provided, a runtime error will occur.
      */
-    public static <K> PTransform<PCollection<KV<K, byte[]>>, PCollection<KV<K, byte[]>>> perKey() {
-      return new PerKey<>();
-    }
-
-    private static final class Globally
-        extends PTransform<PCollection<byte[]>, PCollection<byte[]>> {
-      @Override
-      public PCollection<byte[]> expand(PCollection<byte[]> input) {
-        return input.apply(
-            "HllCount.MergePartial.Globally",
-            Combine.globally(HllCountMergePartialFn.create()).withoutDefaults());
-      }
-    }
-
-    private static final class PerKey<K>
-        extends PTransform<PCollection<KV<K, byte[]>>, PCollection<KV<K, byte[]>>> {
-      @Override
-      public PCollection<KV<K, byte[]>> expand(PCollection<KV<K, byte[]>> input) {
-        return input.apply(
-            "HllCount.MergePartial.PerKey", Combine.perKey(HllCountMergePartialFn.create()));
-      }
+    public static <K> Combine.PerKey<K, byte[], byte[]> perKey() {
+      return Combine.perKey(HllCountMergePartialFn.create());
     }
   }
 
@@ -352,10 +309,10 @@ public final class HllCount {
     }
 
     private static final class Globally extends PTransform<PCollection<byte[]>, PCollection<Long>> {
+
       @Override
       public PCollection<Long> expand(PCollection<byte[]> input) {
         return input.apply(
-            "HllCount.Extract.Globally",
             ParDo.of(
                 new DoFn<byte[], Long>() {
                   @ProcessElement
@@ -369,10 +326,10 @@ public final class HllCount {
 
     private static final class PerKey<K>
         extends PTransform<PCollection<KV<K, byte[]>>, PCollection<KV<K, Long>>> {
+
       @Override
       public PCollection<KV<K, Long>> expand(PCollection<KV<K, byte[]>> input) {
         return input.apply(
-            "HllCount.Extract.PerKey",
             ParDo.of(
                 new DoFn<KV<K, byte[]>, KV<K, Long>>() {
                   @ProcessElement
