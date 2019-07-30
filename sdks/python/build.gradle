@@ -181,6 +181,11 @@ task dataflowChicagoTaxiExample(dependsOn: ['installGcpTest', 'sdist']) {
     exec {
       workingDir "$project.projectDir/apache_beam/testing/benchmarks/chicago_taxi/"
       executable 'sh'
+      args '-c', ". ${project.ext.envdir}/bin/activate && pip install -r requirements.txt"
+    }
+    exec {
+      workingDir "$project.projectDir/apache_beam/testing/benchmarks/chicago_taxi/"
+      executable 'sh'
       args '-c', ". ${project.ext.envdir}/bin/activate && ./run_chicago.sh ${cliArgs}"
     }
   }
