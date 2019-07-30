@@ -13,6 +13,7 @@
 # limitations under the License.
 """Setup dependencies for local and cloud deployment."""
 import setuptools
+from __future__ import absolute_import
 
 # LINT.IfChange
 TF_VERSION = '1.13.1'
