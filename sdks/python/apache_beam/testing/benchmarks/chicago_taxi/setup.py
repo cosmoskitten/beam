@@ -12,8 +12,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 """Setup dependencies for local and cloud deployment."""
-import setuptools
 from __future__ import absolute_import
+import setuptools
 
 # LINT.IfChange
 TF_VERSION = '1.13.1'
