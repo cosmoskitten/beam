@@ -318,7 +318,9 @@ public class ByteBuddyDoFnInvokerFactory implements DoFnInvokerFactory {
             .method(ElementMatchers.named("invokeProcessElement"))
             .intercept(new ProcessElementDelegation(clazzDescription, signature.processElement()))
             .method(ElementMatchers.named("invokeProcessRetraction"))
-            .intercept(delegateOrNoop(clazzDescription, signature.processRetraction()))
+            .intercept(
+                delegateMethodWithExtraParametersOrNoop(
+                    clazzDescription, signature.processRetraction()))
 
             //   public invokeStartBundle(Context c) { delegate.<@StartBundle>(c); }
             //   ... etc ...
