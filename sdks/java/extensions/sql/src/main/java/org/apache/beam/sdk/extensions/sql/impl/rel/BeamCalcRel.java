@@ -45,12 +45,14 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionList;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Maps;
 import org.apache.calcite.DataContext;
 import org.apache.calcite.adapter.enumerable.JavaRowFormat;
 import org.apache.calcite.adapter.enumerable.PhysType;
 import org.apache.calcite.adapter.enumerable.PhysTypeImpl;
 import org.apache.calcite.adapter.enumerable.RexToLixTranslator;
 import org.apache.calcite.adapter.java.JavaTypeFactory;
+import org.apache.calcite.avatica.util.ByteString;
 import org.apache.calcite.linq4j.QueryProvider;
 import org.apache.calcite.linq4j.tree.BlockBuilder;
 import org.apache.calcite.linq4j.tree.Expression;
@@ -276,7 +278,13 @@ public class BeamCalcRel extends Calc implements BeamRelNode {
     } else if (toType.getTypeName() == TypeName.DECIMAL
         && !Types.isAssignableFrom(BigDecimal.class, (Class) value.getType())) {
       return Expressions.new_(BigDecimal.class, value);
+    } else if (toType.getTypeName() == TypeName.BYTES
+        && Types.isAssignableFrom(ByteString.class, (Class) value.getType())) {
 
+      return Expressions.condition(
+          Expressions.equal(value, Expressions.constant(null)),
+          Expressions.constant(null),
+          Expressions.call(value, "getBytes"));
     } else if (((Class) value.getType()).isPrimitive()
         || Types.isAssignableFrom(Number.class, (Class) value.getType())) {
       Type rawType = rawTypeMap.get(toType.getTypeName());
@@ -411,6 +419,15 @@ public class BeamCalcRel extends Calc implements BeamRelNode {
                 Expressions.equal(field, Expressions.constant(null)),
                 Expressions.constant(null),
                 Expressions.call(WrappedList.class, "of", field));
+      } else if (fromType.getTypeName().isMapType()
+          && fromType.getMapValueType().getTypeName().isCompositeType()) {
+        field = nullOr(field, Expressions.call(WrappedList.class, "ofMapValues", field));
+      } else if (fromType.getTypeName() == TypeName.BYTES) {
+        field =
+            Expressions.condition(
+                Expressions.equal(field, Expressions.constant(null)),
+                Expressions.constant(null),
+                Expressions.new_(ByteString.class, field));
       }
       return field;
     }
@@ -471,6 +488,10 @@ public class BeamCalcRel extends Calc implements BeamRelNode {
 
     public static List<Object> of(Row row) {
       return new WrappedList(row.getValues());
+    }
+
+    public static Map<Object, List> ofMapValues(Map<Object, Row> map) {
+      return Maps.transformValues(map, val -> (val == null) ? null : WrappedList.of(val));
     }
 
     @Override
