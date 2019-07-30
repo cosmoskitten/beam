@@ -379,10 +379,10 @@ class DataflowRunner(PipelineRunner):
     if apiclient._use_sdf_bounded_source(options):
       pipeline.replace_all(DataflowRunner._SDF_PTRANSFORM_OVERRIDES)
 
+    use_fnapi = apiclient._use_fnapi(options)
     from apache_beam.portability.api import beam_runner_api_pb2
     default_container_image = (
-        apiclient.get_default_container_image_for_current_sdk(
-            apiclient.get_job_type(options)))
+        apiclient.get_default_container_image_for_current_sdk(use_fnapi))
     default_environment = beam_runner_api_pb2.Environment(
         urn=common_urns.environments.DOCKER.urn,
         payload=beam_runner_api_pb2.DockerPayload(
@@ -392,7 +392,7 @@ class DataflowRunner(PipelineRunner):
     self.proto_pipeline, self.proto_context = pipeline.to_runner_api(
         return_context=True, default_environment=default_environment)
 
-    if apiclient._use_fnapi(options):
+    if use_fnapi:
       # Cross language transform require using a pipeline object constructed
       # from the full pipeline proto to make sure that expanded version of
       # external transforms are reflected in the Pipeline job graph.
