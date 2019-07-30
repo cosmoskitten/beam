@@ -126,7 +126,6 @@ def compute_stats(input_handle,
     metrics_monitor.publish_metrics(result)
 
 
-
 def main():
   tf.logging.set_verbosity(tf.logging.INFO)
 
