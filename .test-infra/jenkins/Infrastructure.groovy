@@ -108,6 +108,7 @@ class Infrastructure {
 
   static void scaleCluster(def context, String jobName, Integer workerCount) {
     context.steps {
+      // Keep one extra Dataproc VM for Flink's Job Manager
       workerCount += 1
       shell("echo Changing number of workers to ${workerCount}")
       shell("gcloud dataproc clusters update ${getClusterName(jobName)} --num-workers=${workerCount} --quiet")
@@ -116,13 +117,5 @@ class Infrastructure {
 
   private static GString getClusterName(String jobName) {
     return "${jobName.toLowerCase().replace("_", "-")}-\$BUILD_ID"
-  }
-
-  static void scaleCluster(def context, String jobName, Integer workerCount) {
-    context.steps {
-      // Keep one extra Dataproc VM for Flink's Job Manager
-      shell("echo Changing number of workers to ${workerCount+1}")
-      shell("gcloud dataproc clusters update ${getClusterName(jobName)} --num-workers=${workerCount+1} --quiet")
-    }
   }
 }
