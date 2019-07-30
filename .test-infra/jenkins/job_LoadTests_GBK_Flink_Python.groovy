@@ -32,8 +32,7 @@ String pythonHarnessImageTag = "${dockerRegistryRoot}/python:${dockerTag}"
 String flinkVersion = '1.7'
 String flinkDownloadUrl = 'https://archive.apache.org/dist/flink/flink-1.7.0/flink-1.7.0-bin-hadoop28-scala_2.11.tgz'
 
-
-def testConfigurationWithFiveWorkers = { datasetName -> [
+def testConfiguration = { datasetName -> [
         [
                 title        : 'Load test: 2GB of 10B records',
                 itClass      : 'apache_beam.testing.load_tests.group_by_key_test:GroupByKeyTest.testGroupByKey',
@@ -98,6 +97,48 @@ def testConfigurationWithFiveWorkers = { datasetName -> [
                 ]
         ],
         [
+                title        : 'Load test: fanout 4 times with 2GB 10-byte records total',
+                itClass      : 'apache_beam.testing.load_tests.group_by_key_test:GroupByKeyTest.testGroupByKey',
+                runner       : CommonTestProperties.Runner.PORTABLE,
+                sdk          : CommonTestProperties.SDK.PYTHON,
+                jobProperties: [
+                        job_name            : "load_tests_Python_Flink_Batch_GBK_4_${now}",
+                        publish_to_big_query: false,
+                        project             : 'apache-beam-testing',
+                        metrics_dataset     : datasetName,
+                        metrics_table       : "python_flink_batch_GBK_4",
+                        input_options       : '\'{"num_records": 5000000,"key_size": 10,"value_size":90}\'',
+                        iterations          : 1,
+                        fanout              : 4,
+                        parallelism         : 16,
+                        job_endpoint: 'localhost:8099',
+                        environment_config : pythonHarnessImageTag,
+                        environment_type: 'DOCKER'
+
+                ]
+        ],
+        [
+                title        : 'Load test: fanout 8 times with 2GB 10-byte records total',
+                itClass      : 'apache_beam.testing.load_tests.group_by_key_test:GroupByKeyTest.testGroupByKey',
+                runner       : CommonTestProperties.Runner.PORTABLE,
+                sdk          : CommonTestProperties.SDK.PYTHON,
+                jobProperties: [
+                        job_name            : "load_tests_Python_Flink_Batch_GBK_5_${now}",
+                        publish_to_big_query: false,
+                        project             : 'apache-beam-testing',
+                        metrics_dataset     : datasetName,
+                        metrics_table       : "python_flink_batch_GBK_5",
+                        input_options       : '\'{"num_records": 2500000,"key_size": 10,"value_size":90}\'',
+                        iterations          : 1,
+                        fanout              : 8,
+                        parallelism         : 16,
+                        job_endpoint: 'localhost:8099',
+                        environment_config : pythonHarnessImageTag,
+                        environment_type: 'DOCKER'
+
+                ]
+        ],
+        [
                 title        : 'Load test: reiterate 4 times 10kB values',
                 itClass      : 'apache_beam.testing.load_tests.group_by_key_test:GroupByKeyTest.testGroupByKey',
                 runner       : CommonTestProperties.Runner.PORTABLE,
@@ -141,69 +182,28 @@ def testConfigurationWithFiveWorkers = { datasetName -> [
         ]
     ]}
 
-    def testConfigurationWithSixteenWorkers = { datasetName -> [
-        [
-                title        : 'Load test: fanout 4 times with 2GB 10-byte records total',
-                itClass      : 'apache_beam.testing.load_tests.group_by_key_test:GroupByKeyTest.testGroupByKey',
-                runner       : CommonTestProperties.Runner.PORTABLE,
-                sdk          : CommonTestProperties.SDK.PYTHON,
-                jobProperties: [
-                        job_name            : "load_tests_Python_Flink_Batch_GBK_4_${now}",
-                        publish_to_big_query: false,
-                        project             : 'apache-beam-testing',
-                        metrics_dataset     : datasetName,
-                        metrics_table       : "python_flink_batch_GBK_4",
-                        input_options       : '\'{"num_records": 5000000,"key_size": 10,"value_size":90}\'',
-                        iterations          : 1,
-                        fanout              : 4,
-                        parallelism         : 16,
-                        job_endpoint: 'localhost:8099',
-                        environment_config : pythonHarnessImageTag,
-                        environment_type: 'DOCKER'
-
-                ]
-        ],
-        [
-                title        : 'Load test: fanout 8 times with 2GB 10-byte records total',
-                itClass      : 'apache_beam.testing.load_tests.group_by_key_test:GroupByKeyTest.testGroupByKey',
-                runner       : CommonTestProperties.Runner.PORTABLE,
-                sdk          : CommonTestProperties.SDK.PYTHON,
-                jobProperties: [
-                        job_name            : "load_tests_Python_Flink_Batch_GBK_5_${now}",
-                        publish_to_big_query: false,
-                        project             : 'apache-beam-testing',
-                        metrics_dataset     : datasetName,
-                        metrics_table       : "python_flink_batch_GBK_5",
-                        input_options       : '\'{"num_records": 2500000,"key_size": 10,"value_size":90}\'',
-                        iterations          : 1,
-                        fanout              : 8,
-                        parallelism         : 16,
-                        job_endpoint: 'localhost:8099',
-                        environment_config : pythonHarnessImageTag,
-                        environment_type: 'DOCKER'
-
-                ]
-        ],
-    ]}
 
 def loadTest = { scope, triggeringContext ->
   scope.description('Runs Python GBK load tests on Flink runner in batch mode')
   commonJobProperties.setTopLevelMainJobProperties(scope, 'master', 240)
 
-  int numberOfWorkers = 16
   def datasetName = loadTestsBuilder.getBigQueryDataset('load_test', triggeringContext)
+  def parametrizedTestConfigurations = testConfiguration(datasetName)
   def sdkName = CommonTestProperties.SDK.PYTHON
 
+  def numberOfWorkers = 16
   infra.prepareSDKHarness(scope, sdkName, dockerRegistryRoot, 'latest')
   infra.prepareFlinkJobServer(scope, flinkVersion, dockerRegistryRoot, 'latest')
   infra.setupFlinkCluster(scope, jenkinsJobName, flinkDownloadUrl, pythonHarnessImageTag, jobServerImageTag, numberOfWorkers)
 
-  loadTestsBuilder.loadTests(scope, sdkName,  testConfigurationWithSixteenWorkers(datasetName), "GBK", "batch")
-
+  def currentTestConfiguration = parametrizedTestConfigurations.findAll { it.jobProperties?.parallelism?.value == numberOfWorkers }
+  loadTestsBuilder.loadTests(scope, sdkName,  currentTestConfiguration, "GBK", "batch")
 
   numberOfWorkers = 5
   infra.scaleCluster(scope, jenkinsJobName, numberOfWorkers)
-  loadTestsBuilder.loadTests(scope, sdkName,  testConfigurationWithFiveWorkers(datasetName), "GBK", "batch")
+
+  currentTestConfiguration = parametrizedTestConfigurations.findAll { it.jobProperties?.parallelism?.value == numberOfWorkers }
+  loadTestsBuilder.loadTests(scope, sdkName,  currentTestConfiguration, "GBK", "batch")
 
   infra.teardownDataproc(scope, jenkinsJobName)
 }
