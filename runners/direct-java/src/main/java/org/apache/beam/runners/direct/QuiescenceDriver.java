@@ -256,7 +256,6 @@ class QuiescenceDriver implements ExecutionDriver {
    */
   private class TimerIterableCompletionCallback implements CompletionCallback {
 
-    private final @Nullable AppliedPTransform<?, ?, ?> executable;
     private final Iterable<TimerData> timers;
 
     TimerIterableCompletionCallback(
