@@ -27,7 +27,6 @@ import java.util.Set;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
-import javax.annotation.Nullable;
 import org.apache.beam.runners.core.KeyedWorkItem;
 import org.apache.beam.runners.core.KeyedWorkItems;
 import org.apache.beam.runners.core.TimerInternals.TimerData;
@@ -69,7 +68,7 @@ class QuiescenceDriver implements ExecutionDriver {
   private final PipelineMessageReceiver pipelineMessageReceiver;
 
   private final CompletionCallback defaultCompletionCallback =
-      new TimerIterableCompletionCallback(null, Collections.emptyList());
+      new TimerIterableCompletionCallback(Collections.emptyList());
 
   private final Map<AppliedPTransform<?, ?, ?>, ConcurrentLinkedQueue<CommittedBundle<?>>>
       pendingRootBundles;
@@ -173,9 +172,7 @@ class QuiescenceDriver implements ExecutionDriver {
                 .commit(evaluationContext.now());
         outstandingWork.incrementAndGet();
         bundleProcessor.process(
-            bundle,
-            transformTimers.getExecutable(),
-            new TimerIterableCompletionCallback(transformTimers.getExecutable(), delivery));
+            bundle, transformTimers.getExecutable(), new TimerIterableCompletionCallback(delivery));
         state.set(ExecutorState.ACTIVE);
       }
     } catch (Exception e) {
@@ -256,12 +253,9 @@ class QuiescenceDriver implements ExecutionDriver {
    */
   private class TimerIterableCompletionCallback implements CompletionCallback {
 
-    private final @Nullable AppliedPTransform<?, ?, ?> executable;
     private final Iterable<TimerData> timers;
 
-    TimerIterableCompletionCallback(
-        @Nullable AppliedPTransform<?, ?, ?> executable, Iterable<TimerData> timers) {
-      this.executable = executable;
+    TimerIterableCompletionCallback(Iterable<TimerData> timers) {
       this.timers = timers;
     }
 
