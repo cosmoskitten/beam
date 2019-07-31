@@ -13,6 +13,7 @@
 # limitations under the License.
 """Setup dependencies for local and cloud deployment."""
 from __future__ import absolute_import
+
 import setuptools
 
 # LINT.IfChange

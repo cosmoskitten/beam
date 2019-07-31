@@ -21,11 +21,12 @@ import argparse
 import numpy as np
 import tensorflow as tf
 from tensorflow.python.lib.io import file_io
-from tensorflow_metadata.proto.v0 import statistics_pb2
 import tensorflow_data_validation as tfdv
+from tensorflow_metadata.proto.v0 import statistics_pb2
 
 import apache_beam as beam
-from apache_beam.testing.load_tests.load_test_metrics_utils import MeasureTime, MetricsReader
+from apache_beam.testing.load_tests.load_test_metrics_utils import MeasureTime
+from apache_beam.testing.load_tests.load_test_metrics_utils import MetricsReader
 
 from google.protobuf import text_format
 from trainer import taxi

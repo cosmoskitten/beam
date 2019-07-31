@@ -13,19 +13,18 @@
 # limitations under the License.
 """Runs a batch job for performing Tensorflow Model Analysis."""
 
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
-from trainer import taxi
-import apache_beam as beam
-from apache_beam.testing.load_tests.load_test_metrics_utils import MeasureTime
-from apache_beam.testing.load_tests.load_test_metrics_utils import MetricsReader
+from __future__ import absolute_import, division, print_function
 
-from tensorflow_model_analysis.evaluators import evaluator
-import tensorflow_model_analysis as tfma
 import argparse
 
 import tensorflow as tf
+import tensorflow_model_analysis as tfma
+from tensorflow_model_analysis.evaluators import evaluator
+
+import apache_beam as beam
+from apache_beam.testing.load_tests.load_test_metrics_utils import (
+    MeasureTime, MetricsReader)
+from trainer import taxi
 
 
 def process_tfma(schema_file,
