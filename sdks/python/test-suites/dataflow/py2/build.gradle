@@ -114,3 +114,18 @@ task validatesRunnerStreamingTests(dependsOn: ['installGcpTest', 'sdist']) {
     }
   }
 }
+
+task dataflowChicagoTaxiExample(dependsOn: ['installGcpTest', 'sdist']) {
+
+  def gcsRoot = findProperty('gcsRoot')
+  def runner = findProperty('runner')
+  def cliArgs = "${gcsRoot} ${runner} ${project.buildDir}/apache-beam.tar.gz"
+
+  doLast {
+    exec {
+      workingDir "$project.projectDir/apache_beam/testing/benchmarks/chicago_taxi/"
+      executable 'sh'
+      args '-c', ". ${project.ext.envdir}/bin/activate && ./run_chicago.sh ${cliArgs}"
+    }
+  }
+}

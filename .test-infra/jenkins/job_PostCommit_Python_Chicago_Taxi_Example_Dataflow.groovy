@@ -33,7 +33,7 @@ PostcommitJobBuilder.postCommitJob('beam_PostCommit_Python_Chicago_Taxi_Dataflow
     steps {
         gradle {
             rootBuildScriptDir(commonJobProperties.checkoutDir)
-            tasks(':sdks:python:dataflowChicagoTaxiExample')
+            tasks(':sdks:python:test-suites:dataflow:py2:dataflowChicagoTaxiExample')
             switches('-PgcsRoot=gs://temp-storage-for-perf-tests/chicago-taxi')
             switches('-Prunner=DataflowRunner')
         }
@@ -50,7 +50,7 @@ CronJobBuilder.cronJob('beam_PostCommit_Python_Chicago_Taxi_Dataflow', 'H 14 * *
     steps {
         gradle {
             rootBuildScriptDir(commonJobProperties.checkoutDir)
-            tasks(':sdks:python:dataflowChicagoTaxiExample')
+            tasks(':sdks:python:test-suites:dataflow:py2:dataflowChicagoTaxiExample')
             switches('-PgcsRoot=gs://temp-storage-for-perf-tests/chicago-taxi')
             switches('-Prunner=DataflowRunner')
         }
