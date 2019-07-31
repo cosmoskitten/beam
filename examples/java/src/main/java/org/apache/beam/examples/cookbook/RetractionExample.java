@@ -42,6 +42,7 @@ import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 
+/** RetactionExample. */
 public class RetractionExample {
   static class ExtractWordsFn extends DoFn<String, String> {
     private final Counter emptyLines = Metrics.counter(ExtractWordsFn.class, "emptyLines");
@@ -75,6 +76,7 @@ public class RetractionExample {
     }
   }
 
+  /** ReverseWordCountFn. */
   public static class ReverseWordCountFn
       extends SimpleFunction<KV<String, Long>, KV<Long, String>> {
     @Override
@@ -106,6 +108,7 @@ public class RetractionExample {
     }
   }
 
+  /** WordFrequencyList. */
   public static class WordFrequencyList
       extends PTransform<PCollection<KV<String, Long>>, PCollection<KV<Long, Iterable<String>>>> {
     @Override
