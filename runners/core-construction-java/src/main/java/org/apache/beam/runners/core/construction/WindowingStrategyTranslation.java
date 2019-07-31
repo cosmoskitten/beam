@@ -356,6 +356,7 @@ public class WindowingStrategyTranslation implements Serializable {
         .withOnTimeBehavior(onTimeBehavior);
   }
 
+  /** windowFnFromProto. */
   public static WindowFn<?, ?> windowFnFromProto(SdkFunctionSpec windowFnSpec) {
     try {
       String s = windowFnSpec.getSpec().getUrn();
