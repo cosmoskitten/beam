@@ -293,6 +293,12 @@ public class PAssert {
     IterableAssert<T> filterAdditions();
 
     /**
+     * Creates a new {@link IterableAssert} like this one, but with the assertion restricted to only
+     * run on retractions.
+     */
+    IterableAssert<T> filterRetractions();
+
+    /**
      * Asserts that the iterable in question contains the provided elements.
      *
      * @return the same {@link IterableAssert} builder for further assertions
@@ -531,6 +537,20 @@ public class PAssert {
     };
   }
 
+  private static <T> DoFn<T, T> filterRetractionsOnly() {
+    return new DoFn<T, T>() {
+      @ProcessElement
+      public void processElement(ProcessContext c) {
+        // do nothing.
+      }
+
+      @ProcessRetraction
+      public void processRetraction(ProcessContext c) {
+        c.output(c.element());
+      }
+    };
+  }
+
   ////////////////////////////////////////////////////////////
 
   /**
@@ -604,6 +624,11 @@ public class PAssert {
     @Override
     public IterableAssert<T> filterAdditions() {
       return new PCollectionContentsAssert(actual, site, filterAdditionsOnly());
+    }
+
+    @Override
+    public IterableAssert<T> filterRetractions() {
+      return new PCollectionContentsAssert(actual, site, filterRetractionsOnly());
     }
 
     private PCollectionContentsAssert<T> withPane(
@@ -691,7 +716,8 @@ public class PAssert {
           (SerializableFunction) new MatcherCheckerFn<>(matcher);
       actual.apply(
           "PAssert$" + (assertCount++),
-          new GroupThenAssert<>(checkerFn, rewindowingStrategy, paneExtractor, site));
+          new GroupThenAssert<>(
+              checkerFn, rewindowingStrategy, paneExtractor, site, elementFilter));
       return this;
     }
 
@@ -806,6 +832,11 @@ public class PAssert {
 
     @Override
     public IterableAssert<T> filterAdditions() {
+      return null;
+    }
+
+    @Override
+    public IterableAssert<T> filterRetractions() {
       return null;
     }
 
