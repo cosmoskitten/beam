@@ -141,6 +141,7 @@ public abstract class WindowedValue<T> {
     return false;
   }
 
+  /** Returns {@code true} if this WindowedValue is a retraction. */
   public abstract boolean isRetraction();
 
   /**
@@ -262,6 +263,7 @@ public abstract class WindowedValue<T> {
       return GlobalWindow.INSTANCE;
     }
 
+    @Override
     public boolean isRetraction() {
       return isRetraction;
     }
@@ -345,6 +347,7 @@ public abstract class WindowedValue<T> {
       return GlobalWindow.INSTANCE;
     }
 
+    @Override
     public boolean isRetraction() {
       return isRetraction;
     }
@@ -422,7 +425,9 @@ public abstract class WindowedValue<T> {
     @Override
     public BoundedWindow getWindow() {
       return window;
+    }
 
+    @Override
     public boolean isRetraction() {
       return isRetraction;
     }
