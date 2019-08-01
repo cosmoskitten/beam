@@ -19,10 +19,48 @@
 import CommonJobProperties as common
 import CommonTestProperties.SDK
 
-class Infrastructure {
+class Flink {
+  private static final String repositoryRoot = 'gcr.io/apache-beam-testing/beam_portability'
+  private static final String dockerTag = 'latest'
+  private static final String jobServerImageTag = "${repositoryRoot}/flink-job-server:${dockerTag}"
+  private static final String flinkVersion = '1.7'
+  private static final String flinkDownloadUrl = 'https://archive.apache.org/dist/flink/flink-1.7.0/flink-1.7.0-bin-hadoop28-scala_2.11.tgz'
 
-  static void prepareSDKHarness(def context, SDK sdk, String repositoryRoot, String dockerTag) {
-    context.steps {
+  private static def job
+  private static String jobName
+
+  static String getSDKHarnessImageTag(SDK sdk) {
+    switch (sdk) {
+      case CommonTestProperties.SDK.PYTHON:
+        return "${repositoryRoot}/python:${dockerTag}"
+      case CommonTestProperties.SDK.JAVA:
+        return "${repositoryRoot}/java:${dockerTag}"
+      default:
+        String sdkName = sdk.name().toLowerCase()
+        throw new IllegalArgumentException("${sdkName} SDK is not supported")
+    }
+  }
+
+  static void setUp(job, String jobName, SDK sdk, Integer workerCount, Integer slotsPerTaskmanager = 1) {
+    this.job = job
+    this.jobName = jobName
+
+    prepareSDKHarness(sdk)
+    prepareFlinkJobServer()
+    setupFlinkCluster(sdk, workerCount, slotsPerTaskmanager)
+    addTeardownDataprocCleanupStep()
+  }
+
+  static void scaleCluster(Integer workerCount) {
+    job.steps {
+      workerCount += 1
+      shell("echo Changing number of workers to ${workerCount}")
+      shell("gcloud dataproc clusters update ${getClusterName()} --num-workers=${workerCount} --quiet")
+    }
+  }
+
+  private static void prepareSDKHarness(SDK sdk) {
+    job.steps {
       String sdkName = sdk.name().toLowerCase()
       String image = "${repositoryRoot}/${sdkName}"
       String imageTag = "${image}:${dockerTag}"
@@ -42,8 +80,8 @@ class Infrastructure {
     }
   }
 
-  static void prepareFlinkJobServer(def context, String flinkVersion, String repositoryRoot, String dockerTag) {
-    context.steps {
+  private static void prepareFlinkJobServer() {
+    job.steps {
       String image = "${repositoryRoot}/flink-job-server"
       String imageTag = "${image}:${dockerTag}"
 
@@ -64,12 +102,13 @@ class Infrastructure {
     }
   }
 
-  static void setupFlinkCluster(def context, String clusterNamePrefix, String flinkDownloadUrl, String imagesToPull, String jobServerImage, Integer workerCount, Integer slotsPerTaskmanager = 1) {
+  private static void setupFlinkCluster(SDK sdk, Integer workerCount, Integer slotsPerTaskmanager) {
     String gcsBucket = 'gs://beam-flink-cluster'
-    String clusterName = getClusterName(clusterNamePrefix)
-    String artifactsDir="${gcsBucket}/${clusterName}"
+    String clusterName = getClusterName()
+    String artifactsDir = "${gcsBucket}/${clusterName}"
+    String imagesToPull = getSDKHarnessImageTag(sdk)
 
-    context.steps {
+    job.steps {
       environmentVariables {
         env("GCLOUD_ZONE", "us-central1-a")
         env("CLUSTER_NAME", clusterName)
@@ -83,8 +122,8 @@ class Infrastructure {
           env("HARNESS_IMAGES_TO_PULL", imagesToPull)
         }
 
-        if(jobServerImage) {
-          env("JOB_SERVER_IMAGE", jobServerImage)
+        if(jobServerImageTag) {
+          env("JOB_SERVER_IMAGE", jobServerImageTag)
           env("ARTIFACTS_DIR", artifactsDir)
         }
       }
@@ -94,11 +133,11 @@ class Infrastructure {
     }
   }
 
-  static void teardownDataproc(def context, String jobName) {
-    context.publishers {
+  private static void addTeardownDataprocCleanupStep() {
+    job.publishers {
       postBuildScripts {
         steps {
-          shell("gcloud dataproc clusters delete ${getClusterName(jobName)} --quiet")
+          shell("gcloud dataproc clusters delete ${getClusterName()} --quiet")
         }
         onlyIfBuildSucceeds(false)
         onlyIfBuildFails(false)
@@ -106,15 +145,7 @@ class Infrastructure {
     }
   }
 
-  static void scaleCluster(def context, String jobName, Integer workerCount) {
-    context.steps {
-      workerCount += 1
-      shell("echo Changing number of workers to ${workerCount}")
-      shell("gcloud dataproc clusters update ${getClusterName(jobName)} --num-workers=${workerCount} --quiet")
-    }
-  }
-
-  private static GString getClusterName(String jobName) {
+  private static GString getClusterName() {
     return "${jobName.toLowerCase().replace("_", "-")}-\$BUILD_ID"
   }
 }

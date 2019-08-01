@@ -20,17 +20,10 @@ import CommonJobProperties as commonJobProperties
 import CommonTestProperties
 import LoadTestsBuilder as loadTestsBuilder
 import PhraseTriggeringPostCommitBuilder
-import Infrastructure as infra
+import Flink
 
-String jenkinsJobName = 'beam_LoadTests_Python_coGBK_Flink_Batch'
+String pythonHarnessImageTag = Flink.getSDKHarnessImageTag(CommonTestProperties.SDK.PYTHON)
 String now = new Date().format("MMddHHmmss", TimeZone.getTimeZone('UTC'))
-String dockerRegistryRoot = 'gcr.io/apache-beam-testing/beam_portability'
-String dockerTag = 'latest'
-String jobServerImageTag = "${dockerRegistryRoot}/flink-job-server:${dockerTag}"
-String pythonHarnessImageTag = "${dockerRegistryRoot}/python:${dockerTag}"
-
-String flinkVersion = '1.7'
-String flinkDownloadUrl = 'https://archive.apache.org/dist/flink/flink-1.7.0/flink-1.7.0-bin-hadoop28-scala_2.11.tgz'
 
 def loadTestConfigurations = { datasetName -> [
         [
@@ -162,15 +155,11 @@ def loadTest = { scope, triggeringContext ->
   def numberOfWorkers = 5
   def datasetName = loadTestsBuilder.getBigQueryDataset('load_test', triggeringContext)
 
-  infra.prepareSDKHarness(scope, CommonTestProperties.SDK.PYTHON, dockerRegistryRoot, dockerTag)
-  infra.prepareFlinkJobServer(scope, flinkVersion, dockerRegistryRoot, dockerTag)
-  infra.setupFlinkCluster(scope, jenkinsJobName, flinkDownloadUrl, pythonHarnessImageTag, jobServerImageTag, numberOfWorkers)
+  Flink.setUp(scope, 'beam_LoadTests_Python_CoGBK_Flink_Batch', CommonTestProperties.SDK.PYTHON, numberOfWorkers)
 
   for (config in loadTestConfigurations(datasetName)) {
     loadTestsBuilder.loadTest(scope, config.title, config.runner, CommonTestProperties.SDK.PYTHON, config.jobProperties, config.itClass)
   }
-
-  infra.teardownDataproc(scope, jenkinsJobName)
 }
 
 PhraseTriggeringPostCommitBuilder.postCommitJob(
