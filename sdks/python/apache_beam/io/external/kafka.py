@@ -37,9 +37,10 @@
 
 from __future__ import absolute_import
 
+import typing
+
 from past.builtins import unicode
 
-from apache_beam import typehints
 from apache_beam.transforms.external import External
 
 
@@ -60,13 +61,6 @@ class ReadFromKafka(External):
                             'ByteArrayDeserializer'
 
   _urn = 'beam:external:java:kafka:read:v1'
-
-  _schema = {
-    'consumer_config': typehints.Iterable[typehints.KV[unicode, unicode]],
-    'topics': typehints.Iterable[unicode],
-    'key_deserializer': unicode,
-    'value_deserializer': unicode,
-  }
 
   def __init__(self, consumer_config,
                topics,
@@ -97,6 +91,14 @@ class ReadFromKafka(External):
     self.topics = topics
     self.key_deserializer = key_deserializer
     self.value_deserializer = value_deserializer
+
+  def get_schema(self):
+    return {
+      'consumer_config': typing.Iterable[typing.Tuple[unicode, unicode]],
+      'topics': typing.Iterable[unicode],
+      'key_deserializer': unicode,
+      'value_deserializer': unicode,
+    }
 
 
 class WriteToKafka(External):
