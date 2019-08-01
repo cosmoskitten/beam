@@ -149,17 +149,12 @@ def loadTestConfigurations = { datasetName -> [
 ]}
 
 def loadTest = { scope, triggeringContext ->
-  scope.description('Runs Python coGBK load tests on Flink runner in batch mode')
-  commonJobProperties.setTopLevelMainJobProperties(scope, 'master', 240)
-
   def numberOfWorkers = 5
-  def datasetName = loadTestsBuilder.getBigQueryDataset('load_test', triggeringContext)
-
   Flink.setUp(scope, 'beam_LoadTests_Python_CoGBK_Flink_Batch', CommonTestProperties.SDK.PYTHON, numberOfWorkers)
 
-  for (config in loadTestConfigurations(datasetName)) {
-    loadTestsBuilder.loadTest(scope, config.title, config.runner, CommonTestProperties.SDK.PYTHON, config.jobProperties, config.itClass)
-  }
+  def datasetName = loadTestsBuilder.getBigQueryDataset('load_test', triggeringContext)
+  def testConfigs = loadTestConfigurations(datasetName)
+  loadTestsBuilder.loadTests(scope, CommonTestProperties.SDK.PYTHON, testConfigs, 'CoGBK', 'batch')
 }
 
 PhraseTriggeringPostCommitBuilder.postCommitJob(

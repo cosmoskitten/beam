@@ -139,9 +139,6 @@ def loadTestConfigurationsSixteenWorkers = { datasetName -> [
 ]}
 
 def batchLoadTestJob = { scope, triggeringContext ->
-    scope.description('Runs Python Combine load tests on Flink runner in batch mode')
-    commonJobProperties.setTopLevelMainJobProperties(scope, 'master', 240)
-
     def numberOfWorkers = 16
     def scaledNumberOfWorkers = 5
     def datasetName = loadTestsBuilder.getBigQueryDataset('load_test', triggeringContext)
@@ -149,16 +146,12 @@ def batchLoadTestJob = { scope, triggeringContext ->
     def flink = Flink.setUp(scope, 'beam_LoadTests_Python_Combine_Flink_Batch', CommonTestProperties.SDK.PYTHON, numberOfWorkers)
 
     def testConfigs = loadTestConfigurationsSixteenWorkers(datasetName)
-    for (config in testConfigs) {
-        loadTestsBuilder.loadTest(scope, config.title, config.runner, CommonTestProperties.SDK.PYTHON, config.jobProperties, config.itClass)
-    }
+    loadTestsBuilder.loadTests(scope, CommonTestProperties.SDK.PYTHON, testConfigs, 'Combine', 'batch')
 
     flink.scaleCluster(scaledNumberOfWorkers)
 
     testConfigs = loadTestConfigurationsFiveWorkers(datasetName)
-    for (config in testConfigs) {
-        loadTestsBuilder.loadTest(scope, config.title, config.runner, CommonTestProperties.SDK.PYTHON, config.jobProperties, config.itClass)
-    }
+    loadTestsBuilder.loadTests(scope, CommonTestProperties.SDK.PYTHON, testConfigs, 'Combine', 'batch')
 }
 
 PhraseTriggeringPostCommitBuilder.postCommitJob(
