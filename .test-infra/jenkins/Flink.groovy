@@ -19,10 +19,76 @@
 import CommonJobProperties as common
 import CommonTestProperties.SDK
 
-class Infrastructure {
+class Flink {
+  private static final String repositoryRoot = 'gcr.io/apache-beam-testing/beam_portability'
+  private static final String dockerTag = 'latest'
+  private static final String jobServerImageTag = "${repositoryRoot}/flink-job-server:${dockerTag}"
+  private static final String flinkVersion = '1.7'
+  private static final String flinkDownloadUrl = 'https://archive.apache.org/dist/flink/flink-1.7.0/flink-1.7.0-bin-hadoop28-scala_2.11.tgz'
+  private def job
+  private String jobName
 
-  static void prepareSDKHarness(def context, SDK sdk, String repositoryRoot, String dockerTag) {
-    context.steps {
+  private Flink(job, String jobName) {
+    this.job = job
+    this.jobName = jobName
+  }
+
+ /**
+  * Returns SDK Harness image tag to be used as an environment_config in the job definition.
+  *
+  * @param sdk - SDK
+  */
+  static String getSDKHarnessImageTag(SDK sdk) {
+    switch (sdk) {
+      case CommonTestProperties.SDK.PYTHON:
+        return "${repositoryRoot}/python:${dockerTag}"
+      case CommonTestProperties.SDK.JAVA:
+        return "${repositoryRoot}/java:${dockerTag}"
+      default:
+        String sdkName = sdk.name().toLowerCase()
+        throw new IllegalArgumentException("${sdkName} SDK is not supported")
+    }
+  }
+
+  /**
+   * Creates Flink cluster and specifies cleanup steps.
+   *
+   * @param job - jenkins job
+   * @param jobName - string to be used as a base for cluster name
+   * @param sdk - SDK
+   * @param workerCount - the initial number of worker nodes
+   * @param slotsPerTaskmanager - the number of slots per Flink task manager
+   */
+  static Flink setUp(job, String jobName, SDK sdk, Integer workerCount, Integer slotsPerTaskmanager = 1) {
+    Flink flink = new Flink(job, jobName)
+
+    flink.prepareSDKHarness(sdk)
+    flink.prepareFlinkJobServer()
+    flink.setupFlinkCluster(sdk, workerCount, slotsPerTaskmanager)
+    flink.addTeardownFlinkStep()
+
+    return flink
+  }
+
+  /**
+   * Updates the number of worker nodes in a cluster.
+   *
+   * @param workerCount - the new number of worker nodes in the cluster
+   */
+  void scaleCluster(Integer workerCount) {
+    job.steps {
+      environmentVariables {
+        env("FLINK_NUM_WORKERS", workerCount)
+      }
+      shell("gcloud dataproc clusters delete ${getClusterName(jobName)} --quiet")
+
+      shell('echo Setting up flink cluster')
+      shell("cd ${common.makePathAbsolute('src/.test-infra/dataproc/')}; ./create_flink_cluster.sh")
+    }
+  }
+
+  private void prepareSDKHarness(SDK sdk) {
+    job.steps {
       String sdkName = sdk.name().toLowerCase()
       String image = "${repositoryRoot}/${sdkName}"
       String imageTag = "${image}:${dockerTag}"
@@ -42,8 +108,8 @@ class Infrastructure {
     }
   }
 
-  static void prepareFlinkJobServer(def context, String flinkVersion, String repositoryRoot, String dockerTag) {
-    context.steps {
+  private void prepareFlinkJobServer() {
+    job.steps {
       String image = "${repositoryRoot}/flink-job-server"
       String imageTag = "${image}:${dockerTag}"
 
@@ -64,12 +130,13 @@ class Infrastructure {
     }
   }
 
-  static void setupFlinkCluster(def context, String clusterNamePrefix, String flinkDownloadUrl, String imagesToPull, String jobServerImage, Integer workerCount, Integer slotsPerTaskmanager = 1) {
+  private void setupFlinkCluster(SDK sdk, Integer workerCount, Integer slotsPerTaskmanager) {
     String gcsBucket = 'gs://beam-flink-cluster'
-    String clusterName = getClusterName(clusterNamePrefix)
-    String artifactsDir="${gcsBucket}/${clusterName}"
+    String clusterName = getClusterName()
+    String artifactsDir = "${gcsBucket}/${clusterName}"
+    String imagesToPull = getSDKHarnessImageTag(sdk)
 
-    context.steps {
+    job.steps {
       environmentVariables {
         env("GCLOUD_ZONE", "us-central1-a")
         env("CLUSTER_NAME", clusterName)
@@ -83,8 +150,8 @@ class Infrastructure {
           env("HARNESS_IMAGES_TO_PULL", imagesToPull)
         }
 
-        if(jobServerImage) {
-          env("JOB_SERVER_IMAGE", jobServerImage)
+        if(jobServerImageTag) {
+          env("JOB_SERVER_IMAGE", jobServerImageTag)
           env("ARTIFACTS_DIR", artifactsDir)
         }
       }
@@ -94,11 +161,11 @@ class Infrastructure {
     }
   }
 
-  static void teardownDataproc(def context, String jobName) {
-    context.publishers {
+  private void addTeardownFlinkStep() {
+    job.publishers {
       postBuildScripts {
         steps {
-          shell("gcloud dataproc clusters delete ${getClusterName(jobName)} --quiet")
+          shell("gcloud dataproc clusters delete ${getClusterName()} --quiet")
         }
         onlyIfBuildSucceeds(false)
         onlyIfBuildFails(false)
@@ -106,19 +173,7 @@ class Infrastructure {
     }
   }
 
-  static void scaleCluster(def context, String jobName, Integer workerCount) {
-    context.steps {
-      environmentVariables {
-        env("FLINK_NUM_WORKERS", workerCount)
-      }
-      shell("gcloud dataproc clusters delete ${getClusterName(jobName)} --quiet")
-
-      shell('echo Setting up flink cluster')
-      shell("cd ${common.makePathAbsolute('src/.test-infra/dataproc/')}; ./create_flink_cluster.sh")
-    }
-  }
-
-  private static GString getClusterName(String jobName) {
+  private GString getClusterName() {
     return "${jobName.toLowerCase().replace("_", "-")}-\$BUILD_ID"
   }
 }
