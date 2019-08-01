@@ -42,6 +42,8 @@ import org.apache.beam.sdk.values.PCollection;
  * BigQuery</a>. Using the {@code HllCount PTransform}s makes the interoperation with BigQuery
  * easier.
  *
+ * <p>For detailed design of this class, see https://s.apache.org/hll-in-beam.
+ *
  * <h3>Examples</h3>
  *
  * <h4>Example 1: Create long-type sketch for a {@code PCollection<Long>} and specify precision</h4>
@@ -73,6 +75,9 @@ import org.apache.beam.sdk.values.PCollection;
  * PCollection<Long> countDistinct =
  *     input.apply(HllCount.Init.stringSketch().globally()).apply(HllCount.Extract.globally());
  * }</pre>
+ *
+ * Note: Currently HllCount does not work on FnAPI workers. See <a
+ * href="https://issues.apache.org/jira/browse/BEAM-7879">Jira ticket [BEAM-7879]</a>.
  */
 @Experimental
 public final class HllCount {

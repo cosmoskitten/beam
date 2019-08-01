@@ -200,8 +200,10 @@ import org.apache.beam.sdk.values.PCollection;
  *
  * }</pre>
  *
- * Consider using {@code HllCount} in the {@code zetasketch} extension module if you need to create
- * sketches with format compatible with Google Cloud BigQuery.
+ * Consider using the {@code HllCount.Init} transform in the {@code zetasketch} extension module if
+ * you need to create sketches with format compatible with Google Cloud BigQuery. For more details
+ * about using {@code HllCount} and the {@code zetasketch} extension module, see
+ * https://s.apache.org/hll-in-beam#bookmark=id.v6chsij1ixo7
  *
  * <p><b>Warning: this class is experimental.</b> Its API is subject to change in future versions of
  * Beam. For example, it may be merged with the {@link
