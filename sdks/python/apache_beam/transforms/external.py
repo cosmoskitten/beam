@@ -61,13 +61,12 @@ class External(ptransform.PTransform):
   Base class for transforms that produce external transforms.
   """
   _urn = None
-  _schema = None
 
   def __init__(self, expansion_service=None):
     self.expansion_service = expansion_service or DEFAULT_EXPANSION_SERVICE
 
   @classmethod
-  def config_value(cls, obj, typehint=None):
+  def _config_value(cls, obj, typehint=None):
     """
     Helper to create a ConfigValue with an encoded value.
     """
@@ -80,8 +79,8 @@ class External(ptransform.PTransform):
       payload=coder.encode(obj))
 
   @classmethod
-  def encode_config(cls, config):
-    schema = cls._schema or {}
+  def _encode_config(cls, config, schema):
+    schema = schema or {}
     result = {}
     for k, v in config.items():
       typehint = schema.get(k)
@@ -89,26 +88,28 @@ class External(ptransform.PTransform):
           typehint is None or not isinstance(typehint, typehints.Optional)):
         # make it easy for user to filter None by default
         continue
-      result[k] = cls.config_value(v, typehint)
+      result[k] = cls._config_value(v, typehint)
     return result
 
-  def get_config(self):
+  def get_schema(self):
     """
-    Get a dictionary of configuration values to encode.
+    Return a schema to guide the serialization of the transform's configuration.
 
-    This provides a default implementation that determines the config
-    from the class's schema dictionary. If using this implementation,
-    the schema's keys are expected to correspond to instance
-    attributes on the External subclass.
+    Sub-classes must either implement this method or override get_encoded_config()
 
-    :return: dictionary of configuration values
+    :return: dictionary of types, whose keys match those returned by
+             _get_config(), and values are the types to be passed to
+            coders.registry.get_coder()
     """
-    if self._schema is None:
-      raise RuntimeError("External subclasses must implement a schema "
-                         "dictionary to use automatic encoding")
+    raise NotImplementedError
+
+  def _get_config(self, schema):
+    """
+    :return: dictionary of configuration values to encode
+    """
     config = {}
     missing = []
-    for key in self._schema:
+    for key in schema:
       try:
         config[key] = getattr(self, key)
       except AttributeError:
@@ -121,11 +122,16 @@ class External(ptransform.PTransform):
     ExternalConfigurationPayload.
 
     This provides a default implementation that determines the coders
-    from the class's schema dictionary.
+    from the schema returned by get_schema().
 
     :return: dictionary of string to ConfigValue
     """
-    return self.encode_config(self.get_config())
+    schema = self.get_schema()
+    if schema is None:
+      raise RuntimeError("External subclasses must implement a schema "
+                         "dictionary to use automatic encoding")
+    config = self._get_config(schema)
+    return self._encode_config(config, schema)
 
   def expand(self, pvalue):
     args = self.get_encoded_config()
