@@ -78,7 +78,7 @@ public class BeamUnnestRel extends Uncollect implements BeamRelNode {
 
   @Override
   public NodeStats estimateNodeStats(RelMetadataQuery mq) {
-    return NodeStats.create(mq.getRowCount(this));
+    return BeamSqlRelUtils.getNodeStats(this.input, mq).multiply(2);
   }
 
   @Override
