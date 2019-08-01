@@ -56,6 +56,7 @@ from __future__ import absolute_import
 import logging
 
 from bson import objectid
+from pymongo import ASCENDING
 from pymongo import MongoClient
 from pymongo import ReplaceOne
 
@@ -139,7 +140,8 @@ class _BoundedMongoSource(iobase.BoundedSource):
     self.filter = filter
     self.projection = projection
     self.spec = extra_client_params
-    self.doc_count = self._get_document_count()
+    self.doc_ids = self._get_document_ids()
+    self.doc_count = len(self.doc_ids)
     self.avg_doc_size = self._get_avg_document_size()
     self.client = None
 
@@ -173,16 +175,16 @@ class _BoundedMongoSource(iobase.BoundedSource):
     return OffsetRangeTracker(start_position, stop_position)
 
   def read(self, range_tracker):
+    ids = self.doc_ids[range_tracker.start_position():range_tracker.
+                       stop_position()]
+
     with MongoClient(self.uri, **self.spec) as client:
-      # docs is a MongoDB Cursor
-      docs = client[self.db][self.coll].find(
-          filter=self.filter, projection=self.projection
-      )[range_tracker.start_position():range_tracker.stop_position()]
-      for index in range(range_tracker.start_position(),
-                         range_tracker.stop_position()):
-        if not range_tracker.try_claim(index):
+      # There are possibilities that some documents are removed from mongodb
+      # collection during the work splits, in which case will yield NoneType.
+      for index, id in enumerate(ids):
+        if not range_tracker.try_claim(range_tracker.start_position() + index):
           return
-        yield docs[index - range_tracker.start_position()]
+        yield client[self.db][self.coll].find_one({'_id': id})
 
   def display_data(self):
     res = super(_BoundedMongoSource, self).display_data()
@@ -203,9 +205,18 @@ class _BoundedMongoSource(iobase.BoundedSource):
             'incorrect', self.coll)
       return size
 
-  def _get_document_count(self):
+  def _get_document_ids(self):
+    # retrieve all valid document ids when initiating the class, sort by _id
+    # this is to ensure the read targets
     with MongoClient(self.uri, **self.spec) as client:
-      return max(client[self.db][self.coll].count_documents(self.filter), 0)
+      docs = client[self.db][self.coll].find(filter=self.filter,
+                                             projection=[]).sort([('_id',
+                                                                   ASCENDING)])
+
+      ids = []
+      for doc in docs:
+        ids.append(doc['_id'])
+      return ids
 
 
 @experimental()

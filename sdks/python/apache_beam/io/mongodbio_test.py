@@ -38,26 +38,33 @@ from apache_beam.testing.util import equal_to
 
 class MongoSourceTest(unittest.TestCase):
   @mock.patch('apache_beam.io.mongodbio._BoundedMongoSource'
-              '._get_document_count')
+              '._get_document_ids')
   @mock.patch('apache_beam.io.mongodbio._BoundedMongoSource'
               '._get_avg_document_size')
-  def setUp(self, mock_size, mock_count):
+  def setUp(self, mock_size, mock_ids):
+    self._ids = [0, 1, 2, 3, 4]
+    self._docs = [{'_id': i, 'x': i} for i in range(len(self._ids))]
     mock_size.return_value = 10
-    mock_count.return_value = 5
+    mock_ids.return_value = self._ids
+
     self.mongo_source = _BoundedMongoSource('mongodb://test', 'testdb',
                                             'testcoll')
 
   def test_estimate_size(self):
     self.assertEqual(self.mongo_source.estimate_size(), 50)
 
+  def get_item(self, filter):
+    targets = filter['_id']
+    for doc in self._docs:
+      if doc['_id'] == targets:
+        return doc
+
+    return None
+
   @mock.patch('apache_beam.io.mongodbio.MongoClient')
   def test_split(self, mock_client):
-    # desired bundle size is 1 times of avg doc size, each bundle contains 1
-    # documents
     mock_client.return_value.__enter__.return_value.__getitem__.return_value \
-      .__getitem__.return_value.find.return_value = [{'x': 1}, {'x': 2},
-                                                     {'x': 3}, {'x': 4},
-                                                     {'x': 5}]
+      .__getitem__.return_value.find.side_effect = self.get_item
     for size in [10, 20, 100]:
       splits = list(
           self.mongo_source.split(start_position=0,
@@ -74,9 +81,7 @@ class MongoSourceTest(unittest.TestCase):
   def test_dynamic_work_rebalancing(self, mock_client):
     splits = list(self.mongo_source.split(desired_bundle_size=3000))
     mock_client.return_value.__enter__.return_value.__getitem__.return_value \
-      .__getitem__.return_value.find.return_value = [{'x': 1}, {'x': 2},
-                                                     {'x': 3}, {'x': 4},
-                                                     {'x': 5}]
+      .__getitem__.return_value.find.side_effect = self.get_item
     assert len(splits) == 1
     source_test_utils.assert_split_at_fraction_exhaustive(
         splits[0].source, splits[0].start_position, splits[0].stop_position)
@@ -95,13 +100,13 @@ class MongoSourceTest(unittest.TestCase):
     mock_tracker.start_position.return_value = 0
     mock_tracker.stop_position.return_value = 2
 
-    mock_client.return_value.__enter__.return_value.__getitem__.return_value\
-      .__getitem__.return_value.find.return_value = [{'x':1}, {'x':2}]
+    mock_client.return_value.__enter__.return_value.__getitem__.return_value \
+      .__getitem__.return_value.find_one.side_effect = self.get_item
 
     result = []
     for i in self.mongo_source.read(mock_tracker):
       result.append(i)
-    self.assertListEqual([{'x': 1}, {'x': 2}], result)
+    self.assertListEqual([{'x': 0, '_id': 0}, {'x': 1, '_id': 1}], result)
 
   def test_display_data(self):
     data = self.mongo_source.display_data()
@@ -115,24 +120,20 @@ class MongoSourceTest(unittest.TestCase):
       .return_value.command.return_value = {'avgObjSize': 5}
     self.assertEqual(5, self.mongo_source._get_avg_document_size())
 
-  @mock.patch('apache_beam.io.mongodbio.MongoClient')
-  def test_get_document_count(self, mock_client):
-    mock_client.return_value.__enter__.return_value.__getitem__ \
-      .return_value.__getitem__.return_value.count_documents.return_value = 10
-
-    self.assertEqual(10, self.mongo_source._get_document_count())
-
 
 class ReadFromMongoDBTest(unittest.TestCase):
+  @mock.patch('apache_beam.io.mongodbio._BoundedMongoSource'
+              '._get_document_ids')
   @mock.patch('apache_beam.io.mongodbio.MongoClient')
-  def test_read_from_mongodb(self, mock_client):
-    objects = [{'x': 1}, {'x': 2}]
+  def test_read_from_mongodb(self, mock_client, mock_ids):
+    objects = [{'_id': 0, 'x': 1}, {'id': 1, 'x': 2}]
+    # use index value as id
+    mock_ids.return_value = [0, 1]
     mock_client.return_value.__enter__.return_value.__getitem__.return_value. \
       command.return_value = {'avgObjSize': 1}
     mock_client.return_value.__enter__.return_value.__getitem__.return_value. \
-      __getitem__.return_value.find.return_value = objects
-    mock_client.return_value.__enter__.return_value.__getitem__.return_value. \
-      __getitem__.return_value.count_documents.return_value = 2
+      __getitem__.return_value.find_one.side_effect = lambda x: objects[
+          x['_id']]
 
     with TestPipeline() as p:
       docs = p | 'ReadFromMongoDB' >> ReadFromMongoDB(
