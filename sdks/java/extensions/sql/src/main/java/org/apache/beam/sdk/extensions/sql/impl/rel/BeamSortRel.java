@@ -138,7 +138,7 @@ public class BeamSortRel extends Sort implements BeamRelNode {
 
   @Override
   public NodeStats estimateNodeStats(RelMetadataQuery mq) {
-    return NodeStats.create(mq.getRowCount(this));
+    return BeamSqlRelUtils.getNodeStats(this.input, mq);
   }
 
   public boolean isLimitOnly() {
