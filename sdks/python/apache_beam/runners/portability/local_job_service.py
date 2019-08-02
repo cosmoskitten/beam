@@ -173,6 +173,8 @@ class SubprocessSdkWorker(object):
   """Manages a SDK worker implemented as a subprocess communicating over grpc.
     """
 
+  _lock = threading.Lock()
+
   def __init__(self, worker_command_line, control_address, worker_id=None):
     self._worker_command_line = worker_command_line
     self._control_address = control_address
@@ -200,10 +202,13 @@ class SubprocessSdkWorker(object):
     if self._worker_id:
       env_dict['WORKER_ID'] = self._worker_id
 
-    p = subprocess.Popen(
-        self._worker_command_line,
-        shell=True,
-        env=env_dict)
+    # deadlock would happen with py2, so add a lock here.
+    # no problem with py3.
+    with SubprocessSdkWorker._lock:
+      p = subprocess.Popen(
+          self._worker_command_line,
+          shell=True,
+          env=env_dict)
     try:
       p.wait()
       if p.returncode:
