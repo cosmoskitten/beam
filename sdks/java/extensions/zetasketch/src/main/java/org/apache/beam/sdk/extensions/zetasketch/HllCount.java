@@ -222,8 +222,8 @@ public final class HllCount {
        * Explicitly set the {@code precision} parameter used to compute HLL++ sketch.
        *
        * <p>Valid range is between {@link #MINIMUM_PRECISION} and {@link #MAXIMUM_PRECISION}. If
-       * this method is not called, {@link #DEFAULT_PRECISION} will be used. Sketches computed
-       * using different {@code precision}s cannot be merged together.
+       * this method is not called, {@link #DEFAULT_PRECISION} will be used. Sketches computed using
+       * different {@code precision}s cannot be merged together.
        *
        * @param precision the {@code precision} parameter used to compute HLL++ sketch
        */
