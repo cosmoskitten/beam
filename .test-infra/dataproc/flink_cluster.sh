@@ -63,7 +63,6 @@ FLINK_LOCAL_PORT=8081
 # By default each taskmanager has one slot - use that value to avoid sharing SDK Harness by multiple tasks.
 FLINK_TASKMANAGER_SLOTS="${FLINK_TASKMANAGER_SLOTS:=1}"
 
-TASK_MANAGER_MEM=10240
 YARN_APPLICATION_MASTER=""
 
 function upload_init_actions() {
@@ -137,7 +136,7 @@ function create_cluster() {
   gcloud dataproc clusters create $CLUSTER_NAME --num-workers=$num_dataproc_workers --initialization-actions $DOCKER_INIT,$BEAM_INIT,$FLINK_INIT --metadata "${metadata}", --image-version=$image_version --zone=$GCLOUD_ZONE --quiet
 }
 
-function main() {
+function create() {
   upload_init_actions
   create_cluster
   get_leader
@@ -145,4 +144,17 @@ function main() {
   start_tunnel
 }
 
-main "$@"
+function restart() {
+  delete
+  create
+}
+
+function delete() {
+  gcloud dataproc clusters delete $CLUSTER_NAME --quiet
+}
+
+function scale() {
+  restart
+}
+
+"$@"
