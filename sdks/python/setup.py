@@ -115,8 +115,7 @@ REQUIRED_PACKAGES = [
     'mock>=1.0.1,<3.0.0',
     'pymongo>=3.8.0,<4.0.0',
     'oauth2client>=2.0.1,<4',
-    # grpcio 1.8.1 and above requires protobuf 3.5.0.post1.
-    'protobuf>=3.5.0.post1,<4',
+    'protobuf>=3.8.0.post1,<4',
     # [BEAM-6287] pyarrow is not supported on Windows for Python 2
     ('pyarrow>=0.11.1,<0.15.0; python_version >= "3.0" or '
      'platform_system != "Windows"'),
