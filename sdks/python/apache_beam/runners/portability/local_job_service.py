@@ -154,7 +154,7 @@ class LocalJobServicer(beam_job_api_pb2_grpc.JobServiceServicer):
   def Cancel(self, request, context=None):
     # type: (beam_job_api_pb2.CancelJobRequest, Optional[Any]) -> beam_job_api_pb2.CancelJobResponse
     self._jobs[request.job_id].cancel()
-    return beam_job_api_pb2.CancelJobRequest(
+    return beam_job_api_pb2.CancelJobResponse(
         state=self._jobs[request.job_id].state)
 
   def GetStateStream(self, request, context=None):
