@@ -42,12 +42,12 @@ def run(argv=None):
                       default=default_coll,
                       help='mongo uri string for connection')
   parser.add_argument('--num_documents',
-                      default=10000,
+                      default=100000,
                       help='The expected number of documents to be generated '
                       'for write or read',
                       type=int)
   parser.add_argument('--batch_size',
-                      default=1000,
+                      default=10000,
                       help=('batch size for writing to mongodb'))
   known_args, pipeline_args = parser.parse_known_args(argv)
 
@@ -81,13 +81,12 @@ def run(argv=None):
                                         known_args.mongo_coll,
                                         projection=['number']) \
           | 'Map' >> beam.Map(lambda doc: doc['number'])
+    assert_that(
+        r, equal_to([number for number in range(known_args.num_documents)]))
 
   elapsed = time.time() - start_time
   logging.info('Read %d documents from mongodb finished in %.3f seconds' %
                (known_args.num_documents, elapsed))
-
-  assert_that(
-      r, equal_to([number for number in range(known_args.num_documents)]))
 
 
 if __name__ == "__main__":
