@@ -82,8 +82,22 @@ import org.apache.beam.sdk.values.PCollection;
 @Experimental
 public final class HllCount {
 
+  /**
+   * The minimum {@code precision} value you can set in {@link Init.Builder#withPrecision(int)} is
+   * {@value}.
+   */
   public static final int MINIMUM_PRECISION = HyperLogLogPlusPlus.MINIMUM_PRECISION;
+
+  /**
+   * The maximum {@code precision} value you can set in {@link Init.Builder#withPrecision(int)} is
+   * {@value}.
+   */
   public static final int MAXIMUM_PRECISION = HyperLogLogPlusPlus.MAXIMUM_PRECISION;
+
+  /**
+   * The default {@code precision} value used in {@link Init.Builder#withPrecision(int)} is
+   * {@value}.
+   */
   public static final int DEFAULT_PRECISION = HyperLogLogPlusPlus.DEFAULT_NORMAL_PRECISION;
 
   // Cannot be instantiated. This class is intended to be a namespace only.
@@ -106,9 +120,9 @@ public final class HllCount {
     private Init() {}
 
     /**
-     * Returns a {@link HllCount.Init.Builder<Integer>} for a {@code HllCount.Init} combining {@code
-     * PTransform}. Call {@link Builder#globally()} or {@link Builder#perKey()} on the returning
-     * {@link Builder} to finalize the {@code PTransform}.
+     * Returns a {@link Builder} for a {@code HllCount.Init} combining {@code PTransform} that
+     * computes integer-type HLL++ sketches. Call {@link Builder#globally()} or {@link
+     * Builder#perKey()} on the returning {@link Builder} to finalize the {@code PTransform}.
      *
      * <p>Calling {@link Builder#globally()} returns a {@code PTransform} that takes an input {@code
      * PCollection<Integer>} and returns a {@code PCollection<byte[]>} whose contents is the
@@ -126,9 +140,9 @@ public final class HllCount {
     }
 
     /**
-     * Returns a {@link HllCount.Init.Builder<Long>} for a {@code HllCount.Init} combining {@code
-     * PTransform}. Call {@link Builder#globally()} or {@link Builder#perKey()} on the returning
-     * {@link Builder} to finalize the {@code PTransform}.
+     * Returns a {@link Builder} for a {@code HllCount.Init} combining {@code PTransform} that
+     * computes long-type HLL++ sketches. Call {@link Builder#globally()} or {@link
+     * Builder#perKey()} on the returning {@link Builder} to finalize the {@code PTransform}.
      *
      * <p>Calling {@link Builder#globally()} returns a {@code PTransform} that takes an input {@code
      * PCollection<Long>} and returns a {@code PCollection<byte[]>} whose contents is the long-type
@@ -146,9 +160,9 @@ public final class HllCount {
     }
 
     /**
-     * Returns a {@link HllCount.Init.Builder<String>} for a {@code HllCount.Init} combining {@code
-     * PTransform}. Call {@link Builder#globally()} or {@link Builder#perKey()} on the returning
-     * {@link Builder} to finalize the {@code PTransform}.
+     * Returns a {@link Builder} for a {@code HllCount.Init} combining {@code PTransform} that
+     * computes string-type HLL++ sketches. Call {@link Builder#globally()} or {@link
+     * Builder#perKey()} on the returning {@link Builder} to finalize the {@code PTransform}.
      *
      * <p>Calling {@link Builder#globally()} returns a {@code PTransform} that takes an input {@code
      * PCollection<String>} and returns a {@code PCollection<byte[]>} whose contents is the
@@ -166,9 +180,9 @@ public final class HllCount {
     }
 
     /**
-     * Returns a {@link HllCount.Init.Builder<byte[]>} for a {@code HllCount.Init} combining {@code
-     * PTransform}. Call {@link Builder#globally()} or {@link Builder#perKey()} on the returning
-     * {@link Builder} to finalize the {@code PTransform}.
+     * Returns a {@link Builder} for a {@code HllCount.Init} combining {@code PTransform} that
+     * computes bytes-type HLL++ sketches. Call {@link Builder#globally()} or {@link
+     * Builder#perKey()} on the returning {@link Builder} to finalize the {@code PTransform}.
      *
      * <p>Calling {@link Builder#globally()} returns a {@code PTransform} that takes an input {@code
      * PCollection<byte[]>} and returns a {@code PCollection<byte[]>} whose contents is the
@@ -207,8 +221,8 @@ public final class HllCount {
       /**
        * Explicitly set the {@code precision} parameter used to compute HLL++ sketch.
        *
-       * <p>Valid range is between {@value #MINIMUM_PRECISION} and {@value #MAXIMUM_PRECISION}. If
-       * this method is not called, {@value #DEFAULT_PRECISION} will be used. Sketches computed
+       * <p>Valid range is between {@link #MINIMUM_PRECISION} and {@link #MAXIMUM_PRECISION}. If
+       * this method is not called, {@link #DEFAULT_PRECISION} will be used. Sketches computed
        * using different {@code precision}s cannot be merged together.
        *
        * @param precision the {@code precision} parameter used to compute HLL++ sketch

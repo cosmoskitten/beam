@@ -44,6 +44,7 @@ abstract class HllCountInitFn<InputT, HllT>
     return precision;
   }
 
+  // Should not be called at pipeline execution time.
   void setPrecision(int precision) {
     checkArgument(
         precision >= HllCount.MINIMUM_PRECISION && precision <= HllCount.MAXIMUM_PRECISION,
