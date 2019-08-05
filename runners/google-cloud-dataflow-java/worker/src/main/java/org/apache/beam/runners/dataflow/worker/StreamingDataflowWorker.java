@@ -1927,8 +1927,6 @@ public class StreamingDataflowWorker {
             .setErrors(errors)
             .setCounterUpdates(counterUpdates);
     workUnitClient.reportWorkItemStatus(workItemStatus);
-    LOG.info("WorkItemStatus from streaming dataflow worker " + workItemStatus);
-    LOG.info("CounterUpdates from streaming dataflow worker " + counterUpdates);
 
     // Send any counters appearing more than once in subsequent RPCs:
     while (!counterMultimap.isEmpty()) {
