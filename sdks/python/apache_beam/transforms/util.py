@@ -900,7 +900,8 @@ class Regex(object):
     Args:
       regex: the regular expression string or (re.compile) pattern.
       group: (optional) name/number of the group, it can be integer or a string
-        value.
+        value. Defaults to 0, meaning the entire matched string will be
+        returned.
     """
     regex = Regex._regex_compile(regex)
 
@@ -935,7 +936,7 @@ class Regex(object):
   @typehints.with_input_types(str)
   @typehints.with_output_types(typing.Tuple[str, str])
   @ptransform_fn
-  def matches_kv(pcoll, regex, keyGroup, valueGroup):
+  def matches_kv(pcoll, regex, keyGroup, valueGroup=0):
     """
     Returns the KV pairs if the string matches the regular expression, deriving
     the key & value from the specified group of the regular expression.
@@ -943,7 +944,8 @@ class Regex(object):
     Args:
       regex: the regular expression string or (re.compile) pattern.
       keyGroup: The Regex group to use as the key. Can be int or str.
-      valueGroup: The Regex group to use the value. Can be int or str.
+      valueGroup: (optional) Regex group to use the value. Can be int or str.
+        The default value "0" returns entire matched string.
     """
     regex = Regex._regex_compile(regex)
 
@@ -998,18 +1000,17 @@ class Regex(object):
     def _process(element):
       matches = regex.finditer(element)
       if group == Regex.ALL:
-        yield [(m.group(), m.groups()[0]) for m in matches if outputEmpty is
-               True or m.groups()[0]]
+        yield [(m.group(), m.groups()[0]) for m in matches if outputEmpty
+               or m.groups()[0]]
       else:
-        yield [m.group(group) for m in matches if outputEmpty is True or
-               m.group(group)]
+        yield [m.group(group) for m in matches if outputEmpty or m.group(group)]
     return pcoll | FlatMap(_process)
 
   @staticmethod
   @typehints.with_input_types(str)
   @typehints.with_output_types(typing.Tuple[str, str])
   @ptransform_fn
-  def find_kv(pcoll, regex, keyGroup, valueGroup):
+  def find_kv(pcoll, regex, keyGroup, valueGroup=0):
     """
     Returns the matches if a portion of the line matches the Regex. Returns the
     specified groups as the key and value pair.
@@ -1017,7 +1018,8 @@ class Regex(object):
     Args:
       regex: the regular expression string or (re.compile) pattern.
       keyGroup: The Regex group to use as the key. Can be int or str.
-      valueGroup: The Regex group to use the value. Can be int or str.
+      valueGroup: (optional) Regex group to use the value. Can be int or str.
+        The default value "0" returns entire matched string.
     """
     regex = Regex._regex_compile(regex)
 

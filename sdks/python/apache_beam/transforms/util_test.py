@@ -636,7 +636,7 @@ class RegexTest(unittest.TestCase):
   def test_find_group(self):
     with TestPipeline() as p:
       result = (p | beam.Create(["aj", "xj", "yj", "zj"])
-                | util.Regex.find("([xyz])", group=1))
+                | util.Regex.find("([xyz])j", group=1))
       assert_that(result, equal_to(["x", "y", "z"]))
 
   def test_find_empty(self):
@@ -648,68 +648,70 @@ class RegexTest(unittest.TestCase):
   def test_find_group_name(self):
     with TestPipeline() as p:
       result = (p | beam.Create(["aj", "xj", "yj", "zj"])
-                | util.Regex.find("(?P<namedgroup>[xyz])", group="namedgroup"))
+                | util.Regex.find("(?P<namedgroup>[xyz])j", group="namedgroup"))
       assert_that(result, equal_to(["x", "y", "z"]))
 
   def test_find_group_name_pattern(self):
     with TestPipeline() as p:
-      rc = re.compile("(?P<namedgroup>[xyz])")
+      rc = re.compile("(?P<namedgroup>[xyz])j")
       result = (p | beam.Create(["aj", "xj", "yj", "zj"]) | util.Regex.find(
           rc, group="namedgroup"))
       assert_that(result, equal_to(["x", "y", "z"]))
 
   def test_find_all_groups(self):
-    data = ["abb ax abbb", "abc abcabc"]
+    data = ["abb ax abbb", "abc qwerty abcabcd xyz"]
     with TestPipeline() as p:
-      result = (p | beam.Create(data)
-                | util.Regex.find_all("a(b*)"))
-      expected_retult = [['abb', 'a', 'abbb'], ['ab', 'ab', 'ab']]
-      assert_that(result, equal_to(expected_retult))
+      pcol = (p | beam.Create(data))
+      test1 = (pcol | 'test 1' >> util.Regex.find_all("a(b*)"))
 
-    with TestPipeline() as p:
       # Find all with group 1
-      result = (p | beam.Create(data)
-                | util.Regex.find_all("a(b*)", 1))
-      expected_retult = [['b', 'b', 'b'], ['bb', '', 'bbb']]
-      assert_that(result, equal_to(expected_retult))
+      test2 = (pcol | 'test 2' >> util.Regex.find_all("a(b*)", 1))
 
-    with TestPipeline() as p:
       # Find all with group 1 and remove empty items
-      result = (p | beam.Create(data)
-                | util.Regex.find_all("a(b*)", 1, outputEmpty=False))
-      expected_retult = [['b', 'b', 'b'], ['bb', 'bbb']]
-      assert_that(result, equal_to(expected_retult))
+      test3 = (pcol | 'test 3' >> util.Regex.find_all("a(b*)", 1,
+                                                      outputEmpty=False))
 
-    with TestPipeline() as p:
       # Find all with named group
-      result = (p | beam.Create(data)
-                | util.Regex.find_all("a(?P<namedgroup>b*)", 'namedgroup'))
-      expected_retult = [['b', 'b', 'b'], ['bb', '', 'bbb']]
-      assert_that(result, equal_to(expected_retult))
+      test4 = (pcol | 'test 4' >> util.Regex.find_all("a(?P<namedgroup>b*)",
+                                                      'namedgroup'))
 
-    with TestPipeline() as p:
       # Find all with named group with override Regex.ALL flag which return
       # all the groups in tuple format
-      result = (p | beam.Create(data)
-                | util.Regex.find_all("a(?P<namedgroup>b*)", util.Regex.ALL))
-      expected_retult = [[('ab', 'b'), ('ab', 'b'), ('ab', 'b')],
-                         [('abb', 'bb'), ('a', ''), ('abbb', 'bbb')]]
-      assert_that(result, equal_to(expected_retult))
+      test5 = (pcol | 'test 5' >> util.Regex.find_all("a(?P<namedgroup>b*)",
+                                                      util.Regex.ALL))
 
-    with TestPipeline() as p:
       # Find all with Regex.ALL flag and removes the empty groups items
-      result = (p | beam.Create(data)
-                | util.Regex.find_all("a(b*)", util.Regex.ALL,
-                                      outputEmpty=False))
-      expected_retult = [[('ab', 'b'), ('ab', 'b'), ('ab', 'b')],
-                         [('abb', 'bb'), ('abbb', 'bbb')]]
-      assert_that(result, equal_to(expected_retult))
+      test6 = (pcol | 'test 6' >> util.Regex.find_all("a(b*)", util.Regex.ALL,
+                                                      outputEmpty=False))
+
+      test1_expected = [['abb', 'a', 'abbb'], ['ab', 'ab', 'ab']]
+      test2_expected = [['b', 'b', 'b'], ['bb', '', 'bbb']]
+      test3_expected = [['b', 'b', 'b'], ['bb', 'bbb']]
+      test4_expected = [['b', 'b', 'b'], ['bb', '', 'bbb']]
+      test5_expected = [[('ab', 'b'), ('ab', 'b'), ('ab', 'b')],
+                        [('abb', 'bb'), ('a', ''), ('abbb', 'bbb')]]
+      test6_expected = [[('ab', 'b'), ('ab', 'b'), ('ab', 'b')],
+                        [('abb', 'bb'), ('abbb', 'bbb')]]
+
+      assert_that(test1, equal_to(test1_expected), label='assert test 1')
+      assert_that(test2, equal_to(test2_expected), label='assert test 2')
+      assert_that(test3, equal_to(test3_expected), label='assert test 3')
+      assert_that(test4, equal_to(test4_expected), label='assert test 4')
+      assert_that(test5, equal_to(test5_expected), label='assert test 5')
+      assert_that(test6, equal_to(test6_expected), label='assert test 6')
 
   def test_find_kv(self):
     with TestPipeline() as p:
-      result = (p | beam.Create(["a b c"])
-                | util.Regex.find_kv("a (b) (c)", 1, 2))
-      assert_that(result, equal_to([("b", "c")]))
+      pcol = (p | beam.Create(["a b c d"]))
+
+      custom_group = (pcol | 'custom group' >> util.Regex.find_kv(
+          "a (b) (c)", 1, 2))
+      default_group = (pcol | 'default group' >> util.Regex.find_kv(
+          "a (b) (c)", 1,))
+      assert_that(default_group, equal_to([("b", "a b c")]),
+                  label='find default group')
+      assert_that(custom_group, equal_to([("b", "c")]),
+                  label='find custom group')
 
   def test_find_kv_pattern(self):
     with TestPipeline() as p:
@@ -803,8 +805,15 @@ class RegexTest(unittest.TestCase):
   def test_match_group_kv_pattern(self):
     with TestPipeline() as p:
       rc = re.compile("a (b) (c)")
-      result = (p | beam.Create(["a b c"]) | util.Regex.matches_kv(rc, 1, 2))
-      assert_that(result, equal_to([("b", "c")]))
+      pcol = (p | beam.Create(["a b c"]))
+      custom_group = (pcol | 'match custom group' >> util.Regex.matches_kv(
+          rc, 1, 2))
+      default_group = (pcol | 'match default group' >> util.Regex.matches_kv(
+          rc, 1))
+      assert_that(custom_group, equal_to([("b", "c")]),
+                  label="assert custom group")
+      assert_that(default_group, equal_to([("b", "a b c")]),
+                  label="assert default group")
 
   def test_match_group_kv_none(self):
     with TestPipeline() as p:
