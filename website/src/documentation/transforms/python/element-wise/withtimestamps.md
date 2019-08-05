@@ -19,10 +19,116 @@ limitations under the License.
 -->
 
 # WithTimestamps
+
+<script type="text/javascript">
+localStorage.setItem('language', 'language-py')
+</script>
+
 Assigns timestamps to all the elements of a collection.
 
 ## Examples
-See [BEAM-7389](https://issues.apache.org/jira/browse/BEAM-7389) for updates. 
 
-## Related transforms 
+In the following examples, we create a pipeline with a `PCollection` and attach a timestamp value to each of its elements.
+Timestamps are especially useful on streaming pipelines where windowing and late data play a more important role.
+
+### Example 1: Timestamp by event time
+
+Often times, the elements themselves already contain a timestamp field that can be used.
+`beam.window.TimestampedValue` will take a value and a timestamp in the form of seconds, where a unix timestamp can be used.
+
+```py
+{% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/element_wise/with_timestamps.py tag:event_time %}```
+
+Output `PCollection` after getting the timestamps:
+
+```
+{% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/element_wise/with_timestamps_test.py tag:plant_timestamps %}```
+
+<table>
+  <td>
+    <a class="button" target="_blank"
+        href="https://github.com/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/element_wise/with_timestamps.py">
+      <img src="https://www.tensorflow.org/images/GitHub-Mark-32px.png"
+        width="20px" height="20px" alt="View on GitHub" />
+      View on GitHub
+    </a>
+  </td>
+</table>
+<br>
+
+To convert from a
+[`time.struct_time`](https://docs.python.org/3/library/time.html#time.struct_time)
+to `unix_time` you can use
+[`time.mktime`](https://docs.python.org/3/library/time.html#time.mktime).
+For more information on time formatting options, see
+[`time.strftime`](https://docs.python.org/3/library/time.html#time.strftime).
+
+```
+{% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/element_wise/with_timestamps.py tag:time_tuple2unix_time %}```
+
+To convert from a
+[`datetime.datetime`](https://docs.python.org/3/library/datetime.html#datetime.datetime)
+to `unix_time` you can use convert it to a `time.struct_time` first with
+[`datetime.timetuple`](https://docs.python.org/3/library/datetime.html#datetime.datetime.timetuple).
+
+```
+{% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/element_wise/with_timestamps.py tag:datetime2unix_time %}```
+
+### Example 2: Timestamp by logical clock
+
+If the elements have a chronological number, those can be used as a
+[logical clock](https://en.wikipedia.org/wiki/Logical_clock).
+They have to be converted to a *"seconds"* equivalent, which can be especially important depending on your windowing and late data rules.
+
+```py
+{% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/element_wise/with_timestamps.py tag:logical_clock %}```
+
+Output `PCollection` after getting the timestamps:
+
+```
+{% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/element_wise/with_timestamps_test.py tag:plant_events %}```
+
+<table>
+  <td>
+    <a class="button" target="_blank"
+        href="https://github.com/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/element_wise/with_timestamps.py">
+      <img src="https://www.tensorflow.org/images/GitHub-Mark-32px.png"
+        width="20px" height="20px" alt="View on GitHub" />
+      View on GitHub
+    </a>
+  </td>
+</table>
+<br>
+
+### Example 3: Timestamp by processing time
+
+If the elements do not have any time data available, you can also use the current processing time for each element.
+Note that this will grab the local time of the *worker* that is processing each element.
+Workers might have time deltas, so it is not a reliable way to do precise ordering.
+
+Using the processing time also means that the timestamp will be attached as soon as the element *enters* into the pipeline,
+so there is no way of knowing if data is arriving late.
+
+```py
+{% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/element_wise/with_timestamps.py tag:processing_time %}```
+
+Output `PCollection` after getting the timestamps:
+
+```
+{% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/element_wise/with_timestamps_test.py tag:plant_processing_times %}```
+
+<table>
+  <td>
+    <a class="button" target="_blank"
+        href="https://github.com/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/element_wise/with_timestamps.py">
+      <img src="https://www.tensorflow.org/images/GitHub-Mark-32px.png"
+        width="20px" height="20px" alt="View on GitHub" />
+      View on GitHub
+    </a>
+  </td>
+</table>
+<br>
+
+## Related transforms
+
 * [Reify]({{ site.baseurl }}/documentation/transforms/python/elementwise/reify) converts between explicit and implicit forms of Beam values.
