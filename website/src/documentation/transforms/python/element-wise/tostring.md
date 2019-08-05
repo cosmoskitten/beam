@@ -19,9 +19,38 @@ limitations under the License.
 -->
 
 # ToString
-Transforms every element in an input collection a string.
 
-## Examples
-See [BEAM-7389](https://issues.apache.org/jira/browse/BEAM-7389) for updates. 
+<script type="text/javascript">
+localStorage.setItem('language', 'language-py')
+</script>
 
-## Related transforms 
+Transforms every element in an input collection to a string.
+
+## Example
+
+Any non-string element can be converted to a string using standard Python functions and methods.
+Many I/O transforms, such as `TextIO`, expect their input elements to be strings.
+
+```py
+{% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/element_wise/to_string.py tag:to_string %}```
+
+Output `PCollection` as strings:
+
+```
+{% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/element_wise/to_string_test.py tag:plants %}```
+
+<table>
+  <td>
+    <a class="button" target="_blank"
+        href="https://github.com/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/element_wise/to_string.py">
+      <img src="https://www.tensorflow.org/images/GitHub-Mark-32px.png"
+        width="20px" height="20px" alt="View on GitHub" />
+      View on GitHub
+    </a>
+  </td>
+</table>
+<br>
+
+## Related transforms
+
+* [Map]({{ site.baseurl }}/documentation/transforms/python/elementwise/map) applies a simple 1-to-1 mapping function over each element in the collection
