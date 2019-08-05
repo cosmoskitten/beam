@@ -202,8 +202,7 @@ class SubprocessSdkWorker(object):
     if self._worker_id:
       env_dict['WORKER_ID'] = self._worker_id
 
-    # deadlock would happen with py2, so add a lock here.
-    # no problem with py3.
+    # deadlock would happen with py2, so add a lock here. no problem with py3.
     with SubprocessSdkWorker._lock:
       p = subprocess.Popen(
           self._worker_command_line,

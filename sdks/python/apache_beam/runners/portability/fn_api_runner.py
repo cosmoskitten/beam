@@ -1134,11 +1134,12 @@ class GrpcServer(object):
 
   _DEFAULT_SHUTDOWN_TIMEOUT_SECS = 5
 
-  def __init__(self, state, provision_info, num_workers):
+  def __init__(self, state, provision_info, num_threads):
     self.state = state
     self.provision_info = provision_info
+    self.max_workers = num_threads
     self.control_server = grpc.server(
-        futures.ThreadPoolExecutor(max_workers=num_workers))
+        futures.ThreadPoolExecutor(max_workers=self.max_workers))
     self.control_port = self.control_server.add_insecure_port('[::]:0')
     self.control_address = 'localhost:%s' % self.control_port
 
@@ -1148,12 +1149,12 @@ class GrpcServer(object):
     no_max_message_sizes = [("grpc.max_receive_message_length", -1),
                             ("grpc.max_send_message_length", -1)]
     self.data_server = grpc.server(
-        futures.ThreadPoolExecutor(max_workers=num_workers),
+        futures.ThreadPoolExecutor(max_workers=self.max_workers),
         options=no_max_message_sizes)
     self.data_port = self.data_server.add_insecure_port('[::]:0')
 
     self.state_server = grpc.server(
-        futures.ThreadPoolExecutor(max_workers=num_workers),
+        futures.ThreadPoolExecutor(max_workers=self.max_workers),
         options=no_max_message_sizes)
     self.state_port = self.state_server.add_insecure_port('[::]:0')
 
@@ -1319,6 +1320,9 @@ class SubprocessSdkWorkerHandler(GrpcWorkerHandler):
 @WorkerHandler.register_environment(common_urns.environments.DOCKER.urn,
                                     beam_runner_api_pb2.DockerPayload)
 class DockerSdkWorkerHandler(GrpcWorkerHandler):
+
+  _lock = threading.Lock()
+
   def __init__(self, payload, state, provision_info, grpc_server):
     super(DockerSdkWorkerHandler, self).__init__(state, provision_info,
                                                  grpc_server)
@@ -1326,48 +1330,54 @@ class DockerSdkWorkerHandler(GrpcWorkerHandler):
     self._container_id = None
 
   def start_worker(self):
-    try:
-      subprocess.check_call(['docker', 'pull', self._container_image])
-    except Exception:
-      logging.info('Unable to pull image %s' % self._container_image)
-    self._container_id = subprocess.check_output(
-        ['docker',
-         'run',
-         '-d',
-         # TODO:  credentials
-         '--network=host',
-         self._container_image,
-         '--id=%s' % uuid.uuid4(),
-         '--logging_endpoint=%s' % self.logging_api_service_descriptor().url,
-         '--control_endpoint=%s' % self.control_address,
-         '--artifact_endpoint=%s' % self.control_address,
-         '--provision_endpoint=%s' % self.control_address,
-        ]).strip()
-    while True:
-      logging.info('Waiting for docker to start up...')
-      status = subprocess.check_output([
-          'docker',
-          'inspect',
-          '-f',
-          '{{.State.Status}}',
-          self._container_id]).strip()
-      if status == 'running':
-        break
-      elif status in ('dead', 'exited'):
-        subprocess.call([
+    # deadlock would happen with py2, so add a lock here. no problem with py3.
+    with DockerSdkWorkerHandler._lock:
+      try:
+        subprocess.check_call(['docker', 'pull', self._container_image])
+      except Exception:
+        logging.info('Unable to pull image %s' % self._container_image)
+      self._container_id = subprocess.check_output(
+          ['docker',
+           'run',
+           '-d',
+           # TODO:  credentials
+           '--network=host',
+           self._container_image,
+           '--id=%s' % self.worker_id,
+           '--logging_endpoint=%s' % self.logging_api_service_descriptor().url,
+           '--control_endpoint=%s' % self.control_address,
+           '--artifact_endpoint=%s' % self.control_address,
+           '--provision_endpoint=%s' % self.control_address,
+          ]).strip()
+      while True:
+        logging.info('Waiting for docker to start up...')
+        status = subprocess.check_output([
             'docker',
-            'container',
-            'logs',
-            self._container_id])
-        raise RuntimeError('SDK failed to start.')
+            'inspect',
+            '-f',
+            '{{.State.Status}}',
+            self._container_id]).strip()
+        if status == 'running':
+          logging.info('Docker container is running. container_id = %s, '
+                       'worker_id = %s', self._container_id, self.worker_id)
+          break
+        elif status in ('dead', 'exited'):
+          subprocess.call([
+              'docker',
+              'container',
+              'logs',
+              self._container_id])
+          raise RuntimeError('SDK failed to start.')
       time.sleep(1)
 
   def stop_worker(self):
     if self._container_id:
-      subprocess.call([
-          'docker',
-          'kill',
-          self._container_id])
+      # deadlock would happen with py2, so add a lock here. no problem with py3.
+      with DockerSdkWorkerHandler._lock:
+        subprocess.call([
+            'docker',
+            'kill',
+            self._container_id])
 
 
 class WorkerHandlerManager(object):
@@ -1387,7 +1397,19 @@ class WorkerHandlerManager(object):
     if environment.urn != python_urns.EMBEDDED_PYTHON and \
         self._grpc_server is None:
       self._grpc_server = GrpcServer(
-          self._state, self._job_provision_info, num_workers)
+          self._state, self._job_provision_info,
+          num_workers * len(self._environments))
+
+    # each gRPC server is running with fixed number of threads (num_workers
+    # * len(self._environments)), where num_workers is from the first call to
+    # get_worker_handlers(). In case a stage tries to add more workers
+    # than this number, some workers cannot attached to gRPC and pipeline will
+    # hang, so raise an error here.
+    if self._grpc_server is not None and \
+        num_workers > self._grpc_server.max_workers:
+      raise RuntimeError('gRPC servers are running with %s threads, we cannot '
+                         'attach %s workers' % (self._grpc_server.max_workers,
+                                                num_workers))
     worker_handler_list = self._cached_handlers[environment_id]
     if len(worker_handler_list) < num_workers:
       for _ in range(len(worker_handler_list), num_workers):
