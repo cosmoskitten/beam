@@ -17,10 +17,10 @@
 
 from __future__ import absolute_import
 
-from apache_beam.transforms.external import External
+from apache_beam.transforms.external import ExternalTransform, SchemaBasedPayloadBuilder
 
 
-class GenerateSequence(External):
+class GenerateSequence(ExternalTransform):
   """
     An external PTransform which provides a bounded or unbounded stream of
     integers.
@@ -51,16 +51,13 @@ class GenerateSequence(External):
   def __init__(self, start, stop=None,
                elements_per_period=None, max_read_time=None,
                expansion_service=None):
-    super(GenerateSequence, self).__init__(expansion_service)
-    self.start = start
-    self.stop = stop
-    self.elements_per_period = elements_per_period
-    self.max_read_time = max_read_time
-
-  def get_config(self):
-    return {
-      'start': self.start,
-      'stop': self.stop,
-      'elements_per_period': self.elements_per_period,
-      'max_read_time': self.max_read_time,
-    }
+    super(GenerateSequence, self).__init__(
+      SchemaBasedPayloadBuilder(
+        {
+          'start': start,
+          'stop': stop,
+          'elements_per_period': elements_per_period,
+          'max_read_time': max_read_time,
+        }
+      ),
+      expansion_service)

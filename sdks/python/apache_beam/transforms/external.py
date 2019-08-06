@@ -56,14 +56,10 @@ def iter_urns(coder, context=None):
       yield urn
 
 
-class External(ptransform.PTransform):
+class PayloadBuilder(object):
   """
-  Base class for transforms that produce external transforms.
+  Abstract base class for building payloads to pass to ExternalTransform.
   """
-  _urn = None
-
-  def __init__(self, expansion_service=None):
-    self.expansion_service = expansion_service or DEFAULT_EXPANSION_SERVICE
 
   @classmethod
   def _config_value(cls, obj, typehint=None):
@@ -78,9 +74,25 @@ class External(ptransform.PTransform):
       coder_urn=list(iter_urns(coder)),
       payload=coder.encode(obj))
 
+  def build(self):
+    """
+    :return: ExternalConfigurationPayload
+    """
+    raise NotImplementedError
+
+
+class SchemaBasedPayloadBuilder(PayloadBuilder):
+  """
+  Base class for building payloads based on a schema that provides
+  type information for each configuration value to encode.
+  """
+
+  def __init__(self, values, schema=None):
+    self._values = values
+    self._schema = schema or {}
+
   @classmethod
   def _encode_config(cls, config, schema):
-    schema = schema or {}
     result = {}
     for k, v in config.items():
       typehint = schema.get(k)
@@ -91,57 +103,45 @@ class External(ptransform.PTransform):
       result[k] = cls._config_value(v, typehint)
     return result
 
-  def get_schema(self):
-    """
-    Return a schema to guide the serialization of the transform's configuration.
+  def build(self):
+    args = self._encode_config(self._values, self._schema)
+    return ExternalConfigurationPayload(configuration=args)
 
-    Sub-classes must either implement this method or override get_encoded_config()
 
-    :return: dictionary of types, whose keys match those returned by
-             _get_config(), and values are the types to be passed to
-            coders.registry.get_coder()
-    """
-    raise NotImplementedError
+class NamedTupleBasedPayloadBuilder(SchemaBasedPayloadBuilder):
+  """
+  Build a payload based on a NamedTuple schema.
+  """
+  def __init__(self, tuple_instance):
+    super(NamedTupleBasedPayloadBuilder, self).__init__(
+      tuple_instance._field_types, tuple_instance._asdict())
 
-  def _get_config(self, schema):
-    """
-    :return: dictionary of configuration values to encode
-    """
-    config = {}
-    missing = []
-    for key in schema:
-      try:
-        config[key] = getattr(self, key)
-      except AttributeError:
-        missing.append(key)
-    return config
 
-  def get_encoded_config(self):
-    """
-    Get a dictionary of encoded configuration values to pass to
-    ExternalConfigurationPayload.
+class AnnotationBasedPayloadBuilder(SchemaBasedPayloadBuilder):
+  """
+  Build a payload based on an external transform's type annotations.
 
-    This provides a default implementation that determines the coders
-    from the schema returned by get_schema().
+  Supported in python 3 only.
+  """
+  def __init__(self, transform, **values):
+    schema = {k: v for k, v in
+              transform.__init__.__annotations__.items()
+              if k in self._values}
+    super(AnnotationBasedPayloadBuilder, self).__init__(values, schema)
 
-    :return: dictionary of string to ConfigValue
-    """
-    schema = self.get_schema()
-    if schema is None:
-      raise RuntimeError("External subclasses must implement a schema "
-                         "dictionary to use automatic encoding")
-    config = self._get_config(schema)
-    return self._encode_config(config, schema)
 
-  def expand(self, pvalue):
-    args = self.get_encoded_config()
+class DataclassBasedPayloadBuilder(SchemaBasedPayloadBuilder):
+  """
+  Build a payload based on an external transform that uses dataclasses.
 
-    payload = ExternalConfigurationPayload(configuration=args)
-    return pvalue.apply(
-        ExternalTransform(
-            self._urn,
-            payload.SerializeToString(),
-            self.expansion_service))
+  Supported in python 3 only.
+  """
+  def __init__(self, transform):
+    import dataclasses
+    schema = {field.name: field.type for field in
+              dataclasses.fields(transform)}
+    super(DataclassBasedPayloadBuilder, self).__init__(
+      dataclasses.asdict(transform), schema)
 
 
 class ExternalTransform(ptransform.PTransform):
@@ -157,7 +157,8 @@ class ExternalTransform(ptransform.PTransform):
   _EXPANDED_TRANSFORM_UNIQUE_NAME = 'root'
   _IMPULSE_PREFIX = 'impulse'
 
-  def __init__(self, urn, payload, endpoint):
+  def __init__(self, urn, payload, endpoint=None):
+    endpoint = endpoint or DEFAULT_EXPANSION_SERVICE
     if grpc is None and isinstance(endpoint, str):
       raise NotImplementedError('Grpc required for external transforms.')
     # TODO: Start an endpoint given an environment?
