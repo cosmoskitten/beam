@@ -25,12 +25,11 @@ import tempfile
 import time
 import unittest
 
-from apache_beam import coders
 from apache_beam.io import filesystems
 from apache_beam.runners.interactive import cache_manager as cache
 
 
-class FileBasedCacheManagerTest(object):
+class CacheManagerTest(object):
   """Unit test for FileBasedCacheManager.
 
   Note that this set of tests focuses only the methods that interacts with
@@ -44,14 +43,14 @@ class FileBasedCacheManagerTest(object):
   cache_format = None
 
   def setUp(self):
-    self.test_dir = tempfile.mkdtemp()
+    self._test_dir = tempfile.mkdtemp()
     self.cache_manager = cache.FileBasedCacheManager(
         self.test_dir, cache_format=self.cache_format)
 
   def tearDown(self):
     # The test_dir might have already been removed by cache_manager.cleanup().
-    if os.path.exists(self.test_dir):
-      shutil.rmtree(self.test_dir)
+    if os.path.exists(self._test_dir):
+      shutil.rmtree(self._test_dir)
 
   def mock_write_cache(self, pcoll_list, prefix, cache_label):
     """Cache the PCollection where cache.WriteCache would write to."""
@@ -64,17 +63,8 @@ class FileBasedCacheManagerTest(object):
     # writes happen at the same timestamp.
     time.sleep(0.1)
 
-    cache_file = cache_label + '-1-of-2'
-    labels = [prefix, cache_label]
-
-    # Usually, the pcoder will be inferred from `pcoll.element_type`
-    pcoder = coders.registry.get_coder(object)
-    self.cache_manager.save_pcoder(pcoder, *labels)
-    sink = self.cache_manager.sink(*labels)
-
-    with open(self.cache_manager._path(prefix, cache_file), 'wb') as f:
-      for line in pcoll_list:
-        sink.write_record(f, line)
+    self.cache_manager.create(prefix, cache_label)
+    self.cache_manager.get(prefix, cache_label).write(pcoll_list)
 
   def test_exists(self):
     """Test that CacheManager can correctly tell if the cache exists or not."""

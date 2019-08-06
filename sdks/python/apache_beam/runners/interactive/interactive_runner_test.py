@@ -24,9 +24,12 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
+import shutil
+import tempfile
 import unittest
 
 import apache_beam as beam
+from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.runners.direct import direct_runner
 from apache_beam.runners.interactive import interactive_runner
 
@@ -42,10 +45,18 @@ def print_with_message(msg):
 
 class InteractiveRunnerTest(unittest.TestCase):
 
+  def setUp(self):
+    self._temp_location = tempfile.mkdtemp()
+    self.options = PipelineOptions(temp_location=self._temp_location)
+
+  def tearDown(self):
+    shutil.rmtree(self._temp_location)
+
   def test_basic(self):
     p = beam.Pipeline(
         runner=interactive_runner.InteractiveRunner(
-            direct_runner.DirectRunner()))
+            direct_runner.DirectRunner()),
+        options=self.options)
     p.run().wait_until_finish()
     pc0 = (
         p | 'read' >> beam.Create([1, 2, 3])
@@ -68,7 +79,9 @@ class InteractiveRunnerTest(unittest.TestCase):
 
     p = beam.Pipeline(
         runner=interactive_runner.InteractiveRunner(
-            direct_runner.DirectRunner()))
+            direct_runner.DirectRunner()),
+        options=self.options,
+    )
 
     # Count the occurrences of each word.
     counts = (
@@ -82,7 +95,7 @@ class InteractiveRunnerTest(unittest.TestCase):
     result = p.run()
     result.wait_until_finish()
 
-    actual = dict(result.get(counts))
+    actual = dict(result.get(counts).read())
     self.assertDictEqual(
         actual, {
             'to': 2,

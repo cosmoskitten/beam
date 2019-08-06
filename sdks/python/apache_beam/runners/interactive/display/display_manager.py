@@ -125,13 +125,12 @@ class DisplayManager(object):
 
       for pcoll_id, stats in self._pcollection_stats.items():
         cache_label = stats['cache_label']
-        version = stats['version']
 
-        if force or not self._cache_manager.is_latest_version(
-            version, 'sample', cache_label):
-          pcoll_list, version = self._cache_manager.read('sample', cache_label)
+        if force:
+          cache = self._cache_manager[('sample', cache_label)]
+          pcoll_list = list(cache.read())
           stats['sample'] = pcoll_list
-          stats['version'] = version
+          stats['version'] = 0
           stats_updated = True
 
           if pcoll_id in self._analyzer.tl_referenced_pcoll_ids():

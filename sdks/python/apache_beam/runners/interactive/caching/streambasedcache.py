@@ -161,7 +161,7 @@ class PubSubBasedCache(StreamBasedCache):
     self._persist = persist
     self._init_finalizers()
 
-  def reader(self, from_start=True, **kwargs):
+  def reader(self, seek_to_start=True, **kwargs):
     self._assert_topic_exists()
 
     reader_kwargs = self._reader_kwargs.copy()
@@ -169,7 +169,7 @@ class PubSubBasedCache(StreamBasedCache):
 
     if "subscription" not in reader_kwargs:
       reader_kwargs["subscription"] = self._create_child_subscription(
-          seek_to_start=from_start).name
+          seek_to_start=seek_to_start).name
 
     reader = PatchedPubSubReader(self, self._reader_class, **reader_kwargs)
     return reader
@@ -181,7 +181,9 @@ class PubSubBasedCache(StreamBasedCache):
     return writer
 
   @contextlib.contextmanager
-  def read_to_queue(self, seek_to_start=True, **kwargs):
+  def read_to_queue(self,
+                    seek_to_start=True,
+                    **kwargs):
     self._assert_topic_exists()
 
     reader_kwargs = self._reader_kwargs.copy()
@@ -212,7 +214,8 @@ class PubSubBasedCache(StreamBasedCache):
       msg.ack()
       message = PubsubMessage._from_message(msg)
       timestamped_value = next(decoder.process(message))
-      ordered_timestamped_value = PrioritizedTimestampedValue(timestamped_value)
+      ordered_timestamped_value = PrioritizedTimestampedValue(
+          timestamped_value.value, timestamped_value.timestamp)
       parsed_message_queue.put(ordered_timestamped_value)
 
     sub_client = pubsub.SubscriberClient()
@@ -226,9 +229,8 @@ class PubSubBasedCache(StreamBasedCache):
         sub_client.delete_subscription(created_subsciption.name)
         self._child_subscriptions.remove(created_subsciption)
 
-  def read(self, seek_to_start=True, delay=0, timeout=5, **kwargs):
-    with self.read_to_queue(
-        seek_to_start=seek_to_start, **kwargs) as message_queue:
+  def read(self, delay=0, timeout=5, **kwargs):
+    with self.read_to_queue(**kwargs) as message_queue:
       time.sleep(delay)
       while True:
         try:
@@ -414,8 +416,6 @@ class PatchedPubSubWriter(PTransform):
     else:
       # Encode the element as a PubsubMessage ourselves
       writer_kwargs["with_attributes"] = True
-      # DirectRunner does not support timestamp_attribute
-      timestamp_attribute = writer_kwargs.pop("timestamp_attribute", "ts")
       encoder = (
           EncodeToPubSubWithComputedAttributes(
               coder, attributes_fn, timestamp_attribute) if attributes_fn else
@@ -426,9 +426,10 @@ class PatchedPubSubWriter(PTransform):
 
 class DecodeFromPubSub(beam.DoFn):
 
-  def __init__(self, coder, timestamp_attribute):
+  def __init__(self, coder, with_attributes, timestamp_attribute):
     super(DecodeFromPubSub, self).__init__()
     self.coder = coder
+    self.with_attributes = with_attributes
     self.timestamp_attribute = timestamp_attribute
 
   def process(self, message):
@@ -436,13 +437,17 @@ class DecodeFromPubSub(beam.DoFn):
     from apache_beam.transforms.window import TimestampedValue
     from apache_beam.utils.timestamp import Timestamp
 
-    element = self.coder.decode(message.data)
     rfc3339_or_milli = message.attributes[self.timestamp_attribute]
     try:
       timestamp = Timestamp(micros=int(rfc3339_or_milli) * 1000)
     except ValueError:
       timestamp = Timestamp.from_rfc3339(rfc3339_or_milli)
-    yield TimestampedValue(element, timestamp)
+
+    if self.with_attributes:
+      yield TimestampedValue(message, timestamp)
+    else:
+      element = self.coder.decode(message.data)
+      yield TimestampedValue(element, timestamp)
 
 
 class EncodeToPubSubWithComputedAttributes(beam.DoFn):
