@@ -163,7 +163,8 @@ class ExternalTransform(ptransform.PTransform):
       raise NotImplementedError('Grpc required for external transforms.')
     # TODO: Start an endpoint given an environment?
     self._urn = urn
-    self._payload = payload
+    self._payload = payload.build() if isinstance(payload, PayloadBuilder) \
+      else payload
     self._endpoint = endpoint
     self._namespace = self._fresh_namespace()
 
