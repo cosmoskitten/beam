@@ -297,10 +297,10 @@ public class WatermarkManager<ExecutableT, CollectionT> {
     private AutoCloseableLock unlocked() {
       switch (locked) {
         case READ:
-          //delegate.readLock().unlock();
+          // delegate.readLock().unlock();
           break;
         case WRITE:
-          //delegate.writeLock().unlock();
+          // delegate.writeLock().unlock();
           break;
         case NONE:
           // pass
@@ -1288,10 +1288,11 @@ public class WatermarkManager<ExecutableT, CollectionT> {
 
   private Set<ExecutableT> refreshAllOf(Set<ExecutableT> toRefresh) {
     Set<ExecutableT> newRefreshes = new HashSet<>();
-    long numExecutablesRefreshable = toRefresh.stream()
-        .map(transformToWatermarks::get)
-        .filter(TransformWatermarks::hasPendingWatermarkRefresh)
-        .count();
+    long numExecutablesRefreshable =
+        toRefresh.stream()
+            .map(transformToWatermarks::get)
+            .filter(TransformWatermarks::hasPendingWatermarkRefresh)
+            .count();
     for (ExecutableT executable : toRefresh) {
       newRefreshes.addAll(refreshWatermarks(executable, numExecutablesRefreshable == 1));
     }
@@ -1556,8 +1557,7 @@ public class WatermarkManager<ExecutableT, CollectionT> {
     }
 
     private boolean hasPendingWatermarkRefresh() {
-      return inputWatermark.hasPending()
-          || synchronizedProcessingInputWatermark.hasPending();
+      return inputWatermark.hasPending() || synchronizedProcessingInputWatermark.hasPending();
     }
 
     private Collection<FiredTimers<ExecutableT>> extractFiredTimers() {
