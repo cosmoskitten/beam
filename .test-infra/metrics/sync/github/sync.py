@@ -83,7 +83,7 @@ def initDBConnection():
     try:
       conn = psycopg2.connect(
           f"dbname='{DB_NAME}' user='{DB_USER_NAME}' host='{DB_HOST}'"
-          f" port='{DB_PORT}' password='{DB_PASSWORD}'")
+          f" port='{DB_PORT}' password='{DB_PWD}'")
     except:
       print('Failed to connect to DB; retrying in 1 minute')
       sys.stdout.flush()
