@@ -131,24 +131,28 @@ public class StatefulParDoEvaluatorFactoryTest implements Serializable {
             .apply(Window.into(FixedWindows.of(Duration.millis(10))));
 
     TupleTag<Integer> mainOutput = new TupleTag<>();
-    PCollection<Integer> produced =
-        input
-            .apply(
-                new ParDoMultiOverrideFactory.GbkThenStatefulParDo<>(
-                    new DoFn<KV<String, Integer>, Integer>() {
-                      @StateId(stateId)
-                      private final StateSpec<ValueState<String>> spec =
-                          StateSpecs.value(StringUtf8Coder.of());
+    final ParDoMultiOverrideFactory.GbkThenStatefulParDo<String, Integer, Integer>
+        gbkThenStatefulParDo;
+    gbkThenStatefulParDo =
+        new ParDoMultiOverrideFactory.GbkThenStatefulParDo<>(
+            new DoFn<KV<String, Integer>, Integer>() {
+              @StateId(stateId)
+              private final StateSpec<ValueState<String>> spec =
+                  StateSpecs.value(StringUtf8Coder.of());
 
-                      @ProcessElement
-                      public void process(ProcessContext c) {}
-                    },
-                    mainOutput,
-                    TupleTagList.empty(),
-                    Collections.emptyList(),
-                    DoFnSchemaInformation.create()))
-            .get(mainOutput)
-            .setCoder(VarIntCoder.of());
+              @ProcessElement
+              public void process(ProcessContext c) {}
+            },
+            mainOutput,
+            TupleTagList.empty(),
+            Collections.emptyList(),
+            DoFnSchemaInformation.create());
+
+    final PCollection<KeyedWorkItem<String, KV<String, Integer>>> grouped;
+    grouped = gbkThenStatefulParDo.groupToKeyedWorkItem(input);
+
+    PCollection<Integer> produced =
+        gbkThenStatefulParDo.applyStatefulParDo(grouped).get(mainOutput).setCoder(VarIntCoder.of());
 
     StatefulParDoEvaluatorFactory<String, Integer, Integer> factory =
         new StatefulParDoEvaluatorFactory<>(mockEvaluationContext, options);
@@ -183,15 +187,35 @@ public class StatefulParDoEvaluatorFactoryTest implements Serializable {
     // A single bundle with some elements in the global window; it should register cleanup for the
     // global window state merely by having the evaluator created. The cleanup logic does not
     // depend on the window.
-    CommittedBundle<KV<String, Integer>> inputBundle =
+    CommittedBundle<KeyedWorkItem<String, KV<String, Integer>>> inputBundle =
         BUNDLE_FACTORY
-            .createBundle(input)
+            .createBundle(grouped)
             .add(
                 WindowedValue.of(
-                    KV.of("hello", 1), new Instant(3), firstWindow, PaneInfo.NO_FIRING))
+                    KeyedWorkItems.<String, KV<String, Integer>>elementsWorkItem(
+                        "hello",
+                        Collections.singleton(
+                            WindowedValue.of(
+                                KV.of("hello", 1),
+                                new Instant(3),
+                                firstWindow,
+                                PaneInfo.NO_FIRING))),
+                    new Instant(3),
+                    firstWindow,
+                    PaneInfo.NO_FIRING))
             .add(
                 WindowedValue.of(
-                    KV.of("hello", 2), new Instant(11), secondWindow, PaneInfo.NO_FIRING))
+                    KeyedWorkItems.<String, KV<String, Integer>>elementsWorkItem(
+                        "hello",
+                        Collections.singleton(
+                            WindowedValue.of(
+                                KV.of("hello", 2),
+                                new Instant(11),
+                                secondWindow,
+                                PaneInfo.NO_FIRING))),
+                    new Instant(11),
+                    secondWindow,
+                    PaneInfo.NO_FIRING))
             .commit(Instant.now());
 
     // Merely creating the evaluator should suffice to register the cleanup callback

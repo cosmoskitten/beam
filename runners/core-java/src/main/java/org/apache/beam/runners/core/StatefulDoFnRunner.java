@@ -17,13 +17,11 @@
  */
 package org.apache.beam.runners.core;
 
-import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.InstantCoder;
-import org.apache.beam.sdk.coders.SerializableCoder;
 import org.apache.beam.sdk.metrics.Counter;
 import org.apache.beam.sdk.metrics.Metrics;
 import org.apache.beam.sdk.state.BagState;
@@ -98,15 +96,9 @@ public class StatefulDoFnRunner<InputT, OutputT, W extends BoundedWindow>
     Coder<BoundedWindow> untypedCoder = (Coder<BoundedWindow>) windowFn.windowCoder();
     this.windowCoder = untypedCoder;
 
-    // FIXME:
-    // directrunner passes wrong coder here
-    // the Serializable is ubly workaround, need to dig into that
     this.sortBufferTag =
         StateTags.makeSystemTagInternal(
-            StateTags.bag(
-                SORT_BUFFER_STATE,
-                WindowedValue.getFullCoder(
-                    (Coder) SerializableCoder.of(Serializable.class), windowCoder)));
+            StateTags.bag(SORT_BUFFER_STATE, WindowedValue.getFullCoder(inputCoder, windowCoder)));
 
     rejectMergingWindowFn(windowFn);
   }
