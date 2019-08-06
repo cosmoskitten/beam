@@ -82,7 +82,7 @@ public class AvroUtilsTest {
 
   @Property(trials = 1000)
   @SuppressWarnings("unchecked")
-  public void avroToBeamRoudTrip(
+  public void avroToBeamRoundTrip(
       @From(RecordSchemaGenerator.class) org.apache.avro.Schema avroSchema) throws IOException {
     // not everything is possible to translate
     assumeThat(avroSchema, not(containsField(AvroUtilsTest::hasNonNullUnion)));
@@ -168,7 +168,7 @@ public class AvroUtilsTest {
             "",
             null);
 
-    org.apache.avro.Schema.Field avroField = AvroUtils.toAvroField(beamField);
+    org.apache.avro.Schema.Field avroField = AvroUtils.toAvroField(beamField, "ignored");
     assertEquals(expectedAvroField, avroField);
   }
 
@@ -179,7 +179,7 @@ public class AvroUtilsTest {
             "bool", org.apache.avro.Schema.create(Type.BOOLEAN), "", null));
     fields.add(
         new org.apache.avro.Schema.Field("int", org.apache.avro.Schema.create(Type.INT), "", null));
-    return org.apache.avro.Schema.createRecord(name, null, null, false, fields);
+    return org.apache.avro.Schema.createRecord(name, null, "topLevelRecord", false, fields);
   }
 
   private org.apache.avro.Schema getAvroSchema() {
@@ -331,8 +331,53 @@ public class AvroUtilsTest {
 
   @Test
   public void testAvroSchemaFromBeamSchemaCanBeParsed() {
-    Schema beamSchema = getBeamSchema();
     String stringSchema = AvroUtils.toAvroSchema(getBeamSchema()).toString();
+    org.apache.avro.Schema schema = new org.apache.avro.Schema.Parser().parse(stringSchema);
+    assertEquals(stringSchema, schema.toString());
+  }
+
+  @Test
+  public void testAvroSchemaFromBeamSchemaWithFieldCollisionCanBeParsed() {
+
+    // Two similar schemas, the only difference is the "street" field type in the nested record.
+    Schema contact =
+        new Schema.Builder()
+            .addField(Field.of("name", FieldType.STRING))
+            .addField(
+                Field.of(
+                    "address",
+                    FieldType.row(
+                        new Schema.Builder()
+                            .addField(Field.of("street", FieldType.STRING))
+                            .addField(Field.of("city", FieldType.STRING))
+                            .build())))
+            .build();
+
+    Schema contactMultiline =
+        new Schema.Builder()
+            .addField(Field.of("name", FieldType.STRING))
+            .addField(
+                Field.of(
+                    "address",
+                    FieldType.row(
+                        new Schema.Builder()
+                            .addField(Field.of("street", FieldType.array(FieldType.STRING)))
+                            .addField(Field.of("city", FieldType.STRING))
+                            .build())))
+            .build();
+
+    // Ensure that no collisions happen between two sibling fields with same-named child fields
+    // (with different schemas, between a parent field and a sub-record field with the same name,
+    // and artificially with the generated field name.
+    Schema beamSchema =
+        new Schema.Builder()
+            .addField(Field.of("home", FieldType.row(contact)))
+            .addField(Field.of("work", FieldType.row(contactMultiline)))
+            .addField(Field.of("address", FieldType.row(contact)))
+            .addField(Field.of("topLevelRecord", FieldType.row(contactMultiline)))
+            .build();
+
+    String stringSchema = AvroUtils.toAvroSchema(beamSchema).toString();
     org.apache.avro.Schema schema = new org.apache.avro.Schema.Parser().parse(stringSchema);
     assertEquals(stringSchema, schema.toString());
   }
