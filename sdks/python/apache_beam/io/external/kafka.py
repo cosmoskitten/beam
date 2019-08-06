@@ -41,10 +41,21 @@ import typing
 
 from past.builtins import unicode
 
-from apache_beam.transforms.external import External
+from apache_beam.transforms.external import ExternalTransform, NamedTupleBasedPayloadBuilder
 
 
-class ReadFromKafka(External):
+ReadFromKafkaSchema = typing.NamedTuple(
+  'ReadFromKafkaSchema',
+  [
+    ('consumer_config', typing.List[typing.Tuple[unicode, unicode]]),
+    ('topics', typing.List[unicode]),
+    ('key_deserializer', unicode),
+    ('value_deserializer', unicode),
+  ]
+)
+
+
+class ReadFromKafka(ExternalTransform):
   """
     An external PTransform which reads from Kafka and returns a KV pair for
     each item in the specified Kafka topics. If no Kafka Deserializer for
@@ -60,7 +71,7 @@ class ReadFromKafka(External):
   byte_array_deserializer = 'org.apache.kafka.common.serialization.' \
                             'ByteArrayDeserializer'
 
-  _urn = 'beam:external:java:kafka:read:v1'
+  URN = 'beam:external:java:kafka:read:v1'
 
   def __init__(self, consumer_config,
                topics,
@@ -86,22 +97,32 @@ class ReadFromKafka(External):
                                serialization.ByteArrayDeserializer'.
     :param expansion_service: The address (host:port) of the ExpansionService.
     """
-    super(ReadFromKafka, self).__init__(expansion_service)
-    self.consumer_config = list(consumer_config.items())
-    self.topics = topics
-    self.key_deserializer = key_deserializer
-    self.value_deserializer = value_deserializer
+    super(ReadFromKafka, self).__init__(
+      self.URN,
+      NamedTupleBasedPayloadBuilder(
+        ReadFromKafkaSchema(
+          consumer_config=list(consumer_config.items()),
+          topics=topics,
+          key_deserializer=key_deserializer,
+          value_deserializer=value_deserializer,
+        )
+      ).build(),
+      expansion_service
+    )
 
-  def get_schema(self):
-    return {
-      'consumer_config': typing.Iterable[typing.Tuple[unicode, unicode]],
-      'topics': typing.Iterable[unicode],
-      'key_deserializer': unicode,
-      'value_deserializer': unicode,
-    }
+
+WriteToKafkaSchema = typing.NamedTuple(
+  'WriteToKafkaSchema',
+  [
+    ('producer_config', typing.List[typing.Tuple[unicode, unicode]]),
+    ('topic', unicode),
+    ('key_serializer', unicode),
+    ('value_serializer', unicode),
+  ]
+)
 
 
-class WriteToKafka(External):
+class WriteToKafka(ExternalTransform):
   """
     An external PTransform which writes KV data to a specified Kafka topic.
     If no Kafka Serializer for key/value is provided, then key/value are
@@ -114,14 +135,7 @@ class WriteToKafka(External):
   byte_array_serializer = 'org.apache.kafka.common.serialization.' \
                           'ByteArraySerializer'
 
-  _urn = 'beam:external:java:kafka:write:v1'
-
-  _schema = {
-    'producer_config': typehints.Iterable[typehints.KV[unicode, unicode]],
-    'topic': unicode,
-    'key_deserializer': unicode,
-    'value_deserializer': unicode,
-  }
+  URN = 'beam:external:java:kafka:write:v1'
 
   def __init__(self, producer_config,
                topic,
@@ -147,8 +161,15 @@ class WriteToKafka(External):
                                serialization.ByteArraySerializer'.
     :param expansion_service: The address (host:port) of the ExpansionService.
     """
-    super(WriteToKafka, self).__init__(expansion_service)
-    self.producer_config = list(producer_config.items())
-    self.topic = topic
-    self.key_serializer = key_serializer
-    self.value_serializer = value_serializer
+    super(WriteToKafka, self).__init__(
+      self.URN,
+      NamedTupleBasedPayloadBuilder(
+        ReadFromKafkaSchema(
+          producer_config=list(producer_config.items()),
+          topic=topic,
+          key_serializer=key_serializer,
+          value_serializer=value_serializer,
+        )
+      ).build(),
+      expansion_service
+    )
