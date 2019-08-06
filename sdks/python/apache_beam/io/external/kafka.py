@@ -106,7 +106,7 @@ class ReadFromKafka(ExternalTransform):
           key_deserializer=key_deserializer,
           value_deserializer=value_deserializer,
         )
-      ).build(),
+      ),
       expansion_service
     )
 
@@ -164,12 +164,12 @@ class WriteToKafka(ExternalTransform):
     super(WriteToKafka, self).__init__(
       self.URN,
       NamedTupleBasedPayloadBuilder(
-        ReadFromKafkaSchema(
+        WriteToKafkaSchema(
           producer_config=list(producer_config.items()),
           topic=topic,
           key_serializer=key_serializer,
           value_serializer=value_serializer,
         )
-      ).build(),
+      ),
       expansion_service
     )
