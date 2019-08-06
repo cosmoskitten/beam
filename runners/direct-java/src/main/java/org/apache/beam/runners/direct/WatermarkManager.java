@@ -1282,10 +1282,11 @@ public class WatermarkManager<ExecutableT, CollectionT> {
 
   private Set<ExecutableT> refreshAllOf(Set<ExecutableT> toRefresh) {
     Set<ExecutableT> newRefreshes = new HashSet<>();
-    long numExecutablesRefreshable = toRefresh.stream()
-        .map(transformToWatermarks::get)
-        .filter(TransformWatermarks::hasPendingWatermarkRefresh)
-        .count();
+    long numExecutablesRefreshable =
+        toRefresh.stream()
+            .map(transformToWatermarks::get)
+            .filter(TransformWatermarks::hasPendingWatermarkRefresh)
+            .count();
     for (ExecutableT executable : toRefresh) {
       newRefreshes.addAll(refreshWatermarks(executable, numExecutablesRefreshable == 1));
     }
@@ -1550,8 +1551,7 @@ public class WatermarkManager<ExecutableT, CollectionT> {
     }
 
     private boolean hasPendingWatermarkRefresh() {
-      return inputWatermark.hasPending()
-          || synchronizedProcessingInputWatermark.hasPending();
+      return inputWatermark.hasPending() || synchronizedProcessingInputWatermark.hasPending();
     }
 
     private Collection<FiredTimers<ExecutableT>> extractFiredTimers() {

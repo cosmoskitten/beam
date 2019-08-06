@@ -26,6 +26,7 @@ import java.util.stream.Collectors;
 import org.apache.beam.runners.core.DoFnRunner;
 import org.apache.beam.runners.core.DoFnRunners;
 import org.apache.beam.runners.core.DoFnRunners.OutputManager;
+import org.apache.beam.runners.core.KeyedWorkItemCoder;
 import org.apache.beam.runners.core.PushbackSideInputDoFnRunner;
 import org.apache.beam.runners.core.ReadyCheckingSideInputReader;
 import org.apache.beam.runners.core.SimplePushbackSideInputDoFnRunner;
@@ -96,10 +97,16 @@ class ParDoEvaluator<InputT> implements TransformEvaluator<InputT> {
               doFnSchemaInformation,
               sideInputMapping);
       if (DoFnSignatures.signatureForDoFn(fn).usesState()) {
+        // the coder specified on the input PCollection doesn't match type
+        // of elements processed by the StatefulDoFnRunner
+        // that is internal detail of how DirectRunner processes stateful DoFns
+        @SuppressWarnings("unchecked")
+        final KeyedWorkItemCoder<?, InputT> keyedWorkItemCoder =
+            (KeyedWorkItemCoder<?, InputT>) inputCoder;
         underlying =
             DoFnRunners.defaultStatefulDoFnRunner(
                 fn,
-                inputCoder,
+                keyedWorkItemCoder.getElementCoder(),
                 underlying,
                 stepContext,
                 windowingStrategy,
