@@ -20,10 +20,12 @@ from __future__ import absolute_import
 from apache_beam import ExternalTransform
 from apache_beam import pvalue
 from apache_beam.coders import BytesCoder
-from apache_beam.coders import FastPrimitivesCoder
+from apache_beam.coders import VarIntCoder
 from apache_beam.coders.coders import LengthPrefixCoder
+from apache_beam.io.gcp import pubsub
 from apache_beam.portability.api.external_transforms_pb2 import ConfigValue
 from apache_beam.portability.api.external_transforms_pb2 import ExternalConfigurationPayload
+from apache_beam.transforms import Map
 from apache_beam.transforms import ptransform
 
 
@@ -47,7 +49,9 @@ class ReadFromPubSub(ptransform.PTransform):
     if not isinstance(pbegin, pvalue.PBegin):
       raise Exception("ReadFromPubSub must be a root transform")
 
-    args = {}
+    args = {
+      'with_attributes': _encode_bool(self.with_attributes),
+    }
 
     if self.topic is not None:
       args['topic'] = _encode_str(self.topic)
@@ -58,18 +62,21 @@ class ReadFromPubSub(ptransform.PTransform):
     if self.id_label is not None:
       args['id_label'] = _encode_str(self.id_label)
 
-    # FIXME: how do we encode a bool so that Java can decode it?
-    # args['with_attributes'] = _encode_bool(self.with_attributes)
-
     if self.timestamp_attribute is not None:
       args['timestamp_attribute'] = _encode_str(self.timestamp_attribute)
 
     payload = ExternalConfigurationPayload(configuration=args)
-    return pbegin.apply(
+    pcoll = pbegin.apply(
         ExternalTransform(
             self._urn,
             payload.SerializeToString(),
             self.expansion_service))
+    if self.with_attributes:
+      pcoll = pcoll | Map(pubsub.PubsubMessage._from_proto_str)
+      pcoll.element_type = pubsub.PubsubMessage
+    else:
+      pcoll.element_type = bytes
+    return pcoll
 
 
 class WriteToPubSub(ptransform.PTransform):
@@ -100,26 +107,34 @@ class WriteToPubSub(ptransform.PTransform):
     self.timestamp_attribute = timestamp_attribute
 
   def expand(self, pvalue):
+    if not self.with_attributes:
+      raise ValueError("WriteToPubSub does not support disabling "
+                       "with_attributes. This needs to be addressed in the "
+                       "Java transform")
 
     args = {
-      'topic': _encode_str(self.topic)
+      'topic': _encode_str(self.topic),
+      'with_attributes': _encode_bool(self.with_attributes),
     }
 
     if self.id_label is not None:
       args['id_label'] = _encode_str(self.id_label)
 
-    # FIXME: how do we encode a bool so that Java can decode it?
-    # args['with_attributes'] = _encode_bool(self.with_attributes)
-
     if self.timestamp_attribute is not None:
       args['timestamp_attribute'] = _encode_str(self.timestamp_attribute)
 
     payload = ExternalConfigurationPayload(configuration=args)
-    return pvalue.apply(
+    pcoll = pvalue.apply(
         ExternalTransform(
             self._urn,
             payload.SerializeToString(),
             self.expansion_service))
+
+    if self.with_attributes:
+      pcoll = pcoll | 'ToProtobuf' >> Map(pubsub.WriteToPubSub.to_proto_str)
+
+    pcoll.element_type = bytes
+    return pcoll
 
 
 def _encode_str(str_obj):
@@ -129,3 +144,11 @@ def _encode_str(str_obj):
   return ConfigValue(
       coder_urn=coder_urns,
       payload=coder.encode(encoded_str))
+
+
+def _encode_bool(bool_obj):
+  coder = VarIntCoder()
+  coder_urns = ['beam:coder:varint:v1']
+  return ConfigValue(
+      coder_urn=coder_urns,
+      payload=coder.encode(int(bool_obj)))

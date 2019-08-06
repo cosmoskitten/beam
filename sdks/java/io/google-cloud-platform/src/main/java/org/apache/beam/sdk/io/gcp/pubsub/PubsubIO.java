@@ -22,7 +22,9 @@ import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Prec
 import com.google.api.client.util.Clock;
 import com.google.auto.service.AutoService;
 import com.google.auto.value.AutoValue;
+import com.google.protobuf.ByteString;
 import com.google.protobuf.Message;
+import com.google.protobuf.InvalidProtocolBufferException;
 import java.io.IOException;
 import java.io.Serializable;
 import java.nio.charset.StandardCharsets;
@@ -701,15 +703,15 @@ public class PubsubIO {
           String timestampAttribute = utf8String(config.timestampAttribute);
           setTimestampAttribute(timestampAttribute);
         }
-        setNeedsAttributes(config.needsAttributes);
         setPubsubClientFactory(FACTORY);
+        setNeedsAttributes(config.needsAttributes);
+        Coder coder = ByteArrayCoder.of();
         if (config.needsAttributes) {
           SimpleFunction<PubsubMessage, T> parseFn =
-              (SimpleFunction<PubsubMessage, T>) new IdentityMessageFn();
+              (SimpleFunction<PubsubMessage, T>) new ParsePayloadAsPubsubMessageProto();
           setParseFn(parseFn);
-          // FIXME: call setCoder(). need to use PubsubMessage proto to be compatible with python
+          setCoder(coder);
         } else {
-          Coder coder = ByteArrayCoder.of();
           setParseFn(new ParsePayloadUsingCoder<>(coder));
           setCoder(coder);
         }
@@ -751,12 +753,12 @@ public class PubsubIO {
           this.idAttribute = idAttribute;
         }
 
-        public void setWithAttributes(boolean needsAttributes) {
-          this.needsAttributes = needsAttributes;
-        }
-
         public void setTimestampAttribute(@Nullable byte[] timestampAttribute) {
           this.timestampAttribute = timestampAttribute;
+        }
+
+        public void setWithAttributes(Long needsAttributes) {
+          this.needsAttributes = needsAttributes >= 1;
         }
       }
     }
@@ -1007,6 +1009,9 @@ public class PubsubIO {
           String timestampAttribute = utf8String(config.timestampAttribute);
           setTimestampAttribute(timestampAttribute);
         }
+        SimpleFunction<T, PubsubMessage> parseFn =
+            (SimpleFunction<T, PubsubMessage>) new FormatPayloadFromPubsubMessageProto();
+        setFormatFn(parseFn);
         return build();
       }
     }
@@ -1285,6 +1290,17 @@ public class PubsubIO {
     }
   }
 
+  private static class ParsePayloadAsPubsubMessageProto extends SimpleFunction<PubsubMessage, byte[]> {
+    @Override
+    public byte[] apply(PubsubMessage input) {
+      com.google.pubsub.v1.PubsubMessage.Builder message =
+          com.google.pubsub.v1.PubsubMessage.newBuilder()
+              .setData(ByteString.copyFrom(input.getPayload()))
+              .putAllAttributes(input.getAttributeMap());
+      return message.build().toByteArray();
+    }
+  }
+
   private static class FormatPayloadAsUtf8 extends SimpleFunction<String, PubsubMessage> {
     @Override
     public PubsubMessage apply(String input) {
@@ -1304,6 +1320,19 @@ public class PubsubIO {
       try {
         return new PubsubMessage(CoderUtils.encodeToByteArray(coder, input), ImmutableMap.of());
       } catch (CoderException e) {
+        throw new RuntimeException("Could not decode Pubsub message", e);
+      }
+    }
+  }
+
+  private static class FormatPayloadFromPubsubMessageProto extends SimpleFunction<byte[], PubsubMessage> {
+    @Override
+    public PubsubMessage apply(byte[] input) {
+      try {
+        com.google.pubsub.v1.PubsubMessage message =
+            com.google.pubsub.v1.PubsubMessage.parseFrom(input);
+        return new PubsubMessage(message.getData().toByteArray(), message.getAttributesMap());
+      } catch (InvalidProtocolBufferException e) {
         throw new RuntimeException("Could not decode Pubsub message", e);
       }
     }
