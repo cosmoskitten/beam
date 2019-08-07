@@ -142,12 +142,14 @@ def typing_from_runner_api(fieldtype_proto):
     schema = fieldtype_proto.row_type.schema
     user_type = SCHEMA_REGISTRY.get_typing_by_id(schema.id)
     if user_type is None:
+      from apache_beam import coders
       type_name = 'BeamSchema_{}'.format(schema.id.replace('-', '_'))
       user_type = NamedTuple(type_name,
                              [(field.name, typing_from_runner_api(field.type))
                               for field in schema.fields])
       user_type.id = schema.id
       SCHEMA_REGISTRY.add(user_type, schema)
+      coders.registry.register_coder(user_type, coders.RowCoder)
     return user_type
 
   elif type_info == "logical_type":

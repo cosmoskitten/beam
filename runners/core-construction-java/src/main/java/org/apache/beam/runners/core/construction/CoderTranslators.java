@@ -17,6 +17,8 @@
  */
 package org.apache.beam.runners.core.construction;
 
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
+
 import java.util.Collections;
 import java.util.List;
 import org.apache.beam.model.pipeline.v1.SchemaApi;
@@ -24,7 +26,7 @@ import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.IterableCoder;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.LengthPrefixCoder;
-import org.apache.beam.sdk.coders.RowCoder;
+import org.apache.beam.sdk.schemas.PortableSchemaCoder;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.util.InstanceBuilder;
@@ -122,28 +124,29 @@ class CoderTranslators {
     };
   }
 
-  static CoderTranslator<RowCoder> row() {
-    return new CoderTranslator<RowCoder>() {
+  static CoderTranslator<PortableSchemaCoder> row() {
+    return new CoderTranslator<PortableSchemaCoder>() {
       @Override
-      public List<? extends Coder<?>> getComponents(RowCoder from) {
+      public List<? extends Coder<?>> getComponents(PortableSchemaCoder from) {
         return ImmutableList.of();
       }
 
       @Override
-      public byte[] getPayload(RowCoder from) {
+      public byte[] getPayload(PortableSchemaCoder from) {
         return SchemaTranslation.toProto(from.getSchema()).toByteArray();
       }
 
       @Override
-      public RowCoder fromComponents(List<Coder<?>> components, byte[] payload) {
-        // Assert that components are empty?
+      public PortableSchemaCoder fromComponents(List<Coder<?>> components, byte[] payload) {
+        checkArgument(
+            components.isEmpty(), "Expected empty component list, but received: " + components);
         Schema schema;
         try {
           schema = SchemaTranslation.fromProto(SchemaApi.Schema.parseFrom(payload));
         } catch (InvalidProtocolBufferException e) {
           throw new RuntimeException("Unable to parse schema for RowCoder: ", e);
         }
-        return RowCoder.of(schema);
+        return PortableSchemaCoder.of(schema);
       }
     };
   }

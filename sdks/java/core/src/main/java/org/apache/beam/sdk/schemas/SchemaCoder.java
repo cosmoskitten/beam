@@ -35,7 +35,7 @@ public class SchemaCoder<T> extends CustomCoder<T> {
   private final SerializableFunction<T, Row> toRowFunction;
   private final SerializableFunction<Row, T> fromRowFunction;
 
-  private SchemaCoder(
+  protected SchemaCoder(
       Schema schema,
       SerializableFunction<T, Row> toRowFunction,
       SerializableFunction<Row, T> fromRowFunction) {
