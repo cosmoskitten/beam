@@ -15,16 +15,14 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.bigqueryioperftests;
+package org.apache.beam.sdk.bigqueryiotests;
 
 import com.google.api.services.bigquery.model.TableFieldSchema;
 import com.google.api.services.bigquery.model.TableRow;
 import com.google.api.services.bigquery.model.TableSchema;
 import com.google.cloud.Timestamp;
 import com.google.cloud.bigquery.BigQuery;
-import com.google.cloud.bigquery.BigQuery.TableOption;
 import com.google.cloud.bigquery.BigQueryOptions;
-import com.google.cloud.bigquery.Table;
 import com.google.cloud.bigquery.TableId;
 import java.io.IOException;
 import java.util.Collections;
@@ -62,29 +60,33 @@ import org.junit.runners.JUnit4;
  *
  * <pre>
  *  ./gradlew integrationTest -p sdks/java/io/gcp/bigquery -DintegrationTestPipelineOptions='[
- *  "--bigQuerySourceDataset=source-dataset",
- *  "--bigQuerySourceTable=source-table",
+ *  "--bigQueryTestDataset=source-dataset",
+ *  "--bigQueryTestTable=source-table",
  *  "--bigQueryDataset=metrics-dataset",
  *  "--bigQueryTable=metrics-table",
+ *  "--useStreamingWrites=false",
  *  "--sourceOptions={"numRecords":"1000", "keySize":1, valueSize:"1024"}
  *  }"]'
- *  --tests org.apache.beam.sdk.io.gcp.bigQuery.BigQueryIOReadPerformanceIT
+ *  --tests org.apache.beam.sdk.io.gcp.bigQuery.BigQueryIOIT
  *  -DintegrationTestRunner=direct
  * </pre>
  */
 @RunWith(JUnit4.class)
-public class BigQueryIOReadPerformanceIT {
-  private static final String NAMESPACE = BigQueryIOReadPerformanceIT.class.getName();
+public class BigQueryIOIT {
+  private static final String NAMESPACE = BigQueryIOIT.class.getName();
   private static String bigQueryMetricsTable;
   private static String bigQueryMetricsDataset;
-  private static String bigQuerySourceDataset;
-  private static String bigQuerySourceTable;
+  private static String bigQueryTestDataset;
+  private static String bigQueryTestTable;
   private static SyntheticSourceOptions sourceOptions;
   private static String tableQualifier;
   private static String tempRoot;
+  private static Boolean useStreamingWrites;
   private static BigQueryPerfTestOptions options;
   private static final String TEST_ID = UUID.randomUUID().toString();
   private static final String TEST_TIMESTAMP = Timestamp.now().toString();
+  private static final String READ_TIME_METRIC_NAME = "read_time";
+  private static final String WRITE_TIME_METRIC_NAME = "write_time";
 
   /** Options for this io performance test. */
   public interface BigQueryPerfTestOptions extends IOTestPipelineOptions {
@@ -94,15 +96,20 @@ public class BigQueryIOReadPerformanceIT {
 
     void setSourceOptions(String value);
 
-    @Description("BQ dataset with source data")
-    String getBigQuerySourceDataset();
+    @Description("BQ dataset for the test data")
+    String getBigQueryTestDataset();
 
-    void setBigQuerySourceDataset(String dataset);
+    void setBigQueryTestDataset(String dataset);
 
-    @Description("BQ table with source data")
-    String getBigQuerySourceTable();
+    @Description("BQ table for test data")
+    String getBigQueryTestTable();
 
-    void setBigQuerySourceTable(String table);
+    void setBigQueryTestTable(String table);
+
+    @Description("Should test use streaming writes or batch loads to BQ")
+    Boolean getUseStreamingWrites();
+
+    void setUseStreamingWrites(Boolean value);
   }
 
   @BeforeClass
@@ -113,33 +120,34 @@ public class BigQueryIOReadPerformanceIT {
         SyntheticOptions.fromJsonString(options.getSourceOptions(), SyntheticSourceOptions.class);
     bigQueryMetricsDataset = options.getBigQueryDataset();
     bigQueryMetricsTable = options.getBigQueryTable();
-    bigQuerySourceDataset = options.getBigQuerySourceDataset();
-    bigQuerySourceTable = options.getBigQuerySourceTable();
+    bigQueryTestDataset = options.getBigQueryTestDataset();
+    bigQueryTestTable = options.getBigQueryTestTable();
+    useStreamingWrites = options.getUseStreamingWrites();
     BigQueryOptions bigQueryOptions = BigQueryOptions.newBuilder().build();
     tableQualifier =
         String.format(
-            "%s:%s.%s", bigQueryOptions.getProjectId(), bigQuerySourceDataset, bigQuerySourceTable);
-    if (!checkForSourceTable()) {
-      createAndFillSourceTable();
-    }
+            "%s:%s.%s", bigQueryOptions.getProjectId(), bigQueryTestDataset, bigQueryTestTable);
   }
 
   @AfterClass
   public static void tearDown() {
     BigQueryOptions options = BigQueryOptions.newBuilder().build();
     BigQuery client = options.getService();
-    TableId tableId =
-        TableId.of(options.getProjectId(), bigQuerySourceDataset, bigQuerySourceTable);
+    TableId tableId = TableId.of(options.getProjectId(), bigQueryTestDataset, bigQueryTestTable);
     client.delete(tableId);
   }
 
-  private static void createAndFillSourceTable() {
+  private void testWrite() {
+    Pipeline pipeline = Pipeline.create(options);
 
-    Pipeline pipeline = Pipeline.create();
-
+    BigQueryIO.Write.Method method =
+        useStreamingWrites
+            ? BigQueryIO.Write.Method.STREAMING_INSERTS
+            : BigQueryIO.Write.Method.FILE_LOADS;
     pipeline
         .apply("Read from source", Read.from(new SyntheticBoundedSource(sourceOptions)))
         .apply("Map records", ParDo.of(new MapKVToV()))
+        .apply("Gather time", ParDo.of(new TimeMonitor<>(NAMESPACE, WRITE_TIME_METRIC_NAME)))
         .apply(
             "Write to BQ",
             BigQueryIO.<byte[]>write()
@@ -151,32 +159,21 @@ public class BigQueryIOReadPerformanceIT {
                       return tableRow;
                     })
                 .withCustomGcsTempLocation(ValueProvider.StaticValueProvider.of(tempRoot))
+                .withMethod(method)
                 .withSchema(
                     new TableSchema()
                         .setFields(
                             Collections.singletonList(
                                 new TableFieldSchema().setName("data").setType("BYTES")))));
-    pipeline.run().waitUntilFinish();
+
+    PipelineResult pipelineResult = pipeline.run();
+    pipelineResult.waitUntilFinish();
+    extractAndPublishTime(pipelineResult, WRITE_TIME_METRIC_NAME);
   }
 
-  private static boolean checkForSourceTable() {
-    BigQueryOptions options = BigQueryOptions.newBuilder().build();
-    BigQuery client = options.getService();
-    TableId tableId =
-        TableId.of(options.getProjectId(), bigQuerySourceDataset, bigQuerySourceTable);
-    Table sourceTable = client.getTable(tableId, TableOption.fields(BigQuery.TableField.TYPE));
-    return sourceTable != null;
-  }
-
-  @Test
-  public void testRead() {
-    Pipeline pipeline = Pipeline.create(options);
-    pipeline
-        .apply("Read from BQ", BigQueryIO.readTableRows().from(tableQualifier))
-        .apply("Gather time", ParDo.of(new TimeMonitor<>(NAMESPACE, "read_time")));
-    PipelineResult result = pipeline.run();
-    result.waitUntilFinish();
-    NamedTestResult metricResult = getMetricSupplier().apply(new MetricsReader(result, NAMESPACE));
+  private void extractAndPublishTime(PipelineResult pipelineResult, String writeTimeMetricName) {
+    NamedTestResult metricResult =
+        getMetricSupplier(writeTimeMetricName).apply(new MetricsReader(pipelineResult, NAMESPACE));
     IOITMetrics.publish(
         TEST_ID,
         TEST_TIMESTAMP,
@@ -185,12 +182,28 @@ public class BigQueryIOReadPerformanceIT {
         Collections.singletonList(metricResult));
   }
 
-  private static Function<MetricsReader, NamedTestResult> getMetricSupplier() {
+  @Test
+  public void testWriteThenRead() {
+    testWrite();
+    testRead();
+  }
+
+  private void testRead() {
+    Pipeline pipeline = Pipeline.create(options);
+    pipeline
+        .apply("Read from BQ", BigQueryIO.readTableRows().from(tableQualifier))
+        .apply("Gather time", ParDo.of(new TimeMonitor<>(NAMESPACE, READ_TIME_METRIC_NAME)));
+    PipelineResult result = pipeline.run();
+    result.waitUntilFinish();
+    extractAndPublishTime(result, READ_TIME_METRIC_NAME);
+  }
+
+  private static Function<MetricsReader, NamedTestResult> getMetricSupplier(String metricName) {
     return reader -> {
-      long startTime = reader.getStartTimeMetric("read_time");
-      long endTime = reader.getEndTimeMetric("read_time");
+      long startTime = reader.getStartTimeMetric(metricName);
+      long endTime = reader.getEndTimeMetric(metricName);
       return NamedTestResult.create(
-          TEST_ID, TEST_TIMESTAMP, "read_time", (endTime - startTime) / 1e3);
+          TEST_ID, TEST_TIMESTAMP, metricName, (endTime - startTime) / 1e3);
     };
   }
 
