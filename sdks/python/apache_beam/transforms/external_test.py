@@ -196,11 +196,6 @@ class ExternalTransformTest(unittest.TestCase):
     # Run a simple count-filtered-letters pipeline.
     p = TestPipeline(options=pipeline_options)
 
-    # We use the save_main_session option because one or more DoFn's in this
-    # workflow rely on global context (e.g., a module imported at module
-    # level).
-    p.get_pipeline_options().view_as(SetupOptions).save_main_session = True
-
     address = 'localhost:%s' % str(expansion_service_port)
     res = (
         p
