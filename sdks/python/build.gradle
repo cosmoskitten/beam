@@ -55,6 +55,8 @@ task sdist {
   inputs.files project.pythonSdkDeps
   outputs.file "${project.buildDir}/${tarball}"
 }
+// Set run order for basic tasks (e.g. installGcpTest, sdist)
+setTaskOrder()
 
 artifacts {
   distTarBall file: file("${project.buildDir}/${tarball}"), builtBy: sdist

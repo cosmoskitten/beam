@@ -1884,6 +1884,13 @@ class BeamModulePlugin implements Plugin<Project> {
           }
         }
       }
+      // Set run order for basic tasks.
+      // This should be called after applyPythonNature() since TaskContainer
+      // requires task instances created first before setting the order.
+      project.ext.setTaskOrder = {
+        project.installGcpTest.mustRunAfter project.setupVirtualenv
+        project.installGcpTest.mustRunAfter project.tasks.findByPath(':sdks:python:sdist')
+      }
 
       project.task('cleanPython') {
         doLast {

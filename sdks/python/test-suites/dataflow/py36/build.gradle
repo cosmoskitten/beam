@@ -19,6 +19,8 @@
 apply plugin: org.apache.beam.gradle.BeamModulePlugin
 applyPythonNature()
 enablePythonPerformanceTest()
+// Set run order for basic tasks (e.g. installGcpTest, sdist)
+setTaskOrder()
 
 dependencies {
   distTarBall project(path: ":sdks:python", configuration: "distTarBall")
