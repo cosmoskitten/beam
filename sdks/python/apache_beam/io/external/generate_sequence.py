@@ -44,7 +44,7 @@ class GenerateSequence(ExternalTransform):
 
     Experimental; no backwards compatibility guarantees.
   """
-  _urn = 'beam:external:java:generate_sequence:v1'
+  URN = 'beam:external:java:generate_sequence:v1'
 
   URN = 'beam:external:java:generate_sequence:v1'
 
@@ -52,6 +52,7 @@ class GenerateSequence(ExternalTransform):
                elements_per_period=None, max_read_time=None,
                expansion_service=None):
     super(GenerateSequence, self).__init__(
+      self.URN,
       SchemaBasedPayloadBuilder(
         {
           'start': start,
