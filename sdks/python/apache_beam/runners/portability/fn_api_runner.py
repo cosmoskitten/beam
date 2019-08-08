@@ -1137,9 +1137,9 @@ class GrpcServer(object):
   def __init__(self, state, provision_info, num_threads):
     self.state = state
     self.provision_info = provision_info
-    self.max_workers = num_threads
+    self.num_threads = num_threads
     self.control_server = grpc.server(
-        futures.ThreadPoolExecutor(max_workers=self.max_workers))
+        futures.ThreadPoolExecutor(max_workers=self.num_threads))
     self.control_port = self.control_server.add_insecure_port('[::]:0')
     self.control_address = 'localhost:%s' % self.control_port
 
@@ -1149,12 +1149,12 @@ class GrpcServer(object):
     no_max_message_sizes = [("grpc.max_receive_message_length", -1),
                             ("grpc.max_send_message_length", -1)]
     self.data_server = grpc.server(
-        futures.ThreadPoolExecutor(max_workers=self.max_workers),
+        futures.ThreadPoolExecutor(max_workers=self.num_threads),
         options=no_max_message_sizes)
     self.data_port = self.data_server.add_insecure_port('[::]:0')
 
     self.state_server = grpc.server(
-        futures.ThreadPoolExecutor(max_workers=self.max_workers),
+        futures.ThreadPoolExecutor(max_workers=self.num_threads),
         options=no_max_message_sizes)
     self.state_port = self.state_server.add_insecure_port('[::]:0')
 
@@ -1298,6 +1298,11 @@ class EmbeddedGrpcWorkerHandler(GrpcWorkerHandler):
     self.worker_thread.join()
 
 
+# deadlock would happen with subprocess lib, so create a global lock to share
+# with all subprocess calls. This only happens to py2, no such issue with py3.
+SUBPROCESS_LOCK = threading.Lock()
+
+
 @WorkerHandler.register_environment(python_urns.SUBPROCESS_SDK, bytes)
 class SubprocessSdkWorkerHandler(GrpcWorkerHandler):
   def __init__(self, worker_command_line, state, provision_info, grpc_server):
@@ -1320,9 +1325,6 @@ class SubprocessSdkWorkerHandler(GrpcWorkerHandler):
 @WorkerHandler.register_environment(common_urns.environments.DOCKER.urn,
                                     beam_runner_api_pb2.DockerPayload)
 class DockerSdkWorkerHandler(GrpcWorkerHandler):
-
-  _lock = threading.Lock()
-
   def __init__(self, payload, state, provision_info, grpc_server):
     super(DockerSdkWorkerHandler, self).__init__(state, provision_info,
                                                  grpc_server)
@@ -1330,8 +1332,7 @@ class DockerSdkWorkerHandler(GrpcWorkerHandler):
     self._container_id = None
 
   def start_worker(self):
-    # deadlock would happen with py2, so add a lock here. no problem with py3.
-    with DockerSdkWorkerHandler._lock:
+    with SUBPROCESS_LOCK:
       try:
         subprocess.check_call(['docker', 'pull', self._container_image])
       except Exception:
@@ -1372,8 +1373,7 @@ class DockerSdkWorkerHandler(GrpcWorkerHandler):
 
   def stop_worker(self):
     if self._container_id:
-      # deadlock would happen with py2, so add a lock here. no problem with py3.
-      with DockerSdkWorkerHandler._lock:
+      with SUBPROCESS_LOCK:
         subprocess.call([
             'docker',
             'kill',
@@ -1402,11 +1402,12 @@ class WorkerHandlerManager(object):
 
     # each gRPC server is running with fixed number of threads (num_workers
     # * len(self._environments)), where num_workers is from the first call to
-    # get_worker_handlers(). In case a stage tries to add more workers
-    # than this number, some workers cannot attached to gRPC and pipeline will
-    # hang, so raise an error here.
+    # get_worker_handlers(). Assumption here is a worker has a connection to a
+    # gRPC server. In case a stage tries to add more workers
+    # than the threads we have, some workers cannot attached to gRPC and
+    # pipeline will hang, so raise an error here.
     if self._grpc_server is not None and \
-        num_workers > self._grpc_server.max_workers:
+        num_workers > self._grpc_server.num_threads:
       raise RuntimeError('gRPC servers are running with %s threads, we cannot '
                          'attach %s workers' % (self._grpc_server.max_workers,
                                                 num_workers))
