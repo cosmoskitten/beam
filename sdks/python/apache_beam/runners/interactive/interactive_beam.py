@@ -15,27 +15,26 @@
 # limitations under the License.
 #
 
-"""Module of the current iBeam (interactive Beam) environment.
+"""Module of iBeam (interactive Beam) features.
 
-The purpose of the module is to reduce the learning curve of iBeam users, 
+The purpose of the module is to reduce the learning curve of iBeam users,
 provide a single place for importing and add sugar syntax for all iBeam
 components. It gives users capability to manipulate existing environment for
-interactive beam, TODO(ningk) run interactive pipeline on selected runner as
-normal pipeline, create pipeline with interactive runner and visualize
-PCollections as bounded dataset.
+interactive beam, create pipeline with interactive runner, run interactive
+pipeline on selected runner as normal pipeline and visualize PCollections as
+bounded dataset.
 
 Note: iBeam works the same as normal Beam with DirectRunner when not in an
-interactively environment such as Jupyter lab or Jupyter Notebook. You can also
+interactive environment such as Jupyter lab or Jupyter Notebook. You can also
 run pipeline created by iBeam as normal Beam pipeline by run_pipeline() with
 desired runners.
 """
 
-import importlib
-
 import apache_beam as beam
+from apache_beam.options.pipeline_options import GoogleCloudOptions
+from apache_beam.runners.dataflow import dataflow_runner
+from apache_beam.runners.interactive import interactive_environment as ie
 from apache_beam.runners.interactive import interactive_runner
-
-_ibeam_env = None
 
 
 def watch(watchable):
@@ -84,116 +83,40 @@ def watch(watchable):
     watch(SomeInstance())  # an instance of a class
     watch(locals())  # inside a function, watching local variables within
   """
-  current_env().watch(watchable)
+  ie.current_env().watch(watchable)
 
 
-def create_pipeline(runner=None, options=None, argv=None):
-  """Creates a pipeline with interactive runner by default.
+def create_pipeline():
+  """Creates a pipeline with interactive runner backed by direct runner.
 
   You can use run_pipeline() provided within this module to execute the iBeam
   pipeline with other runners.
 
-  Args:
-    runner (~apache_beam.runners.runner.PipelineRunner): An object of
-      type :class:`~apache_beam.runners.runner.PipelineRunner` that will be
-      used to execute the pipeline. For registered runners, the runner name
-      can be specified, otherwise a runner object must be supplied.
-    options (~apache_beam.options.pipeline_options.PipelineOptions):
-      A configured
-      :class:`~apache_beam.options.pipeline_options.PipelineOptions` object
-      containing arguments that should be used for running the Beam job.
-    argv (List[str]): a list of arguments (such as :data:`sys.argv`)
-      to be used for building a
-      :class:`~apache_beam.options.pipeline_options.PipelineOptions` object.
-      This will only be used if argument **options** is :data:`None`.
-
-  Raises:
-    ~exceptions.ValueError: if either the runner or options argument is not
-      of the expected type.
   """
-  if not runner:
-    runner = interactive_runner.InteractiveRunner()
-  return beam.Pipeline(runner, options, argv)
+  return beam.Pipeline(interactive_runner.InteractiveRunner())
 
 
-def visualize(pcoll):
-  """Visualizes a PCollection."""
-  # TODO(ningk)
-  pass
-
-
-def run_pipeline(pipeline, runner=None, options=None):
+def run_pipeline(pipeline, runner, options=None):
   """Runs an iBeam pipeline with selected runner and options.
 
   When you are done with prototyping in an interactive notebook env, use this
   method to directly run the pipeline as a normal pipeline on your selected
   runner.
+
+  Returns the url to job if it's Dataflow runner. None otherwise.
+  Also returns the pipeline result object as the second value.
   """
-  # TODO(ningk)
+  result = runner.run_pipeline(pipeline, options=options)
+  if isinstance(runner, dataflow_runner.DataflowRunner):
+    dataflow_options = options.view_as(GoogleCloudOptions)
+    return ('https://console.cloud.google.com/dataflow/jobsDetail/locations/'
+            '{}/jobs/{}?project={}'.format(dataflow_options.region,
+                                           result.job_id(),
+                                           dataflow_options.project)), result
+  return None, result
+
+
+def visualize(pcoll):
+  """Visualizes a PCollection."""
+  # TODO(BEAM-7926)
   pass
-
-
-def current_env(cache_manager=None):
-  """Gets current iBeam environment."""
-  global _ibeam_env
-  if not _ibeam_env:
-    _ibeam_env = InteractiveEnv(cache_manager)
-  return _ibeam_env
-
-
-def new_env(cache_manager=None):
-  """Creates a new iBeam environment to replace current one."""
-  global _ibeam_env
-  _ibeam_env = None
-  return current_env(cache_manager)
-
-
-class InteractiveEnv(object):
-  """An interactive environment with cache and pipeline variable metadata.
-
-  iBeam will use the watched variable information to determine if a PCollection
-  is ever assigned to a variable in user pipeline when executing the pipeline
-  and apply magic to automatically cache and use cache for those PCollections
-  if the pipeline is executed within an interactive environment. Users can also
-  visualize and introspect those PCollections in user code since they have
-  handlers to the variables.
-  """
-
-  def __init__(self, cache_manager=None):
-    self._cache_manager = cache_manager
-    # Holds class instances, module object, string of module names.
-    self._watching_set = set()
-    # Holds variables list of (Dict[str, object]).
-    self._watching_dict_list = []
-    # Always watch __main__ module.
-    self.watch('__main__')
-
-  def watch(self, watchable):
-    """Watches a watchable.
-
-    A watchable can be a dictionary of variable metadata such as locals(), a str
-    name of a module, a module object or an instance of a class. The variable
-    can come from any scope even local. Duplicated variable naming doesn't
-    matter since they are different instances. Duplicated variables are also
-    allowed when watching.
-    """
-    if isinstance(watchable, dict):
-      self._watching_dict_list.append(watchable.items())
-    else:
-      self._watching_set.add(watchable)
-
-  def watching(self):
-    watching = list(self._watching_dict_list)
-    for watchable in self._watching_set:
-      if isinstance(watchable, str):
-        module = importlib.import_module(watchable)
-        watching.append(vars(module).items())
-      else:
-        watching.append(vars(watchable).items())
-    return watching
-
-  def set_cache_manager(self, cache_manager):
-    self._cache_manager = cache_manager
-
-  def cache_manager(self):
-    return self._cache_manager

@@ -20,7 +20,18 @@
 import importlib
 import unittest
 
+# Work around nose tests using Python2 without unittest.mock module.
+try:
+  from unittest.mock import MagicMock
+except ImportError:
+  from mock import MagicMock
+
+from apache_beam.options.pipeline_options import GoogleCloudOptions
+from apache_beam.options.pipeline_options import PipelineOptions
+from apache_beam.runners.dataflow import dataflow_runner
 from apache_beam.runners.interactive import interactive_beam as ibeam
+from apache_beam.runners.interactive import interactive_environment as ie
+from apache_beam.runners.runner import PipelineResult
 
 # The module name is also a variable in module.
 _module_name = 'apache_beam.runners.interactive.interactive_beam_test'
@@ -29,65 +40,56 @@ _module_name = 'apache_beam.runners.interactive.interactive_beam_test'
 class InteractiveBeamTest(unittest.TestCase):
 
   def setUp(self):
-    self._var_in_class_instance = 'a var in class instance'
-
-  def tearDown(self):
-    ibeam.new_env()
-
-  def assertVariableWatched(self, variable_name, variable_val):
-    self.assertTrue(self._is_variable_watched(variable_name, variable_val))
-
-  def assertVariableNotWatched(self, variable_name, variable_val):
-    self.assertFalse(self._is_variable_watched(variable_name, variable_val))
-
-  def _is_variable_watched(self, variable_name, variable_val):
-    return any([(variable_name, variable_val) in watching for watching in
-                ibeam.current_env().watching()])
-
-  def _a_function_with_local_watched(self):
-    local_var_watched = 123
-    ibeam.watch(locals())
-
-  def _a_function_not_watching_local(self):
-    local_var_not_watched = 456
+    self._var_in_class_instance = 'a var in class instance, not directly used'
+    ie.new_env()
 
   def test_watch_main_by_default(self):
-    self.assertTrue('__main__' in ibeam.current_env()._watching_set)
-    # __main__ module has variable __name__ with value '__main__'
-    self.assertVariableWatched('__name__', '__main__')
+    test_env = ie.InteractiveEnvironment()
+    # iBeam env and the test env are 2 instances.
+    self.assertNotEqual(id(ie.current_env()), id(test_env))
+    self.assertEqual(ie.current_env().watching(), test_env.watching())
 
   def test_watch_a_module_by_name(self):
-    self.assertFalse(
-        _module_name in ibeam.current_env()._watching_set)
-    self.assertVariableNotWatched('_module_name', _module_name)
+    test_env = ie.InteractiveEnvironment()
     ibeam.watch(_module_name)
-    self.assertTrue(
-        _module_name in
-        ibeam.current_env()._watching_set)
-    self.assertVariableWatched('_module_name', _module_name)
+    test_env.watch(_module_name)
+    self.assertEqual(ie.current_env().watching(), test_env.watching())
 
   def test_watch_a_module_by_module_object(self):
+    test_env = ie.InteractiveEnvironment()
     module = importlib.import_module(_module_name)
-    self.assertFalse(module in ibeam.current_env()._watching_set)
-    self.assertVariableNotWatched('_module_name', _module_name)
     ibeam.watch(module)
-    self.assertTrue(module in ibeam.current_env()._watching_set)
-    self.assertVariableWatched('_module_name', _module_name)
+    test_env.watch(module)
+    self.assertEqual(ie.current_env().watching(), test_env.watching())
 
   def test_watch_locals(self):
-    self.assertVariableNotWatched('local_var_watched', 123)
-    self.assertVariableNotWatched('local_var_not_watched', 456)
-    self._a_function_with_local_watched()
-    self.assertVariableWatched('local_var_watched', 123)
-    self._a_function_not_watching_local()
-    self.assertVariableNotWatched('local_var_not_watched', 456)
+    # test_env serves as local var too.
+    test_env = ie.InteractiveEnvironment()
+    ibeam.watch(locals())
+    test_env.watch(locals())
+    self.assertEqual(ie.current_env().watching(), test_env.watching())
 
   def test_watch_class_instance(self):
-    self.assertVariableNotWatched('_var_in_class_instance',
-                                  self._var_in_class_instance)
+    test_env = ie.InteractiveEnvironment()
     ibeam.watch(self)
-    self.assertVariableWatched('_var_in_class_instance',
-                               self._var_in_class_instance)
+    test_env.watch(self)
+    self.assertEqual(ie.current_env().watching(), test_env.watching())
+
+  def test_return_url_for_dataflow_runner(self):
+    p = ibeam.create_pipeline()
+    runner = dataflow_runner.DataflowRunner()
+    result = PipelineResult(None)
+    runner.run_pipeline = MagicMock(return_value=result)
+    result.job_id = MagicMock(return_value='job_id')
+    options = PipelineOptions()
+    gcloud_options = options.view_as(GoogleCloudOptions)
+    gcloud_options.project = 'project'
+    gcloud_options.region = 'region'
+
+    url, _ = ibeam.run_pipeline(p, runner, options)
+    self.assertEqual(url,
+                     ('https://console.cloud.google.com/dataflow/jobsDetail/'
+                      'locations/region/jobs/job_id?project=project'))
 
 
 if __name__ == '__main__':
