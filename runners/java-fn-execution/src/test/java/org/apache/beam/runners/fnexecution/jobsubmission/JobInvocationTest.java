@@ -144,24 +144,6 @@ public class JobInvocationTest {
         allOf(is(notNullValue()), is(sameInstance(result.portableMetrics()))));
   }
 
-  @Test(timeout = 10_000)
-  public void testReturnsMetricsFromJobInvocationAfterCancellation() throws Exception {
-    JobApi.MetricResults expectedMonitoringInfos = JobApi.MetricResults.newBuilder().build();
-    TestPipelineResult result =
-        new TestPipelineResult(PipelineResult.State.RUNNING, expectedMonitoringInfos);
-
-    jobInvocation.start();
-    runner.setResult(result);
-    awaitJobState(jobInvocation, JobApi.JobState.Enum.RUNNING);
-
-    jobInvocation.cancel();
-    awaitJobState(jobInvocation, JobApi.JobState.Enum.CANCELLED);
-
-    assertThat(
-        jobInvocation.getMetrics(),
-        allOf(is(notNullValue()), is(sameInstance(result.portableMetrics()))));
-  }
-
   private static void awaitJobState(JobInvocation jobInvocation, JobApi.JobState.Enum jobState)
       throws Exception {
     while (jobInvocation.getState() != jobState) {

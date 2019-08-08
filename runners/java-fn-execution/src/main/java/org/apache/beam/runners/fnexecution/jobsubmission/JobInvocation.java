@@ -160,10 +160,6 @@ public class JobInvocation {
           new FutureCallback<PortablePipelineResult>() {
             @Override
             public void onSuccess(PortablePipelineResult pipelineResult) {
-              if (pipelineResult != null) {
-                metrics = pipelineResult.portableMetrics();
-              }
-
               // Do not cancel when we are already done.
               if (pipelineResult != null
                   && pipelineResult.getState() != PipelineResult.State.DONE) {
