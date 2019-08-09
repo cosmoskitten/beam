@@ -367,7 +367,12 @@ public class CommonCoderTest {
     }
     Class<? extends Coder> coderType =
         ModelCoderRegistrar.BEAM_MODEL_CODER_URNS.inverse().get(coder.getUrn());
+    checkNotNull(coderType, "Unknown coder URN: " + coder.getUrn());
+
     CoderTranslator<?> translator = ModelCoderRegistrar.BEAM_MODEL_CODERS.get(coderType);
+    checkNotNull(
+        translator, "No translator found for common coder class: " + coderType.getSimpleName());
+
     return translator.fromComponents(components, coder.getPayload());
   }
 
