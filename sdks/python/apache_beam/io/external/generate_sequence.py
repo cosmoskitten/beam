@@ -17,7 +17,8 @@
 
 from __future__ import absolute_import
 
-from apache_beam.transforms.external import ExternalTransform, SchemaBasedPayloadBuilder
+from apache_beam.transforms.external import ExternalTransform
+from apache_beam.transforms.external import SchemaBasedPayloadBuilder
 
 
 class GenerateSequence(ExternalTransform):
@@ -50,13 +51,13 @@ class GenerateSequence(ExternalTransform):
                elements_per_period=None, max_read_time=None,
                expansion_service=None):
     super(GenerateSequence, self).__init__(
-      self.URN,
-      SchemaBasedPayloadBuilder(
-        {
-          'start': start,
-          'stop': stop,
-          'elements_per_period': elements_per_period,
-          'max_read_time': max_read_time,
-        }
-      ),
-      expansion_service)
+        self.URN,
+        SchemaBasedPayloadBuilder(
+            {
+                'start': start,
+                'stop': stop,
+                'elements_per_period': elements_per_period,
+                'max_read_time': max_read_time,
+            }
+        ),
+        expansion_service)
