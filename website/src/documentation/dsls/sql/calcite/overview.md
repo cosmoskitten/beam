@@ -1,6 +1,6 @@
 ---
 layout: section
-title: "Beam SQL in Calcite: Overview"
+title: "Calcite in Beam SQL: Overview"
 section_menu: section-menu/sdks.html
 permalink: /documentation/dsls/sql/calcite/overview/
 ---
@@ -20,12 +20,9 @@ limitations under the License.
 # Calcite support overview
 
 [Apache Calcite](http://calcite.apache.org) is a widespread SQL dialect used in
-big data processing with some streaming enhancements. Calcite provides the
-basic dialect underlying Beam SQL. 
+big data processing with some streaming enhancements. Calcite is the default Beam SQL dialect. 
 
-We have added additional extensions to
-make it easy to leverage Beam's unified batch/streaming model and support
-for complex data types.
+Beam SQL has additional extensions leveraging Beam’s unified batch/streaming model and processing complex data types. You can use these extensions with all Beam SQL dialects, including Calcite.
 
 ## Query syntax
 Query statements scan one or more tables or expressions and return the computed result rows.
