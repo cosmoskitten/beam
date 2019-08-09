@@ -41,17 +41,17 @@ import typing
 
 from past.builtins import unicode
 
-from apache_beam.transforms.external import ExternalTransform, NamedTupleBasedPayloadBuilder
-
+from apache_beam.transforms.external import ExternalTransform
+from apache_beam.transforms.external import NamedTupleBasedPayloadBuilder
 
 ReadFromKafkaSchema = typing.NamedTuple(
-  'ReadFromKafkaSchema',
-  [
-    ('consumer_config', typing.List[typing.Tuple[unicode, unicode]]),
-    ('topics', typing.List[unicode]),
-    ('key_deserializer', unicode),
-    ('value_deserializer', unicode),
-  ]
+    'ReadFromKafkaSchema',
+    [
+        ('consumer_config', typing.List[typing.Tuple[unicode, unicode]]),
+        ('topics', typing.List[unicode]),
+        ('key_deserializer', unicode),
+        ('value_deserializer', unicode),
+    ]
 )
 
 
@@ -98,27 +98,27 @@ class ReadFromKafka(ExternalTransform):
     :param expansion_service: The address (host:port) of the ExpansionService.
     """
     super(ReadFromKafka, self).__init__(
-      self.URN,
-      NamedTupleBasedPayloadBuilder(
-        ReadFromKafkaSchema(
-          consumer_config=list(consumer_config.items()),
-          topics=topics,
-          key_deserializer=key_deserializer,
-          value_deserializer=value_deserializer,
-        )
-      ),
-      expansion_service
+        self.URN,
+        NamedTupleBasedPayloadBuilder(
+            ReadFromKafkaSchema(
+                consumer_config=list(consumer_config.items()),
+                topics=topics,
+                key_deserializer=key_deserializer,
+                value_deserializer=value_deserializer,
+            )
+        ),
+        expansion_service
     )
 
 
 WriteToKafkaSchema = typing.NamedTuple(
-  'WriteToKafkaSchema',
-  [
-    ('producer_config', typing.List[typing.Tuple[unicode, unicode]]),
-    ('topic', unicode),
-    ('key_serializer', unicode),
-    ('value_serializer', unicode),
-  ]
+    'WriteToKafkaSchema',
+    [
+        ('producer_config', typing.List[typing.Tuple[unicode, unicode]]),
+        ('topic', unicode),
+        ('key_serializer', unicode),
+        ('value_serializer', unicode),
+    ]
 )
 
 
@@ -162,14 +162,14 @@ class WriteToKafka(ExternalTransform):
     :param expansion_service: The address (host:port) of the ExpansionService.
     """
     super(WriteToKafka, self).__init__(
-      self.URN,
-      NamedTupleBasedPayloadBuilder(
-        WriteToKafkaSchema(
-          producer_config=list(producer_config.items()),
-          topic=topic,
-          key_serializer=key_serializer,
-          value_serializer=value_serializer,
-        )
-      ),
-      expansion_service
+        self.URN,
+        NamedTupleBasedPayloadBuilder(
+            WriteToKafkaSchema(
+                producer_config=list(producer_config.items()),
+                topic=topic,
+                key_serializer=key_serializer,
+                value_serializer=value_serializer,
+            )
+        ),
+        expansion_service
     )

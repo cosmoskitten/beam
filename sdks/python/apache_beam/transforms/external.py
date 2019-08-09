@@ -32,9 +32,9 @@ from apache_beam.coders import registry
 from apache_beam.portability import common_urns
 from apache_beam.portability.api import beam_expansion_api_pb2
 from apache_beam.portability.api import beam_runner_api_pb2
-from apache_beam.runners import pipeline_context
 from apache_beam.portability.api.external_transforms_pb2 import ConfigValue
 from apache_beam.portability.api.external_transforms_pb2 import ExternalConfigurationPayload
+from apache_beam.runners import pipeline_context
 from apache_beam.transforms import ptransform
 
 # Protect against environments where grpc is not available.
@@ -71,8 +71,8 @@ class PayloadBuilder(object):
     else:
       coder = registry.get_coder(typehint)
     return ConfigValue(
-      coder_urn=list(iter_urns(coder)),
-      payload=coder.encode(obj))
+        coder_urn=list(iter_urns(coder)),
+        payload=coder.encode(obj))
 
   def build(self):
     """
@@ -114,7 +114,7 @@ class NamedTupleBasedPayloadBuilder(SchemaBasedPayloadBuilder):
   """
   def __init__(self, tuple_instance):
     super(NamedTupleBasedPayloadBuilder, self).__init__(
-      tuple_instance._field_types, tuple_instance._asdict())
+        tuple_instance._field_types, tuple_instance._asdict())
 
 
 class AnnotationBasedPayloadBuilder(SchemaBasedPayloadBuilder):
@@ -141,7 +141,7 @@ class DataclassBasedPayloadBuilder(SchemaBasedPayloadBuilder):
     schema = {field.name: field.type for field in
               dataclasses.fields(transform)}
     super(DataclassBasedPayloadBuilder, self).__init__(
-      dataclasses.asdict(transform), schema)
+        dataclasses.asdict(transform), schema)
 
 
 class ExternalTransform(ptransform.PTransform):
