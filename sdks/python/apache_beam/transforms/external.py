@@ -85,9 +85,17 @@ class SchemaBasedPayloadBuilder(PayloadBuilder):
   """
   Base class for building payloads based on a schema that provides
   type information for each configuration value to encode.
+
+  Note that if the schema defines a type as Optional, the corresponding value
+  will be omitted from the encoded payload, and thus the native transform
+  will determine the default.
   """
 
   def __init__(self, values, schema=None):
+    """
+    :param values: mapping of config names to values
+    :param schema: mapping of config names to types
+    """
     self._values = values
     self._schema = schema or {}
 
@@ -104,6 +112,9 @@ class SchemaBasedPayloadBuilder(PayloadBuilder):
     return result
 
   def build(self):
+    """
+    :return: ExternalConfigurationPayload
+    """
     args = self._encode_config(self._values, self._schema)
     return ExternalConfigurationPayload(configuration=args)
 
@@ -113,6 +124,9 @@ class NamedTupleBasedPayloadBuilder(SchemaBasedPayloadBuilder):
   Build a payload based on a NamedTuple schema.
   """
   def __init__(self, tuple_instance):
+    """
+    :param tuple_instance: an instance of a typing.NamedTuple
+    """
     super(NamedTupleBasedPayloadBuilder, self).__init__(
         tuple_instance._field_types, tuple_instance._asdict())
 
@@ -124,6 +138,11 @@ class AnnotationBasedPayloadBuilder(SchemaBasedPayloadBuilder):
   Supported in python 3 only.
   """
   def __init__(self, transform, **values):
+    """
+    :param transform: a PTransform instance or class. type annotations will
+                      be gathered from its __init__ method
+    :param values: values to encode
+    """
     schema = {k: v for k, v in
               transform.__init__.__annotations__.items()
               if k in self._values}
@@ -137,6 +156,10 @@ class DataclassBasedPayloadBuilder(SchemaBasedPayloadBuilder):
   Supported in python 3 only.
   """
   def __init__(self, transform):
+    """
+    :param transform: a dataclass-decorated PTransform instance from which to
+                      gather type annotations and values
+    """
     import dataclasses
     schema = {field.name: field.type for field in
               dataclasses.fields(transform)}
