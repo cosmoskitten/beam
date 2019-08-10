@@ -130,8 +130,13 @@ class RowCoderImpl(StreamCoderImpl):
 
     self.NULL_CODER.encode_to_stream(words.tostring(), out, True)
 
-    for c, attr in zip(self.components, attrs):
-      if attr is None: continue
+    for c, field, attr in zip(self.components, self.schema.fields, attrs):
+      if attr is None:
+        if not field.type.nullable:
+          raise ValueError(
+              "Attempted to encode null for non-nullable field \"{}\".".format(
+                  field.name))
+        continue
       c.encode_to_stream(attr, out, True)
 
   def decode_from_stream(self, in_stream, nested):
