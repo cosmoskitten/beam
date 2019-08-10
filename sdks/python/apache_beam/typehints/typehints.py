@@ -69,6 +69,7 @@ import collections
 import copy
 import sys
 import types
+import typing
 from builtins import next
 from builtins import zip
 
@@ -1089,7 +1090,7 @@ WindowedValue = WindowedTypeConstraint
 # There is a circular dependency between defining this mapping
 # and using it in normalize().  Initialize it here and populate
 # it below.
-_KNOWN_PRIMITIVE_TYPES = {}
+_KNOWN_PRIMITIVE_TYPES = {}  # type: typing.Dict[type, typing.Any]
 
 
 def normalize(x, none_as_type=False):

@@ -25,6 +25,7 @@ import os
 import shelve
 import shutil
 import tempfile
+import typing
 from builtins import object
 
 __all__ = ['PipelineRunner', 'PipelineState', 'PipelineResult']

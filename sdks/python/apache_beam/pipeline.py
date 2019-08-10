@@ -52,8 +52,12 @@ import os
 import re
 import shutil
 import tempfile
+import typing
 from builtins import object
 from builtins import zip
+from typing import Dict
+from typing import List
+from typing import Union
 
 from future.utils import with_metaclass
 
@@ -76,6 +80,10 @@ from apache_beam.transforms import ptransform
 from apache_beam.typehints import TypeCheckError
 from apache_beam.typehints import typehints
 from apache_beam.utils.annotations import deprecated
+
+if typing.TYPE_CHECKING:
+  from apache_beam.portability.api import beam_runner_api_pb2
+  from apache_beam.runners.pipeline_context import PipelineContext
 
 __all__ = ['Pipeline', 'PTransformOverride']
 
@@ -611,6 +619,7 @@ class Pipeline(object):
   def to_runner_api(
       self, return_context=False, context=None, use_fake_coders=False,
       default_environment=None):
+    # type: (...) -> beam_runner_api_pb2.Pipeline
     """For internal use only; no backwards-compatibility guarantees."""
     from apache_beam.runners import pipeline_context
     from apache_beam.portability.api import beam_runner_api_pb2
@@ -663,13 +672,14 @@ class Pipeline(object):
     proto.components.transforms[root_transform_id].unique_name = (
         root_transform_id)
     if return_context:
-      return proto, context
+      return proto, context  # type: ignore  # too complicated for now
     else:
       return proto
 
   @staticmethod
   def from_runner_api(proto, runner, options, return_context=False,
                       allow_proto_holders=False):
+    # type: (...) -> Pipeline
     """For internal use only; no backwards-compatibility guarantees."""
     p = Pipeline(runner=runner, options=options)
     from apache_beam.runners import pipeline_context
@@ -697,7 +707,7 @@ class Pipeline(object):
         transform.inputs = (pvalue.PBegin(p),)
 
     if return_context:
-      return p, context
+      return p, context  # type: ignore  # too complicated for now
     else:
       return p
 
@@ -739,7 +749,12 @@ class AppliedPTransform(object):
   (used internally by Pipeline for bookeeping purposes).
   """
 
-  def __init__(self, parent, transform, full_label, inputs):
+  def __init__(self,
+               parent,
+               transform,  # type: ptransform.PTransform
+               full_label,
+               inputs
+              ):
     self.parent = parent
     self.transform = transform
     # Note that we want the PipelineVisitor classes to use the full_label,
@@ -750,14 +765,18 @@ class AppliedPTransform(object):
     self.full_label = full_label
     self.inputs = inputs or ()
     self.side_inputs = () if transform is None else tuple(transform.side_inputs)
-    self.outputs = {}
-    self.parts = []
+    self.outputs = {}  # type: Dict[Union[str, int, None], pvalue.PValue]
+    self.parts = []  # type: List[AppliedPTransform]
 
   def __repr__(self):
     return "%s(%s, %s)" % (self.__class__.__name__, self.full_label,
                            type(self.transform).__name__)
 
-  def replace_output(self, output, tag=None):
+  def replace_output(self,
+                     output,  # type: Union[pvalue.PValue, pvalue.DoOutputsTuple]
+                     tag=None  # type: Union[str, int, None]
+                    ):
+    # type: (...) -> None
     """Replaces the output defined by the given tag with the given output.
 
     Args:
@@ -771,7 +790,11 @@ class AppliedPTransform(object):
     else:
       raise TypeError("Unexpected output type: %s" % output)
 
-  def add_output(self, output, tag=None):
+  def add_output(self,
+                 output,  # type: Union[pvalue.DoOutputsTuple, pvalue.PValue]
+                 tag=None  # type: Union[str, int, None]
+                ):
+    # type: (...) -> None
     if isinstance(output, pvalue.DoOutputsTuple):
       self.add_output(output[output._main_tag])
     elif isinstance(output, pvalue.PValue):
@@ -784,6 +807,7 @@ class AppliedPTransform(object):
       raise TypeError("Unexpected output type: %s" % output)
 
   def add_part(self, part):
+    # type: (AppliedPTransform) -> None
     assert isinstance(part, AppliedPTransform)
     self.parts.append(part)
 
@@ -859,6 +883,7 @@ class AppliedPTransform(object):
             if isinstance(output, pvalue.PCollection)}
 
   def to_runner_api(self, context):
+    # type: (PipelineContext) -> beam_runner_api_pb2.PTransform
     # External tranforms require more splicing than just setting the spec.
     from apache_beam.transforms import external
     if isinstance(self.transform, external.ExternalTransform):

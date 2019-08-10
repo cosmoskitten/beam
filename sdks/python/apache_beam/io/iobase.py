@@ -39,6 +39,15 @@ import uuid
 from builtins import object
 from builtins import range
 from collections import namedtuple
+from typing import Any
+from typing import Generic
+from typing import Iterable
+from typing import Iterator
+from typing import Optional
+from typing import Sequence
+from typing import Tuple
+from typing import TypeVar
+from typing import Union
 
 from apache_beam import coders
 from apache_beam import pvalue
@@ -59,6 +68,9 @@ from apache_beam.utils.windowed_value import WindowedValue
 __all__ = ['BoundedSource', 'RangeTracker', 'Read', 'RestrictionTracker',
            'Sink', 'Write', 'Writer']
 
+InT = TypeVar('InT')
+OutT = TypeVar('OutT')
+T = TypeVar('T')
 
 # Encapsulates information about a bundle of a source generated when method
 # BoundedSource.split() is invoked.
@@ -81,13 +93,13 @@ SourceBundle = namedtuple(
     'weight source start_position stop_position')
 
 
-class SourceBase(HasDisplayData, urns.RunnerApiFn):
+class SourceBase(HasDisplayData, urns.RunnerApiFn, Generic[T]):
   """Base class for all sources that can be passed to beam.io.Read(...).
   """
   urns.RunnerApiFn.register_pickle_urn(python_urns.PICKLED_SOURCE)
 
 
-class BoundedSource(SourceBase):
+class BoundedSource(SourceBase[T]):
   """A source that reads a finite amount of input records.
 
   This class defines following operations which can be used to read the source
@@ -124,6 +136,7 @@ class BoundedSource(SourceBase):
   """
 
   def estimate_size(self):
+    # type: () -> Optional[int]
     """Estimates the size of source in bytes.
 
     An estimate of the total size (in bytes) of the data that would be read
@@ -136,7 +149,12 @@ class BoundedSource(SourceBase):
     """
     raise NotImplementedError
 
-  def split(self, desired_bundle_size, start_position=None, stop_position=None):
+  def split(self,
+            desired_bundle_size,  # type: int
+            start_position=None,  # type: Optional[int]
+            stop_position=None,  # type: Optional[int]
+           ):
+    # type: (...) -> Iterator[SourceBundle]
     """Splits the source into a set of bundles.
 
     Bundles should be approximately of size ``desired_bundle_size`` bytes.
@@ -153,7 +171,11 @@ class BoundedSource(SourceBase):
     """
     raise NotImplementedError
 
-  def get_range_tracker(self, start_position, stop_position):
+  def get_range_tracker(self,
+                        start_position,  # type: Optional[int]
+                        stop_position,  # type: Optional[int]
+                       ):
+    # type: (...) -> RangeTracker
     """Returns a RangeTracker for a given position range.
 
     Framework may invoke ``read()`` method with the RangeTracker object returned
@@ -170,6 +192,7 @@ class BoundedSource(SourceBase):
     raise NotImplementedError
 
   def read(self, range_tracker):
+    # type: (RangeTracker) -> Iterator[T]
     """Returns an iterator that reads data from the source.
 
     The returned set of data must respect the boundaries defined by the given
@@ -833,10 +856,11 @@ class Writer(object):
     raise NotImplementedError
 
 
-class Read(ptransform.PTransform):
+class Read(ptransform.PTransform[pvalue.PBeginType, OutT]):
   """A transform that reads a PCollection."""
 
   def __init__(self, source):
+    # type: (BoundedSource) -> None
     """Initializes a Read transform.
 
     Args:
@@ -856,6 +880,7 @@ class Read(ptransform.PTransform):
     return chunk_size
 
   def expand(self, pbegin):
+    # type: (pvalue.PValue[pvalue.PBeginType]) -> pvalue.PCollection[OutT]
     from apache_beam.options.pipeline_options import DebugOptions
     from apache_beam.transforms import util
 
@@ -915,7 +940,7 @@ ptransform.PTransform.register_urn(
     Read.from_runner_api_parameter)
 
 
-class Write(ptransform.PTransform):
+class Write(ptransform.PTransform[InT, pvalue.PDoneType]):
   """A ``PTransform`` that writes to a sink.
 
   A sink should inherit ``iobase.Sink``. Such implementations are
@@ -944,6 +969,7 @@ class Write(ptransform.PTransform):
   """
 
   def __init__(self, sink):
+    # type: (Union[Sink, ptransform.PTransform[InT, pvalue.PDoneType]]) -> None
     """Initializes a Write transform.
 
     Args:
@@ -957,6 +983,7 @@ class Write(ptransform.PTransform):
             'sink_dd': self.sink}
 
   def expand(self, pcoll):
+    # type: (pvalue.PCollection[InT]) -> pvalue.PCollection[pvalue.PDoneType]
     from apache_beam.runners.dataflow.native_io import iobase as dataflow_io
     if isinstance(self.sink, dataflow_io.NativeSink):
       # A native sink
@@ -972,14 +999,16 @@ class Write(ptransform.PTransform):
                        'or be a PTransform. Received : %r' % self.sink)
 
 
-class WriteImpl(ptransform.PTransform):
+class WriteImpl(ptransform.PTransform[T, T]):
   """Implements the writing of custom sinks."""
 
   def __init__(self, sink):
+    # type: (Sink) -> None
     super(WriteImpl, self).__init__()
     self.sink = sink
 
   def expand(self, pcoll):
+    # type: (pvalue.PCollection[T]) -> pvalue.PCollection[T]
     do_once = pcoll.pipeline | 'DoOnce' >> core.Create([None])
     init_result_coll = do_once | 'InitializeWrite' >> core.Map(
         lambda _, sink: sink.initialize_write(), self.sink)
@@ -1085,15 +1114,17 @@ def _finalize_write(unused_element, sink, init_result, write_results,
         window.TimestampedValue(v, timestamp.MAX_TIMESTAMP) for v in outputs)
 
 
-class _RoundRobinKeyFn(core.DoFn):
+class _RoundRobinKeyFn(core.DoFn[T, Tuple[int, T]]):
 
   def __init__(self, count):
+    # type: (int) -> None
     self.count = count
 
   def start_bundle(self):
     self.counter = random.randint(0, self.count - 1)
 
-  def process(self, element):
+  def process(self, element, *args, **kwargs):
+    # type: (T, *Any, **Any) -> Iterator[Tuple[int, T]]
     self.counter += 1
     if self.counter >= self.count:
       self.counter -= self.count

@@ -29,11 +29,24 @@ This module is experimental. No backwards-compatibility guarantees.
 
 from __future__ import absolute_import
 
+import typing
 from builtins import object
+from typing import Generic
+from typing import Iterable
+from typing import Optional
+from typing import TypeVar
+from typing import Union
+
+from past.builtins import long
 
 from apache_beam.utils.timestamp import MAX_TIMESTAMP
 from apache_beam.utils.timestamp import MIN_TIMESTAMP
 from apache_beam.utils.timestamp import Timestamp
+
+if typing.TYPE_CHECKING:
+  from apache_beam.transforms.window import BoundedWindow
+
+T = TypeVar('T')
 
 
 class PaneInfoTiming(object):
@@ -155,7 +168,7 @@ _BYTE_TO_PANE_INFO = _construct_well_known_pane_infos()
 PANE_INFO_UNKNOWN = _BYTE_TO_PANE_INFO[0xF]
 
 
-class WindowedValue(object):
+class WindowedValue(Generic[T]):
   """A windowed value having a value, a timestamp and set of windows.
 
   Attributes:
@@ -168,12 +181,19 @@ class WindowedValue(object):
       PANE_INFO_UNKNOWN.
   """
 
-  def __init__(self, value, timestamp, windows, pane_info=PANE_INFO_UNKNOWN):
+  def __init__(self,
+               value,  # type: T
+               timestamp,  # type: Union[int, long, float, Timestamp]
+               windows,  # type: Iterable[BoundedWindow]
+               pane_info=PANE_INFO_UNKNOWN
+              ):
     # For performance reasons, only timestamp_micros is stored by default
     # (as a C int). The Timestamp object is created on demand below.
     self.value = value
     if isinstance(timestamp, int):
       self.timestamp_micros = timestamp * 1000000
+      if typing.TYPE_CHECKING:
+        self.timestamp_object = None  # type: Optional[Timestamp]
     else:
       self.timestamp_object = (timestamp if isinstance(timestamp, Timestamp)
                                else Timestamp.of(timestamp))
@@ -183,6 +203,7 @@ class WindowedValue(object):
 
   @property
   def timestamp(self):
+    # type: () -> Timestamp
     if self.timestamp_object is None:
       self.timestamp_object = Timestamp(0, self.timestamp_micros)
     return self.timestamp_object
@@ -237,6 +258,7 @@ def create(value, timestamp_micros, windows, pane_info=PANE_INFO_UNKNOWN):
 
 
 try:
+  # FIXME: for review: why not add this as a class attribute?
   WindowedValue.timestamp_object = None
 except TypeError:
   # When we're compiled, we can't dynamically add attributes to
@@ -249,10 +271,13 @@ class _IntervalWindowBase(object):
   """Optimized form of IntervalWindow storing only microseconds for endpoints.
   """
 
-  def __init__(self, start, end):
+  def __init__(self,
+               start,  # type: Optional[Union[int, long, float, Timestamp]]
+               end  # type: Optional[Union[int, long, float, Timestamp]]
+              ):
     if start is not None or end is not None:
-      self._start_object = Timestamp.of(start)
-      self._end_object = Timestamp.of(end)
+      self._start_object = Timestamp.of(start)  # type: Optional[Timestamp]
+      self._end_object = Timestamp.of(end)  # type: Optional[Timestamp]
       try:
         self._start_micros = self._start_object.micros
       except OverflowError:
@@ -271,12 +296,14 @@ class _IntervalWindowBase(object):
 
   @property
   def start(self):
+    # type: () -> Timestamp
     if self._start_object is None:
       self._start_object = Timestamp(0, self._start_micros)
     return self._start_object
 
   @property
   def end(self):
+    # type: () -> Timestamp
     if self._end_object is None:
       self._end_object = Timestamp(0, self._end_micros)
     return self._end_object

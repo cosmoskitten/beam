@@ -34,6 +34,7 @@ from __future__ import absolute_import
 import logging
 import time
 import uuid
+from typing import List
 
 import apache_beam as beam
 from apache_beam.metrics import Metrics
@@ -82,7 +83,7 @@ def get_element_by_schema(schema_name, insert_list):
 
 
 class MetricsReader(object):
-  publishers = []
+  publishers = []  # type: List[ConsoleMetricsPublisher]
 
   def __init__(self, project_name=None, bq_table=None, bq_dataset=None,
                filters=None):
