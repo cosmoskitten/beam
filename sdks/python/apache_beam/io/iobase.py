@@ -75,6 +75,7 @@ __all__ = ['BoundedSource', 'RangeTracker', 'Read', 'RestrictionTracker',
 InT = TypeVar('InT')
 OutT = TypeVar('OutT')
 T = TypeVar('T')
+U = TypeVar('U')
 
 # Encapsulates information about a bundle of a source generated when method
 # BoundedSource.split() is invoked.
@@ -903,14 +904,17 @@ class Read(ptransform.PTransform[pvalue.PBeginType, OutT]):
         return source.split(
             self.get_desired_chunk_size(self.source.estimate_size()))
 
+      def read_splits(split):
+        return split.source.read(
+            split.source.get_range_tracker(
+                split.start_position, split.stop_position))
+
       return (
           pbegin
           | core.Impulse()
           | 'Split' >> core.FlatMap(split_source)
           | util.Reshuffle()
-          | 'ReadSplits' >> core.FlatMap(lambda split: split.source.read(
-              split.source.get_range_tracker(
-                  split.start_position, split.stop_position))))
+          | 'ReadSplits' >> core.FlatMap(read_splits))
     else:
       # Treat Read itself as a primitive.
       return pvalue.PCollection(self.pipeline,
@@ -1023,10 +1027,16 @@ class WriteImpl(ptransform.PTransform[T, T]):
     do_once = pcoll.pipeline | 'DoOnce' >> core.Create([None])
     init_result_coll = do_once | 'InitializeWrite' >> core.Map(
         lambda _, sink: sink.initialize_write(), self.sink)
-    if getattr(self.sink, 'num_shards', 0):
-      min_shards = self.sink.num_shards
+
+    def addkey(x):
+      # type: (U) -> Tuple[Any, U]
+      return (None, x)
+
+    num_shards = getattr(self.sink, 'num_shards', 0)
+    if num_shards:
+      min_shards = num_shards
       if min_shards == 1:
-        keyed_pcoll = pcoll | core.Map(lambda x: (None, x))
+        keyed_pcoll = pcoll | core.Map(addkey)
       else:
         keyed_pcoll = pcoll | core.ParDo(_RoundRobinKeyFn(min_shards))
       write_result_coll = (keyed_pcoll
@@ -1036,15 +1046,19 @@ class WriteImpl(ptransform.PTransform[T, T]):
                                _WriteKeyedBundleDoFn(self.sink),
                                AsSingleton(init_result_coll)))
     else:
+      def getvalue(x):
+        # type: (Tuple[Any, Iterable[U]]) -> Iterable[U]
+        return x[1]
+
       min_shards = 1
       write_result_coll = (pcoll
                            | 'WriteBundles' >>
                            core.ParDo(_WriteBundleDoFn(self.sink),
                                       AsSingleton(init_result_coll))
-                           | 'Pair' >> core.Map(lambda x: (None, x))
+                           | 'Pair' >> core.Map(addkey)
                            | core.WindowInto(window.GlobalWindows())
                            | core.GroupByKey()
-                           | 'Extract' >> core.FlatMap(lambda x: x[1]))
+                           | 'Extract' >> core.FlatMap(getvalue))
     # PreFinalize should run before FinalizeWrite, and the two should not be
     # fused.
     pre_finalize_coll = do_once | 'PreFinalize' >> core.FlatMap(
