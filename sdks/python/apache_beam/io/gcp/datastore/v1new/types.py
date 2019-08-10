@@ -179,7 +179,7 @@ class Key(object):
 
     return self.parent is None and other.parent is None
 
-  __hash__ = None
+  __hash__ = None  # type: ignore
 
   def __repr__(self):
     return '<%s(%s, parent=%s, project=%s, namespace=%s)>' % (
@@ -246,7 +246,7 @@ class Entity(object):
             self.exclude_from_indexes == other.exclude_from_indexes and
             self.properties == other.properties)
 
-  __hash__ = None
+  __hash__ = None  # type: ignore
 
   def __repr__(self):
     return "<%s(key=%s, exclude_from_indexes=%s) properties=%s>" % (
