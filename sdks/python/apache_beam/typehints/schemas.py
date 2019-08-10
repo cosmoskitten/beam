@@ -15,15 +15,44 @@
 # limitations under the License.
 #
 
+""" Support for mapping python types to proto Schemas and back again.
+
+Python              Schema
+np.int8     <-----> BYTE
+np.int16    <-----> INT16
+np.int32    <-----> INT32
+np.int64    <-----> INT64
+int         ---/
+np.float32  <-----> FLOAT
+np.float64  <-----> DOUBLE
+float       ---/
+bool        <-----> BOOLEAN
+
+The mappings for STRING and BYTES are different between python 2 and python 3,
+because of the changes to str:
+py3:
+str/unicode <-----> STRING
+bytes       <-----> BYTES
+ByteString  ---/
+
+py2:
+unicode     <-----> STRING
+str/bytes   ---/
+ByteString  <-----> BYTES
+"""
+
 from __future__ import absolute_import
 
-from typing import List
+import sys
+from typing import ByteString
 from typing import Mapping
 from typing import NamedTuple
 from typing import Optional
+from typing import Sequence
 from uuid import uuid4
 
 import numpy as np
+from past.builtins import unicode
 
 from apache_beam.portability.api import schema_pb2
 from apache_beam.typehints.native_type_compatibility import _get_args
@@ -55,6 +84,7 @@ class SchemaTypeRegistry(object):
 SCHEMA_REGISTRY = SchemaTypeRegistry()
 
 
+# Bi-directional mappings
 _PRIMITIVES = (
     (np.int8, schema_pb2.AtomicType.BYTE),
     (np.int16, schema_pb2.AtomicType.INT16),
@@ -62,13 +92,25 @@ _PRIMITIVES = (
     (np.int64, schema_pb2.AtomicType.INT64),
     (np.float32, schema_pb2.AtomicType.FLOAT),
     (np.float64, schema_pb2.AtomicType.DOUBLE),
-    (np.unicode, schema_pb2.AtomicType.STRING),
-    (np.bool, schema_pb2.AtomicType.BOOLEAN),
-    (np.bytes_, schema_pb2.AtomicType.BYTES),
+    (unicode, schema_pb2.AtomicType.STRING),
+    (bool, schema_pb2.AtomicType.BOOLEAN),
+    (bytes if sys.version_info.major >= 3 else ByteString, schema_pb2.AtomicType.BYTES),
 )
 
 PRIMITIVE_TO_ATOMIC_TYPE = dict((typ, atomic) for typ, atomic in _PRIMITIVES)
 ATOMIC_TYPE_TO_PRIMITIVE = dict((atomic, typ) for typ, atomic in _PRIMITIVES)
+
+# One-way mappings
+PRIMITIVE_TO_ATOMIC_TYPE.update({
+    # In python 3, this is a no-op because str == unicode,
+    # but in python 2 it overrides the bytes -> BYTES mapping.
+    str: schema_pb2.AtomicType.STRING,
+    # Allow users to specify a native int, and use INT64 as the cross-language
+    # representation. Technically ints have unlimited precision, but RowCoder
+    # should throw an error if it sees one with a bit width > 64 when encoding.
+    int: schema_pb2.AtomicType.INT64,
+    float: schema_pb2.AtomicType.DOUBLE,
+})
 
 
 def typing_to_runner_api(type_):
@@ -90,10 +132,13 @@ def typing_to_runner_api(type_):
         row_type=schema_pb2.RowType(
             schema=schema))
 
-  elif _safe_issubclass(type_, List):
-    element_type = typing_to_runner_api(_get_args(type_)[0])
-    return schema_pb2.FieldType(
-        array_type=schema_pb2.ArrayType(element_type=element_type))
+  # All concrete types (other than NamedTuple sub-classes) should map to
+  # a supported primitive type.
+  elif type_ in PRIMITIVE_TO_ATOMIC_TYPE:
+    return schema_pb2.FieldType(atomic_type=PRIMITIVE_TO_ATOMIC_TYPE[type_])
+
+  elif type_ == ByteString:
+    result = schema_pb2.AtomicType.BYTES
 
   elif _match_is_exactly_mapping(type_):
     key_type, value_type = map(typing_to_runner_api, _get_args(type_))
@@ -107,18 +152,19 @@ def typing_to_runner_api(type_):
     result = typing_to_runner_api(extract_optional_type(type_))
     result.nullable = True
     return result
-  # Remaining options should be a (primitive) type
-  elif type(type_) is type:
-    try:
-      result = PRIMITIVE_TO_ATOMIC_TYPE[type_]
-    except KeyError:
-      raise ValueError(
-          "Encountered unexpected primitive type: {0}".format(type_))
-    return schema_pb2.FieldType(atomic_type=result)
+
+  elif _safe_issubclass(type_, Sequence):
+    element_type = typing_to_runner_api(_get_args(type_)[0])
+    return schema_pb2.FieldType(
+        array_type=schema_pb2.ArrayType(element_type=element_type))
+
+  raise ValueError("Unsupported type: %s" % type_)
 
 
 def typing_from_runner_api(fieldtype_proto):
   if fieldtype_proto.nullable:
+    # In order to determine the inner type, create a copy of fieldtype_proto
+    # with nullable=False and pass back to typing_from_runner_api
     base_type = schema_pb2.FieldType()
     base_type.CopyFrom(fieldtype_proto)
     base_type.nullable = False
@@ -132,7 +178,7 @@ def typing_from_runner_api(fieldtype_proto):
       raise ValueError("Unsupported atomic type: {0}".format(
           fieldtype_proto.atomic_type))
   elif type_info == "array_type":
-    return List[typing_from_runner_api(fieldtype_proto.array_type.element_type)]
+    return Sequence[typing_from_runner_api(fieldtype_proto.array_type.element_type)]
   elif type_info == "map_type":
     return Mapping[
         typing_from_runner_api(fieldtype_proto.map_type.key_type),

@@ -18,12 +18,15 @@
 
 from __future__ import absolute_import
 
+import sys
 import itertools
 import unittest
-from typing import List
+from typing import ByteString
 from typing import Mapping
 from typing import NamedTuple
 from typing import Optional
+from typing import Sequence
+from typing import List
 
 import numpy as np
 
@@ -31,6 +34,7 @@ from apache_beam.portability.api import schema_pb2
 from apache_beam.typehints.schemas import typing_from_runner_api
 from apache_beam.typehints.schemas import typing_to_runner_api
 
+IS_PYTHON_3 = sys.version_info.major > 2
 
 class SchemaTest(unittest.TestCase):
   """ Tests for Runner API Schema proto to/from typing conversions
@@ -49,10 +53,15 @@ class SchemaTest(unittest.TestCase):
         np.int64,
         np.float32,
         np.float64,
-        np.unicode,
-        np.bool,
-        np.bytes_,
+        unicode,
+        bool,
     ]
+
+    # The bytes type cannot survive a roundtrip to/from proto in Python 2.
+    # In order to use BYTES a user type has to use typing.ByteString (because
+    # bytes == str, and we map str to STRING).
+    if IS_PYTHON_3:
+      all_nonoptional_primitives.extend(bytes)
 
     all_optional_primitives = [
         Optional[typ] for typ in all_nonoptional_primitives
@@ -60,7 +69,7 @@ class SchemaTest(unittest.TestCase):
 
     all_primitives = all_nonoptional_primitives + all_optional_primitives
 
-    basic_list_types = [List[typ] for typ in all_primitives]
+    basic_array_types = [Sequence[typ] for typ in all_primitives]
 
     basic_map_types = [
         Mapping[key_type,
@@ -77,13 +86,13 @@ class SchemaTest(unittest.TestCase):
             ('name', np.unicode),
             ('optional_map', Optional[Mapping[np.unicode,
                                               Optional[np.float64]]]),
-            ('optional_list', Optional[List[np.float32]]),
-            ('list_optional', List[Optional[np.bytes_]]),
+            ('optional_array', Optional[Sequence[np.float32]]),
+            ('array_optional', Sequence[Optional[bool]]),
         ])
     ]
 
     test_cases = all_primitives + \
-                 basic_list_types + \
+                 basic_array_types + \
                  basic_map_types + \
                  selected_schemas
 
@@ -98,6 +107,12 @@ class SchemaTest(unittest.TestCase):
         if typ is not schema_pb2.AtomicType.UNSPECIFIED
     ]
 
+    # The bytes type cannot survive a roundtrip to/from proto in Python 2.
+    # In order to use BYTES a user type has to use typing.ByteString (because
+    # bytes == str, and we map str to STRING).
+    if not IS_PYTHON_3:
+      all_nonoptional_primitives.remove(schema_pb2.FieldType(atomic_type=schema_pb2.AtomicType.BYTES))
+
     all_optional_primitives = [
         schema_pb2.FieldType(nullable=True, atomic_type=typ)
         for typ in schema_pb2.AtomicType.values()
@@ -106,7 +121,7 @@ class SchemaTest(unittest.TestCase):
 
     all_primitives = all_nonoptional_primitives + all_optional_primitives
 
-    basic_list_types = [
+    basic_array_types = [
         schema_pb2.FieldType(array_type=schema_pb2.ArrayType(element_type=typ))
         for typ in all_primitives
     ]
@@ -152,7 +167,7 @@ class SchemaTest(unittest.TestCase):
                                         atomic_type=schema_pb2.AtomicType.DOUBLE
                                     )))),
                         schema_pb2.Field(
-                            name='optional_list',
+                            name='optional_array',
                             type=schema_pb2.FieldType(
                                 nullable=True,
                                 array_type=schema_pb2.ArrayType(
@@ -160,7 +175,7 @@ class SchemaTest(unittest.TestCase):
                                         atomic_type=schema_pb2.AtomicType.FLOAT)
                                 ))),
                         schema_pb2.Field(
-                            name='list_optional',
+                            name='array_optional',
                             type=schema_pb2.FieldType(
                                 array_type=schema_pb2.ArrayType(
                                     element_type=schema_pb2.FieldType(
@@ -171,7 +186,7 @@ class SchemaTest(unittest.TestCase):
     ]
 
     test_cases = all_primitives + \
-                 basic_list_types + \
+                 basic_array_types + \
                  basic_map_types + \
                  selected_schemas
 
@@ -187,6 +202,51 @@ class SchemaTest(unittest.TestCase):
         ValueError, lambda: typing_from_runner_api(
             schema_pb2.FieldType(atomic_type=schema_pb2.AtomicType.UNSPECIFIED))
     )
+
+  def test_str_maps_to_string(self):
+    self.assertEquals(schema_pb2.FieldType(atomic_type=schema_pb2.AtomicType.STRING), typing_to_runner_api(str))
+
+  def test_int_maps_to_int64(self):
+    self.assertEquals(schema_pb2.FieldType(atomic_type=schema_pb2.AtomicType.INT64), typing_to_runner_api(int))
+
+  def test_float_maps_to_float64(self):
+    self.assertEquals(schema_pb2.FieldType(atomic_type=schema_pb2.AtomicType.DOUBLE), typing_to_runner_api(float))
+
+  def test_trivial_example(self):
+    MyCuteClass = NamedTuple('MyCuteClass', [
+        ('name', str),
+        ('age', Optional[int]),
+        ('interests', List[str]),
+        ('height', float),
+    ])
+
+    expected = schema_pb2.FieldType(
+        row_type=schema_pb2.RowType(
+            schema=schema_pb2.Schema(fields=[
+                schema_pb2.Field(
+                    name='name',
+                    type=schema_pb2.FieldType(
+                        atomic_type=schema_pb2.AtomicType.STRING),
+                ),
+                schema_pb2.Field(
+                    name='age',
+                    type=schema_pb2.FieldType(
+                        nullable=True,
+                        atomic_type=schema_pb2.AtomicType.INT64)),
+                schema_pb2.Field(
+                    name='interests',
+                    type=schema_pb2.FieldType(
+                        array_type=schema_pb2.ArrayType(
+                            element_type=schema_pb2.FieldType(atomic_type=schema_pb2.AtomicType.STRING)))),
+                schema_pb2.Field(
+                    name='height',
+                    type=schema_pb2.FieldType(
+                        atomic_type=schema_pb2.AtomicType.DOUBLE)),
+            ])))
+
+    # Only test that the fields are equal. If we attempt to test the entire type
+    # or the entire schema, the generated id will break equality.
+    self.assertEquals(expected.row_type.schema.fields, typing_to_runner_api(MyCuteClass).row_type.schema.fields)
 
 
 if __name__ == '__main__':
