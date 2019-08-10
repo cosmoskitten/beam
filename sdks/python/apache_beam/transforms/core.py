@@ -653,10 +653,13 @@ class CallableWrapperDoFn(DoFn[InT, OutT]):
     self._fullargspec = fullargspec
     if isinstance(fn, (
         types.BuiltinFunctionType, types.MethodType, types.FunctionType)):
-      self.process = fn
+      self.process = fn  # type: ignore  # cannot assign to method
     else:
       # For cases such as set / list where fn is callable but not a function
-      self.process = lambda element: fn(element)
+      def process(element):
+        # type: (InT) -> Iterable[OutT]
+        return fn(element)
+      self.process = process  # type: ignore  # cannot assign to method
 
     super(CallableWrapperDoFn, self).__init__()
 
