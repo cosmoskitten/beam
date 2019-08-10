@@ -895,14 +895,17 @@ class Read(ptransform.PTransform[pvalue.PBeginType, OutT]):
         return source.split(
             self.get_desired_chunk_size(self.source.estimate_size()))
 
+      def read_splits(split):
+        return split.source.read(
+            split.source.get_range_tracker(
+                split.start_position, split.stop_position))
+
       return (
           pbegin
           | core.Impulse()
           | 'Split' >> core.FlatMap(split_source)
           | util.Reshuffle()
-          | 'ReadSplits' >> core.FlatMap(lambda split: split.source.read(
-              split.source.get_range_tracker(
-                  split.start_position, split.stop_position))))
+          | 'ReadSplits' >> core.FlatMap(read_splits))
     else:
       # Treat Read itself as a primitive.
       return pvalue.PCollection(self.pipeline)
