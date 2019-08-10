@@ -817,10 +817,11 @@ class ProtoCoder(FastCoder):
   def __hash__(self):
     return hash(self.proto_message_type)
 
-  @staticmethod
-  def from_type_hint(typehint, unused_registry):
+  @classmethod
+  def from_type_hint(cls, typehint, unused_registry):
+    # type: (Type[ProtoCoderT], Any, CoderRegistry) -> ProtoCoderT
     if issubclass(typehint, google.protobuf.message.Message):
-      return ProtoCoder(typehint)
+      return cls(typehint)
     else:
       raise ValueError(('Expected a subclass of google.protobuf.message.Message'
                         ', but got a %s' % typehint))
