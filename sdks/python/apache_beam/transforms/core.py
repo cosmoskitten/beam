@@ -669,7 +669,6 @@ class CallableWrapperDoFn(DoFn):
         types.BuiltinFunctionType, types.MethodType, types.FunctionType)):
       self.process = fn
     else:
-      # For cases such as set / list where fn is callable but not a function
       self.process = lambda element: fn(element)
 
     super(CallableWrapperDoFn, self).__init__()
