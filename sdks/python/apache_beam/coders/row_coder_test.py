@@ -21,6 +21,7 @@ import typing
 import unittest
 
 import numpy as np
+from past.builtins import unicode
 
 from apache_beam.coders import RowCoder
 from apache_beam.coders.typecoders import registry as coders_registry
@@ -28,10 +29,10 @@ from apache_beam.portability.api import schema_pb2
 from apache_beam.typehints.schemas import typing_to_runner_api
 
 Person = typing.NamedTuple("Person", [
-    ("name", np.unicode),
+    ("name", unicode),
     ("age", np.int32),
-    ("address", typing.Optional[np.unicode]),
-    ("aliases", typing.List[np.unicode]),
+    ("address", typing.Optional[unicode]),
+    ("aliases", typing.List[unicode]),
 ])
 
 coders_registry.register_coder(Person, RowCoder)
