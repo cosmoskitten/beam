@@ -2511,10 +2511,15 @@ class Create(PTransform):
             return pcoll | Reshuffle()
           else:
             return pcoll
+
+      def with_serialized_values(_):
+        # type: (Any) -> List[bytes]
+        return serialized_values
+
       return (
           pbegin
           | Impulse()
-          | FlatMap(lambda _: serialized_values)
+          | FlatMap(with_serialized_values)
           | MaybeReshuffle()
           | Map(coder.decode).with_output_types(self.get_output_type()))
     else:
