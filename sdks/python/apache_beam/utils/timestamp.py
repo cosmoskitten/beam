@@ -151,6 +151,10 @@ class Timestamp(object):
     return self.micros // 1000000
 
   def __eq__(self, other):
+    # type: (Union[int, long, float, Timestamp, Duration]) -> bool
+    # Support equality with other types
+    if not isinstance(other, (int, long, float, Timestamp, Duration)):
+      return NotImplemented
     # Allow comparisons between Duration and Timestamp values.
     if not isinstance(other, Duration):
       try:
@@ -160,10 +164,12 @@ class Timestamp(object):
     return self.micros == other.micros
 
   def __ne__(self, other):
+    # type: (Any) -> bool
     # TODO(BEAM-5949): Needed for Python 2 compatibility.
     return not self == other
 
   def __lt__(self, other):
+    # type: (Union[int, long, float, Timestamp, Duration]) -> bool
     # Allow comparisons between Duration and Timestamp values.
     if not isinstance(other, Duration):
       other = Timestamp.of(other)
@@ -252,16 +258,22 @@ class Duration(object):
     return self.micros / 1000000
 
   def __eq__(self, other):
+    # type: (Union[int, long, float, Duration, Timestamp]) -> bool
+    # Support equality with other types
+    if not isinstance(other, (int, long, float, Timestamp, Duration)):
+      return NotImplemented
     # Allow comparisons between Duration and Timestamp values.
     if not isinstance(other, Timestamp):
       other = Duration.of(other)
     return self.micros == other.micros
 
   def __ne__(self, other):
+    # type: (Any) -> bool
     # TODO(BEAM-5949): Needed for Python 2 compatibility.
     return not self == other
 
   def __lt__(self, other):
+    # type: (Union[int, long, float, Duration, Timestamp]) -> bool
     # Allow comparisons between Duration and Timestamp values.
     if not isinstance(other, Timestamp):
       other = Duration.of(other)
@@ -273,6 +285,16 @@ class Duration(object):
   def __neg__(self):
     # type: () -> Duration
     return Duration(micros=-self.micros)
+
+  @typing.overload
+  def __add__(self, other):
+    # type: (Timestamp) -> Timestamp
+    pass
+
+  @typing.overload
+  def __add__(self, other):
+    # type: (Union[int, long, float, Duration]) -> Duration
+    pass
 
   def __add__(self, other):
     if isinstance(other, Timestamp):
