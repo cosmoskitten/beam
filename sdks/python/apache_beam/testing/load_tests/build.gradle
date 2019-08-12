@@ -34,8 +34,8 @@ task run(type: Exec, dependsOn: installGcpTest) {
 
     def runnerArg = project.findProperty(runnerProperty) ?: ""
     if (runnerArg == 'DataflowRunner' || runnerArg == 'TestDataflowRunner') {
-        dependsOn 'sdist'
-        loadTestArgs +=" --sdk_location=${project.buildDir}/apache-beam.tar.gz"
+        dependsOn ':sdks:python:sdist'
+        loadTestArgs +=" --sdk_location=${project.rootDir}/sdks/python/build/apache-beam.tar.gz"
     }
 
     environment "LOAD_TEST_ENABLED", 'true'
