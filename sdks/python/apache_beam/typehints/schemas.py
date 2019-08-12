@@ -94,7 +94,8 @@ _PRIMITIVES = (
     (np.float64, schema_pb2.AtomicType.DOUBLE),
     (unicode, schema_pb2.AtomicType.STRING),
     (bool, schema_pb2.AtomicType.BOOLEAN),
-    (bytes if sys.version_info.major >= 3 else ByteString, schema_pb2.AtomicType.BYTES),
+    (bytes if sys.version_info.major >= 3 else ByteString,
+     schema_pb2.AtomicType.BYTES),
 )
 
 PRIMITIVE_TO_ATOMIC_TYPE = dict((typ, atomic) for typ, atomic in _PRIMITIVES)
@@ -178,7 +179,8 @@ def typing_from_runner_api(fieldtype_proto):
       raise ValueError("Unsupported atomic type: {0}".format(
           fieldtype_proto.atomic_type))
   elif type_info == "array_type":
-    return Sequence[typing_from_runner_api(fieldtype_proto.array_type.element_type)]
+    return Sequence[typing_from_runner_api(
+        fieldtype_proto.array_type.element_type)]
   elif type_info == "map_type":
     return Mapping[
         typing_from_runner_api(fieldtype_proto.map_type.key_type),
