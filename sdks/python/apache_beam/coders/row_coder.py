@@ -133,7 +133,9 @@ class RowCoderImpl(StreamCoderImpl):
     for c, field, attr in zip(self.components, self.schema.fields, attrs):
       if attr is None:
         if not field.type.nullable:
-          raise ValueError("Attempted to encode null for non-nullable field \"{}\".".format(field.name))
+          raise ValueError(
+              "Attempted to encode null for non-nullable field \"{}\".".format(
+                  field.name))
         continue
       c.encode_to_stream(attr, out, True)
 

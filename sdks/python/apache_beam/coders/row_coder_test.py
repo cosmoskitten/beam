@@ -19,9 +19,9 @@ from __future__ import absolute_import
 import logging
 import typing
 import unittest
+from itertools import chain
 
 import numpy as np
-from itertools import chain
 from past.builtins import unicode
 
 from apache_beam.coders import RowCoder
@@ -85,7 +85,10 @@ class CodersTest(unittest.TestCase):
     for test_case in self.TEST_CASES:
       self.assertEqual(test_case, coder.decode(coder.encode(test_case)))
 
-  @unittest.skip("Need to decide whether to defer to the stream writer for these checks or add explicit checks")
+  @unittest.skip(
+      "Need to decide whether to defer to the stream writer for these checks "
+      "or add explicit checks"
+  )
   def test_overflows(self):
     IntTester = typing.NamedTuple('IntTester', [
         #('i8', typing.Optional[np.int8]),
