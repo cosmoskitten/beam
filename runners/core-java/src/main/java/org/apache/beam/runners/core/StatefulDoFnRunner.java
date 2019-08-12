@@ -18,6 +18,7 @@
 package org.apache.beam.runners.core;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import org.apache.beam.sdk.coders.Coder;
@@ -108,6 +109,11 @@ public class StatefulDoFnRunner<InputT, OutputT, W extends BoundedWindow>
       throw new UnsupportedOperationException(
           "MergingWindowFn is not supported for stateful DoFns, WindowFn is: " + windowFn);
     }
+  }
+
+  @Override
+  public List<StateTag<?>> getSystemStateTags() {
+    return Arrays.asList(sortBufferTag, sortBufferMinStampTag, watermarkHold);
   }
 
   @Override
