@@ -865,11 +865,19 @@ class MergeableStateAdapter(SimpleState):
   def get_state(self, window, tag):
     if isinstance(tag, _CombiningValueStateTag):
       original_tag, tag = tag, tag.without_extraction()
+
     values = [self.raw_state.get_state(window_id, tag)
               for window_id in self._get_ids(window)]
-    if isinstance(tag, _ValueStateTag):
-      raise ValueError(
-          'Merging requested for non-mergeable state tag: %r.' % tag)
+
+    if isinstance(tag, _ReadModifyWriteStateTag):
+      # TODO: Need better logic here. I think we should just get the latest one
+      # based on the window.
+      for vs in values:
+        for v in vs:
+          if v:
+            return v
+      return None
+
     elif isinstance(tag, _CombiningValueStateTag):
       return original_tag.combine_fn.extract_output(
           original_tag.combine_fn.merge_accumulators(values))
@@ -1229,7 +1237,8 @@ class InMemoryUnmergedState(UnmergedState):
   def add_state(self, window, tag, value):
     if self.defensive_copy:
       value = copy.deepcopy(value)
-    if isinstance(tag, _ValueStateTag):
+    if isinstance(tag, _ReadModifyWriteStateTag):
+      # TODO: need to add some thing here.
       self.state[window][tag.tag] = value
     elif isinstance(tag, _CombiningValueStateTag):
       # TODO(robertwb): Store merged accumulators.
@@ -1243,7 +1252,9 @@ class InMemoryUnmergedState(UnmergedState):
 
   def get_state(self, window, tag):
     values = self.state[window][tag.tag]
-    if isinstance(tag, _ValueStateTag):
+    if isinstance(tag, _ReadModifyWriteStateTag):
+      # since we have stored only one item, values will
+      # have only one item.
       return values
     elif isinstance(tag, _CombiningValueStateTag):
       return tag.combine_fn.apply(values)

@@ -100,8 +100,10 @@ class DirectUserStateContext(userstate.UserStateContext):
         if runtime_state._cleared:
           state.clear_state(window, state_tag)
 
-        if runtime_state._modified:
-          state.add_state(window, state_tag, state_spec.coder.encode(runtime_state._value))
+        if runtime_state.is_modified():
+          state.add_state(window,
+                          state_tag,
+                          state_spec.coder.encode(runtime_state._value))
       else:
         raise ValueError('Invalid state spec: %s' % state_spec)
 

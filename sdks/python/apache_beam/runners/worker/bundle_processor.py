@@ -386,29 +386,41 @@ class SynchronousReadModifyWriteRuntimeState(userstate.RuntimeState):
     self._state_key = state_key
     self._value_coder = value_coder
     self._cleared = False
-    self._added_elements = []
+    self._added_element = None
 
   def read(self):
-    return _ConcatIterable(
-        [] if self._cleared else _StateBackedIterable(
-            self._state_handler, self._state_key, self._value_coder),
-        self._added_elements)
+    # TODO: not sure whther return an iterable object or single value. If we
+    # are choosing to be consistent with other states (SetState, BagState)
+    # then we should choose an iteratable object but this state is suppose
+    # to return only one value. Currently, I am choosing to just return only
+    # one value.
+
+    if self._cleared:
+      return None
+    elif self._added_element:
+      return self._added_element
+    else:
+      elements = [element for element in _StateBackedIterable(
+          self._state_handler, self._state_key, self._value_coder)]
+      return elements[0] if elements else None
 
   def add(self, value):
-    self._added_elements.append(value)
+    if self._cleared:
+      self._state_handler.blocking_clear(self._state_key)
+      self._cleared = False
+    self._added_element = value
 
   def clear(self):
     self._cleared = True
-    self._added_elements = []
+    self._added_element = None
 
   def _commit(self):
     if self._cleared:
       self._state_handler.blocking_clear(self._state_key)
-    if self._added_elements:
+    if self._added_element:
       value_coder_impl = self._value_coder.get_impl()
       out = coder_impl.create_OutputStream()
-      for element in self._added_elements:
-        value_coder_impl.encode_to_stream(element, out, True)
+      value_coder_impl.encode_to_stream(self._added_element, out, True)
       self._state_handler.blocking_append(self._state_key, out.get())
 
 
@@ -475,7 +487,7 @@ class FnApiUserStateContext(userstate.UserStateContext):
     if isinstance(state_spec,
                   (userstate.BagStateSpec, userstate.CombiningValueStateSpec)):
       bag_state = SynchronousBagRuntimeState(
-          self._state_handler,
+          state_handler=self._state_handler,
           state_key=beam_fn_api_pb2.StateKey(
               bag_user_state=beam_fn_api_pb2.StateKey.BagUserState(
                   ptransform_id=self._transform_id,
@@ -487,6 +499,17 @@ class FnApiUserStateContext(userstate.UserStateContext):
         return bag_state
       else:
         return CombiningValueRuntimeState(bag_state, state_spec.combine_fn)
+    elif isinstance(state_spec, userstate.ReadModifyWriteStateSpec):
+      return SynchronousReadModifyWriteRuntimeState(
+          state_handler=self._state_handler,
+          state_key=beam_fn_api_pb2.StateKey(
+              bag_user_state=beam_fn_api_pb2.StateKey.BagUserState(
+                  ptransform_id=self._transform_id,
+                  user_state_id=state_spec.name,
+                  window=self._window_coder.encode(window),
+                  key=self._key_coder.encode(key))),
+          value_coder=state_spec.coder
+      )
     else:
       raise NotImplementedError(state_spec)
 

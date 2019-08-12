@@ -421,7 +421,7 @@ message StateSpec {
 }
 
 message ReadModifyWriteStateSpec {
-  string coder_id = 1
+  string coder_id = 1;
 }
 
 message BagStateSpec {

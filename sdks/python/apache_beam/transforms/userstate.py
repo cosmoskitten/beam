@@ -72,15 +72,17 @@ class ReadModifyWriteStateSpec(StateSpec):
     name (str): The name by which the state is identified.
     coder (Coder): Coder specifying how to encode the value.
     """
-    assert isinstance(name, str)
-    assert isinstance(coder, Coder)
+    if not isinstance(name, str):
+      raise TypeError("ReadModifyWriteState name is not a string")
+    if not isinstance(coder, Coder):
+      raise TypeError("ReadModifyWriteState coder is not of type Coder")
     self.name = name
     self.coder = coder
 
   def to_runner_api(self, context):
     return beam_runner_api_pb2.StateSpec(
-      read_modify_write_spec=beam_runner_api_pb2.ReadModifyWriteStateSpec(
-        coder_id=context.coders.get_id(self.coder)))
+        read_modify_write_spec=beam_runner_api_pb2.ReadModifyWriteStateSpec(
+            coder_id=context.coders.get_id(self.coder)))
 
 
 class CombiningValueStateSpec(StateSpec):
@@ -288,7 +290,9 @@ class RuntimeState(object):
       return CombiningValueRuntimeState(state_spec, state_tag,
                                         current_value_accessor)
     if isinstance(state_spec, ReadModifyWriteStateSpec):
-      return ReadModifyWriteRuntimeState(state_spec)
+      return ReadModifyWriteRuntimeState(state_spec,
+                                         state_tag,
+                                         current_value_accessor)
     else:
       raise ValueError('Invalid state spec: %s' % state_spec)
 
@@ -336,11 +340,11 @@ class BagRuntimeState(RuntimeState):
 
 
 class ReadModifyWriteRuntimeState(RuntimeState):
-  """Value state interface object passed to user code."""
+  """Read modify write state interface object passed to user code."""
 
   def __init__(self, state_spec, state_tag, current_value_accessor):
     super(ReadModifyWriteRuntimeState, self).__init__(
-      state_spec, state_tag, current_value_accessor)
+        state_spec, state_tag, current_value_accessor)
     self._value = UNREAD_VALUE
     self._modified = False
     self._cleared = False
@@ -357,7 +361,11 @@ class ReadModifyWriteRuntimeState(RuntimeState):
 
   def clear(self):
     self._cleared = True
-    self._value = None
+    self._value = UNREAD_VALUE
+    self._modified = False
+
+  def is_modified(self):
+    return self._modified and self._value is not UNREAD_VALUE
 
 
 class CombiningValueRuntimeState(RuntimeState):
@@ -374,6 +382,7 @@ class CombiningValueRuntimeState(RuntimeState):
     if self._current_accumulator is UNREAD_VALUE:
       existing_accumulators = list(
           self._decode(a) for a in self._current_value_accessor())
+
       if existing_accumulators:
         self._current_accumulator = self._combine_fn.merge_accumulators(
             existing_accumulators)
