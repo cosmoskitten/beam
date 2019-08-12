@@ -361,17 +361,6 @@ public class DoFnOperator<InputT, OutputT> extends AbstractStreamOperator<Window
       keyedStateInternals =
           new FlinkStateInternals<>((KeyedStateBackend) getKeyedStateBackend(), keyCoder);
 
-      if (doFn != null) {
-        DoFnSignature signature = DoFnSignatures.getSignature(doFn.getClass());
-        FlinkStateInternals.EarlyBinder earlyBinder =
-            new FlinkStateInternals.EarlyBinder(getKeyedStateBackend());
-        for (DoFnSignature.StateDeclaration value : signature.stateDeclarations().values()) {
-          StateSpec<?> spec =
-              (StateSpec<?>) signature.stateDeclarations().get(value.id()).field().get(doFn);
-          spec.bind(value.id(), earlyBinder);
-        }
-      }
-
       if (timerService == null) {
         timerService =
             getInternalTimerService("beam-timer", new CoderTypeSerializer<>(timerCoder), this);
@@ -435,6 +424,7 @@ public class DoFnOperator<InputT, OutputT> extends AbstractStreamOperator<Window
                   getKeyedStateBackend());
     }
     doFnRunner = createWrappingDoFnRunner(doFnRunner, stepContext);
+    earlyBindStateIfNeeded();
 
     if (options.getEnableMetrics()) {
       doFnRunner = new DoFnRunnerWithMetricsUpdate<>(stepName, doFnRunner, getRuntimeContext());
@@ -457,6 +447,24 @@ public class DoFnOperator<InputT, OutputT> extends AbstractStreamOperator<Window
     } else {
       pushbackDoFnRunner =
           SimplePushbackSideInputDoFnRunner.create(doFnRunner, sideInputs, sideInputHandler);
+    }
+  }
+
+  private void earlyBindStateIfNeeded() throws IllegalArgumentException, IllegalAccessException {
+    if (keyCoder != null) {
+      if (doFn != null) {
+        DoFnSignature signature = DoFnSignatures.getSignature(doFn.getClass());
+        FlinkStateInternals.EarlyBinder earlyBinder =
+            new FlinkStateInternals.EarlyBinder(getKeyedStateBackend());
+        for (DoFnSignature.StateDeclaration value : signature.stateDeclarations().values()) {
+          StateSpec<?> spec =
+              (StateSpec<?>) signature.stateDeclarations().get(value.id()).field().get(doFn);
+          spec.bind(value.id(), earlyBinder);
+        }
+        doFnRunner
+            .getSystemStateTags()
+            .forEach(tag -> tag.getSpec().bind(tag.getId(), earlyBinder));
+      }
     }
   }
 

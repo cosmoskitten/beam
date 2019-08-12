@@ -17,6 +17,8 @@
  */
 package org.apache.beam.runners.core;
 
+import java.util.Collections;
+import java.util.List;
 import org.apache.beam.sdk.state.TimeDomain;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
@@ -51,4 +53,12 @@ public interface DoFnRunner<InputT, OutputT> {
    * @return the underlying fn instance.
    */
   DoFn<InputT, OutputT> getFn();
+
+  /**
+   * @since 2.16.0
+   * @return list of state tags that are in use by the runner
+   */
+  default List<StateTag<?>> getSystemStateTags() {
+    return Collections.emptyList();
+  }
 }
