@@ -17,6 +17,7 @@
  */
 package org.apache.beam.runners.core;
 
+import java.util.List;
 import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
 import org.apache.beam.sdk.metrics.Counter;
@@ -89,6 +90,11 @@ public class LateDataDroppingDoFnRunner<K, InputT, OutputT, W extends BoundedWin
   @Override
   public void finishBundle() {
     doFnRunner.finishBundle();
+  }
+
+  @Override
+  public List<StateTag<?>> getSystemStateTags() {
+    return doFnRunner.getSystemStateTags();
   }
 
   /** It filters late data in a {@link KeyedWorkItem}. */
