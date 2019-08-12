@@ -31,6 +31,7 @@ import mock
 
 import apache_beam as beam
 from apache_beam import typehints
+from apache_beam.coders import BytesCoder
 from apache_beam.io import Read
 from apache_beam.metrics import Metrics
 from apache_beam.pipeline import Pipeline
@@ -53,6 +54,7 @@ from apache_beam.transforms import Map
 from apache_beam.transforms import ParDo
 from apache_beam.transforms import PTransform
 from apache_beam.transforms import WindowInto
+from apache_beam.transforms.userstate import BagStateSpec
 from apache_beam.transforms.window import SlidingWindows
 from apache_beam.transforms.window import TimestampedValue
 from apache_beam.utils.timestamp import MIN_TIMESTAMP
@@ -166,6 +168,55 @@ class PipelineTest(unittest.TestCase):
 
     pcoll4 = pcoll3 | 'do2' >> FlatMap(set)
     assert_that(pcoll4, equal_to([11, 12, 12, 12, 13]), label='pcoll4')
+    pipeline.run()
+
+  def test_maptuple_builtin(self):
+    pipeline = TestPipeline()
+    pcoll = pipeline | Create([('e1', 'e2')])
+    side1 = beam.pvalue.AsSingleton(pipeline | 'side1' >> Create(['s1']))
+    side2 = beam.pvalue.AsSingleton(pipeline | 'side2' >> Create(['s2']))
+
+    # A test function with a tuple input, an auxiliary parameter,
+    # and some side inputs.
+    fn = lambda e1, e2, t=DoFn.TimestampParam, s1=None, s2=None: (
+        e1, e2, t, s1, s2)
+    assert_that(pcoll | 'NoSides' >> beam.core.MapTuple(fn),
+                equal_to([('e1', 'e2', MIN_TIMESTAMP, None, None)]),
+                label='NoSidesCheck')
+    assert_that(pcoll | 'StaticSides' >> beam.core.MapTuple(fn, 's1', 's2'),
+                equal_to([('e1', 'e2', MIN_TIMESTAMP, 's1', 's2')]),
+                label='StaticSidesCheck')
+    assert_that(pcoll | 'DynamicSides' >> beam.core.MapTuple(fn, side1, side2),
+                equal_to([('e1', 'e2', MIN_TIMESTAMP, 's1', 's2')]),
+                label='DynamicSidesCheck')
+    assert_that(pcoll | 'MixedSides' >> beam.core.MapTuple(fn, s2=side2),
+                equal_to([('e1', 'e2', MIN_TIMESTAMP, None, 's2')]),
+                label='MixedSidesCheck')
+    pipeline.run()
+
+  def test_flatmaptuple_builtin(self):
+    pipeline = TestPipeline()
+    pcoll = pipeline | Create([('e1', 'e2')])
+    side1 = beam.pvalue.AsSingleton(pipeline | 'side1' >> Create(['s1']))
+    side2 = beam.pvalue.AsSingleton(pipeline | 'side2' >> Create(['s2']))
+
+    # A test function with a tuple input, an auxiliary parameter,
+    # and some side inputs.
+    fn = lambda e1, e2, t=DoFn.TimestampParam, s1=None, s2=None: (
+        e1, e2, t, s1, s2)
+    assert_that(pcoll | 'NoSides' >> beam.core.FlatMapTuple(fn),
+                equal_to(['e1', 'e2', MIN_TIMESTAMP, None, None]),
+                label='NoSidesCheck')
+    assert_that(pcoll | 'StaticSides' >> beam.core.FlatMapTuple(fn, 's1', 's2'),
+                equal_to(['e1', 'e2', MIN_TIMESTAMP, 's1', 's2']),
+                label='StaticSidesCheck')
+    assert_that(pcoll
+                | 'DynamicSides' >> beam.core.FlatMapTuple(fn, side1, side2),
+                equal_to(['e1', 'e2', MIN_TIMESTAMP, 's1', 's2']),
+                label='DynamicSidesCheck')
+    assert_that(pcoll | 'MixedSides' >> beam.core.FlatMapTuple(fn, s2=side2),
+                equal_to(['e1', 'e2', MIN_TIMESTAMP, None, 's2']),
+                label='MixedSidesCheck')
     pipeline.run()
 
   def test_create_singleton_pcollection(self):
@@ -377,6 +428,38 @@ class PipelineTest(unittest.TestCase):
 
       p.replace_all([override])
       self.assertEqual(pcoll.producer.inputs[0].element_type, expected_type)
+
+  def test_kv_ptransform_honor_type_hints(self):
+
+    # The return type of this DoFn cannot be inferred by the default
+    # Beam type inference
+    class StatefulDoFn(DoFn):
+      BYTES_STATE = BagStateSpec('bytes', BytesCoder())
+
+      def return_recursive(self, count):
+        if count == 0:
+          return ["some string"]
+        else:
+          self.return_recursive(count-1)
+
+      def process(self, element, counter=DoFn.StateParam(BYTES_STATE)):
+        return self.return_recursive(1)
+
+    p = TestPipeline()
+    pcoll = (p
+             | beam.Create([(1, 1), (2, 2), (3, 3)])
+             | beam.GroupByKey()
+             | beam.ParDo(StatefulDoFn()))
+    p.run()
+    self.assertEqual(pcoll.element_type, typehints.Any)
+
+    p = TestPipeline()
+    pcoll = (p
+             | beam.Create([(1, 1), (2, 2), (3, 3)])
+             | beam.GroupByKey()
+             | beam.ParDo(StatefulDoFn()).with_output_types(str))
+    p.run()
+    self.assertEqual(pcoll.element_type, str)
 
 
 class DoFnTest(unittest.TestCase):
