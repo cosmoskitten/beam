@@ -127,10 +127,11 @@ class HllCountMergePartialFn<T>
         continue;
       }
       if (merged.hll == null) {
-        // Cannot set merged.hll to accumulator.hll directly because we shouldn't mutate accumulator
         @SuppressWarnings("unchecked")
         HyperLogLogPlusPlus<T> hll =
             (HyperLogLogPlusPlus<T>)
+                // Cannot set merged.hll to accumulator.hll directly because we shouldn't mutate
+                // accumulator
                 HyperLogLogPlusPlus.forProto(accumulator.hll.serializeToProto());
         merged.hll = hll;
       } else {

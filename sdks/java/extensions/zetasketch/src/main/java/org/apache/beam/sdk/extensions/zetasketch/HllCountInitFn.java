@@ -44,7 +44,9 @@ abstract class HllCountInitFn<InputT, HllT>
     return precision;
   }
 
-  // Should not be called at pipeline execution time.
+  // This function is only intended to be called from within a builder of HllCount.Init during
+  // pipeline construction time. Calling it at pipeline execution time has no effect, and the
+  // updates will be discarded.
   void setPrecision(int precision) {
     checkArgument(
         precision >= HllCount.MINIMUM_PRECISION && precision <= HllCount.MAXIMUM_PRECISION,
