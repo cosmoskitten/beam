@@ -60,10 +60,10 @@ import org.junit.runners.JUnit4;
  *
  * <pre>
  *  ./gradlew integrationTest -p sdks/java/io/gcp/bigquery -DintegrationTestPipelineOptions='[
- *  "--bigQueryTestDataset=source-dataset",
- *  "--bigQueryTestTable=source-table",
- *  "--bigQueryDataset=metrics-dataset",
- *  "--bigQueryTable=metrics-table",
+ *  "--testBigQueryDataset=test-dataset",
+ *  "--testBigQueryTable=test-table",
+ *  "--metricsBigQueryDataset=metrics-dataset",
+ *  "--metricsBigQueryTable=metrics-table",
  *  "--sourceOptions={"numRecords":"1000", "keySize":1, valueSize:"1024"}
  *  }"]'
  *  --tests org.apache.beam.sdk.io.gcp.bigQuery.BigQueryIOIT
@@ -73,14 +73,14 @@ import org.junit.runners.JUnit4;
 @RunWith(JUnit4.class)
 public class BigQueryIOIT {
   private static final String NAMESPACE = BigQueryIOIT.class.getName();
-  private static String bigQueryMetricsTable;
-  private static String bigQueryMetricsDataset;
-  private static String bigQueryTestDataset;
-  private static String bigQueryTestTable;
+  private static String metricsBigQueryTable;
+  private static String metricsBigQueryDataset;
+  private static String testBigQueryDataset;
+  private static String testBigQueryTable;
   private static SyntheticSourceOptions sourceOptions;
   private static String tableQualifier;
   private static String tempRoot;
-  private static Boolean useStreamingWrites;
+  private static String writeMethod;
   private static BigQueryPerfTestOptions options;
   private static final String TEST_ID = UUID.randomUUID().toString();
   private static final String TEST_TIMESTAMP = Timestamp.now().toString();
@@ -96,19 +96,29 @@ public class BigQueryIOIT {
     void setSourceOptions(String value);
 
     @Description("BQ dataset for the test data")
-    String getBigQueryTestDataset();
+    String getTestBigQueryDataset();
 
-    void setBigQueryTestDataset(String dataset);
+    void setTestBigQueryDataset(String dataset);
 
     @Description("BQ table for test data")
-    String getBigQueryTestTable();
+    String getTestBigQueryTable();
 
-    void setBigQueryTestTable(String table);
+    void setTestBigQueryTable(String table);
+
+    @Description("BQ dataset for the metrics data")
+    String getMetricsBigQueryDataset();
+
+    void setMetricsBigQueryDataset(String dataset);
+
+    @Description("BQ table for metrics data")
+    String getMetricsBigQueryTable();
+
+    void setMetricsBigQueryTable(String table);
 
     @Description("Should test use streaming writes or batch loads to BQ")
-    Boolean getUseStreamingWrites();
+    String getWriteMode();
 
-    void setUseStreamingWrites(Boolean value);
+    void setWriteMode(Boolean value);
   }
 
   @BeforeClass
@@ -117,36 +127,39 @@ public class BigQueryIOIT {
     tempRoot = options.getTempRoot();
     sourceOptions =
         SyntheticOptions.fromJsonString(options.getSourceOptions(), SyntheticSourceOptions.class);
-    bigQueryMetricsDataset = options.getBigQueryDataset();
-    bigQueryMetricsTable = options.getBigQueryTable();
-    bigQueryTestDataset = options.getBigQueryTestDataset();
-    bigQueryTestTable = options.getBigQueryTestTable();
-    useStreamingWrites = options.getUseStreamingWrites();
+    metricsBigQueryDataset = options.getMetricsBigQueryDataset();
+    metricsBigQueryTable = options.getMetricsBigQueryTable();
+    testBigQueryDataset = options.getTestBigQueryDataset();
+    testBigQueryTable = options.getTestBigQueryTable();
+    writeMethod = options.getWriteMode();
     BigQueryOptions bigQueryOptions = BigQueryOptions.newBuilder().build();
     tableQualifier =
         String.format(
-            "%s:%s.%s", bigQueryOptions.getProjectId(), bigQueryTestDataset, bigQueryTestTable);
+            "%s:%s.%s", bigQueryOptions.getProjectId(), testBigQueryDataset, testBigQueryTable);
   }
 
   @AfterClass
   public static void tearDown() {
     BigQueryOptions options = BigQueryOptions.newBuilder().build();
     BigQuery client = options.getService();
-    TableId tableId = TableId.of(options.getProjectId(), bigQueryTestDataset, bigQueryTestTable);
+    TableId tableId = TableId.of(options.getProjectId(), testBigQueryDataset, testBigQueryTable);
     client.delete(tableId);
+  }
+
+  @Test
+  public void testWriteThenRead() {
+    testWrite();
+    testRead();
   }
 
   private void testWrite() {
     Pipeline pipeline = Pipeline.create(options);
 
-    BigQueryIO.Write.Method method =
-        useStreamingWrites
-            ? BigQueryIO.Write.Method.STREAMING_INSERTS
-            : BigQueryIO.Write.Method.FILE_LOADS;
+    BigQueryIO.Write.Method method = BigQueryIO.Write.Method.valueOf(writeMethod);
     pipeline
         .apply("Read from source", Read.from(new SyntheticBoundedSource(sourceOptions)))
-        .apply("Map records", ParDo.of(new MapKVToV()))
         .apply("Gather time", ParDo.of(new TimeMonitor<>(NAMESPACE, WRITE_TIME_METRIC_NAME)))
+        .apply("Map records", ParDo.of(new MapKVToV()))
         .apply(
             "Write to BQ",
             BigQueryIO.<byte[]>write()
@@ -176,15 +189,9 @@ public class BigQueryIOIT {
     IOITMetrics.publish(
         TEST_ID,
         TEST_TIMESTAMP,
-        bigQueryMetricsDataset,
-        bigQueryMetricsTable,
+        metricsBigQueryDataset,
+        metricsBigQueryTable,
         Collections.singletonList(metricResult));
-  }
-
-  @Test
-  public void testWriteThenRead() {
-    testWrite();
-    testRead();
   }
 
   private void testRead() {
