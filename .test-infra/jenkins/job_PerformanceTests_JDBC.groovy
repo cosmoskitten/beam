@@ -40,7 +40,10 @@ job(jobName) {
   Map pipelineOptions = [
           tempRoot            : 'gs://temp-storage-for-perf-tests',
           project             : 'apache-beam-testing',
+<<<<<<< HEAD
           runner              : 'DataflowRunner',
+=======
+>>>>>>> 637afab... [BEAM-7772] Refactor: reformat code, fix variable naming
           numberOfRecords     : '5000000',
           bigQueryDataset     : 'beam_performance',
           bigQueryTable       : 'jdbcioit_results',
