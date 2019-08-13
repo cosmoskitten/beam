@@ -28,8 +28,8 @@ import org.apache.beam.sdk.transforms.Combine;
 /**
  * {@link Combine.CombineFn} for the {@link HllCount.Init} combiner.
  *
- * @param <InputT> type of input values to the function
- * @param <HllT> type of the HLL++ sketch to compute
+ * @param <InputT> type of input values to the function (Integer, Long, String, or byte[])
+ * @param <HllT> type of the HLL++ sketch to compute (Integer, Long, String, or ByteString)
  */
 abstract class HllCountInitFn<InputT, HllT>
     extends Combine.CombineFn<InputT, HyperLogLogPlusPlus<HllT>, byte[]> {

@@ -27,9 +27,10 @@ import org.apache.beam.sdk.transforms.Combine;
 /**
  * {@link Combine.CombineFn} for the {@link HllCount.MergePartial} combiner.
  *
- * @param <T> type of the HLL++ sketch to be merged
+ * @param <HllT> type of the HLL++ sketch to be merged
  */
-class HllCountMergePartialFn<T> extends Combine.CombineFn<byte[], HyperLogLogPlusPlus<T>, byte[]> {
+class HllCountMergePartialFn<HllT>
+    extends Combine.CombineFn<byte[], HyperLogLogPlusPlus<HllT>, byte[]> {
 
   // Call HllCountMergePartialFn.create() to instantiate
   private HllCountMergePartialFn() {}
@@ -39,7 +40,7 @@ class HllCountMergePartialFn<T> extends Combine.CombineFn<byte[], HyperLogLogPlu
   }
 
   @Override
-  public Coder<HyperLogLogPlusPlus<T>> getAccumulatorCoder(
+  public Coder<HyperLogLogPlusPlus<HllT>> getAccumulatorCoder(
       CoderRegistry registry, Coder<byte[]> inputCoder) {
     // Use null to represent the "identity element" of the merge operation.
     return NullableCoder.of(HyperLogLogPlusPlusCoder.of());
@@ -47,18 +48,19 @@ class HllCountMergePartialFn<T> extends Combine.CombineFn<byte[], HyperLogLogPlu
 
   @Nullable
   @Override
-  public HyperLogLogPlusPlus<T> createAccumulator() {
+  public HyperLogLogPlusPlus<HllT> createAccumulator() {
     // Cannot create a sketch corresponding to an empty data set, because we do not know the sketch
     // type and precision. So use null to represent the "identity element" of the merge operation.
     return null;
   }
 
   @Override
-  public HyperLogLogPlusPlus<T> addInput(
-      @Nullable HyperLogLogPlusPlus<T> accumulator, byte[] input) {
+  public HyperLogLogPlusPlus<HllT> addInput(
+      @Nullable HyperLogLogPlusPlus<HllT> accumulator, byte[] input) {
     if (accumulator == null) {
       @SuppressWarnings("unchecked")
-      HyperLogLogPlusPlus<T> result = (HyperLogLogPlusPlus<T>) HyperLogLogPlusPlus.forProto(input);
+      HyperLogLogPlusPlus<HllT> result =
+          (HyperLogLogPlusPlus<HllT>) HyperLogLogPlusPlus.forProto(input);
       return result;
     } else {
       accumulator.merge(input);
@@ -68,16 +70,18 @@ class HllCountMergePartialFn<T> extends Combine.CombineFn<byte[], HyperLogLogPlu
 
   @Nullable
   @Override
-  public HyperLogLogPlusPlus<T> mergeAccumulators(Iterable<HyperLogLogPlusPlus<T>> accumulators) {
-    HyperLogLogPlusPlus<T> merged = createAccumulator();
-    for (HyperLogLogPlusPlus<T> accumulator : accumulators) {
+  public HyperLogLogPlusPlus<HllT> mergeAccumulators(
+      Iterable<HyperLogLogPlusPlus<HllT>> accumulators) {
+    HyperLogLogPlusPlus<HllT> merged = createAccumulator();
+    for (HyperLogLogPlusPlus<HllT> accumulator : accumulators) {
       if (accumulator == null) {
         continue;
       }
       if (merged == null) {
         @SuppressWarnings("unchecked")
-        HyperLogLogPlusPlus<T> clonedAccumulator =
-            (HyperLogLogPlusPlus<T>) HyperLogLogPlusPlus.forProto(accumulator.serializeToProto());
+        HyperLogLogPlusPlus<HllT> clonedAccumulator =
+            (HyperLogLogPlusPlus<HllT>)
+                HyperLogLogPlusPlus.forProto(accumulator.serializeToProto());
         // Cannot set merged to accumulator directly because we shouldn't mutate accumulator
         merged = clonedAccumulator;
       } else {
@@ -88,7 +92,7 @@ class HllCountMergePartialFn<T> extends Combine.CombineFn<byte[], HyperLogLogPlu
   }
 
   @Override
-  public byte[] extractOutput(@Nullable HyperLogLogPlusPlus<T> accumulator) {
+  public byte[] extractOutput(@Nullable HyperLogLogPlusPlus<HllT> accumulator) {
     if (accumulator == null) {
       throw new IllegalStateException(
           "HllCountMergePartialFn.extractOutput() should not be called on a null accumulator.");
