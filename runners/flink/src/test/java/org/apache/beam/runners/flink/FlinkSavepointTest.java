@@ -214,8 +214,7 @@ public class FlinkSavepointTest implements Serializable {
               executorService,
               pipelineProto,
               pipeline.getOptions().as(FlinkPipelineOptions.class),
-              null,
-              Collections.emptyList());
+              null);
 
       jobInvocation.start();
 
