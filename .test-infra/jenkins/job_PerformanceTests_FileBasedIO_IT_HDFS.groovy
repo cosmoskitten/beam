@@ -137,8 +137,8 @@ private void createFileBasedIOITTestJob(testJob) {
             runner           : 'DataflowRunner',
             project          : 'apache-beam-testing',
             tempRoot         : 'gs://temp-storage-for-perf-tests',
-            filenamePrefix   : "hdfs://\$${hostName}:9000/TEXTIO_IT_",
-            hdfsConfiguration: "\'[{\"fs.defaultFS\":\"hdfs://\$${hostName}:9000\",\"dfs.replication\":1}]\'"
+            hdfsConfiguration: /[{\\\"fs.defaultFS\\\":\\\"hdfs:$${hostName}:9000\\\",\\\"dfs.replication\\\":1}]/,
+            filenamePrefix   : "hdfs://\$${hostName}:9000/TEXTIO_IT_"
     ]
 
     Map allPipelineOptions = testJob.pipelineOptions << additionalOptions
