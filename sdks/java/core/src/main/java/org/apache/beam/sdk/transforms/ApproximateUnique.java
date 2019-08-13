@@ -51,7 +51,7 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.io.ByteStreams;
  * <pre>{@code
  * PCollection<String> input = ...;
  * PCollection<Long> countDistinct =
- *     input.apply(HllCount.Init.stringSketch().globally()).apply(HllCount.Extract.globally());
+ *     input.apply(HllCount.Init.forStrings().globally()).apply(HllCount.Extract.globally());
  * }</pre>
  *
  * For more details about using {@code HllCount} and the {@code zetasketch} extension module, see

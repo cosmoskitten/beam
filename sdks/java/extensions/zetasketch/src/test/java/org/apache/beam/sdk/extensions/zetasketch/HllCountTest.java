@@ -127,9 +127,9 @@ public class HllCountTest {
 
   @Test
   @Category(NeedsRunner.class)
-  public void testInitIntegerSketchGlobally() {
+  public void testInitForIntegersGlobally() {
     PCollection<byte[]> result =
-        p.apply(Create.of(INTS1)).apply(HllCount.Init.integerSketch().globally());
+        p.apply(Create.of(INTS1)).apply(HllCount.Init.forIntegers().globally());
 
     PAssert.thatSingleton(result).isEqualTo(INTS1_SKETCH);
     p.run();
@@ -137,9 +137,9 @@ public class HllCountTest {
 
   @Test
   @Category(NeedsRunner.class)
-  public void testInitLongSketchGlobally() {
+  public void testInitForLongsGlobally() {
     PCollection<byte[]> result =
-        p.apply(Create.of(LONGS)).apply(HllCount.Init.longSketch().globally());
+        p.apply(Create.of(LONGS)).apply(HllCount.Init.forLongs().globally());
 
     PAssert.thatSingleton(result).isEqualTo(LONGS_SKETCH);
     p.run();
@@ -147,10 +147,10 @@ public class HllCountTest {
 
   @Test
   @Category(NeedsRunner.class)
-  public void testInitLongSketchGlobally_EmptyInput() {
+  public void testInitForLongsGlobally_EmptyInput() {
     PCollection<byte[]> result =
         p.apply(Create.empty(TypeDescriptor.of(Long.class)))
-            .apply(HllCount.Init.longSketch().globally());
+            .apply(HllCount.Init.forLongs().globally());
 
     PAssert.that(result).empty();
     p.run();
@@ -158,9 +158,9 @@ public class HllCountTest {
 
   @Test
   @Category(NeedsRunner.class)
-  public void testInitStringSketchGlobally() {
+  public void testInitForStringsGlobally() {
     PCollection<byte[]> result =
-        p.apply(Create.of(STRINGS)).apply(HllCount.Init.stringSketch().globally());
+        p.apply(Create.of(STRINGS)).apply(HllCount.Init.forStrings().globally());
 
     PAssert.thatSingleton(result).isEqualTo(STRINGS_SKETCH);
     p.run();
@@ -168,10 +168,10 @@ public class HllCountTest {
 
   @Test
   @Category(NeedsRunner.class)
-  public void testInitStringSketchGlobally_WithPrecision() {
+  public void testInitForStringsGlobally_WithPrecision() {
     PCollection<byte[]> result =
         p.apply(Create.of(STRINGS))
-            .apply(HllCount.Init.stringSketch().withPrecision(TEST_PRECISION).globally());
+            .apply(HllCount.Init.forStrings().withPrecision(TEST_PRECISION).globally());
 
     PAssert.thatSingleton(result).isEqualTo(STRINGS_SKETCH_TEST_PRECISION);
     p.run();
@@ -179,16 +179,16 @@ public class HllCountTest {
 
   @Test
   @Category(NeedsRunner.class)
-  public void testInitStringSketchGlobally_WithInvalidPrecision() {
+  public void testInitForStringsGlobally_WithInvalidPrecision() {
     thrown.expect(IllegalArgumentException.class);
-    p.apply(Create.of(STRINGS)).apply(HllCount.Init.stringSketch().withPrecision(0).globally());
+    p.apply(Create.of(STRINGS)).apply(HllCount.Init.forStrings().withPrecision(0).globally());
   }
 
   @Test
   @Category(NeedsRunner.class)
-  public void testInitBytesSketchGlobally() {
+  public void testInitForBytesGlobally() {
     PCollection<byte[]> result =
-        p.apply(Create.of(BYTES)).apply(HllCount.Init.bytesSketch().globally());
+        p.apply(Create.of(BYTES)).apply(HllCount.Init.forBytes().globally());
 
     PAssert.thatSingleton(result).isEqualTo(BYTES_SKETCH);
     p.run();
@@ -196,13 +196,13 @@ public class HllCountTest {
 
   @Test
   @Category(NeedsRunner.class)
-  public void testInitIntegerSketchPerKey() {
+  public void testInitForIntegersPerKey() {
     List<KV<String, Integer>> input = new ArrayList<>();
     INTS1.forEach(i -> input.add(KV.of("k1", i)));
     INTS1.forEach(i -> input.add(KV.of("k2", i)));
     INTS2.forEach(i -> input.add(KV.of("k1", i)));
     PCollection<KV<String, byte[]>> result =
-        p.apply(Create.of(input)).apply(HllCount.Init.integerSketch().perKey());
+        p.apply(Create.of(input)).apply(HllCount.Init.forIntegers().perKey());
 
     PAssert.that(result)
         .containsInAnyOrder(
@@ -212,11 +212,11 @@ public class HllCountTest {
 
   @Test
   @Category(NeedsRunner.class)
-  public void testInitLongSketchPerKey() {
+  public void testInitForLongsPerKey() {
     List<KV<String, Long>> input = new ArrayList<>();
     LONGS.forEach(l -> input.add(KV.of("k", l)));
     PCollection<KV<String, byte[]>> result =
-        p.apply(Create.of(input)).apply(HllCount.Init.longSketch().perKey());
+        p.apply(Create.of(input)).apply(HllCount.Init.forLongs().perKey());
 
     PAssert.that(result).containsInAnyOrder(Collections.singletonList(KV.of("k", LONGS_SKETCH)));
     p.run();
@@ -224,11 +224,11 @@ public class HllCountTest {
 
   @Test
   @Category(NeedsRunner.class)
-  public void testInitStringSketchPerKey() {
+  public void testInitForStringsPerKey() {
     List<KV<String, String>> input = new ArrayList<>();
     STRINGS.forEach(s -> input.add(KV.of("k", s)));
     PCollection<KV<String, byte[]>> result =
-        p.apply(Create.of(input)).apply(HllCount.Init.stringSketch().perKey());
+        p.apply(Create.of(input)).apply(HllCount.Init.forStrings().perKey());
 
     PAssert.that(result).containsInAnyOrder(Collections.singletonList(KV.of("k", STRINGS_SKETCH)));
     p.run();
@@ -236,12 +236,12 @@ public class HllCountTest {
 
   @Test
   @Category(NeedsRunner.class)
-  public void testInitStringSketchPerKey_WithPrecision() {
+  public void testInitForStringsPerKey_WithPrecision() {
     List<KV<String, String>> input = new ArrayList<>();
     STRINGS.forEach(s -> input.add(KV.of("k", s)));
     PCollection<KV<String, byte[]>> result =
         p.apply(Create.of(input))
-            .apply(HllCount.Init.stringSketch().withPrecision(TEST_PRECISION).perKey());
+            .apply(HllCount.Init.forStrings().withPrecision(TEST_PRECISION).perKey());
 
     PAssert.that(result)
         .containsInAnyOrder(Collections.singletonList(KV.of("k", STRINGS_SKETCH_TEST_PRECISION)));
@@ -250,20 +250,20 @@ public class HllCountTest {
 
   @Test
   @Category(NeedsRunner.class)
-  public void testInitStringSketchPerKey_WithInvalidPrecision() {
+  public void testInitForStringsPerKey_WithInvalidPrecision() {
     List<KV<String, String>> input = new ArrayList<>();
     STRINGS.forEach(s -> input.add(KV.of("k", s)));
     thrown.expect(IllegalArgumentException.class);
-    p.apply(Create.of(input)).apply(HllCount.Init.stringSketch().withPrecision(0).perKey());
+    p.apply(Create.of(input)).apply(HllCount.Init.forStrings().withPrecision(0).perKey());
   }
 
   @Test
   @Category(NeedsRunner.class)
-  public void testInitBytesSketchPerKey() {
+  public void testInitForBytesPerKey() {
     List<KV<String, byte[]>> input = new ArrayList<>();
     BYTES.forEach(bs -> input.add(KV.of("k", bs)));
     PCollection<KV<String, byte[]>> result =
-        p.apply(Create.of(input)).apply(HllCount.Init.bytesSketch().perKey());
+        p.apply(Create.of(input)).apply(HllCount.Init.forBytes().perKey());
 
     PAssert.that(result).containsInAnyOrder(Collections.singletonList(KV.of("k", BYTES_SKETCH)));
     p.run();

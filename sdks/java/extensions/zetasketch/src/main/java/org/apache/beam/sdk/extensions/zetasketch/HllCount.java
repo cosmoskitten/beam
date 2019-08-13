@@ -39,8 +39,8 @@ import org.apache.beam.sdk.values.PCollection;
  *
  * <p>HLL++ functions are also supported in <a
  * href="https://cloud.google.com/bigquery/docs/reference/standard-sql/hll_functions">Google Cloud
- * BigQuery</a>. Using the {@code HllCount PTransform}s makes the interoperation with BigQuery
- * easier.
+ * BigQuery</a>. The {@code HllCount PTransform}s provided here produce and consume sketches
+ * compatible with BigQuery.
  *
  * <p>For detailed design of this class, see https://s.apache.org/hll-in-beam.
  *
@@ -51,14 +51,14 @@ import org.apache.beam.sdk.values.PCollection;
  * <pre>{@code
  * PCollection<Long> input = ...;
  * int p = ...;
- * PCollection<byte[]> sketch = input.apply(HllCount.Init.longSketch().withPrecision(p).globally());
+ * PCollection<byte[]> sketch = input.apply(HllCount.Init.forLongs().withPrecision(p).globally());
  * }</pre>
  *
  * <h4>Example 2: Create bytes-type sketch for a {@code PCollection<KV<String, byte[]>>}</h4>
  *
  * <pre>{@code
  * PCollection<KV<String, byte[]>> input = ...;
- * PCollection<KV<String, byte[]>> sketch = input.apply(HllCount.Init.bytesSketch().perKey());
+ * PCollection<KV<String, byte[]>> sketch = input.apply(HllCount.Init.forBytes().perKey());
  * }</pre>
  *
  * <h4>Example 3: Merge existing sketches in a {@code PCollection<byte[]>} into a new one</h4>
@@ -73,7 +73,7 @@ import org.apache.beam.sdk.values.PCollection;
  * <pre>{@code
  * PCollection<String> input = ...;
  * PCollection<Long> countDistinct =
- *     input.apply(HllCount.Init.stringSketch().globally()).apply(HllCount.Extract.globally());
+ *     input.apply(HllCount.Init.forStrings().globally()).apply(HllCount.Extract.globally());
  * }</pre>
  *
  * Note: Currently HllCount does not work on FnAPI workers. See <a
@@ -135,7 +135,7 @@ public final class HllCount {
      *
      * <p>Integer-type sketches cannot be merged with sketches of other types.
      */
-    public static Builder<Integer> integerSketch() {
+    public static Builder<Integer> forIntegers() {
       return new Builder<>(HllCountInitFn.forInteger());
     }
 
@@ -155,7 +155,7 @@ public final class HllCount {
      *
      * <p>Long-type sketches cannot be merged with sketches of other types.
      */
-    public static Builder<Long> longSketch() {
+    public static Builder<Long> forLongs() {
       return new Builder<>(HllCountInitFn.forLong());
     }
 
@@ -175,7 +175,7 @@ public final class HllCount {
      *
      * <p>String-type sketches cannot be merged with sketches of other types.
      */
-    public static Builder<String> stringSketch() {
+    public static Builder<String> forStrings() {
       return new Builder<>(HllCountInitFn.forString());
     }
 
@@ -195,7 +195,7 @@ public final class HllCount {
      *
      * <p>Bytes-type sketches cannot be merged with sketches of other types.
      */
-    public static Builder<byte[]> bytesSketch() {
+    public static Builder<byte[]> forBytes() {
       return new Builder<>(HllCountInitFn.forBytes());
     }
 
