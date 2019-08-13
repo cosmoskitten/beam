@@ -85,7 +85,6 @@ public class BigQueryIOIT {
   private static SyntheticSourceOptions sourceOptions;
   private static String tableQualifier;
   private static String tempRoot;
-  private static String writeMethod;
   private static BigQueryPerfTestOptions options;
 
   @BeforeClass
@@ -98,7 +97,6 @@ public class BigQueryIOIT {
     metricsBigQueryTable = options.getMetricsBigQueryTable();
     testBigQueryDataset = options.getTestBigQueryDataset();
     testBigQueryTable = options.getTestBigQueryTable();
-    writeMethod = options.getWriteMethod();
     BigQueryOptions bigQueryOptions = BigQueryOptions.newBuilder().build();
     tableQualifier =
         String.format(
@@ -122,7 +120,7 @@ public class BigQueryIOIT {
   private void testWrite() {
     Pipeline pipeline = Pipeline.create(options);
 
-    BigQueryIO.Write.Method method = BigQueryIO.Write.Method.valueOf(writeMethod);
+    BigQueryIO.Write.Method method = BigQueryIO.Write.Method.valueOf(options.getWriteMethod());
     pipeline
         .apply("Read from source", Read.from(new SyntheticBoundedSource(sourceOptions)))
         .apply("Gather time", ParDo.of(new TimeMonitor<>(NAMESPACE, WRITE_TIME_METRIC_NAME)))
@@ -171,14 +169,14 @@ public class BigQueryIOIT {
         Collections.singletonList(metricResult));
   }
 
-	private static Function<MetricsReader, NamedTestResult> getMetricSupplier(String metricName) {
-		return reader -> {
-			long startTime = reader.getStartTimeMetric(metricName);
-			long endTime = reader.getEndTimeMetric(metricName);
-			return NamedTestResult.create(
-					TEST_ID, TEST_TIMESTAMP, metricName, (endTime - startTime) / 1e3);
-		};
-	}
+  private static Function<MetricsReader, NamedTestResult> getMetricSupplier(String metricName) {
+    return reader -> {
+      long startTime = reader.getStartTimeMetric(metricName);
+      long endTime = reader.getEndTimeMetric(metricName);
+      return NamedTestResult.create(
+          TEST_ID, TEST_TIMESTAMP, metricName, (endTime - startTime) / 1e3);
+    };
+  }
 
   /** Options for this io performance test. */
   public interface BigQueryPerfTestOptions extends IOTestPipelineOptions {
