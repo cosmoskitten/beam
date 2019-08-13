@@ -248,4 +248,9 @@ public interface FlinkPipelineOptions
   Boolean isAutoBalanceWriteFilesShardingEnabled();
 
   void setAutoBalanceWriteFilesShardingEnabled(Boolean autoBalanceWriteFilesShardingEnabled);
+
+  @Description("The output path for the Jar file created.")
+  String getOutputJar();
+
+  void setOutputJar(String outputJar);
 }
