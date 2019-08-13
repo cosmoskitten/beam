@@ -212,7 +212,6 @@ class PortableRunnerTestWithExternalEnv(PortableRunnerTest):
     return options
 
 
-@unittest.skip("BEAM-3040")
 class PortableRunnerTestWithSubprocesses(PortableRunnerTest):
   _use_subprocesses = True
 
@@ -222,7 +221,7 @@ class PortableRunnerTestWithSubprocesses(PortableRunnerTest):
         python_urns.SUBPROCESS_SDK)
     options.view_as(PortableOptions).environment_config = (
         b'%s -m apache_beam.runners.worker.sdk_worker_main' %
-        sys.executable.encode('ascii'))
+        sys.executable.encode('ascii')).decode('utf-8')
     return options
 
   @classmethod
@@ -281,6 +280,13 @@ class PortableRunnerInternalTest(unittest.TestCase):
             payload=beam_runner_api_pb2.ProcessPayload(
                 command='run.sh',
             ).SerializeToString()))
+
+
+class PortableRunnerTestWithDocker(PortableRunnerTest):
+  def create_options(self):
+    options = super(PortableRunnerTestWithDocker, self).create_options()
+    options.view_as(PortableOptions).job_endpoint = 'embed'
+    return options
 
 
 if __name__ == '__main__':
