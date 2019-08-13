@@ -18,6 +18,7 @@
 package org.apache.beam.sdk.extensions.zetasketch;
 
 import com.google.zetasketch.HyperLogLogPlusPlus;
+import javax.annotation.Nullable;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderRegistry;
 import org.apache.beam.sdk.coders.NullableCoder;
@@ -44,6 +45,7 @@ class HllCountMergePartialFn<T> extends Combine.CombineFn<byte[], HyperLogLogPlu
     return NullableCoder.of(HyperLogLogPlusPlusCoder.of());
   }
 
+  @Nullable
   @Override
   public HyperLogLogPlusPlus<T> createAccumulator() {
     // Cannot create a sketch corresponding to an empty data set, because we do not know the sketch
@@ -52,7 +54,8 @@ class HllCountMergePartialFn<T> extends Combine.CombineFn<byte[], HyperLogLogPlu
   }
 
   @Override
-  public HyperLogLogPlusPlus<T> addInput(HyperLogLogPlusPlus<T> accumulator, byte[] input) {
+  public HyperLogLogPlusPlus<T> addInput(
+      @Nullable HyperLogLogPlusPlus<T> accumulator, byte[] input) {
     if (accumulator == null) {
       @SuppressWarnings("unchecked")
       HyperLogLogPlusPlus<T> result = (HyperLogLogPlusPlus<T>) HyperLogLogPlusPlus.forProto(input);
@@ -63,6 +66,7 @@ class HllCountMergePartialFn<T> extends Combine.CombineFn<byte[], HyperLogLogPlu
     }
   }
 
+  @Nullable
   @Override
   public HyperLogLogPlusPlus<T> mergeAccumulators(Iterable<HyperLogLogPlusPlus<T>> accumulators) {
     HyperLogLogPlusPlus<T> merged = createAccumulator();
@@ -84,7 +88,7 @@ class HllCountMergePartialFn<T> extends Combine.CombineFn<byte[], HyperLogLogPlu
   }
 
   @Override
-  public byte[] extractOutput(HyperLogLogPlusPlus<T> accumulator) {
+  public byte[] extractOutput(@Nullable HyperLogLogPlusPlus<T> accumulator) {
     if (accumulator == null) {
       throw new IllegalStateException(
           "HllCountMergePartialFn.extractOutput() should not be called on a null accumulator.");
