@@ -39,6 +39,7 @@ from apache_beam import coders
 from apache_beam import typehints
 from apache_beam.metrics import Metrics
 from apache_beam.portability import common_urns
+from apache_beam.transforms import WindowInto
 from apache_beam.transforms import window
 from apache_beam.transforms.combiners import CountCombineFn
 from apache_beam.transforms.core import CombinePerKey
@@ -612,12 +613,7 @@ class ReshufflePerKey(PTransform):
             for (value, timestamp) in values]
 
     else:
-      # The linter is confused.
-      # hash(1) is used to force "runtime" selection of _IdentityWindowFn
-      # pylint: disable=abstract-class-instantiated
-      cls = hash(1) and _IdentityWindowFn
-      window_fn = cls(
-          windowing_saved.windowfn.get_window_coder())
+      window_fn = windowing_saved.windowfn
 
       def reify_timestamps(element, timestamp=DoFn.TimestampParam):
         key, value = element
@@ -634,12 +630,13 @@ class ReshufflePerKey(PTransform):
 
     ungrouped = pcoll | Map(reify_timestamps)
     ungrouped._windowing = Windowing(
-        window_fn,
+        window.GlobalWindows(),
         triggerfn=AfterCount(1),
         accumulation_mode=AccumulationMode.DISCARDING,
         timestamp_combiner=TimestampCombiner.OUTPUT_AT_EARLIEST)
     result = (ungrouped
               | GroupByKey()
+              | WindowInto(window_fn)
               | FlatMap(restore_timestamps))
     result._windowing = windowing_saved
     return result
