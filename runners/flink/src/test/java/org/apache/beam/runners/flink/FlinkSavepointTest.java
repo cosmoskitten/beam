@@ -22,7 +22,6 @@ import static org.hamcrest.MatcherAssert.assertThat;
 import java.io.Serializable;
 import java.lang.reflect.Method;
 import java.net.URI;
-import java.util.Collections;
 import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
