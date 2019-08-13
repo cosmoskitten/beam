@@ -110,8 +110,7 @@ public class ReadSourcePortableTest implements Serializable {
             flinkJobExecutor,
             pipelineProto,
             options.as(FlinkPipelineOptions.class),
-            null,
-            Collections.emptyList());
+            new FlinkPipelineRunner(options.as(FlinkPipelineOptions.class), null, Collections.emptyList()));
     jobInvocation.start();
     while (jobInvocation.getState() != Enum.DONE) {
       Thread.sleep(100);

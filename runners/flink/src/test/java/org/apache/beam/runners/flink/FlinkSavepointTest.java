@@ -22,6 +22,7 @@ import static org.hamcrest.MatcherAssert.assertThat;
 import java.io.Serializable;
 import java.lang.reflect.Method;
 import java.net.URI;
+import java.util.Collections;
 import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
@@ -205,6 +206,7 @@ public class FlinkSavepointTest implements Serializable {
 
     ListeningExecutorService executorService =
         MoreExecutors.listeningDecorator(Executors.newFixedThreadPool(1));
+    FlinkPipelineOptions pipelineOptions = pipeline.getOptions().as(FlinkPipelineOptions.class);
     try {
       JobInvocation jobInvocation =
           FlinkJobInvoker.createJobInvocation(
@@ -212,9 +214,8 @@ public class FlinkSavepointTest implements Serializable {
               "none",
               executorService,
               pipelineProto,
-              pipeline.getOptions().as(FlinkPipelineOptions.class),
-              null,
-              Collections.emptyList());
+              pipelineOptions,
+              new FlinkPipelineRunner(pipelineOptions, null, Collections.emptyList()));
 
       jobInvocation.start();
 
