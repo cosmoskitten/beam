@@ -44,9 +44,11 @@ import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.jdbc.CalciteSch
  * JDBC objects, like connections, result sets, etc.
  *
  * <p>The purpose of this class is to intercept the connection creation and force a cache-less root
- * schema ({@link org.apache.calcite.jdbc.SimpleCalciteSchema}). Otherwise Calcite uses {@link
- * org.apache.calcite.jdbc.CachingCalciteSchema} that eagerly caches table information. This
- * behavior does not work well for dynamic table providers.
+ * schema ({@link
+ * org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.jdbc.SimpleCalciteSchema}). Otherwise
+ * Calcite uses {@link
+ * org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.jdbc.CachingCalciteSchema} that eagerly
+ * caches table information. This behavior does not work well for dynamic table providers.
  */
 class JdbcFactory extends CalciteFactoryWrapper {
 

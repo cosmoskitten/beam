@@ -216,8 +216,9 @@ public class BeamCostModel implements RelOptCost {
   }
 
   /**
-   * Implementation of {@link org.apache.calcite.plan.RelOptCostFactory} that creates {@link
-   * BeamCostModel}s.
+   * Implementation of {@link
+   * org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.plan.RelOptCostFactory} that creates
+   * {@link BeamCostModel}s.
    */
   public static class Factory implements RelOptCostFactory {
 

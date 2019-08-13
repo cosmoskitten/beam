@@ -26,7 +26,8 @@ import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.core.Union;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.logical.LogicalUnion;
 
 /**
- * A {@code ConverterRule} to replace {@link org.apache.calcite.rel.core.Union} with {@link
+ * A {@code ConverterRule} to replace {@link
+ * org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.core.Union} with {@link
  * BeamUnionRule}.
  */
 public class BeamUnionRule extends ConverterRule {

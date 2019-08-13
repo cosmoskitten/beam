@@ -95,7 +95,10 @@ public abstract class UdfImplReflectiveFunctionBase implements Function {
     return new ParameterListBuilder();
   }
 
-  /** Helps build lists of {@link org.apache.calcite.schema.FunctionParameter}. */
+  /**
+   * Helps build lists of {@link
+   * org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.schema.FunctionParameter}.
+   */
   public static class ParameterListBuilder {
     final List<FunctionParameter> builder = new ArrayList<>();
 

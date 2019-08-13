@@ -25,8 +25,9 @@ import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.rules.JoinA
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.tools.RelBuilderFactory;
 
 /**
- * This is very similar to {@link org.apache.calcite.rel.rules.JoinAssociateRule}. It only checks if
- * the resulting condition is supported before transforming.
+ * This is very similar to {@link
+ * org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.rules.JoinAssociateRule}. It only
+ * checks if the resulting condition is supported before transforming.
  */
 public class BeamJoinAssociateRule extends JoinAssociateRule {
 
