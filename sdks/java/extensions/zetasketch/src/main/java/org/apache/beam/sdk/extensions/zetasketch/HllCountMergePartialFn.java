@@ -40,11 +40,14 @@ class HllCountMergePartialFn<T> extends Combine.CombineFn<byte[], HyperLogLogPlu
   @Override
   public Coder<HyperLogLogPlusPlus<T>> getAccumulatorCoder(
       CoderRegistry registry, Coder<byte[]> inputCoder) {
+    // Use null to represent the "identity element" of the merge operation.
     return NullableCoder.of(HyperLogLogPlusPlusCoder.of());
   }
 
   @Override
   public HyperLogLogPlusPlus<T> createAccumulator() {
+    // Cannot create a sketch corresponding to an empty data set, because we do not know the sketch
+    // type and precision. So use null to represent the "identity element" of the merge operation.
     return null;
   }
 
@@ -84,7 +87,7 @@ class HllCountMergePartialFn<T> extends Combine.CombineFn<byte[], HyperLogLogPlu
   public byte[] extractOutput(HyperLogLogPlusPlus<T> accumulator) {
     if (accumulator == null) {
       throw new IllegalStateException(
-          "HllCountMergePartialFn.extractOutput() should not be called on a dummy accumulator.");
+          "HllCountMergePartialFn.extractOutput() should not be called on a null accumulator.");
     }
     return accumulator.serializeToByteArray();
   }
