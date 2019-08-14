@@ -533,7 +533,7 @@ class BeamModulePlugin implements Plugin<Project> {
         kafka                                       : "org.apache.kafka:kafka_2.11:$kafka_version",
         kafka_clients                               : "org.apache.kafka:kafka-clients:$kafka_version",
         malhar_library                              : "org.apache.apex:malhar-library:$apex_malhar_version",
-        mockito_core                                : "org.mockito:mockito-core:1.10.19",
+        mockito_core                                : "org.mockito:mockito-core:3.0.0",
         nemo_compiler_frontend_beam                 : "org.apache.nemo:nemo-compiler-frontend-beam:$nemo_version",
         netty_handler                               : "io.netty:netty-handler:$netty_version",
         netty_tcnative_boringssl_static             : "io.netty:netty-tcnative-boringssl-static:2.0.17.Final",
@@ -1256,7 +1256,6 @@ class BeamModulePlugin implements Plugin<Project> {
         // test libraries classes causing version conflicts. Users should rely
         // on using the yyy-core package instead of the yyy-all package.
         exclude group: "org.hamcrest", module: "hamcrest-all"
-        exclude group: "org.mockito", module: "mockito-all"
       }
 
       // Force usage of the libraries defined within our common set found in the root
