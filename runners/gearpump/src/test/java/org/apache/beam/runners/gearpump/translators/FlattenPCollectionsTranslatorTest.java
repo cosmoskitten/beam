@@ -148,6 +148,6 @@ public class FlattenPCollectionsTranslatorTest {
 
     translator.translate(transform, translationContext);
     verify(javaStream1).map(any(MapFunction.class), eq("dummy"));
-    verify(javaStream1).merge(any(JavaStream.class), eq(1), eq(transformName));
+    verify(javaStream1).merge(null, eq(1), eq(transformName));
   }
 }

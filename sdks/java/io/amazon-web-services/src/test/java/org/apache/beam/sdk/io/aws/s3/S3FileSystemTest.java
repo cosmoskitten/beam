@@ -30,7 +30,6 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.argThat;
-import static org.mockito.ArgumentMatchers.nullable;
 import static org.mockito.Matchers.anyObject;
 import static org.mockito.Matchers.notNull;
 import static org.mockito.Mockito.never;
@@ -193,7 +192,7 @@ public class S3FileSystemTest {
       // ignore failing unmocked path, this is covered by testMultipartCopy test
     }
 
-    verify(s3FileSystem.getAmazonS3Client(), never()).copyObject(nullable(CopyObjectRequest.class));
+    verify(s3FileSystem.getAmazonS3Client(), never()).copyObject(any(CopyObjectRequest.class));
   }
 
   @Test
