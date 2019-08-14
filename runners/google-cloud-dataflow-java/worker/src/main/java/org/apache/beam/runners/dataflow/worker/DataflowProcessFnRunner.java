@@ -59,7 +59,9 @@ class DataflowProcessFnRunner<InputT, OutputT, RestrictionT>
   @Override
   public void processElement(
       WindowedValue<KeyedWorkItem<byte[], KV<InputT, RestrictionT>>> compressedElem) {
-    simpleRunner.processElement(placeIntoElementWindow(compressedElem));
+    if (!isEmptyWorkItem(compressedElem.getValue())) {
+      simpleRunner.processElement(placeIntoElementWindow(compressedElem));
+    }
   }
 
   private static <T> WindowedValue<KeyedWorkItem<byte[], T>> placeIntoElementWindow(
@@ -90,6 +92,10 @@ class DataflowProcessFnRunner<InputT, OutputT, RestrictionT>
           "KeyedWorkItem must be in the Global window, but was in: %s",
           onlyWindow);
     }
+  }
+
+  private static <T> boolean isEmptyWorkItem(KeyedWorkItem<byte[], T> kwi) {
+    return Iterables.isEmpty(kwi.elementsIterable()) && Iterables.isEmpty(kwi.timersIterable());
   }
 
   private static <T> BoundedWindow getUnderlyingWindow(KeyedWorkItem<byte[], T> kwi) {
