@@ -192,7 +192,7 @@ public class S3FileSystemTest {
       // ignore failing unmocked path, this is covered by testMultipartCopy test
     }
 
-    verify(s3FileSystem.getAmazonS3Client(), never()).copyObject(any(CopyObjectRequest.class));
+    verify(s3FileSystem.getAmazonS3Client(), never()).copyObject(null);
   }
 
   @Test

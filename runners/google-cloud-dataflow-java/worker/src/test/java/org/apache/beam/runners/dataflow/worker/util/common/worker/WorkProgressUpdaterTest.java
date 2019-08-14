@@ -249,8 +249,7 @@ public class WorkProgressUpdaterTest {
     // the periodic checkpoint.
     // Do one update.
     initialLeaseExpirationMs = clock.currentTimeMillis() + 20 * 1000L;
-    when(progressHelper.reportProgress(any(NativeReader.DynamicSplitResult.class)))
-        .thenReturn(4 * 1000L); // Next update at 14s.
+    when(progressHelper.reportProgress(null)).thenReturn(4 * 1000L); // Next update at 14s.
 
     progressUpdater.startReportingProgress();
     executor.runNextRunnable();
