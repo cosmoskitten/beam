@@ -18,7 +18,7 @@
 from __future__ import absolute_import
 
 from apache_beam.transforms.external import ExternalTransform
-from apache_beam.transforms.external import SchemaBasedPayloadBuilder
+from apache_beam.transforms.external import ImplicitSchemaPayloadBuilder
 
 
 class GenerateSequence(ExternalTransform):
@@ -54,7 +54,7 @@ class GenerateSequence(ExternalTransform):
                expansion_service=None):
     super(GenerateSequence, self).__init__(
         self.URN,
-        SchemaBasedPayloadBuilder(
+        ImplicitSchemaPayloadBuilder(
             {
                 'start': start,
                 'stop': stop,
