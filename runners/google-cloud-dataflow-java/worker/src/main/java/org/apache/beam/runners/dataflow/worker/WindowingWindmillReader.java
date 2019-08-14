@@ -20,6 +20,7 @@ package org.apache.beam.runners.dataflow.worker;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
 
 import com.google.auto.service.AutoService;
+import com.google.common.collect.Iterables;
 import java.io.IOException;
 import java.util.Collection;
 import java.util.Map;
@@ -116,6 +117,9 @@ class WindowingWindmillReader<K, T> extends NativeReader<WindowedValue<KeyedWork
     final WorkItem workItem = context.getWork();
     KeyedWorkItem<K, T> keyedWorkItem =
         new WindmillKeyedWorkItem<>(key, workItem, windowCoder, windowsCoder, valueCoder);
+    final boolean isEmptyWorkItem =
+        (Iterables.isEmpty(keyedWorkItem.timersIterable())
+            && Iterables.isEmpty(keyedWorkItem.elementsIterable()));
     final WindowedValue<KeyedWorkItem<K, T>> value = new ValueInEmptyWindows<>(keyedWorkItem);
 
     return new NativeReaderIterator<WindowedValue<KeyedWorkItem<K, T>>>() {
@@ -123,6 +127,9 @@ class WindowingWindmillReader<K, T> extends NativeReader<WindowedValue<KeyedWork
 
       @Override
       public boolean start() throws IOException {
+        if (isEmptyWorkItem) {
+          return false;
+        }
         current = value;
         return true;
       }
