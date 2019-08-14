@@ -25,9 +25,13 @@ from __future__ import print_function
 import contextlib
 import copy
 import threading
+import typing
 
 from apache_beam import pvalue
-from apache_beam import typehints
+from apache_beam.typehints.typehints import Union
+from apache_beam.typehints.typehints import UnionConstraint
+from apache_beam.typehints.trivial_inference import instance_to_type
+from apache_beam.typehints.native_type_compatibility import convert_to_beam_type
 from apache_beam.coders import registry
 from apache_beam.portability import common_urns
 from apache_beam.portability.api import beam_expansion_api_pb2
@@ -49,6 +53,20 @@ except ImportError:
 DEFAULT_EXPANSION_SERVICE = 'localhost:8097'
 
 
+def _is_optional_or_none(typehint):
+  return (isinstance(typehint, UnionConstraint) and
+          type(None) in typehint.union_types) or typehint is type(None)
+
+
+def _strip_optional(typehint):
+  if not _is_optional_or_none(typehint):
+    return typehint
+  new_types = typehint.union_types.difference({type(None)})
+  if len(new_types) == 1:
+    return list(new_types)[0]
+  return Union[new_types]
+
+
 def iter_urns(coder, context=None):
   yield coder.to_runner_api_parameter(context)[0]
   for child in coder._get_component_coders():
@@ -62,16 +80,16 @@ class PayloadBuilder(object):
   """
 
   @classmethod
-  def _config_value(cls, obj, typehint=None):
+  def _config_value(cls, obj, typehint):
     """
     Helper to create a ConfigValue with an encoded value.
     """
-    if typehint is None:
-      coder = registry.get_coder(type(obj))
-    else:
-      coder = registry.get_coder(typehint)
+    coder = registry.get_coder(typehint)
+    urns = list(iter_urns(coder))
+    if 'beam:coder:pickled_python:v1' in urns:
+      raise RuntimeError("Found non-portable coder for %s" % (typehint,))
     return ConfigValue(
-        coder_urn=list(iter_urns(coder)),
+        coder_urn=urns,
         payload=coder.encode(obj))
 
   def build(self):
@@ -79,6 +97,14 @@ class PayloadBuilder(object):
     :return: ExternalConfigurationPayload
     """
     raise NotImplementedError
+
+  def payload(self):
+    """
+    The serialized ExternalConfigurationPayload
+
+    :return: bytes
+    """
+    return self.build().SerializeToString()
 
 
 class SchemaBasedPayloadBuilder(PayloadBuilder):
@@ -91,24 +117,37 @@ class SchemaBasedPayloadBuilder(PayloadBuilder):
   will determine the default.
   """
 
-  def __init__(self, values, schema=None):
+  def __init__(self, values, schema):
     """
     :param values: mapping of config names to values
     :param schema: mapping of config names to types
     """
     self._values = values
-    self._schema = schema or {}
+    self._schema = schema
 
   @classmethod
-  def _encode_config(cls, config, schema):
+  def _encode_config(cls, values, schema):
     result = {}
-    for k, v in config.items():
-      typehint = schema.get(k)
-      if v is None and (
-          typehint is None or not isinstance(typehint, typehints.Optional)):
+    for key, value in values.items():
+
+      try:
+        typehint = schema[key]
+      except KeyError:
+        raise RuntimeError("No typehint provided for key %r" % key)
+
+      typehint = convert_to_beam_type(typehint)
+
+      if value is None:
+        if not _is_optional_or_none(typehint):
+          raise RuntimeError("If value is None, typehint should be "
+                             "optional. Got %r" % typehint)
         # make it easy for user to filter None by default
         continue
-      result[k] = cls._config_value(v, typehint)
+      else:
+        # strip Optional from typehint so that pickled_python coder is not used
+        # for known types.
+        typehint = _strip_optional(typehint)
+      result[key] = cls._config_value(value, typehint)
     return result
 
   def build(self):
@@ -117,6 +156,15 @@ class SchemaBasedPayloadBuilder(PayloadBuilder):
     """
     args = self._encode_config(self._values, self._schema)
     return ExternalConfigurationPayload(configuration=args)
+
+
+class ImplicitSchemaPayloadBuilder(SchemaBasedPayloadBuilder):
+  """
+  Build a payload that generates a schema from the provided values.
+  """
+  def __init__(self, values):
+    schema = {key: instance_to_type(value) for key, value in values.items()}
+    super(ImplicitSchemaPayloadBuilder, self).__init__(values, schema)
 
 
 class NamedTupleBasedPayloadBuilder(SchemaBasedPayloadBuilder):
@@ -128,7 +176,7 @@ class NamedTupleBasedPayloadBuilder(SchemaBasedPayloadBuilder):
     :param tuple_instance: an instance of a typing.NamedTuple
     """
     super(NamedTupleBasedPayloadBuilder, self).__init__(
-        tuple_instance._field_types, tuple_instance._asdict())
+        values=tuple_instance._asdict(), schema=tuple_instance._field_types)
 
 
 class AnnotationBasedPayloadBuilder(SchemaBasedPayloadBuilder):
@@ -145,7 +193,7 @@ class AnnotationBasedPayloadBuilder(SchemaBasedPayloadBuilder):
     """
     schema = {k: v for k, v in
               transform.__init__.__annotations__.items()
-              if k in self._values}
+              if k in values}
     super(AnnotationBasedPayloadBuilder, self).__init__(values, schema)
 
 
@@ -186,10 +234,22 @@ class ExternalTransform(ptransform.PTransform):
       raise NotImplementedError('Grpc required for external transforms.')
     # TODO: Start an endpoint given an environment?
     self._urn = urn
-    self._payload = payload.build() if isinstance(payload, PayloadBuilder) \
+    self._payload = payload.payload() \
+      if isinstance(payload, PayloadBuilder) \
       else payload
     self._endpoint = endpoint
     self._namespace = self._fresh_namespace()
+
+  def __post_init__(self, expansion_service):
+    """
+    This will only be invoked if ExternalTransform is used as a base class
+    for a class decorated with dataclasses.dataclass
+    """
+    ExternalTransform.__init__(
+        self,
+        self.URN,
+        DataclassBasedPayloadBuilder(self),
+        expansion_service)
 
   def default_label(self):
     return '%s(%s)' % (self.__class__.__name__, self._urn)
