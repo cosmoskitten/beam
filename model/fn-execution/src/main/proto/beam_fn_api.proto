@@ -817,7 +817,15 @@ message NotifyRunnerAvailableResponse {
   string error = 1;
 }
 
+message StopWorkerRequest {
+  string worker_id = 1;
+}
+
 service BeamFnExternalWorkerPool {
   rpc NotifyRunnerAvailable(NotifyRunnerAvailableRequest)
       returns (NotifyRunnerAvailableResponse) {}
+  // Start the SDK worker with the given ID.
+  rpc StartWorker (NotifyRunnerAvailableRequest) returns (NotifyRunnerAvailableResponse) {}
+  // Stop the SDK worker.
+  rpc StopWorker (StopWorkerRequest) returns (NotifyRunnerAvailableResponse) {}
 }
