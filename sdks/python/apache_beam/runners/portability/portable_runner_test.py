@@ -33,6 +33,7 @@ import grpc
 
 import apache_beam as beam
 from apache_beam.options.pipeline_options import DebugOptions
+from apache_beam.options.pipeline_options import DirectOptions
 from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.options.pipeline_options import PortableOptions
 from apache_beam.portability import common_urns
@@ -231,6 +232,17 @@ class PortableRunnerTestWithSubprocesses(PortableRunnerTest):
         '-m', 'apache_beam.runners.portability.local_job_service_main',
         '-p', str(job_port),
     ]
+
+
+class PortableRunnerTestWithSubprocessesAndMultiWorkers(
+    PortableRunnerTestWithSubprocesses):
+  _use_subprocesses = True
+
+  def create_options(self):
+    options = super(PortableRunnerTestWithSubprocessesAndMultiWorkers, self)\
+      .create_options()
+    options.view_as(DirectOptions).direct_num_workers = 2
+    return options
 
 
 class PortableRunnerInternalTest(unittest.TestCase):
