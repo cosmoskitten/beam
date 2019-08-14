@@ -40,7 +40,6 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
 import org.junit.rules.TemporaryFolder;
-import org.mockito.internal.util.reflection.Whitebox;
 
 /** Tests for {@link FlinkExecutionEnvironments}. */
 public class FlinkExecutionEnvironmentsTest {
