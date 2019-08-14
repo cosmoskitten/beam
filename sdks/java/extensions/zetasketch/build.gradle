@@ -42,11 +42,9 @@ task integrationTest(type: Test) {
     def gcpProject = project.findProperty('gcpProject') ?: 'apache-beam-testing'
     def gcpTempRoot = project.findProperty('gcpTempRoot') ?: 'gs://temp-storage-for-end-to-end-tests'
     systemProperty "beamTestPipelineOptions", JsonOutput.toJson([
-            "--runner=DataflowRunner",
-            "--project=google.com:clouddfe",
-            "--tempRoot=gs://robinyq/tmp",
-            // "--project=${gcpProject}",
-            // "--tempRoot=${gcpTempRoot}",
+            "--runner=TestDataflowRunner",
+            "--project=${gcpProject}",
+            "--tempRoot=${gcpTempRoot}",
     ])
 
     // Disable Gradle cache: these ITs interact with live service that should always be considered "out of date"
@@ -56,4 +54,10 @@ task integrationTest(type: Test) {
     maxParallelForks 4
     classpath = sourceSets.test.runtimeClasspath
     testClassesDirs = sourceSets.test.output.classesDirs
+}
+
+task postCommit {
+    group = "Verification"
+    description = "Integration tests of sketch compatibility between Dataflow and BigQuery."
+    dependsOn integrationTest
 }
