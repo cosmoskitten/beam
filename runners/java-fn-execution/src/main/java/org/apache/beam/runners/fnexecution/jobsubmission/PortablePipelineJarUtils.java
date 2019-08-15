@@ -18,11 +18,9 @@
 package org.apache.beam.runners.fnexecution.jobsubmission;
 
 /** Contains common code for writing and reading portable pipeline jars. */
-public class PortablePipelineJarUtils {
-  private PortablePipelineJarUtils() {}
-
+public abstract class PortablePipelineJarUtils {
+  static final String ARTIFACT_FOLDER_NAME = "beam-artifact-staging";
+  static final String ARTIFACT_MANIFEST_NAME = "beam-artifact-manifest.json";
   static final String PIPELINE_FILE_NAME = "beam-pipeline.textproto";
   static final String PIPELINE_OPTIONS_FILE_NAME = "beam-pipeline-options.textproto";
-  static final String ARTIFACT_MANIFEST_NAME = "beam-artifact-manifest.json";
-  static final String ARTIFACT_FOLDER_NAME = "beam-artifact-staging";
 }
