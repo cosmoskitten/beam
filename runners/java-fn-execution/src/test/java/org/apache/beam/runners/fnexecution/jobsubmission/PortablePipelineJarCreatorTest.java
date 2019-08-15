@@ -56,6 +56,7 @@ public class PortablePipelineJarCreatorTest implements Serializable {
   @Mock private JarFile inputJar;
   @Mock private JarOutputStream outputStream;
   @Mock private ArtifactRetriever retrievalServiceStub;
+  private PortablePipelineJarCreator jarCreator;
 
   @Before
   public void setup() throws IOException {
@@ -63,6 +64,7 @@ public class PortablePipelineJarCreatorTest implements Serializable {
     JarInputStream emptyInputStream = new JarInputStream(new ByteArrayInputStream(new byte[0]));
     when(inputJar.getInputStream(any())).thenReturn(emptyInputStream);
     when(retrievalServiceStub.getArtifact(any())).thenReturn(Collections.emptyIterator());
+    jarCreator = new PortablePipelineJarCreator(null);
   }
 
   @Test
@@ -70,7 +72,7 @@ public class PortablePipelineJarCreatorTest implements Serializable {
     List<JarEntry> entries =
         ImmutableList.of(new JarEntry("foo"), new JarEntry("bar"), new JarEntry("baz"));
     when(inputJar.entries()).thenReturn(Collections.enumeration(entries));
-    PortablePipelineJarCreator.copyResourcesFromJar(inputJar, outputStream);
+    jarCreator.copyResourcesFromJar(inputJar, outputStream);
     verify(outputStream, times(3)).putNextEntry(any());
   }
 
@@ -78,7 +80,7 @@ public class PortablePipelineJarCreatorTest implements Serializable {
   public void testCopyResourcesFromJar_ignoresManifest() throws IOException {
     List<JarEntry> manifestEntry = ImmutableList.of(new JarEntry(JarFile.MANIFEST_NAME));
     when(inputJar.entries()).thenReturn(Collections.enumeration(manifestEntry));
-    PortablePipelineJarCreator.copyResourcesFromJar(inputJar, outputStream);
+    jarCreator.copyResourcesFromJar(inputJar, outputStream);
     verify(outputStream, never()).putNextEntry(any());
   }
 
@@ -86,7 +88,7 @@ public class PortablePipelineJarCreatorTest implements Serializable {
   public void testCopyResourcesFromJar_ignoresDuplicates() throws IOException {
     List<JarEntry> duplicateEntries = ImmutableList.of(new JarEntry("foo"), new JarEntry("foo"));
     when(inputJar.entries()).thenReturn(Collections.enumeration(duplicateEntries));
-    PortablePipelineJarCreator.copyResourcesFromJar(inputJar, outputStream);
+    jarCreator.copyResourcesFromJar(inputJar, outputStream);
     verify(outputStream, times(1)).putNextEntry(any());
   }
 
@@ -101,8 +103,7 @@ public class PortablePipelineJarCreatorTest implements Serializable {
         .thenReturn(GetManifestResponse.newBuilder().setManifest(manifest).build());
 
     ProxyManifest proxyManifest =
-        PortablePipelineJarCreator.copyStagedArtifacts(
-            "retrievalToken", outputStream, retrievalServiceStub);
+        jarCreator.copyStagedArtifacts("retrievalToken", outputStream, retrievalServiceStub);
 
     assertEquals(manifest, proxyManifest.getManifest());
     Location expectedLocation1 =
@@ -123,8 +124,7 @@ public class PortablePipelineJarCreatorTest implements Serializable {
     when(retrievalServiceStub.getManifest(any()))
         .thenReturn(GetManifestResponse.newBuilder().setManifest(manifest).build());
 
-    PortablePipelineJarCreator.copyStagedArtifacts(
-        "retrievalToken", outputStream, retrievalServiceStub);
+    jarCreator.copyStagedArtifacts("retrievalToken", outputStream, retrievalServiceStub);
 
     verify(outputStream, times(2)).putNextEntry(any());
   }
@@ -137,7 +137,7 @@ public class PortablePipelineJarCreatorTest implements Serializable {
 
   @Test
   public void testCreateManifest_withMainMethod() {
-    Manifest manifest = PortablePipelineJarCreator.createManifest(FakePipelineRunnner.class);
+    Manifest manifest = jarCreator.createManifest(FakePipelineRunnner.class);
     assertEquals(
         FakePipelineRunnner.class.getName(),
         manifest.getMainAttributes().getValue(Name.MAIN_CLASS));
@@ -147,7 +147,7 @@ public class PortablePipelineJarCreatorTest implements Serializable {
 
   @Test
   public void testCreateManifest_withoutMainMethod() {
-    Manifest manifest = PortablePipelineJarCreator.createManifest(EmptyPipelineRunner.class);
+    Manifest manifest = jarCreator.createManifest(EmptyPipelineRunner.class);
     assertNull(manifest.getMainAttributes().getValue(Name.MAIN_CLASS));
   }
 
@@ -159,7 +159,7 @@ public class PortablePipelineJarCreatorTest implements Serializable {
 
   @Test
   public void testCreateManifest_withInvalidMainMethod() {
-    Manifest manifest = PortablePipelineJarCreator.createManifest(EvilPipelineRunner.class);
+    Manifest manifest = jarCreator.createManifest(EvilPipelineRunner.class);
     assertNull(manifest.getMainAttributes().getValue(Name.MAIN_CLASS));
   }
 }
