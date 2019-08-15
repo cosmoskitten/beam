@@ -617,7 +617,6 @@ public class ProtoSchemaValuesTest {
 
   private void setup() {
     ProtoSchemaProvider protoSchemaProvider = new ProtoSchemaProvider();
-
     TypeDescriptor typeDescriptor = TypeDescriptor.of(this.proto.getClass());
 
     toRowFunction = protoSchemaProvider.toRowFunction(typeDescriptor);
@@ -625,16 +624,12 @@ public class ProtoSchemaValuesTest {
   }
 
   private void setupForDynamicMessage() {
-    ProtoSchemaProvider protoSchemaProvider =
-        new ProtoSchemaProvider(ProtoDomain.buildFrom(proto.getDescriptorForType()));
+    ProtoDomain domain = ProtoDomain.buildFrom(proto.getDescriptorForType());
+    ProtoSchema protoSchema =
+        ProtoSchema.newBuilder(domain).forDescriptor(proto.getDescriptorForType());
 
-    String urn = "topic:fake";
-    protoSchemaProvider.add(urn, proto.getDescriptorForType());
-
-    TypeDescriptor typeDescriptor = TypeDescriptor.of(DynamicMessage.class);
-
-    toRowFunction = protoSchemaProvider.toRowFunction(typeDescriptor, urn);
-    fromRowFunction = protoSchemaProvider.fromRowFunction(typeDescriptor, urn);
+    toRowFunction = protoSchema.getSchemaCoder().getToRowFunction();
+    fromRowFunction = protoSchema.getSchemaCoder().getFromRowFunction();
   }
 
   @Test
