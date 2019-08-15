@@ -26,8 +26,27 @@ package proto3_schema_messages;
 
 import "google/protobuf/timestamp.proto";
 import "google/protobuf/wrappers.proto";
+import "google/protobuf/descriptor.proto";
 
 option java_package = "org.apache.beam.sdk.extensions.protobuf";
+
+message MessageMeta {
+    string description = 1;
+    bool rewrite = 2;
+}
+
+message FieldMeta {
+    string description = 1;
+    int32 foobar = 2;
+}
+
+extend google.protobuf.MessageOptions {
+    MessageMeta message_meta = 66600666;
+}
+
+extend google.protobuf.FieldOptions {
+    FieldMeta field_meta = 66600666;
+}
 
 message Message {
     Primitive message = 3;
@@ -118,3 +137,13 @@ message LatLng {
 message LogicalTypes {
     LatLng gps = 1;
 }
+
+message MessageWithMeta {
+    option (proto3_schema_messages.message_meta).description = "Cool field";
+    option (proto3_schema_messages.message_meta).rewrite = true;
+
+    string field_with_description = 1 [(proto3_schema_messages.field_meta).description = "Cool field"];
+    string field_with_foobar = 2 [(proto3_schema_messages.field_meta).foobar = 42];
+    string field_with_deprecation = 3 [deprecated = true];
+}
+
