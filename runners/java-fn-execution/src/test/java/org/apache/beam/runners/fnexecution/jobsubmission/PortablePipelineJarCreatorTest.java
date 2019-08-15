@@ -104,13 +104,13 @@ public class PortablePipelineJarCreatorTest implements Serializable {
         PortablePipelineJarCreator.copyStagedArtifacts(
             "retrievalToken", outputStream, retrievalServiceStub);
 
-    assertEquals(proxyManifest.getManifest(), manifest);
+    assertEquals(manifest, proxyManifest.getManifest());
     Location expectedLocation1 =
         Location.newBuilder().setName("foo").setUri("/beam-artifact-staging/foo").build();
     Location expectedLocation2 =
         Location.newBuilder().setName("bar").setUri("/beam-artifact-staging/bar").build();
     assertEquals(
-        proxyManifest.getLocationList(), ImmutableList.of(expectedLocation1, expectedLocation2));
+        ImmutableList.of(expectedLocation1, expectedLocation2), proxyManifest.getLocationList());
   }
 
   @Test
@@ -139,8 +139,8 @@ public class PortablePipelineJarCreatorTest implements Serializable {
   public void testCreateManifest_withMainMethod() {
     Manifest manifest = PortablePipelineJarCreator.createManifest(FakePipelineRunnner.class);
     assertEquals(
-        manifest.getMainAttributes().getValue(Name.MAIN_CLASS),
-        FakePipelineRunnner.class.getName());
+        FakePipelineRunnner.class.getName(),
+        manifest.getMainAttributes().getValue(Name.MAIN_CLASS));
   }
 
   private static class EmptyPipelineRunner {}
@@ -148,6 +148,18 @@ public class PortablePipelineJarCreatorTest implements Serializable {
   @Test
   public void testCreateManifest_withoutMainMethod() {
     Manifest manifest = PortablePipelineJarCreator.createManifest(EmptyPipelineRunner.class);
+    assertNull(manifest.getMainAttributes().getValue(Name.MAIN_CLASS));
+  }
+
+  private static class EvilPipelineRunner {
+    public static int main(String[] args) {
+      return 0;
+    }
+  }
+
+  @Test
+  public void testCreateManifest_withInvalidMainMethod() {
+    Manifest manifest = PortablePipelineJarCreator.createManifest(EvilPipelineRunner.class);
     assertNull(manifest.getMainAttributes().getValue(Name.MAIN_CLASS));
   }
 }

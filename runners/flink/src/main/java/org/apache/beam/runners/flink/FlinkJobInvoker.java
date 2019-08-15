@@ -62,20 +62,8 @@ public class FlinkJobInvoker extends JobInvoker {
     FlinkPipelineOptions flinkOptions =
         PipelineOptionsTranslation.fromProto(options).as(FlinkPipelineOptions.class);
 
-    PortablePipelineRunner pipelineRunner;
-    if (flinkOptions.getOutputJar() == null) {
-      pipelineRunner =
-          new FlinkPipelineRunner(
-              flinkOptions,
-              serverConfig.getFlinkConfDir(),
-              detectClassPathResourcesToStage(FlinkJobInvoker.class.getClassLoader()));
-    } else {
-      pipelineRunner = new PortablePipelineJarCreator(FlinkPipelineRunner.class);
-    }
-
     String invocationId =
         String.format("%s_%s", flinkOptions.getJobName(), UUID.randomUUID().toString());
-    LOG.info("Invoking job {} with pipeline runner {}", invocationId, pipelineRunner);
 
     if (FlinkPipelineOptions.AUTO.equals(flinkOptions.getFlinkMaster())) {
       flinkOptions.setFlinkMaster(serverConfig.getFlinkMasterUrl());
@@ -86,8 +74,21 @@ public class FlinkJobInvoker extends JobInvoker {
       portableOptions.setSdkWorkerParallelism(serverConfig.getSdkWorkerParallelism());
     }
 
+    PortablePipelineRunner pipelineRunner;
+    if (portableOptions.getOutputExecutablePath() == null
+        || portableOptions.getOutputExecutablePath().isEmpty()) {
+      pipelineRunner =
+          new FlinkPipelineRunner(
+              flinkOptions,
+              serverConfig.getFlinkConfDir(),
+              detectClassPathResourcesToStage(FlinkJobInvoker.class.getClassLoader()));
+    } else {
+      pipelineRunner = new PortablePipelineJarCreator(FlinkPipelineRunner.class);
+    }
+
     flinkOptions.setRunner(null);
 
+    LOG.info("Invoking job {} with pipeline runner {}", invocationId, pipelineRunner);
     return createJobInvocation(
         invocationId, retrievalToken, executorService, pipeline, flinkOptions, pipelineRunner);
   }
