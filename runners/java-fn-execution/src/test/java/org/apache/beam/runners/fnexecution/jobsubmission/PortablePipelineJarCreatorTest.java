@@ -26,7 +26,6 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.mockito.MockitoAnnotations.initMocks;
 
-import com.google.common.collect.ImmutableList;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.Serializable;
@@ -44,12 +43,14 @@ import org.apache.beam.model.jobmanagement.v1.ArtifactApi.GetManifestResponse;
 import org.apache.beam.model.jobmanagement.v1.ArtifactApi.ProxyManifest;
 import org.apache.beam.model.jobmanagement.v1.ArtifactApi.ProxyManifest.Location;
 import org.apache.beam.runners.fnexecution.jobsubmission.PortablePipelineJarCreator.ArtifactRetriever;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 import org.mockito.Mock;
 
+/** Unit tests for {@link PortablePipelineJarCreator}. */
 @RunWith(JUnit4.class)
 public class PortablePipelineJarCreatorTest implements Serializable {
 

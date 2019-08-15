@@ -17,8 +17,6 @@
  */
 package org.apache.beam.runners.fnexecution.jobsubmission;
 
-import com.google.common.annotations.VisibleForTesting;
-import com.google.common.collect.ImmutableList;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
@@ -61,12 +59,18 @@ import org.apache.beam.sdk.options.PortablePipelineOptions;
 import org.apache.beam.vendor.grpc.v1p21p0.com.google.protobuf.Struct;
 import org.apache.beam.vendor.grpc.v1p21p0.com.google.protobuf.util.JsonFormat;
 import org.apache.beam.vendor.grpc.v1p21p0.io.grpc.ManagedChannel;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.apache.commons.compress.utils.IOUtils;
 import org.joda.time.Duration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+/**
+ * {@link PortablePipelineRunner} that bundles the input pipeline along with all dependencies,
+ * artifacts, etc. required to run the pipeline into a jar that can be executed later.
+ */
 public class PortablePipelineJarCreator implements PortablePipelineRunner {
   private static final Logger LOG = LoggerFactory.getLogger(PortablePipelineJarCreator.class);
 
@@ -76,6 +80,11 @@ public class PortablePipelineJarCreator implements PortablePipelineRunner {
     this.mainClass = mainClass;
   }
 
+  /**
+   * <em>Does not actually run the pipeline.</em> Instead bundles the input pipeline along with all
+   * dependencies, artifacts, etc. required to run the pipeline into a jar that can be executed
+   * later.
+   */
   @Override
   public PortablePipelineResult run(Pipeline pipeline, JobInfo jobInfo) throws Exception {
     PortablePipelineOptions pipelineOptions =
