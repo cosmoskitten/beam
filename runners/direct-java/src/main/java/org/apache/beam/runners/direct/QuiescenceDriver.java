@@ -23,7 +23,6 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.Map;
 import java.util.Queue;
-import java.util.Set;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
@@ -40,7 +39,6 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Optional;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Sets;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -309,11 +307,17 @@ class QuiescenceDriver implements ExecutionDriver {
     private Iterable<TimerData> removePushedBackTimers(
         TimerUpdate timerUpdate, Iterable<TimerData> timers) {
 
-      Set<TimerData> modifiableCompletedTimers = Sets.newHashSet(timers);
+      Map<String, TimerData> modifiableCompletedTimers = TimerUpdate.indexTimerData(timers);
       for (TimerData td : timerUpdate.getSetTimers()) {
-        modifiableCompletedTimers.remove(td);
+        String timerIdWithNamespace = TimerUpdate.getTimerIdWithNamespace(td);
+        TimerData completedTimer = modifiableCompletedTimers.get(timerIdWithNamespace);
+        if (completedTimer != null && !td.getTimestamp().isAfter(completedTimer.getTimestamp())) {
+          // the timer is marked as completed, but the same timer was
+          // set for the same, or earlier time, therefore the timer was pushed back
+          modifiableCompletedTimers.remove(timerIdWithNamespace);
+        }
       }
-      return modifiableCompletedTimers;
+      return modifiableCompletedTimers.values();
     }
   }
 

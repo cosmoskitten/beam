@@ -46,6 +46,7 @@ import java.util.concurrent.locks.ReentrantReadWriteLock;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.stream.Collectors;
+import java.util.stream.StreamSupport;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.GuardedBy;
@@ -1612,17 +1613,30 @@ public class WatermarkManager<ExecutableT, CollectionT> {
      * from completedTimers (if present).
      */
     public TimerUpdate withPushedBackTimers(Iterable<TimerData> setTimers) {
-      Set<TimerData> deletedTimersSet = Sets.newHashSet(this.deletedTimers);
+      Set<String> deletedTimersSet =
+          StreamSupport.stream(this.deletedTimers.spliterator(), false)
+              .map(t -> t.getNamespace() + t.getTimerId())
+              .collect(Collectors.toSet());
       Set<TimerData> modifiableSetTimers = Sets.newHashSet(this.setTimers);
-      Set<TimerData> modifiableCompletedTimers = Sets.newHashSet(this.completedTimers);
+      Map<String, TimerData> modifiableCompletedTimers = indexTimerData(this.completedTimers);
       for (TimerData t : setTimers) {
-        if (!deletedTimersSet.contains(t)) {
+        String timerIdWithNs = getTimerIdWithNamespace(t);
+        if (!deletedTimersSet.contains(timerIdWithNs)) {
           modifiableSetTimers.add(t);
-          modifiableCompletedTimers.remove(t);
+          modifiableCompletedTimers.remove(timerIdWithNs);
         }
       }
       return new TimerUpdate(
-          this.key, modifiableCompletedTimers, modifiableSetTimers, deletedTimers);
+          this.key, modifiableCompletedTimers.values(), modifiableSetTimers, deletedTimers);
+    }
+
+    public static Map<String, TimerData> indexTimerData(Iterable<? extends TimerData> timerData) {
+      return StreamSupport.stream(timerData.spliterator(), false)
+          .collect(Collectors.toMap(TimerUpdate::getTimerIdWithNamespace, e -> (TimerData) e));
+    }
+
+    public static String getTimerIdWithNamespace(TimerData td) {
+      return td.getNamespace() + td.getTimerId();
     }
 
     @Override
