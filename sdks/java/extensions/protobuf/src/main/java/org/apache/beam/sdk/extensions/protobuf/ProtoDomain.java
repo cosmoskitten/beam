@@ -20,10 +20,12 @@ package org.apache.beam.sdk.extensions.protobuf;
 import com.google.protobuf.DescriptorProtos;
 import com.google.protobuf.Descriptors;
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.io.Serializable;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -47,12 +49,17 @@ public final class ProtoDomain implements Serializable {
   private transient int hashCode;
 
   private transient Map<String, Descriptors.FileDescriptor> fileDescriptorMap;
+  private transient Map<String, Descriptors.Descriptor> descriptorMap;
+
+  private transient Map<Integer, Descriptors.FieldDescriptor> fileOptionMap;
+  private transient Map<Integer, Descriptors.FieldDescriptor> messageOptionMap;
+  private transient Map<Integer, Descriptors.FieldDescriptor> fieldOptionMap;
 
   ProtoDomain() {
     this(DescriptorProtos.FileDescriptorSet.newBuilder().build());
   }
 
-  public ProtoDomain(DescriptorProtos.FileDescriptorSet fileDescriptorSet) {
+  private ProtoDomain(DescriptorProtos.FileDescriptorSet fileDescriptorSet) {
     this.fileDescriptorSet = fileDescriptorSet;
     hashCode = java.util.Arrays.hashCode(this.fileDescriptorSet.toByteArray());
     crosswire();
@@ -73,22 +80,37 @@ public final class ProtoDomain implements Serializable {
       return outMap.get(name);
     }
     DescriptorProtos.FileDescriptorProto fileDescriptorProto = inMap.get(name);
-    List<Descriptors.FileDescriptor> dependencies = new ArrayList<>();
-    if (fileDescriptorProto.getDependencyCount() > 0) {
-      fileDescriptorProto
-          .getDependencyList()
-          .forEach(
-              dependencyName ->
-                  dependencies.add(convertToFileDescriptorMap(dependencyName, inMap, outMap)));
-    }
-    try {
-      Descriptors.FileDescriptor fileDescriptor =
-          Descriptors.FileDescriptor.buildFrom(
-              fileDescriptorProto, dependencies.toArray(new Descriptors.FileDescriptor[0]));
-      outMap.put(name, fileDescriptor);
-      return fileDescriptor;
-    } catch (Descriptors.DescriptorValidationException e) {
-      throw new RuntimeException(e);
+    if (fileDescriptorProto == null) {
+      if ("google/protobuf/descriptor.proto".equals(name)) {
+        outMap.put(
+            "google/protobuf/descriptor.proto",
+            DescriptorProtos.FieldOptions.getDescriptor().getFile());
+        return DescriptorProtos.FieldOptions.getDescriptor().getFile();
+      }
+      return null;
+    } else {
+      List<Descriptors.FileDescriptor> dependencies = new ArrayList<>();
+      if (fileDescriptorProto.getDependencyCount() > 0) {
+        fileDescriptorProto
+            .getDependencyList()
+            .forEach(
+                dependencyName -> {
+                  Descriptors.FileDescriptor fileDescriptor =
+                      convertToFileDescriptorMap(dependencyName, inMap, outMap);
+                  if (fileDescriptor != null) {
+                    dependencies.add(fileDescriptor);
+                  }
+                });
+      }
+      try {
+        Descriptors.FileDescriptor fileDescriptor =
+            Descriptors.FileDescriptor.buildFrom(
+                fileDescriptorProto, dependencies.toArray(new Descriptors.FileDescriptor[0]));
+        outMap.put(name, fileDescriptor);
+        return fileDescriptor;
+      } catch (Descriptors.DescriptorValidationException e) {
+        throw new RuntimeException(e);
+      }
     }
   }
 
@@ -104,6 +126,10 @@ public final class ProtoDomain implements Serializable {
     return buildFrom(descriptor.getFile());
   }
 
+  public static ProtoDomain buildFrom(DescriptorProtos.FileDescriptorSet fileDescriptorSet) {
+    return new ProtoDomain(fileDescriptorSet);
+  }
+
   public static ProtoDomain buildFrom(Descriptors.FileDescriptor fileDescriptor) {
     HashMap<String, Descriptors.FileDescriptor> fileDescriptorMap = new HashMap<>();
     visitFileDescriptorTree(fileDescriptorMap, fileDescriptor);
@@ -113,6 +139,10 @@ public final class ProtoDomain implements Serializable {
     return new ProtoDomain(builder.build());
   }
 
+  public static ProtoDomain buildFrom(InputStream inputStream) throws IOException {
+    return buildFrom(DescriptorProtos.FileDescriptorSet.parseFrom(inputStream));
+  }
+
   private void crosswire() {
     HashMap<String, DescriptorProtos.FileDescriptorProto> map = new HashMap<>();
     fileDescriptorSet.getFileList().forEach(fdp -> map.put(fdp.getName(), fdp));
@@ -120,6 +150,51 @@ public final class ProtoDomain implements Serializable {
     Map<String, Descriptors.FileDescriptor> outMap = new HashMap<>();
     map.forEach((fileName, proto) -> convertToFileDescriptorMap(fileName, map, outMap));
     fileDescriptorMap = outMap;
+
+    indexOptionsByNumber(fileDescriptorMap.values());
+    indexDescriptorByName();
+  }
+
+  private void indexDescriptorByName() {
+    descriptorMap = new HashMap<>();
+    fileDescriptorMap
+        .values()
+        .forEach(
+            fileDescriptor -> {
+              fileDescriptor
+                  .getMessageTypes()
+                  .forEach(
+                      descriptor -> {
+                        descriptorMap.put(descriptor.getFullName(), descriptor);
+                      });
+            });
+  }
+
+  private void indexOptionsByNumber(Collection<Descriptors.FileDescriptor> fileDescriptors) {
+    fieldOptionMap = new HashMap<>();
+    fileOptionMap = new HashMap<>();
+    messageOptionMap = new HashMap<>();
+    fileDescriptors.forEach(
+        (fileDescriptor) -> {
+          fileDescriptor
+              .getExtensions()
+              .forEach(
+                  extension -> {
+                    switch (extension.toProto().getExtendee()) {
+                      case ".google.protobuf.FileOptions":
+                        fileOptionMap.put(extension.getNumber(), extension);
+                        break;
+                      case ".google.protobuf.MessageOptions":
+                        messageOptionMap.put(extension.getNumber(), extension);
+                        break;
+                      case ".google.protobuf.FieldOptions":
+                        fieldOptionMap.put(extension.getNumber(), extension);
+                        break;
+                      default:
+                        break;
+                    }
+                  });
+        });
   }
 
   private void writeObject(ObjectOutputStream oos) throws IOException {
@@ -140,15 +215,12 @@ public final class ProtoDomain implements Serializable {
     return fileDescriptorMap.get(name);
   }
 
-  public Descriptors.Descriptor getDescriptor(String fileName, String typeName) {
-    Descriptors.FileDescriptor fileDescriptor = getFileDescriptor(fileName);
-    for (Descriptors.Descriptor descriptor : fileDescriptor.getMessageTypes()) {
+  public Descriptors.Descriptor getDescriptor(String fullName) {
+    return descriptorMap.get(fullName);
+  }
 
-      if (descriptor.getName().equals(typeName)) {
-        return descriptor;
-      }
-    }
-    return null;
+  public Descriptors.FieldDescriptor getFieldOptionById(int id) {
+    return fieldOptionMap.get(id);
   }
 
   @Override
@@ -169,6 +241,6 @@ public final class ProtoDomain implements Serializable {
   }
 
   public boolean contains(Descriptors.Descriptor descriptor) {
-    return getDescriptor(descriptor.getFile().getFullName(), descriptor.getName()) != null;
+    return getDescriptor(descriptor.getFullName()) != null;
   }
 }
