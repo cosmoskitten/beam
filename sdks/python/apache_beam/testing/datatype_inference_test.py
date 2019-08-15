@@ -43,7 +43,7 @@ TEST_DATA = [
     },
     {
         "name":
-        "main",
+            "main",
         "data": [
             OrderedDict([
                 #
@@ -66,28 +66,28 @@ TEST_DATA = [
             ]),
         ],
         "type_schema":
-        OrderedDict([
-            ("a", int),
-            ("b", float),
-            ("c", unicode),
-            ("d", np.ndarray),
-            ("e", bytes),
-        ]),
+            OrderedDict([
+                ("a", int),
+                ("b", float),
+                ("c", unicode),
+                ("d", np.ndarray),
+                ("e", bytes),
+            ]),
         "pyarrow_schema":
-        pa.schema([
-            ("a", pa.int64()),
-            ("b", pa.float64()),
-            ("c", pa.string()),
-            ("d", pa.list_(pa.int64())),
-            ("e", pa.binary()),
-        ]),
+            pa.schema([
+                ("a", pa.int64()),
+                ("b", pa.float64()),
+                ("c", pa.string()),
+                ("d", pa.list_(pa.int64())),
+                ("e", pa.binary()),
+            ]),
         "avro_schema": {
             "namespace":
-            "example.avro",
+                "example.avro",
             "name":
-            "User",
+                "User",
             "type":
-            "record",
+                "record",
             "fields": [{
                 "name": "a",
                 "type": "int"
