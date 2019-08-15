@@ -57,8 +57,7 @@ import org.apache.beam.runners.fnexecution.artifact.BeamFileSystemArtifactRetrie
 import org.apache.beam.runners.fnexecution.provisioning.JobInfo;
 import org.apache.beam.sdk.fn.test.InProcessManagedChannelFactory;
 import org.apache.beam.sdk.metrics.MetricResults;
-import org.apache.beam.sdk.options.Description;
-import org.apache.beam.sdk.options.PipelineOptions;
+import org.apache.beam.sdk.options.PortablePipelineOptions;
 import org.apache.beam.vendor.grpc.v1p21p0.com.google.protobuf.Struct;
 import org.apache.beam.vendor.grpc.v1p21p0.com.google.protobuf.util.JsonFormat;
 import org.apache.beam.vendor.grpc.v1p21p0.io.grpc.ManagedChannel;
@@ -79,11 +78,11 @@ public class PortablePipelineJarCreator implements PortablePipelineRunner {
 
   @Override
   public PortablePipelineResult run(Pipeline pipeline, JobInfo jobInfo) throws Exception {
-    JarCreatorPipelineOptions pipelineOptions =
+    PortablePipelineOptions pipelineOptions =
         PipelineOptionsTranslation.fromProto(jobInfo.pipelineOptions())
-            .as(JarCreatorPipelineOptions.class);
+            .as(PortablePipelineOptions.class);
 
-    File outputFile = new File(pipelineOptions.getOutputJar());
+    File outputFile = new File(pipelineOptions.getOutputExecutablePath());
     LOG.info("Creating jar {}", outputFile.getAbsolutePath());
     try (JarOutputStream outputStream =
         new JarOutputStream(new FileOutputStream(outputFile), createManifest(mainClass))) {
@@ -103,8 +102,15 @@ public class PortablePipelineJarCreator implements PortablePipelineRunner {
     manifest.getMainAttributes().put(Attributes.Name.MANIFEST_VERSION, "1.0");
     boolean classHasMainMethod = false;
     try {
-      mainClass.getMethod("main", String[].class);
-      classHasMainMethod = true;
+      Class returnType = mainClass.getMethod("main", String[].class).getReturnType();
+      if (returnType == Void.TYPE) {
+        classHasMainMethod = true;
+      } else {
+        LOG.warn(
+            "No Main-Class will be set in jar because main method in {} returns {}, expected void",
+            mainClass,
+            returnType);
+      }
     } catch (NoSuchMethodException e) {
       LOG.warn("No Main-Class will be set in jar because {} lacks a main method.", mainClass);
     }
@@ -132,7 +138,14 @@ public class PortablePipelineJarCreator implements PortablePipelineRunner {
     // The zip spec allows multiple files with the same name; the Java zip libraries do not.
     // Keep track of the files we've already written to filter out duplicates.
     // Also, ignore the old manifest; we want to write our own.
-    Set<String> previousEntryNames = new HashSet<>(ImmutableList.of(JarFile.MANIFEST_NAME));
+    Set<String> previousEntryNames =
+        new HashSet<>(
+            ImmutableList.of(
+                JarFile.MANIFEST_NAME,
+                PortablePipelineJarUtils.ARTIFACT_FOLDER_NAME,
+                PortablePipelineJarUtils.ARTIFACT_MANIFEST_NAME,
+                PortablePipelineJarUtils.PIPELINE_FILE_NAME,
+                PortablePipelineJarUtils.PIPELINE_OPTIONS_FILE_NAME));
     while (inputJarEntries.hasMoreElements()) {
       JarEntry inputJarEntry = inputJarEntries.nextElement();
       InputStream inputStream = inputJar.getInputStream(inputJarEntry);
@@ -247,13 +260,6 @@ public class PortablePipelineJarCreator implements PortablePipelineRunner {
     }
   }
 
-  public interface JarCreatorPipelineOptions extends PipelineOptions {
-    @Description("The output path for the Jar file created.")
-    String getOutputJar();
-
-    void setOutputJar(String outputJar);
-  }
-
   private static class JarCreatorPipelineResult implements PortablePipelineResult {
 
     @Override
@@ -283,7 +289,7 @@ public class PortablePipelineJarCreator implements PortablePipelineRunner {
 
     @Override
     public JobApi.MetricResults portableMetrics() throws UnsupportedOperationException {
-      throw new UnsupportedOperationException("Jar creation does not yield metrics.");
+      return JobApi.MetricResults.getDefaultInstance();
     }
   }
 }
