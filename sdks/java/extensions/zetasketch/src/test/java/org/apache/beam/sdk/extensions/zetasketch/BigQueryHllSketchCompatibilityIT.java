@@ -42,6 +42,10 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
+/**
+ * Integration tests for HLL++ sketch compatibility between Beam and BigQuery. The tests verifies
+ * that HLL++ sketches created in Beam can be processed by BigQuery, and vice versa.
+ */
 @RunWith(JUnit4.class)
 public class BigQueryHllSketchCompatibilityIT {
 
