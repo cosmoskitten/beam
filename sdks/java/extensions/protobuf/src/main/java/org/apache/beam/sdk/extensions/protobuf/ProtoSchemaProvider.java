@@ -17,15 +17,10 @@
  */
 package org.apache.beam.sdk.extensions.protobuf;
 
-import com.google.protobuf.Descriptors;
 import com.google.protobuf.DynamicMessage;
-import com.google.protobuf.Message;
-import java.util.HashMap;
-import java.util.Map;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.schemas.Schema;
-import org.apache.beam.sdk.schemas.SchemaCoder;
 import org.apache.beam.sdk.schemas.SchemaProvider;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.values.Row;
@@ -45,96 +40,45 @@ import org.slf4j.LoggerFactory;
 public class ProtoSchemaProvider implements SchemaProvider {
   private static final Logger LOG = LoggerFactory.getLogger(ProtoSchemaProvider.class);
 
-  private static final ProtoDomain STATIC_COMPILED_DOMAIN = new ProtoDomain();
-  private ProtoDomain domain;
-  private Map<String, SchemaCoder> cache = new HashMap<>();
-  private Map<String, Class> overlayClasses = new HashMap<>();
+  private final ProtoSchema.Builder protoSchemaBuilder;
 
   public ProtoSchemaProvider() {
-    this.domain = STATIC_COMPILED_DOMAIN;
+    this.protoSchemaBuilder = ProtoSchema.newBuilder();
   }
 
-  public ProtoSchemaProvider(ProtoDomain domain) {
-    this.domain = domain;
-  }
-
-  private SchemaCoder ensure(Class rawType) {
-    String urn = "class:" + rawType.getName();
-    SchemaCoder coder = cache.get(urn);
-    if (coder == null) {
-      return add(urn, rawType);
-    }
-    return coder;
-  }
-
-  private SchemaCoder add(String urn, Class rawType) {
-    ProtoSchema protoSchema =
-        new ProtoSchema(
-            rawType,
-            ProtobufUtil.getDescriptorForClass(rawType),
-            STATIC_COMPILED_DOMAIN,
-            overlayClasses);
-    SchemaCoder<Message> schemaCoder = protoSchema.getSchemaCoder();
-    cache.put(urn, schemaCoder);
-    return schemaCoder;
-  }
-
-  public SchemaCoder add(String urn, Descriptors.Descriptor descriptor) {
-    ProtoDomain scope = domain;
-    if (scope == null) {
-      LOG.warn("No domain specified, creating self containing domain");
-      scope = ProtoDomain.buildFrom(descriptor);
-    }
-    if (!scope.contains(descriptor)) {
-      throw new RuntimeException("The domain doesn't contain the descriptor");
-    }
-    ProtoSchema protoSchema =
-        new ProtoSchema(DynamicMessage.class, descriptor, scope, overlayClasses);
-    SchemaCoder<Message> schemaCoder = protoSchema.getSchemaCoder();
-    cache.put(urn, schemaCoder);
-    return schemaCoder;
+  public ProtoSchemaProvider(ProtoSchema.Builder protoSchemaBuilder) {
+    this.protoSchemaBuilder = protoSchemaBuilder;
   }
 
   @Override
   public <T> Schema schemaFor(TypeDescriptor<T> typeDescriptor) {
-    return ensure(typeDescriptor.getRawType()).getSchema();
+    checkForDynamicType(typeDescriptor);
+    return protoSchemaBuilder.forType(typeDescriptor.getRawType()).getSchema();
   }
 
   @Nullable
   @Override
   public <T> SerializableFunction<T, Row> toRowFunction(TypeDescriptor<T> typeDescriptor) {
-    return ensure(typeDescriptor.getRawType()).getToRowFunction();
+    checkForDynamicType(typeDescriptor);
+    return protoSchemaBuilder
+        .forType(typeDescriptor.getRawType())
+        .getSchemaCoder()
+        .getToRowFunction();
   }
 
   @Override
   public <T> SerializableFunction<Row, T> fromRowFunction(TypeDescriptor<T> typeDescriptor) {
-    return ensure(typeDescriptor.getRawType()).getFromRowFunction();
-  }
-
-  public <T> Schema schemaFor(TypeDescriptor<T> typeDescriptor, String urn) {
     checkForDynamicType(typeDescriptor);
-    return cache.get(urn).getSchema();
-  }
-
-  public <T> SerializableFunction<T, Row> toRowFunction(
-      TypeDescriptor<T> typeDescriptor, String urn) {
-    checkForDynamicType(typeDescriptor);
-    return cache.get(urn).getToRowFunction();
-  }
-
-  public <T> SerializableFunction<Row, T> fromRowFunction(
-      TypeDescriptor<T> typeDescriptor, String urn) {
-    checkForDynamicType(typeDescriptor);
-    return cache.get(urn).getFromRowFunction();
+    return protoSchemaBuilder
+        .forType(typeDescriptor.getRawType())
+        .getSchemaCoder()
+        .getFromRowFunction();
   }
 
   private <T> void checkForDynamicType(TypeDescriptor<T> typeDescriptor) {
-    if (!typeDescriptor.getRawType().equals(DynamicMessage.class)) {
-      throw new RuntimeException("Urn based schema's are only allowed for DynamicMessages");
+    if (typeDescriptor.getRawType().equals(DynamicMessage.class)) {
+      throw new RuntimeException(
+          "DynamicMessage is not allowed for the standard ProtoSchemaProvider, use ProtoSchema build instead.");
     }
-  }
-
-  public void registerMessageOverlay(String protoMessageFullName, Class overlayClass) {
-    overlayClasses.put(protoMessageFullName, overlayClass);
   }
 }
