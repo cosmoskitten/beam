@@ -97,7 +97,7 @@ public class PortablePipelineJarCreator implements PortablePipelineRunner {
   }
 
   @VisibleForTesting
-  static Manifest createManifest(Class mainClass) {
+  Manifest createManifest(Class mainClass) {
     Manifest manifest = new Manifest();
     manifest.getMainAttributes().put(Attributes.Name.MANIFEST_VERSION, "1.0");
     boolean classHasMainMethod = false;
@@ -121,7 +121,7 @@ public class PortablePipelineJarCreator implements PortablePipelineRunner {
   }
 
   /** Copy resources from {@code classLoader} to {@code outputStream}. */
-  private static void writeClassPathResources(ClassLoader classLoader, JarOutputStream outputStream)
+  private void writeClassPathResources(ClassLoader classLoader, JarOutputStream outputStream)
       throws IOException {
     List<String> classPathResources =
         PipelineResources.detectClassPathResourcesToStage(classLoader);
@@ -132,7 +132,7 @@ public class PortablePipelineJarCreator implements PortablePipelineRunner {
 
   /** Copy resources from {@code inputJar} to {@code outputStream}. */
   @VisibleForTesting
-  protected static void copyResourcesFromJar(JarFile inputJar, JarOutputStream outputStream)
+  protected void copyResourcesFromJar(JarFile inputJar, JarOutputStream outputStream)
       throws IOException {
     Enumeration<JarEntry> inputJarEntries = inputJar.entries();
     // The zip spec allows multiple files with the same name; the Java zip libraries do not.
@@ -162,14 +162,13 @@ public class PortablePipelineJarCreator implements PortablePipelineRunner {
     }
   }
 
-  private static void writePipeline(Pipeline pipeline, JarOutputStream outputStream)
-      throws IOException {
+  private void writePipeline(Pipeline pipeline, JarOutputStream outputStream) throws IOException {
     JarEntry jarEntry = new JarEntry(PortablePipelineJarUtils.PIPELINE_FILE_NAME);
     outputStream.putNextEntry(jarEntry);
     pipeline.writeTo(outputStream);
   }
 
-  private static void writePipelineOptions(Struct optionsProto, JarOutputStream outputStream)
+  private void writePipelineOptions(Struct optionsProto, JarOutputStream outputStream)
       throws IOException {
     JarEntry jarEntry = new JarEntry(PortablePipelineJarUtils.PIPELINE_OPTIONS_FILE_NAME);
     outputStream.putNextEntry(jarEntry);
@@ -190,7 +189,7 @@ public class PortablePipelineJarCreator implements PortablePipelineRunner {
    * @return A {@link ProxyManifest} pointing to the artifacts' location in the output jar.
    */
   @VisibleForTesting
-  static ProxyManifest copyStagedArtifacts(
+  ProxyManifest copyStagedArtifacts(
       String retrievalToken, JarOutputStream outputStream, ArtifactRetriever retrievalServiceStub)
       throws IOException {
     GetManifestRequest manifestRequest =
@@ -218,7 +217,7 @@ public class PortablePipelineJarCreator implements PortablePipelineRunner {
   }
 
   /** Writes {@code proxyManifest} to {@code outputStream} as a JSON file. */
-  private static void writeProxyManifest(ProxyManifest proxyManifest, JarOutputStream outputStream)
+  private void writeProxyManifest(ProxyManifest proxyManifest, JarOutputStream outputStream)
       throws IOException {
     outputStream.putNextEntry(new JarEntry(PortablePipelineJarUtils.ARTIFACT_MANIFEST_NAME));
     try (WritableByteChannel byteChannel = Channels.newChannel(outputStream)) {
@@ -230,7 +229,7 @@ public class PortablePipelineJarCreator implements PortablePipelineRunner {
    * Uses {@link BeamFileSystemArtifactRetrievalService} to fetch artifacts, then writes the
    * artifacts to {@code outputStream}. Include a {@link ProxyManifest} to locate artifacts later.
    */
-  private static void writeArtifacts(String retrievalToken, JarOutputStream outputStream)
+  private void writeArtifacts(String retrievalToken, JarOutputStream outputStream)
       throws Exception {
     try (GrpcFnServer artifactServer =
         GrpcFnServer.allocatePortAndCreateFor(
