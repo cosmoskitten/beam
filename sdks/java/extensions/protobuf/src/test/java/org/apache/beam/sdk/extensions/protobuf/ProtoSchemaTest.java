@@ -22,6 +22,7 @@ import static org.junit.Assert.assertEquals;
 import com.google.protobuf.Descriptors;
 import com.google.protobuf.DynamicMessage;
 import com.google.protobuf.Message;
+import java.io.IOException;
 import java.util.Objects;
 import org.apache.beam.sdk.coders.RowCoder;
 import org.apache.beam.sdk.schemas.Schema;
@@ -295,17 +296,8 @@ public class ProtoSchemaTest {
 
   @Test
   public void testCoder() throws Exception {
-    ProtoSchemaProvider provider =
-        new ProtoSchemaProvider(
-            ProtoDomain.buildFrom(Proto3SchemaMessages.Complex.getDescriptor()));
-    TypeDescriptor typeDescriptor = TypeDescriptor.of(Proto3SchemaMessages.Complex.class);
     SchemaCoder<Message> schemaCoder =
-        SchemaCoder.of(
-            provider.schemaFor(typeDescriptor),
-            provider.toRowFunction(typeDescriptor),
-            provider.fromRowFunction(typeDescriptor));
-
-    provider.add("", Proto3SchemaMessages.Complex.getDescriptor());
+        ProtoSchema.newBuilder().forType(Proto3SchemaMessages.Complex.class).getSchemaCoder();
     RowCoder rowCoder = RowCoder.of(schemaCoder.getSchema());
 
     byte[] schemaCoderBytes = SerializableUtils.serializeToByteArray(schemaCoder);
@@ -340,8 +332,10 @@ public class ProtoSchemaTest {
     Descriptors.FieldDescriptor oneofString = descriptor.findFieldByName("oneof_string");
     Descriptors.FieldDescriptor specialEnum = descriptor.findFieldByName("special_enum");
 
-    ProtoSchemaProvider provider = new ProtoSchemaProvider(ProtoDomain.buildFrom(descriptor));
-    SchemaCoder<Message> schemaCoder = provider.add("", descriptor);
+    SchemaCoder<Message> schemaCoder =
+        ProtoSchema.newBuilder(ProtoDomain.buildFrom(descriptor))
+            .forDescriptor(descriptor)
+            .getSchemaCoder();
     RowCoder rowCoder = RowCoder.of(schemaCoder.getSchema());
 
     byte[] schemaCoderBytes = SerializableUtils.serializeToByteArray(schemaCoder);
@@ -379,9 +373,10 @@ public class ProtoSchemaTest {
 
   @Test
   public void testLogicalTypeRegistration() {
-    ProtoSchemaProvider protoSchemaProvider = new ProtoSchemaProvider();
-    protoSchemaProvider.registerMessageOverlay(
-        "proto3_schema_messages.LatLng", LatLngOverlay.class);
+    ProtoSchemaProvider protoSchemaProvider =
+        new ProtoSchemaProvider(
+            ProtoSchema.newBuilder()
+                .addTypeMapping("proto3_schema_messages.LatLng", LatLngOverlay.class));
 
     SerializableFunction<Proto3SchemaMessages.LogicalTypes, Row> toRowFunction =
         protoSchemaProvider.toRowFunction(
@@ -460,7 +455,7 @@ public class ProtoSchemaTest {
   }
 
   /** Custom Protobuf field overlay that returns a custom LogicalType. */
-  public static class LatLngOverlay implements ProtoRow.FieldOverlay<LatLng> {
+  public static class LatLngOverlay implements ProtoFieldOverlay<LatLng> {
     private Descriptors.FieldDescriptor fieldDescriptor;
     private Descriptors.FieldDescriptor latitudeFieldDescriptor;
     private Descriptors.FieldDescriptor longitudeFieldDescriptor;
@@ -509,5 +504,74 @@ public class ProtoSchemaTest {
       return Schema.Field.of(
           fieldDescriptor.getName(), Schema.FieldType.logicalType(new LatLngLogicalType()));
     }
+  }
+
+  @Test
+  public void testMessageWithMetaSchema() {
+    Schema schema =
+        new ProtoSchemaProvider()
+            .schemaFor(TypeDescriptor.of(Proto3SchemaMessages.MessageWithMeta.class));
+    Schema.Field fieldWithDescription = schema.getField("field_with_description");
+    assertEquals(
+        "Cool field",
+        fieldWithDescription
+            .getType()
+            .getMetadataString("proto3_schema_messages.field_meta.description"));
+    assertEquals(
+        "0",
+        fieldWithDescription
+            .getType()
+            .getMetadataString("proto3_schema_messages.field_meta.foobar"));
+    assertEquals("", fieldWithDescription.getType().getMetadataString("deprecated"));
+
+    Schema.Field fieldWithFoobar = schema.getField("field_with_foobar");
+    assertEquals(
+        "",
+        fieldWithFoobar
+            .getType()
+            .getMetadataString("proto3_schema_messages.field_meta.description"));
+    assertEquals(
+        "42",
+        fieldWithFoobar.getType().getMetadataString("proto3_schema_messages.field_meta.foobar"));
+    assertEquals("", fieldWithFoobar.getType().getMetadataString("deprecated"));
+
+    Schema.Field fieldWithDeprecation = schema.getField("field_with_deprecation");
+    assertEquals(
+        "",
+        fieldWithDeprecation
+            .getType()
+            .getMetadataString("proto3_schema_messages.field_meta.description"));
+    assertEquals(
+        "",
+        fieldWithDeprecation
+            .getType()
+            .getMetadataString("proto3_schema_messages.field_meta.foobar"));
+    assertEquals("true", fieldWithDeprecation.getType().getMetadataString("deprecated"));
+  }
+
+  @Test
+  public void testMessageWithMetaDynamicSchema() throws IOException {
+    ProtoDomain domain = ProtoDomain.buildFrom(getClass().getResourceAsStream("test_option_v1.pb"));
+    Descriptors.Descriptor descriptor = domain.getDescriptor("test.option.v1.MessageWithOptions");
+    Schema schema = ProtoSchema.newBuilder(domain).forDescriptor(descriptor).getSchema();
+    Schema.Field field;
+    field = schema.getField("field_with_fieldoption_double");
+    assertEquals("100.1", field.getType().getMetadataString("test.option.v1.fieldoption_double"));
+    field = schema.getField("field_with_fieldoption_float");
+    assertEquals("101.2", field.getType().getMetadataString("test.option.v1.fieldoption_float"));
+    field = schema.getField("field_with_fieldoption_int32");
+    assertEquals("102", field.getType().getMetadataString("test.option.v1.fieldoption_int32"));
+    field = schema.getField("field_with_fieldoption_int64");
+    assertEquals("103", field.getType().getMetadataString("test.option.v1.fieldoption_int64"));
+    field = schema.getField("field_with_fieldoption_bool");
+    assertEquals("true", field.getType().getMetadataString("test.option.v1.fieldoption_bool"));
+    field = schema.getField("field_with_fieldoption_string");
+    assertEquals("Oh yeah", field.getType().getMetadataString("test.option.v1.fieldoption_string"));
+    field = schema.getField("field_with_fieldoption_enum");
+    assertEquals("ENUM1", field.getType().getMetadataString("test.option.v1.fieldoption_enum"));
+    field = schema.getField("field_with_fieldoption_repeated_string");
+    assertEquals(
+        "Oh yeah\nOh no",
+        field.getType().getMetadataString("test.option.v1.fieldoption_repeated_string"));
   }
 }

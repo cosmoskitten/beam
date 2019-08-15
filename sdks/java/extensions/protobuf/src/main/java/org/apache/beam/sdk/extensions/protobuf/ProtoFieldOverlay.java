@@ -22,6 +22,7 @@ import com.google.protobuf.Descriptors;
 import com.google.protobuf.DynamicMessage;
 import com.google.protobuf.Message;
 import com.google.protobuf.Timestamp;
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -34,47 +35,38 @@ import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.joda.time.Instant;
 
 /**
- * ProtoRow extends the Row and does late materialisation. It hold a reference to the original proto
- * message and has an overlay on each field of the proto message. It doesn't have it's own Coder as
- * it relies on the SchemaCoder to (de)serialize the message over the wire.
- *
- * <p>Each row has a FieldOverlay that handles specific field conversions, as well has special
- * overlays for Well Know Types, Repeatable, Map and Nullable.
+ * Protobuf ProtoFieldOverlay is the interface that each implementation needs to implement to handle
+ * a specific field types.
  */
 @Experimental(Experimental.Kind.SCHEMAS)
-class ProtoRow {
+public interface ProtoFieldOverlay<ValueT> extends FieldValueGetter<Message, ValueT> {
 
-  /**
-   * Protobuf FieldOverlay is the interface that each implementation needs to implement to handle a
-   * specific field types.
-   */
-  public interface FieldOverlay<ValueT> extends FieldValueGetter<Message, ValueT> {
+  ValueT convertGetObject(Object object);
 
-    //    /** Convert the overlayed field in the Message and convert it to the Row field. */
-    //
-    //    ValueT get(Message object);
+  /** Convert the Row field and set it on the overlayed field of the message. */
+  void set(Message.Builder object, ValueT value);
 
-    ValueT convertGetObject(Object object);
+  Object convertSetObject(Object value);
 
-    /** Convert the Row field and set it on the overlayed field of the message. */
-    void set(Message.Builder object, ValueT value);
-
-    Object convertSetObject(Object value);
-
-    /** Return the Beam Schema Field of this overlayed field. */
-    Schema.Field getSchemaField();
-  }
+  /** Return the Beam Schema Field of this overlayed field. */
+  Schema.Field getSchemaField();
 
   /** Overlay for Protobuf primitive types. Primitive values are just passed through. */
-  static class PrimitiveOverlay implements FieldOverlay<Object> {
+  class PrimitiveOverlay implements ProtoFieldOverlay<Object> {
+    @SuppressFBWarnings(
+        value = "BAD_PRACTICE",
+        justification = "FieldValueGetter should not be Serializable")
     protected Descriptors.FieldDescriptor fieldDescriptor;
+
     private Schema.Field field;
 
-    PrimitiveOverlay(Descriptors.FieldDescriptor fieldDescriptor) {
+    PrimitiveOverlay(ProtoSchema protoSchema, Descriptors.FieldDescriptor fieldDescriptor) {
       this.fieldDescriptor = fieldDescriptor;
       this.field =
           Schema.Field.of(
-              fieldDescriptor.getName(), ProtoSchema.convertType(fieldDescriptor.getType()));
+              fieldDescriptor.getName(),
+              ProtoSchema.convertType(fieldDescriptor.getType())
+                  .withMetadata(protoSchema.convertOptions(fieldDescriptor)));
     }
 
     @Override
@@ -112,9 +104,9 @@ class ProtoRow {
    * Overlay for Bytes. Protobuf Bytes are natively represented as ByteStrings that requires special
    * handling for byte[] of size 0.
    */
-  static class BytesOverlay extends PrimitiveOverlay {
-    BytesOverlay(Descriptors.FieldDescriptor fieldDescriptor) {
-      super(fieldDescriptor);
+  class BytesOverlay extends PrimitiveOverlay {
+    BytesOverlay(ProtoSchema protoSchema, Descriptors.FieldDescriptor fieldDescriptor) {
+      super(protoSchema, fieldDescriptor);
     }
 
     @Override
@@ -144,10 +136,18 @@ class ProtoRow {
    * Overlay handler for the Well Known Type "Wrapper". These wrappers make it possible to have
    * nullable primitives.
    */
-  static class WrapperOverlay<ValueT> implements FieldOverlay<ValueT> {
+  class WrapperOverlay<ValueT> implements ProtoFieldOverlay<ValueT> {
+    @SuppressFBWarnings(
+        value = "BAD_PRACTICE",
+        justification = "FieldValueGetter should not be Serializable")
     private Descriptors.FieldDescriptor fieldDescriptor;
+
+    @SuppressFBWarnings(
+        value = "BAD_PRACTICE",
+        justification = "FieldValueGetter should not be Serializable")
     private Descriptors.FieldDescriptor valueDescriptor;
-    private FieldOverlay value;
+
+    private ProtoFieldOverlay value;
 
     WrapperOverlay(ProtoSchema protoSchema, Descriptors.FieldDescriptor fieldDescriptor) {
       this.fieldDescriptor = fieldDescriptor;
@@ -201,18 +201,34 @@ class ProtoRow {
    * Overlay handler for the Well Known Type "Timestamp". This wrappers converts from a single Row
    * DATETIME and a protobuf "Timestamp" messsage.
    */
-  static class TimestampOverlay implements FieldOverlay<Instant> {
+  class TimestampOverlay implements ProtoFieldOverlay<Instant> {
     protected Schema.Field field;
+
+    @SuppressFBWarnings(
+        value = "BAD_PRACTICE",
+        justification = "FieldValueGetter should not be Serializable")
     private Descriptors.FieldDescriptor fieldDescriptor;
+
+    @SuppressFBWarnings(
+        value = "BAD_PRACTICE",
+        justification = "FieldValueGetter should not be Serializable")
     private Descriptors.FieldDescriptor secondsDescriptor;
+
+    @SuppressFBWarnings(
+        value = "BAD_PRACTICE",
+        justification = "FieldValueGetter should not be Serializable")
     private Descriptors.FieldDescriptor nanosDescriptor;
 
-    TimestampOverlay(Descriptors.FieldDescriptor fieldDescriptor) {
+    TimestampOverlay(ProtoSchema protoSchema, Descriptors.FieldDescriptor fieldDescriptor) {
       this.fieldDescriptor = fieldDescriptor;
       this.secondsDescriptor = fieldDescriptor.getMessageType().findFieldByName("seconds");
       this.nanosDescriptor = fieldDescriptor.getMessageType().findFieldByName("nanos");
       this.field =
-          Schema.Field.of(fieldDescriptor.getName(), Schema.FieldType.DATETIME).withNullable(true);
+          Schema.Field.of(
+                  fieldDescriptor.getName(),
+                  Schema.FieldType.DATETIME.withMetadata(
+                      protoSchema.convertOptions(fieldDescriptor)))
+              .withNullable(true);
     }
 
     @Override
@@ -260,28 +276,31 @@ class ProtoRow {
   }
 
   /** This overlay converts a nested Message into a nested Row. */
-  static class MessageOverlay implements FieldOverlay<Object> {
+  class MessageOverlay implements ProtoFieldOverlay<Object> {
     private final SerializableFunction toRowFunction;
     private final SerializableFunction fromRowFunction;
+
+    @SuppressFBWarnings(
+        value = "BAD_PRACTICE",
+        justification = "FieldValueGetter should not be Serializable")
     private Descriptors.FieldDescriptor fieldDescriptor;
+
     private Schema.Field schemaField;
 
     MessageOverlay(ProtoSchema rootProtoSchema, Descriptors.FieldDescriptor fieldDescriptor) {
       this.fieldDescriptor = fieldDescriptor;
 
       ProtoSchema protoSchema =
-          new ProtoSchema(
-              DynamicMessage.class,
-              fieldDescriptor.getMessageType(),
-              rootProtoSchema.getDomain(),
-              rootProtoSchema.getRegisteredTypeMapping());
+          ProtoSchema.newBuilder(rootProtoSchema).forDescriptor(fieldDescriptor.getMessageType());
       SchemaCoder<Message> schemaCoder = protoSchema.getSchemaCoder();
       toRowFunction = schemaCoder.getToRowFunction();
       fromRowFunction = schemaCoder.getFromRowFunction();
       this.schemaField =
           Schema.Field.of(
               fieldDescriptor.getName(),
-              Schema.FieldType.row(protoSchema.getSchema()).withNullable(true));
+              Schema.FieldType.row(protoSchema.getSchema())
+                  .withMetadata(protoSchema.convertOptions(fieldDescriptor))
+                  .withNullable(true));
     }
 
     @Override
@@ -325,10 +344,14 @@ class ProtoRow {
    * and "value" in a repeatable field. This overlay translates between Row.map and the Protobuf
    * map.
    */
-  static class MapOverlay implements FieldOverlay<Map> {
+  class MapOverlay implements ProtoFieldOverlay<Map> {
+    @SuppressFBWarnings(
+        value = "BAD_PRACTICE",
+        justification = "FieldValueGetter should not be Serializable")
     private Descriptors.FieldDescriptor fieldDescriptor;
-    private FieldOverlay key;
-    private FieldOverlay value;
+
+    private ProtoFieldOverlay key;
+    private ProtoFieldOverlay value;
     private Schema.Field schemaField;
 
     MapOverlay(ProtoSchema protoSchema, Descriptors.FieldDescriptor fieldDescriptor) {
@@ -342,7 +365,12 @@ class ProtoRow {
       this.schemaField =
           Schema.Field.of(
               fieldDescriptor.getName(),
-              Schema.FieldType.map(key.getSchemaField().getType(), value.getSchemaField().getType())
+              Schema.FieldType.map(
+                      key.getSchemaField().getType(),
+                      value
+                          .getSchemaField()
+                          .getType()
+                          .withMetadata(protoSchema.convertOptions(fieldDescriptor)))
                   .withNullable(true));
     }
 
@@ -410,9 +438,13 @@ class ProtoRow {
    * This overlay handles repeatable fields. It handles the Array conversion, but delegates the
    * conversion of the individual elements to an embedded overlay.
    */
-  static class ArrayOverlay implements FieldOverlay<List> {
+  class ArrayOverlay implements ProtoFieldOverlay<List> {
+    @SuppressFBWarnings(
+        value = "BAD_PRACTICE",
+        justification = "FieldValueGetter should not be Serializable")
     private Descriptors.FieldDescriptor fieldDescriptor;
-    private FieldOverlay element;
+
+    private ProtoFieldOverlay element;
     private Schema.Field schemaField;
 
     ArrayOverlay(ProtoSchema protoSchema, Descriptors.FieldDescriptor fieldDescriptor) {
@@ -421,7 +453,12 @@ class ProtoRow {
       this.schemaField =
           Schema.Field.of(
               fieldDescriptor.getName(),
-              Schema.FieldType.array(element.getSchemaField().getType()).withNullable(true));
+              Schema.FieldType.array(
+                      element
+                          .getSchemaField()
+                          .getType()
+                          .withMetadata(protoSchema.convertOptions(fieldDescriptor)))
+                  .withNullable(true));
     }
 
     @Override
@@ -472,13 +509,20 @@ class ProtoRow {
   }
 
   /** Enum overlay handles the conversion between a string and a ProtoBuf Enum. */
-  static class EnumOverlay implements FieldOverlay<Object> {
+  class EnumOverlay implements ProtoFieldOverlay<Object> {
+    @SuppressFBWarnings(
+        value = "BAD_PRACTICE",
+        justification = "FieldValueGetter should not be Serializable")
     private Descriptors.FieldDescriptor fieldDescriptor;
+
     private Schema.Field field;
 
-    EnumOverlay(Descriptors.FieldDescriptor fieldDescriptor) {
+    EnumOverlay(ProtoSchema protoSchema, Descriptors.FieldDescriptor fieldDescriptor) {
       this.fieldDescriptor = fieldDescriptor;
-      this.field = Schema.Field.of(fieldDescriptor.getName(), Schema.FieldType.STRING);
+      this.field =
+          Schema.Field.of(
+              fieldDescriptor.getName(),
+              Schema.FieldType.STRING.withMetadata(protoSchema.convertOptions(fieldDescriptor)));
     }
 
     @Override
@@ -519,11 +563,15 @@ class ProtoRow {
    * This overlay handles nullable fields. If a primitive field needs to be nullable this overlay is
    * wrapped around the original overlay.
    */
-  static class NullableOverlay implements FieldOverlay<Object> {
+  class NullableOverlay implements ProtoFieldOverlay<Object> {
+    @SuppressFBWarnings(
+        value = "BAD_PRACTICE",
+        justification = "FieldValueGetter should not be Serializable")
     private Descriptors.FieldDescriptor fieldDescriptor;
-    private FieldOverlay fieldOverlay;
 
-    NullableOverlay(Descriptors.FieldDescriptor fieldDescriptor, FieldOverlay fieldOverlay) {
+    private ProtoFieldOverlay fieldOverlay;
+
+    NullableOverlay(Descriptors.FieldDescriptor fieldDescriptor, ProtoFieldOverlay fieldOverlay) {
       this.fieldDescriptor = fieldDescriptor;
       this.fieldOverlay = fieldOverlay;
     }
