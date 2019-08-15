@@ -104,14 +104,14 @@ public final class HllCount {
   private HllCount() {}
 
   /**
-   * Provide {@code PTransform}s to aggregate inputs into HLL++ sketches. The four supported input
+   * Provides {@code PTransform}s to aggregate inputs into HLL++ sketches. The four supported input
    * types are {@code Integer}, {@code Long}, {@code String}, and {@code byte[]}.
    *
    * <p>Sketches are represented using the {@code byte[]} type. Sketches of the same type and {@code
    * precision} can be merged into a new sketch using {@link HllCount.MergePartial}. Estimated count
    * of distinct elements can be extracted from sketches using {@link HllCount.Extract}.
    *
-   * <p>Correspond to the {@code HLL_COUNT.INIT(input [, precision])} function in <a
+   * <p>Corresponds to the {@code HLL_COUNT.INIT(input [, precision])} function in <a
    * href="https://cloud.google.com/bigquery/docs/reference/standard-sql/hll_functions">BigQuery</a>.
    */
   public static final class Init {
@@ -125,12 +125,12 @@ public final class HllCount {
      * Builder#perKey()} on the returning {@link Builder} to finalize the {@code PTransform}.
      *
      * <p>Calling {@link Builder#globally()} returns a {@code PTransform} that takes an input {@code
-     * PCollection<Integer>} and returns a {@code PCollection<byte[]>} whose contents is the
+     * PCollection<Integer>} and returns a {@code PCollection<byte[]>} which consists of the
      * integer-type HLL++ sketch computed from the elements in the input {@code PCollection}.
      *
      * <p>Calling {@link Builder#perKey()} returns a {@code PTransform} that takes an input {@code
-     * PCollection<KV<K, Integer>>} and returns a {@code PCollection<KV<K, byte[]>>} whose contents
-     * is the per-key integer-type HLL++ sketch computed from the values matching each key in the
+     * PCollection<KV<K, Integer>>} and returns a {@code PCollection<KV<K, byte[]>>} which consists
+     * of the per-key integer-type HLL++ sketch computed from the values matching each key in the
      * input {@code PCollection}.
      *
      * <p>Integer-type sketches cannot be merged with sketches of other types.
@@ -145,11 +145,11 @@ public final class HllCount {
      * Builder#perKey()} on the returning {@link Builder} to finalize the {@code PTransform}.
      *
      * <p>Calling {@link Builder#globally()} returns a {@code PTransform} that takes an input {@code
-     * PCollection<Long>} and returns a {@code PCollection<byte[]>} whose contents is the long-type
+     * PCollection<Long>} and returns a {@code PCollection<byte[]>} which consists of the long-type
      * HLL++ sketch computed from the elements in the input {@code PCollection}.
      *
      * <p>Calling {@link Builder#perKey()} returns a {@code PTransform} that takes an input {@code
-     * PCollection<KV<K, Long>>} and returns a {@code PCollection<KV<K, byte[]>>} whose contents is
+     * PCollection<KV<K, Long>>} and returns a {@code PCollection<KV<K, byte[]>>} which consists of
      * the per-key long-type HLL++ sketch computed from the values matching each key in the input
      * {@code PCollection}.
      *
@@ -165,12 +165,12 @@ public final class HllCount {
      * Builder#perKey()} on the returning {@link Builder} to finalize the {@code PTransform}.
      *
      * <p>Calling {@link Builder#globally()} returns a {@code PTransform} that takes an input {@code
-     * PCollection<String>} and returns a {@code PCollection<byte[]>} whose contents is the
+     * PCollection<String>} and returns a {@code PCollection<byte[]>} which consists of the
      * string-type HLL++ sketch computed from the elements in the input {@code PCollection}.
      *
      * <p>Calling {@link Builder#perKey()} returns a {@code PTransform} that takes an input {@code
-     * PCollection<KV<K, String>>} and returns a {@code PCollection<KV<K, byte[]>>} whose contents
-     * is the per-key string-type HLL++ sketch computed from the values matching each key in the
+     * PCollection<KV<K, String>>} and returns a {@code PCollection<KV<K, byte[]>>} which consists
+     * of the per-key string-type HLL++ sketch computed from the values matching each key in the
      * input {@code PCollection}.
      *
      * <p>String-type sketches cannot be merged with sketches of other types.
@@ -185,12 +185,12 @@ public final class HllCount {
      * Builder#perKey()} on the returning {@link Builder} to finalize the {@code PTransform}.
      *
      * <p>Calling {@link Builder#globally()} returns a {@code PTransform} that takes an input {@code
-     * PCollection<byte[]>} and returns a {@code PCollection<byte[]>} whose contents is the
+     * PCollection<byte[]>} and returns a {@code PCollection<byte[]>} which consists of the
      * bytes-type HLL++ sketch computed from the elements in the input {@code PCollection}.
      *
      * <p>Calling {@link Builder#perKey()} returns a {@code PTransform} that takes an input {@code
-     * PCollection<KV<K, byte[]>>} and returns a {@code PCollection<KV<K, byte[]>>} whose contents
-     * is the per-key bytes-type HLL++ sketch computed from the values matching each key in the
+     * PCollection<KV<K, byte[]>>} and returns a {@code PCollection<KV<K, byte[]>>} which consists
+     * of the per-key bytes-type HLL++ sketch computed from the values matching each key in the
      * input {@code PCollection}.
      *
      * <p>Bytes-type sketches cannot be merged with sketches of other types.
@@ -234,7 +234,7 @@ public final class HllCount {
 
       /**
        * Returns a {@link Combine.Globally} {@code PTransform} that takes an input {@code
-       * PCollection<InputT>} and returns a {@code PCollection<byte[]>} whose contents is the HLL++
+       * PCollection<InputT>} and returns a {@code PCollection<byte[]>} which consists of the HLL++
        * sketch computed from the elements in the input {@code PCollection}.
        *
        * <p>Returns an empty output {@code PCollection} if the input {@code PCollection} is empty.
@@ -245,8 +245,8 @@ public final class HllCount {
 
       /**
        * Returns a {@link Combine.PerKey} {@code PTransform} that takes an input {@code
-       * PCollection<KV<K, InputT>>} and returns a {@code PCollection<KV<K, byte[]>>} whose contents
-       * is the per-key HLL++ sketch computed from the values matching each key in the input {@code
+       * PCollection<KV<K, InputT>>} and returns a {@code PCollection<KV<K, byte[]>>} which consists
+       * of the per-key HLL++ sketch computed from the values matching each key in the input {@code
        * PCollection}.
        */
       public <K> Combine.PerKey<K, InputT, byte[]> perKey() {
@@ -256,12 +256,15 @@ public final class HllCount {
   }
 
   /**
-   * Provide {@code PTransform}s to merge HLL++ sketches into a new sketch.
+   * Provides {@code PTransform}s to merge HLL++ sketches into a new sketch.
    *
-   * <p>Only sketches of the same type and {@code precision} can be merged together. If incompatible
-   * sketches are provided, a runtime error will occur.
+   * <p>Only sketches of the same type can be merged together. If incompatible sketches are
+   * provided, a runtime error will occur.
    *
-   * <p>Correspond to the {@code HLL_COUNT.MERGE_PARTIAL(sketch)} function in <a
+   * <p>If sketches of different {@code precision}s are merged, the merged sketch will get the
+   * minimum precision encountered among all the input sketches.
+   *
+   * <p>Corresponds to the {@code HLL_COUNT.MERGE_PARTIAL(sketch)} function in <a
    * href="https://cloud.google.com/bigquery/docs/reference/standard-sql/hll_functions">BigQuery</a>.
    */
   public static final class MergePartial {
@@ -274,8 +277,11 @@ public final class HllCount {
      * PCollection<byte[]>} of HLL++ sketches and returns a {@code PCollection<byte[]>} of a new
      * sketch merged from the input sketches.
      *
-     * <p>Only sketches of the same type and {@code precision} can be merged together. If
-     * incompatible sketches are provided, a runtime error will occur.
+     * <p>Only sketches of the same type can be merged together. If incompatible sketches are
+     * provided, a runtime error will occur.
+     *
+     * <p>If sketches of different {@code precision}s are merged, the merged sketch will get the
+     * minimum precision encountered among all the input sketches.
      *
      * <p>Returns an empty output {@code PCollection} if the input {@code PCollection} is empty.
      */
@@ -289,8 +295,11 @@ public final class HllCount {
      * PCollection<KV<K, byte[]>>} of (key, new sketch merged from the input sketches under the
      * key).
      *
-     * <p>Only sketches of the same type and {@code precision} can be merged together. If
-     * incompatible sketches are provided, a runtime error will occur.
+     * <p>If sketches of different {@code precision}s are merged, the merged sketch will get the
+     * minimum precision encountered among all the input sketches.
+     *
+     * <p>Only sketches of the same type can be merged together. If incompatible sketches are
+     * provided, a runtime error will occur.
      */
     public static <K> Combine.PerKey<K, byte[], byte[]> perKey() {
       return Combine.perKey(HllCountMergePartialFn.create());
@@ -298,10 +307,10 @@ public final class HllCount {
   }
 
   /**
-   * Provide {@code PTransform}s to extract the estimated count of distinct elements (as {@code
+   * Provides {@code PTransform}s to extract the estimated count of distinct elements (as {@code
    * Long}s) from each HLL++ sketch.
    *
-   * <p>Correspond to the {@code HLL_COUNT.EXTRACT(sketch)} function in <a
+   * <p>Corresponds to the {@code HLL_COUNT.EXTRACT(sketch)} function in <a
    * href="https://cloud.google.com/bigquery/docs/reference/standard-sql/hll_functions">BigQuery</a>.
    */
   public static final class Extract {

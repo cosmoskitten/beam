@@ -34,11 +34,10 @@ import org.apache.beam.sdk.transforms.Combine;
 abstract class HllCountInitFn<InputT, HllT>
     extends Combine.CombineFn<InputT, HyperLogLogPlusPlus<HllT>, byte[]> {
 
-  private int precision;
-
-  private HllCountInitFn() {
-    setPrecision(HllCount.DEFAULT_PRECISION);
-  }
+  // Would make this a final field. However, that not only requires adding an extra type enum to
+  // HllCount.Init.Builder to cache the type information, but also makes it hard to make the Builder
+  // generic with input type T (requires lots of type casting when constructing the transform).
+  private int precision = HllCount.DEFAULT_PRECISION;
 
   int getPrecision() {
     return precision;
