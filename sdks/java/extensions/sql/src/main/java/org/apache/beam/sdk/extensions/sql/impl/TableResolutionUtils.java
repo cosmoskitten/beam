@@ -21,7 +21,6 @@ import static java.util.stream.Collectors.toList;
 import static java.util.stream.Collectors.toMap;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkState;
 
-import com.google.common.collect.ImmutableList;
 import java.sql.SQLException;
 import java.util.List;
 import java.util.Map;
@@ -29,13 +28,14 @@ import java.util.Set;
 import org.apache.beam.sdk.extensions.sql.TableNameExtractionUtils;
 import org.apache.beam.sdk.extensions.sql.meta.CustomTableResolver;
 import org.apache.beam.sdk.extensions.sql.meta.provider.TableProvider;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.apache.calcite.jdbc.CalciteSchema;
 import org.apache.calcite.sql.SqlNode;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-/** TableResolutionUtils. */
-public class TableResolutionUtils {
+/** Utils to wire up the custom table resolution into Calcite's planner. */
+class TableResolutionUtils {
 
   private static final Logger LOG = LoggerFactory.getLogger(TableResolutionUtils.class);
 
