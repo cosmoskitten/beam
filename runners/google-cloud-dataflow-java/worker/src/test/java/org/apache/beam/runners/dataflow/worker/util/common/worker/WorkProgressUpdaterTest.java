@@ -197,7 +197,8 @@ public class WorkProgressUpdaterTest {
     verify(progressHelper, never()).reportProgress(checkpointPos);
 
     when(workExecutor.requestCheckpoint()).thenReturn(checkpointPos);
-    when(progressHelper.reportProgress(null)).thenReturn(4 * 1000L);
+    when(progressHelper.reportProgress(any(NativeReader.DynamicSplitResult.class)))
+        .thenReturn(4 * 1000L);
 
     executor.runNextRunnable();
 
@@ -267,7 +268,8 @@ public class WorkProgressUpdaterTest {
 
     // Do another update, but this time the checkpoint succeeds.
     when(workExecutor.requestCheckpoint()).thenReturn(checkpointPos);
-    when(progressHelper.reportProgress(null)).thenReturn(4 * 1000L);
+    when(progressHelper.reportProgress(any(NativeReader.DynamicSplitResult.class)))
+        .thenReturn(4 * 1000L);
 
     executor.runNextRunnable();
 
