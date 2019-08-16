@@ -245,6 +245,9 @@ class PubSubBasedCacheTest(ExtraAssertionsMixin, unittest.TestCase):
     project_id = "test-project-id"
     topic_name = "test-topic-name"
     self.location = "projects/{}/topics/{}".format(project_id, topic_name)
+    # TODO(ostrokach): Remove this line
+    decoder = streambasedcache.DecodeFromPubSub(
+        "a", with_attributes="b", timestamp_attribute="c")
 
   def tearDown(self):
     pass

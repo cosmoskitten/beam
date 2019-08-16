@@ -147,6 +147,9 @@ class PubSubBasedCache(StreamBasedCache):
     self._child_subscriptions.append(self.subscription)
     self._init_finalizers()
 
+    # TODO(ostrokach): Remove this line
+    decoder = DecodeFromPubSub("a", with_attributes="b", timestamp_attribute="c")
+
   @property
   def timestamp(self):
     return self._timestamp
