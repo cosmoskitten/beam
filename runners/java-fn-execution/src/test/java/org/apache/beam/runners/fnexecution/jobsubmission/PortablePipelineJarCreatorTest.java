@@ -17,8 +17,10 @@
  */
 package org.apache.beam.runners.fnexecution.jobsubmission;
 
+import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNull;
+import static org.junit.Assert.assertThat;
 import static org.mockito.Matchers.any;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
@@ -37,6 +39,7 @@ import java.util.jar.JarFile;
 import java.util.jar.JarInputStream;
 import java.util.jar.JarOutputStream;
 import java.util.jar.Manifest;
+import java.util.stream.Collectors;
 import org.apache.beam.model.jobmanagement.v1.ArtifactApi;
 import org.apache.beam.model.jobmanagement.v1.ArtifactApi.ArtifactMetadata;
 import org.apache.beam.model.jobmanagement.v1.ArtifactApi.GetManifestResponse;
@@ -107,12 +110,11 @@ public class PortablePipelineJarCreatorTest implements Serializable {
         jarCreator.copyStagedArtifacts("retrievalToken", outputStream, retrievalServiceStub);
 
     assertEquals(manifest, proxyManifest.getManifest());
-    Location expectedLocation1 =
-        Location.newBuilder().setName("foo").setUri("/beam-artifact-staging/foo").build();
-    Location expectedLocation2 =
-        Location.newBuilder().setName("bar").setUri("/beam-artifact-staging/bar").build();
-    assertEquals(
-        ImmutableList.of(expectedLocation1, expectedLocation2), proxyManifest.getLocationList());
+    List<String> outputArtifactNames =
+        proxyManifest.getLocationList().stream()
+            .map(Location::getName)
+            .collect(Collectors.toList());
+    assertThat(outputArtifactNames, containsInAnyOrder("foo", "bar"));
   }
 
   @Test
