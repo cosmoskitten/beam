@@ -29,6 +29,7 @@ import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Set;
+import java.util.UUID;
 import java.util.jar.Attributes;
 import java.util.jar.Attributes.Name;
 import java.util.jar.JarEntry;
@@ -207,8 +208,9 @@ public class PortablePipelineJarCreator implements PortablePipelineRunner {
     // Create a new proxy manifest to locate artifacts at jar runtime.
     ProxyManifest.Builder proxyManifestBuilder = ProxyManifest.newBuilder().setManifest(manifest);
     for (ArtifactMetadata artifact : manifest.getArtifactList()) {
-      String outputPath = PortablePipelineJarUtils.ARTIFACT_FOLDER_NAME + "/" + artifact.getName();
-      LOG.trace("Copying artifact to {}", outputPath);
+      String outputPath =
+          PortablePipelineJarUtils.ARTIFACT_FOLDER_NAME + "/" + UUID.randomUUID().toString();
+      LOG.trace("Copying artifact {} to {}", artifact.getName(), outputPath);
       proxyManifestBuilder.addLocation(
           Location.newBuilder().setName(artifact.getName()).setUri("/" + outputPath).build());
       outputStream.putNextEntry(new JarEntry(outputPath));
