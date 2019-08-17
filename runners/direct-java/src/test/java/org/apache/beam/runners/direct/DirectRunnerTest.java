@@ -700,6 +700,27 @@ public class DirectRunnerTest implements Serializable {
     pipeline.run();
   }
 
+  @Test(timeout = 5000)
+  public void testTwoTimersSettingEachOtherWithCreateAsInput() {
+    Pipeline pipeline = getPipeline();
+    Instant now = new Instant(1500000000000L);
+    Instant end = now.plus(100);
+    PCollection<String> result = pipeline.apply(new TwoTimerTest(now, end) {
+      @Override
+      PTransform<PBegin, PCollection<KV<Void, Void>>> createInput() {
+        return Create.of(KV.of(null, null));
+      }
+    });
+    List<String> expected =
+        LongStream.rangeClosed(0, 100)
+            .mapToObj(e -> (Long) e)
+            .flatMap(e -> Arrays.asList("t1:" + e + ":" + e, "t2:" + e + ":" + e).stream())
+            .collect(Collectors.toList());
+    PAssert.that(result).containsInAnyOrder(expected);
+    pipeline.run();
+  }
+
+
   private PTransform<PBegin, PDone> outputStartTo(StaticQueue<Integer> queue) {
     return new PTransform<PBegin, PDone>() {
       @Override
@@ -735,10 +756,7 @@ public class DirectRunnerTest implements Serializable {
       final String timerName2 = "t2";
       final String countStateName = "count";
       return input
-          .apply(
-              TestStream.create(KvCoder.of(VoidCoder.of(), VoidCoder.of()))
-                  .addElements(KV.of(null, null))
-                  .advanceWatermarkToInfinity())
+          .apply(createInput())
           .apply(
               ParDo.of(
                   new DoFn<KV<Void, Void>, String>() {
@@ -801,6 +819,12 @@ public class DirectRunnerTest implements Serializable {
                               + context.timestamp().minus(start.getMillis()).getMillis());
                     }
                   }));
+    }
+
+    PTransform<PBegin, PCollection<KV<Void, Void>>> createInput() {
+      return TestStream.create(KvCoder.of(VoidCoder.of(), VoidCoder.of()))
+          .addElements(KV.of(null, null))
+          .advanceWatermarkToInfinity();
     }
   }
 
