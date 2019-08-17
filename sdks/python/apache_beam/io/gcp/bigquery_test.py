@@ -723,15 +723,13 @@ class PubSubBigQueryIT(unittest.TestCase):
   def _run_pubsub_bq_pipeline(self, method, triggering_frequency=None):
     l = [i for i in range(self._SIZE)]
 
-    matchers = [
-        PipelineStateMatcher(PipelineState.RUNNING),
-        BigqueryFullResultStreamingMatcher(
-            project=self.project,
-            query="SELECT number FROM %s" % self.output_table,
-            data=[(i,) for i in l])]
+    bq_matcher = BigqueryFullResultStreamingMatcher(
+        project=self.project,
+        query="SELECT number FROM %s" % self.output_table,
+        data=[(i,) for i in l])
 
     args = self.test_pipeline.get_full_options_as_args(
-        on_success_matcher=hc.all_of(*matchers),
+        on_success_matcher=bq_matcher,
         experiments='use_beam_bq_sink',
         streaming=True)
 
