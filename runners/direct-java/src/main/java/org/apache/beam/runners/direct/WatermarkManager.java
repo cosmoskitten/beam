@@ -1212,7 +1212,8 @@ public class WatermarkManager<ExecutableT, CollectionT> {
     try {
       for (Map.Entry<ExecutableT, TransformWatermarks> watermarksEntry :
           transformToWatermarks.entrySet()) {
-        if (!transformsWithAlreadyExtractedTimers.containsKey(watermarksEntry.getKey())) {
+        ExecutableT transform = watermarksEntry.getKey();
+        if (!transformsWithAlreadyExtractedTimers.containsKey(transform)) {
           TransformWatermarks watermarks = watermarksEntry.getValue();
           Collection<FiredTimers<ExecutableT>> firedTimers = watermarks.extractFiredTimers();
           if (!firedTimers.isEmpty()) {
@@ -1221,7 +1222,7 @@ public class WatermarkManager<ExecutableT, CollectionT> {
                     .flatMap(f -> f.getTimers().stream())
                     .collect(Collectors.toList());
             transformsWithAlreadyExtractedTimers.compute(
-                watermarksEntry.getKey(),
+                transform,
                 (k, v) -> {
                   if (v == null) {
                     v = new HashSet<>();
@@ -1737,7 +1738,10 @@ public class WatermarkManager<ExecutableT, CollectionT> {
 
     @Override
     public String toString() {
-      return MoreObjects.toStringHelper(FiredTimers.class).add("timers", timers).toString();
+      return MoreObjects.toStringHelper(FiredTimers.class)
+          .add("key", key)
+          .add("timers", timers)
+          .toString();
     }
   }
 
