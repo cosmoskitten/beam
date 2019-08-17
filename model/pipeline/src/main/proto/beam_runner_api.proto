@@ -654,8 +654,9 @@ message StandardCoders {
     //
     // A row is encoded as the concatenation of:
     //   - The number of attributes in the schema, encoded with
-    //     beam:coder:varint:v1. This is useful for detecting supported schema
-    //     changes (column additions/deletions).
+    //     beam:coder:varint:v1. This makes it possible to detect certain
+    //     allowed schema changes (appending or removing columns) in
+    //     long-running streaming pipelines.
     //   - A byte array representing a packed bitset indicating null fields (a
     //     1 indicating a null) encoded with beam:coder:bytes:v1. The unused
     //     bits in the last byte must be set to 0. If there are no nulls an
