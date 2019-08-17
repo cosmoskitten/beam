@@ -108,6 +108,7 @@ import org.apache.beam.sdk.transforms.windowing.SlidingWindows;
 import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.util.common.ElementByteSizeObserver;
 import org.apache.beam.sdk.values.KV;
+import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.PCollectionView;
@@ -3162,14 +3163,47 @@ public class ParDoTest implements Serializable {
       UsesStatefulParDo.class
     })
     public void testEventTimeTimerOrdering() throws Exception {
+      final int numTestElements = 100;
+      final Instant now = new Instant(1500000000000L);
+      TestStream.Builder<KV<String, String>> builder =
+          TestStream.create(KvCoder.of(StringUtf8Coder.of(), StringUtf8Coder.of()))
+              .advanceWatermarkTo(new Instant(0));
+
+      for (int i = 0; i < numTestElements; i++) {
+        builder = builder.addElements(TimestampedValue.of(KV.of("dummy", "" + i), now.plus(i)));
+        builder = builder.advanceWatermarkTo(now.plus(i / 10 * 10));
+      }
+
+      testEventTimeTimerOrderingWithInputPTransform(
+          now, numTestElements, builder.advanceWatermarkToInfinity());
+    }
+
+    /** A test makes sure that an event time timers are correctly ordered using Create transform. */
+    @Test(timeout = 20000)
+    @Category({ValidatesRunner.class, UsesTimersInParDo.class, UsesStatefulParDo.class})
+    public void testEventTimeTimerOrderingWithCreate() throws Exception {
+      final int numTestElements = 100;
+      final Instant now = new Instant(1500000000000L);
+
+      List<TimestampedValue<KV<String, String>>> elements = new ArrayList<>();
+      for (int i = 0; i < numTestElements; i++) {
+        elements.add(TimestampedValue.of(KV.of("dummy", "" + i), now.plus(i)));
+      }
+
+      testEventTimeTimerOrderingWithInputPTransform(
+          now, numTestElements, Create.timestamped(elements));
+    }
+
+    private void testEventTimeTimerOrderingWithInputPTransform(
+        Instant now,
+        int numTestElements,
+        PTransform<PBegin, PCollection<KV<String, String>>> transform)
+        throws Exception {
 
       final String timerIdBagAppend = "append";
       final String timerIdGc = "gc";
       final String bag = "bag";
       final String minTimestamp = "minTs";
-
-      final int numTestElements = 100;
-      final Instant now = new Instant(1500000000000L);
       final Instant gcTimerStamp = now.plus(numTestElements + 1);
 
       DoFn<KV<String, String>, String> fn =
@@ -3238,6 +3272,7 @@ public class ParDoTest implements Serializable {
                   Joiner.on(":")
                           .join(
                               StreamSupport.stream(bagState.read().spliterator(), false)
+                                  .sorted(Comparator.comparing(TimestampedValue::getTimestamp))
                                   .map(TimestampedValue::getValue)
                                   .iterator())
                       + ":cleanup";
@@ -3246,18 +3281,7 @@ public class ParDoTest implements Serializable {
             }
           };
 
-      TestStream.Builder<KV<String, String>> builder =
-          TestStream.create(KvCoder.of(StringUtf8Coder.of(), StringUtf8Coder.of()))
-              .advanceWatermarkTo(new Instant(0));
-
-      for (int i = 0; i < numTestElements; i++) {
-        builder = builder.addElements(TimestampedValue.of(KV.of("dummy", "" + i), now.plus(i)));
-        builder = builder.advanceWatermarkTo(now.plus(i / 10 * 10));
-      }
-
-      TestStream<KV<String, String>> stream = builder.advanceWatermarkToInfinity();
-
-      PCollection<String> output = pipeline.apply(stream).apply(ParDo.of(fn));
+      PCollection<String> output = pipeline.apply(transform).apply(ParDo.of(fn));
       List<String> expected =
           IntStream.rangeClosed(0, numTestElements)
               .mapToObj(expandFn(numTestElements))
