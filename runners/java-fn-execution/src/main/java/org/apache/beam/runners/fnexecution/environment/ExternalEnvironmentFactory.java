@@ -25,6 +25,7 @@ import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.model.pipeline.v1.RunnerApi.Environment;
 import org.apache.beam.runners.core.construction.BeamUrns;
 import org.apache.beam.runners.fnexecution.GrpcFnServer;
+import org.apache.beam.runners.fnexecution.ServerFactory;
 import org.apache.beam.runners.fnexecution.artifact.ArtifactRetrievalService;
 import org.apache.beam.runners.fnexecution.control.ControlClientPool;
 import org.apache.beam.runners.fnexecution.control.FnApiControlClientPoolService;
@@ -41,6 +42,9 @@ import org.slf4j.LoggerFactory;
 public class ExternalEnvironmentFactory implements EnvironmentFactory {
 
   private static final Logger LOG = LoggerFactory.getLogger(ExternalEnvironmentFactory.class);
+  // setting the environment variable allows to connect to worker pool running in Docker on Mac
+  private static final boolean IS_WORKER_POOL_IN_DOCKER_VM =
+      System.getenv().containsKey("BEAM_WORKER_POOL_IN_DOCKER_VM");
 
   public static ExternalEnvironmentFactory create(
       GrpcFnServer<FnApiControlClientPoolService> controlServiceServer,
@@ -158,6 +162,14 @@ public class ExternalEnvironmentFactory implements EnvironmentFactory {
           provisioningServiceServer,
           clientPool.getSource(),
           idGenerator);
+    }
+
+    @Override
+    public ServerFactory getServerFactory() {
+      if (IS_WORKER_POOL_IN_DOCKER_VM) {
+        return DockerEnvironmentFactory.DockerOnMac.getServerFactory();
+      }
+      return ServerFactory.createDefault();
     }
   }
 }
