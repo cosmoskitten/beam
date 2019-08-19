@@ -17,9 +17,11 @@
  */
 package org.apache.beam.runners.fnexecution.state;
 
+import java.util.Collections;
 import java.util.concurrent.CompletionStage;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateRequest;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateResponse;
+import org.apache.beam.vendor.grpc.v1p21p0.com.google.protobuf.ByteString;
 
 /**
  * Handler for {@link org.apache.beam.model.fnexecution.v1.BeamFnApi.StateRequest StateRequests}.
@@ -36,6 +38,14 @@ public interface StateRequestHandler {
    * exceptionally.
    */
   CompletionStage<StateResponse.Builder> handle(StateRequest request) throws Exception;
+
+  /** Retrieves a list of valid cache tokens. */
+  default Iterable<ByteString> getCacheTokens() {
+    return Collections.emptyList();
+  }
+
+  /** Clears the list of valid cache tokens. */
+  default void clearCacheTokens() {}
 
   static StateRequestHandler unsupported() {
     return request -> {

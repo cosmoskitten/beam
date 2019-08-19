@@ -20,13 +20,17 @@ package org.apache.beam.runners.fnexecution.state;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkState;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.EnumMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.stream.Collectors;
+import javax.annotation.Nullable;
 import javax.annotation.concurrent.ThreadSafe;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateAppendResponse;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateClearResponse;
@@ -46,6 +50,7 @@ import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.util.common.Reiterable;
 import org.apache.beam.vendor.grpc.v1p21p0.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
 import org.apache.beam.vendor.sdk.v2.sdk.extensions.protobuf.ByteStringCoder;
 
 /**
@@ -129,14 +134,48 @@ public class StateRequestHandlers {
      *
      * <p>TODO: Add support for bag user state chunking and caching if a {@link Reiterable} is
      * returned.
+     *
+     * @return The bag value with a cache token (may be {@code null} if there is none).
      */
-    Iterable<V> get(K key, W window);
+    BagWithCacheToken<V> get(K key, W window);
 
-    /** Appends the values to the bag user state for the given key and window. */
-    void append(K key, W window, Iterator<V> values);
+    /**
+     * Appends the values to the bag user state for the given key and window.
+     *
+     * @return The cache token or {@code null}.
+     */
+    @Nullable
+    ByteString append(K key, W window, Iterator<V> values);
 
-    /** Clears the bag user state for the given key and window. */
-    void clear(K key, W window);
+    /**
+     * Clears the bag user state for the given key and window.
+     *
+     * @return The cache token or {@code null}.
+     */
+    @Nullable
+    ByteString clear(K key, W window);
+
+    /** Returns an Iterable over the currently valid cache tokens. */
+    default Iterable<ByteString> getCacheTokens() {
+      return Collections.emptyList();
+    }
+
+    /** Clears the currently valid cache tokens. */
+    default void clearCacheTokens() {}
+
+    class BagWithCacheToken<V> {
+      public final Iterable<V> bagIterable;
+      @Nullable public final ByteString cacheToken;
+
+      public BagWithCacheToken(Iterable<V> bagIterable) {
+        this(bagIterable, null);
+      }
+
+      public BagWithCacheToken(Iterable<V> bagIterable, ByteString cacheToken) {
+        this.bagIterable = bagIterable;
+        this.cacheToken = cacheToken;
+      }
+    }
   }
 
   /**
@@ -155,20 +194,12 @@ public class StateRequestHandlers {
 
     /** Throws a {@link UnsupportedOperationException} on the first access. */
     static <K, V, W extends BoundedWindow> BagUserStateHandlerFactory<K, V, W> unsupported() {
-      return new BagUserStateHandlerFactory<K, V, W>() {
-        @Override
-        public BagUserStateHandler<K, V, W> forUserState(
-            String pTransformId,
-            String userStateId,
-            Coder<K> keyCoder,
-            Coder<V> valueCoder,
-            Coder<W> windowCoder) {
-          throw new UnsupportedOperationException(
-              String.format(
-                  "The %s does not support handling sides inputs for PTransform %s with user state "
-                      + "id %s.",
-                  BagUserStateHandler.class.getSimpleName(), pTransformId, userStateId));
-        }
+      return (pTransformId, userStateId, keyCoder, valueCoder, windowCoder) -> {
+        throw new UnsupportedOperationException(
+            String.format(
+                "The %s does not support handling sides inputs for PTransform %s with user state "
+                    + "id %s.",
+                BagUserStateHandler.class.getSimpleName(), pTransformId, userStateId));
       };
     }
   }
@@ -205,6 +236,14 @@ public class StateRequestHandlers {
           .handle(request);
     }
 
+    @Override
+    public Iterable<ByteString> getCacheTokens() {
+      return Iterables.concat(
+          handlers.values().stream()
+              .map(StateRequestHandler::getCacheTokens)
+              .collect(Collectors.toSet()));
+    }
+
     private CompletionStage<StateResponse.Builder> handlerNotFound(StateRequest request) {
       CompletableFuture<StateResponse.Builder> rval = new CompletableFuture<>();
       rval.completeExceptionally(new IllegalStateException());
@@ -236,14 +275,14 @@ public class StateRequestHandlers {
 
     private final Map<String, Map<String, SideInputSpec>> sideInputSpecs;
     private final SideInputHandlerFactory sideInputHandlerFactory;
-    private final ConcurrentHashMap<SideInputSpec, SideInputHandler> cache;
+    private final ConcurrentHashMap<SideInputSpec, SideInputHandler> handlerCache;
 
     StateRequestHandlerToSideInputHandlerFactoryAdapter(
         Map<String, Map<String, SideInputSpec>> sideInputSpecs,
         SideInputHandlerFactory sideInputHandlerFactory) {
       this.sideInputSpecs = sideInputSpecs;
       this.sideInputHandlerFactory = sideInputHandlerFactory;
-      this.cache = new ConcurrentHashMap<>();
+      this.handlerCache = new ConcurrentHashMap<>();
     }
 
     @Override
@@ -259,7 +298,8 @@ public class StateRequestHandlers {
         StateKey.MultimapSideInput stateKey = request.getStateKey().getMultimapSideInput();
         SideInputSpec<?, ?, ?> referenceSpec =
             sideInputSpecs.get(stateKey.getPtransformId()).get(stateKey.getSideInputId());
-        SideInputHandler<?, ?> handler = cache.computeIfAbsent(referenceSpec, this::createHandler);
+        SideInputHandler<?, ?> handler =
+            handlerCache.computeIfAbsent(referenceSpec, this::createHandler);
 
         switch (request.getRequestCase()) {
           case GET:
@@ -276,6 +316,11 @@ public class StateRequestHandlers {
         f.completeExceptionally(e);
         return f;
       }
+    }
+
+    @Override
+    public Iterable<ByteString> getCacheTokens() {
+      return Collections.emptyList();
     }
 
     private <K, V, W extends BoundedWindow> CompletionStage<StateResponse.Builder> handleGetRequest(
@@ -347,14 +392,14 @@ public class StateRequestHandlers {
 
     private final ExecutableProcessBundleDescriptor processBundleDescriptor;
     private final BagUserStateHandlerFactory handlerFactory;
-    private final ConcurrentHashMap<BagUserStateSpec, BagUserStateHandler> cache;
+    private final ConcurrentHashMap<BagUserStateSpec, BagUserStateHandler> handlerCache;
 
     ByteStringStateRequestHandlerToBagUserStateHandlerFactoryAdapter(
         ExecutableProcessBundleDescriptor processBundleDescriptor,
         BagUserStateHandlerFactory handlerFactory) {
       this.processBundleDescriptor = processBundleDescriptor;
       this.handlerFactory = handlerFactory;
-      this.cache = new ConcurrentHashMap<>();
+      this.handlerCache = new ConcurrentHashMap<>();
     }
 
     @Override
@@ -390,7 +435,7 @@ public class StateRequestHandlers {
             ByteStringCoder.class.getSimpleName());
 
         BagUserStateHandler<ByteString, ByteString, BoundedWindow> handler =
-            cache.computeIfAbsent(referenceSpec, this::createHandler);
+            handlerCache.computeIfAbsent(referenceSpec, this::createHandler);
 
         ByteString key = stateKey.getKey();
         BoundedWindow window = referenceSpec.windowCoder().decode(stateKey.getWindow().newInput());
@@ -414,6 +459,18 @@ public class StateRequestHandlers {
       }
     }
 
+    @Override
+    public Iterable<ByteString> getCacheTokens() {
+      Set allTokens =
+          handlerCache.values().stream().map(h -> h.getCacheTokens()).collect(Collectors.toSet());
+      return Iterables.concat(allTokens);
+    }
+
+    @Override
+    public void clearCacheTokens() {
+      handlerCache.values().forEach(h -> h.clearCacheTokens());
+    }
+
     private static <W extends BoundedWindow>
         CompletionStage<StateResponse.Builder> handleGetRequest(
             StateRequest request,
@@ -426,13 +483,21 @@ public class StateRequestHandlers {
           request.getGet().getContinuationToken().isEmpty(),
           "Continuation tokens are unsupported.");
 
-      return CompletableFuture.completedFuture(
+      BagUserStateHandler.BagWithCacheToken bagWithCacheToken = handler.get(key, window);
+
+      StateResponse.Builder responseBuilder =
           StateResponse.newBuilder()
               .setId(request.getId())
               .setGet(
                   StateGetResponse.newBuilder()
                       // Note that this doesn't copy the actual bytes, just the references.
-                      .setData(ByteString.copyFrom(handler.get(key, window)))));
+                      .setData(ByteString.copyFrom(bagWithCacheToken.bagIterable)));
+
+      if (bagWithCacheToken.cacheToken != null) {
+        responseBuilder.setCacheToken(bagWithCacheToken.cacheToken);
+      }
+
+      return CompletableFuture.completedFuture(responseBuilder);
     }
 
     private static <W extends BoundedWindow>
@@ -441,11 +506,19 @@ public class StateRequestHandlers {
             ByteString key,
             W window,
             BagUserStateHandler<ByteString, ByteString, W> handler) {
-      handler.append(key, window, ImmutableList.of(request.getAppend().getData()).iterator());
-      return CompletableFuture.completedFuture(
+      ByteString cacheToken =
+          handler.append(key, window, ImmutableList.of(request.getAppend().getData()).iterator());
+
+      StateResponse.Builder responseBuilder =
           StateResponse.newBuilder()
               .setId(request.getId())
-              .setAppend(StateAppendResponse.getDefaultInstance()));
+              .setAppend(StateAppendResponse.getDefaultInstance());
+
+      if (cacheToken != null) {
+        responseBuilder.setCacheToken(cacheToken);
+      }
+
+      return CompletableFuture.completedFuture(responseBuilder);
     }
 
     private static <W extends BoundedWindow>
@@ -454,11 +527,18 @@ public class StateRequestHandlers {
             ByteString key,
             W window,
             BagUserStateHandler<ByteString, ByteString, W> handler) {
-      handler.clear(key, window);
-      return CompletableFuture.completedFuture(
+      ByteString cacheToken = handler.clear(key, window);
+
+      StateResponse.Builder responseBuilder =
           StateResponse.newBuilder()
               .setId(request.getId())
-              .setClear(StateClearResponse.getDefaultInstance()));
+              .setClear(StateClearResponse.getDefaultInstance());
+
+      if (cacheToken != null) {
+        responseBuilder.setCacheToken(cacheToken);
+      }
+
+      return CompletableFuture.completedFuture(responseBuilder);
     }
 
     private <K, V, W extends BoundedWindow> BagUserStateHandler<K, V, W> createHandler(
