@@ -147,18 +147,18 @@ public class ExternalEnvironmentFactory implements EnvironmentFactory {
       public void close() throws Exception {
         finalInstructionHandler.close();
         BeamFnApi.StopWorkerRequest stopWorkerRequest =
-                BeamFnApi.StopWorkerRequest.newBuilder().setWorkerId(workerId).build();
+            BeamFnApi.StopWorkerRequest.newBuilder().setWorkerId(workerId).build();
         LOG.debug("Closing worker ID {}", workerId);
         BeamFnApi.StartWorkerResponse stopWorkerResponse =
-                BeamFnExternalWorkerPoolGrpc.newBlockingStub(
-                        ManagedChannelFactory.createDefault().forDescriptor(externalPayload.getEndpoint()))
-                        .stopWorker(stopWorkerRequest);
+            BeamFnExternalWorkerPoolGrpc.newBlockingStub(
+                    ManagedChannelFactory.createDefault()
+                        .forDescriptor(externalPayload.getEndpoint()))
+                .stopWorker(stopWorkerRequest);
         if (!stopWorkerResponse.getError().isEmpty()) {
           throw new RuntimeException(stopWorkerResponse.getError());
         }
       }
     };
-
   }
 
   /** Provider of ExternalEnvironmentFactory. */
