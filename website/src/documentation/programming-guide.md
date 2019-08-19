@@ -3030,7 +3030,7 @@ MetricQueryResults metrics =
                 .addNameFilter(MetricNameFilter.named("namespace", "counter1"))
                 .build());
 
-// Find and print the queried counter:
+// find and print the queried counter, it's expected that only one line will be printed:
 for (MetricResult<Long> counter: metrics.getCounters()) {
   System.out.println(counter.getName() + ":" + counter.getAttempted());
 }
