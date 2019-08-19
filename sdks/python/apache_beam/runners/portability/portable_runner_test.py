@@ -294,9 +294,9 @@ class PortableRunnerInternalTest(unittest.TestCase):
             ).SerializeToString()))
 
 
-class PortableRunnerTestWithDocker(PortableRunnerTest):
+class PortableRunnerTestWithLocalDocker(PortableRunnerTest):
   def create_options(self):
-    options = super(PortableRunnerTestWithDocker, self).create_options()
+    options = super(PortableRunnerTestWithLocalDocker, self).create_options()
     options.view_as(PortableOptions).job_endpoint = 'embed'
     return options
 
