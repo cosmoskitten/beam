@@ -20,7 +20,6 @@ package org.apache.beam.runners.spark.translation;
 import java.io.Serializable;
 import java.util.HashMap;
 import java.util.Iterator;
-import java.util.List;
 import java.util.Map;
 import org.apache.beam.runners.core.InMemoryStateInternals;
 import org.apache.beam.runners.core.StateInternals;
@@ -195,7 +194,7 @@ public final class TranslationUtils {
    * @return a map of tagged {@link SideInputBroadcast}s and their {@link WindowingStrategy}.
    */
   static Map<TupleTag<?>, KV<WindowingStrategy<?, ?>, SideInputBroadcast<?>>> getSideInputs(
-      List<PCollectionView<?>> views, EvaluationContext context) {
+      Iterable<PCollectionView<?>> views, EvaluationContext context) {
     return getSideInputs(views, context.getSparkContext(), context.getPViews());
   }
 
@@ -208,7 +207,7 @@ public final class TranslationUtils {
    * @return a map of tagged {@link SideInputBroadcast}s and their {@link WindowingStrategy}.
    */
   public static Map<TupleTag<?>, KV<WindowingStrategy<?, ?>, SideInputBroadcast<?>>> getSideInputs(
-      List<PCollectionView<?>> views, JavaSparkContext context, SparkPCollectionView pviews) {
+      Iterable<PCollectionView<?>> views, JavaSparkContext context, SparkPCollectionView pviews) {
     if (views == null) {
       return ImmutableMap.of();
     } else {

@@ -59,7 +59,7 @@ import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Sets;
  * data.apply(Wait.on(firstWriteResults))
  *     // Windows of this intermediate PCollection will be processed no earlier than when
  *     // the respective window of firstWriteResults closes.
- *     .apply(ParDo.of(...write to second database...));
+ *     .apply(ParDo.of(...writ  e to second database...));
  * }</pre>
  *
  * <p>Notes:

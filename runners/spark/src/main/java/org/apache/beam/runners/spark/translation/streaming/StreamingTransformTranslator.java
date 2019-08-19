@@ -406,6 +406,8 @@ public final class StreamingTransformTranslator {
 
         final DoFnSchemaInformation doFnSchemaInformation =
             ParDoTranslation.getSchemaInformation(context.getCurrentTransform());
+        final Map<String, String> sideInputMapping =
+            ParDoTranslation.getSideInputMapping(context.getCurrentTransform());
 
         final String stepName = context.getCurrentTransform().getFullName();
         JavaPairDStream<TupleTag<?>, WindowedValue<?>> all =
@@ -433,7 +435,8 @@ public final class StreamingTransformTranslator {
                           sideInputs,
                           windowingStrategy,
                           false,
-                          doFnSchemaInformation));
+                          doFnSchemaInformation,
+                          sideInputMapping));
                 });
 
         Map<TupleTag<?>, PValue> outputs = context.getOutputs(transform);

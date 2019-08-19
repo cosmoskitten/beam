@@ -76,10 +76,12 @@ class ParDoTranslator<InputT, OutputT>
 
     Map<TupleTag<?>, PValue> outputs = context.getOutputs();
     PCollection<InputT> input = context.getInput();
-    List<PCollectionView<?>> sideInputs = transform.getSideInputs();
+    Iterable<PCollectionView<?>> sideInputs = transform.getSideInputs().values();
 
     DoFnSchemaInformation doFnSchemaInformation;
     doFnSchemaInformation = ParDoTranslation.getSchemaInformation(context.getCurrentTransform());
+    Map<String, String> sideInputMapping =
+        ParDoTranslation.getSideInputMapping(context.getCurrentTransform());
 
     Map<TupleTag<?>, Coder<?>> outputCoders =
         outputs.entrySet().stream()
@@ -97,6 +99,7 @@ class ParDoTranslator<InputT, OutputT>
             input.getCoder(),
             outputCoders,
             doFnSchemaInformation,
+            sideInputMapping,
             context.getStateBackend());
 
     Map<PCollection<?>, OutputPort<?>> ports = Maps.newHashMapWithExpectedSize(outputs.size());

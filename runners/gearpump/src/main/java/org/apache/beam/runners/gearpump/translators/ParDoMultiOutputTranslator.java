@@ -77,6 +77,9 @@ public class ParDoMultiOutputTranslator<InputT, OutputT>
     DoFnSchemaInformation doFnSchemaInformation;
     doFnSchemaInformation = ParDoTranslation.getSchemaInformation(context.getCurrentTransform());
 
+    Map<String, String> sideInputMapping =
+        ParDoTranslation.getSideInputMapping(context.getCurrentTransform());
+
     JavaStream<TranslatorUtils.RawUnionValue> outputStream =
         TranslatorUtils.toList(unionStream)
             .flatMap(
@@ -89,7 +92,8 @@ public class ParDoMultiOutputTranslator<InputT, OutputT>
                     mainOutput,
                     outputCoders,
                     sideOutputs,
-                    doFnSchemaInformation),
+                    doFnSchemaInformation,
+                    sideInputMapping),
                 transform.getName());
     for (Map.Entry<TupleTag<?>, PValue> output : outputs.entrySet()) {
       JavaStream<WindowedValue<OutputT>> taggedStream =

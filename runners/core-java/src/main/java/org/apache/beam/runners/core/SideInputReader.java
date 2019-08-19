@@ -40,4 +40,7 @@ public interface SideInputReader {
 
   /** Returns true if there are no side inputs in this reader. */
   boolean isEmpty();
+
+  /** Returns {@link PCollectionView} from a given sideInput tag id. */
+  PCollectionView get(String tagId);
 }

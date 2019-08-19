@@ -1091,7 +1091,7 @@ public class PubsubIO {
         PubsubTopic topic = getTopicProvider().get();
         int n =
             pubsubClient.publish(
-                PubsubClient.topicPathFromName(topic.project, topic.topic), output);
+                PubsubClient.top.topicPathFromName(topic.project, topic.topic), output);
         checkState(n == output.size());
         output.clear();
         currentOutputBytes = 0;

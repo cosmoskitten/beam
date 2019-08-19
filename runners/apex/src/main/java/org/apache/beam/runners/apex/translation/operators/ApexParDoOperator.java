@@ -115,7 +115,7 @@ public class ApexParDoOperator<InputT, OutputT> extends BaseOperator
   private final WindowingStrategy<?, ?> windowingStrategy;
 
   @Bind(JavaSerializer.class)
-  private final List<PCollectionView<?>> sideInputs;
+  private final Iterable<PCollectionView<?>> sideInputs;
 
   @Bind(JavaSerializer.class)
   private final Coder<WindowedValue<InputT>> windowedInputCoder;
@@ -128,6 +128,9 @@ public class ApexParDoOperator<InputT, OutputT> extends BaseOperator
 
   @Bind(JavaSerializer.class)
   private final DoFnSchemaInformation doFnSchemaInformation;
+
+  @Bind(JavaSerializer.class)
+  private final Map<String, String> sideInputMapping;
 
   private StateInternalsProxy<?> currentKeyStateInternals;
   private final ApexTimerInternals<Object> currentKeyTimerInternals;
@@ -152,10 +155,11 @@ public class ApexParDoOperator<InputT, OutputT> extends BaseOperator
       TupleTag<OutputT> mainOutputTag,
       List<TupleTag<?>> additionalOutputTags,
       WindowingStrategy<?, ?> windowingStrategy,
-      List<PCollectionView<?>> sideInputs,
+      Iterable<PCollectionView<?>> sideInputs,
       Coder<InputT> inputCoder,
       Map<TupleTag<?>, Coder<?>> outputCoders,
       DoFnSchemaInformation doFnSchemaInformation,
+      Map<String, String> sideInputMapping,
       ApexStateBackend stateBackend) {
     this.pipelineOptions = new SerializablePipelineOptions(pipelineOptions);
     this.doFn = doFn;
@@ -186,6 +190,7 @@ public class ApexParDoOperator<InputT, OutputT> extends BaseOperator
         TimerInternals.TimerDataCoder.of(windowingStrategy.getWindowFn().windowCoder());
     this.currentKeyTimerInternals = new ApexTimerInternals<>(timerCoder);
     this.doFnSchemaInformation = doFnSchemaInformation;
+    this.sideInputMapping = sideInputMapping;
 
     if (doFn instanceof ProcessFn) {
       // we know that it is keyed on byte[]
@@ -219,6 +224,7 @@ public class ApexParDoOperator<InputT, OutputT> extends BaseOperator
     this.outputCoders = Collections.emptyMap();
     this.currentKeyTimerInternals = null;
     this.doFnSchemaInformation = null;
+    this.sideInputMapping = null;
   }
 
   public final transient DefaultInputPort<ApexStreamTuple<WindowedValue<InputT>>> input =
@@ -476,7 +482,8 @@ public class ApexParDoOperator<InputT, OutputT> extends BaseOperator
             inputCoder,
             outputCoders,
             windowingStrategy,
-            doFnSchemaInformation);
+            doFnSchemaInformation,
+            sideInputMapping);
 
     doFnInvoker = DoFnInvokers.invokerFor(doFn);
     doFnInvoker.invokeSetup();

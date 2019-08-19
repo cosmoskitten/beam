@@ -118,13 +118,13 @@ public class PrimitiveParDoSingleFactory<InputT, OutputT>
       return onlyOutputTag;
     }
 
-    public List<PCollectionView<?>> getSideInputs() {
+    public Map<String, PCollectionView<?>> getSideInputs() {
       return original.getSideInputs();
     }
 
     @Override
     public Map<TupleTag<?>, PValue> getAdditionalInputs() {
-      return PCollectionViews.toAdditionalInputs(getSideInputs());
+      return PCollectionViews.toAdditionalInputs(getSideInputs().values());
     }
 
     @Override
