@@ -70,6 +70,8 @@ import org.apache.beam.runners.fnexecution.state.StateRequestHandler;
 import org.apache.beam.runners.fnexecution.state.StateRequestHandlers;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.VoidCoder;
+import org.apache.beam.sdk.fn.IdGenerator;
+import org.apache.beam.sdk.fn.IdGenerators;
 import org.apache.beam.sdk.fn.data.FnDataReceiver;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.state.BagState;
@@ -85,7 +87,10 @@ import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.WindowingStrategy;
 import org.apache.beam.vendor.grpc.v1p21p0.com.google.protobuf.ByteString;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Charsets;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.cache.Cache;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.cache.CacheBuilder;
 import org.apache.beam.vendor.sdk.v2.sdk.extensions.protobuf.ByteStringCoder;
 import org.apache.flink.api.common.state.ListStateDescriptor;
 import org.apache.flink.api.common.typeutils.base.StringSerializer;
@@ -248,14 +253,21 @@ public class ExecutableStageDoFnOperator<InputT, OutputT> extends DoFnOperator<I
     return StateRequestHandlers.delegateBasedUponType(handlerMap);
   }
 
-  private static class BagUserStateFactory<K extends ByteString, V, W extends BoundedWindow>
+  static class BagUserStateFactory<K extends ByteString, V, W extends BoundedWindow>
       implements StateRequestHandlers.BagUserStateHandlerFactory<K, V, W> {
+
+    /** Upper limit of the number of valid cache tokens to hand out to the SDK. */
+    private static final int MAX_CACHE_SIZE = 100;
 
     private final StateInternals stateInternals;
     private final KeyedStateBackend<ByteBuffer> keyedStateBackend;
     private final Lock stateBackendLock;
+    /** Cache is scoped by state id. */
+    private final Cache<String, ByteString> cacheTokens;
 
-    private BagUserStateFactory(
+    private final IdGenerator cacheTokenGenerator;
+
+    BagUserStateFactory(
         StateInternals stateInternals,
         KeyedStateBackend<ByteBuffer> keyedStateBackend,
         Lock stateBackendLock) {
@@ -263,18 +275,23 @@ public class ExecutableStageDoFnOperator<InputT, OutputT> extends DoFnOperator<I
       this.stateInternals = stateInternals;
       this.keyedStateBackend = keyedStateBackend;
       this.stateBackendLock = stateBackendLock;
+      this.cacheTokens = CacheBuilder.newBuilder().maximumSize(MAX_CACHE_SIZE).build();
+      this.cacheTokenGenerator = IdGenerators.incrementingLongs();
     }
 
     @Override
     public StateRequestHandlers.BagUserStateHandler<K, V, W> forUserState(
+        // Transform id not used because multiple operators with state will not
+        // be fused together. See GreedyPCollectionFusers
         String pTransformId,
         String userStateId,
         Coder<K> keyCoder,
         Coder<V> valueCoder,
         Coder<W> windowCoder) {
       return new StateRequestHandlers.BagUserStateHandler<K, V, W>() {
+
         @Override
-        public Iterable<V> get(K key, W window) {
+        public BagWithCacheToken<V> get(K key, W window) {
           try {
             stateBackendLock.lock();
             prepareStateBackend(key);
@@ -289,14 +306,15 @@ public class ExecutableStageDoFnOperator<InputT, OutputT> extends DoFnOperator<I
             }
             BagState<V> bagState =
                 stateInternals.state(namespace, StateTags.bag(userStateId, valueCoder));
-            return bagState.read();
+
+            return new BagWithCacheToken<>(bagState.read(), generateAndRegisterCacheKey());
           } finally {
             stateBackendLock.unlock();
           }
         }
 
         @Override
-        public void append(K key, W window, Iterator<V> values) {
+        public ByteString append(K key, W window, Iterator<V> values) {
           try {
             stateBackendLock.lock();
             prepareStateBackend(key);
@@ -314,13 +332,15 @@ public class ExecutableStageDoFnOperator<InputT, OutputT> extends DoFnOperator<I
             while (values.hasNext()) {
               bagState.add(values.next());
             }
+
+            return generateAndRegisterCacheKey();
           } finally {
             stateBackendLock.unlock();
           }
         }
 
         @Override
-        public void clear(K key, W window) {
+        public ByteString clear(K key, W window) {
           try {
             stateBackendLock.lock();
             prepareStateBackend(key);
@@ -336,9 +356,27 @@ public class ExecutableStageDoFnOperator<InputT, OutputT> extends DoFnOperator<I
             BagState<V> bagState =
                 stateInternals.state(namespace, StateTags.bag(userStateId, valueCoder));
             bagState.clear();
+
+            return generateAndRegisterCacheKey();
           } finally {
             stateBackendLock.unlock();
           }
+        }
+
+        @Override
+        public Iterable<ByteString> getCacheTokens() {
+          return cacheTokens.asMap().values();
+        }
+
+        @Override
+        public void clearCacheTokens() {
+          cacheTokens.invalidateAll();
+        }
+
+        private ByteString generateAndRegisterCacheKey() {
+          ByteString cacheToken = ByteString.copyFrom(cacheTokenGenerator.getId(), Charsets.UTF_8);
+          cacheTokens.put(userStateId, cacheToken);
+          return cacheToken;
         }
 
         private void prepareStateBackend(K key) {

@@ -32,9 +32,11 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoMoreInteractions;
 import static org.mockito.Mockito.when;
 
+import com.google.common.base.Charsets;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
@@ -73,6 +75,7 @@ import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.util.WindowedValue.FullWindowedValueCoder;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TupleTagList;
+import org.apache.beam.vendor.grpc.v1p21p0.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
 import org.junit.Before;
@@ -82,6 +85,7 @@ import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 import org.mockito.Mock;
+import org.mockito.Mockito;
 import org.mockito.MockitoAnnotations;
 
 /** Unit tests for {@link SdkHarnessClient}. */
@@ -572,6 +576,40 @@ public class SdkHarnessClientTest {
     } catch (Exception e) {
       assertEquals(testException, e);
     }
+  }
+
+  @Test
+  public void verifyCacheTokensAreUsedInNewBundleRequest() {
+    CompletableFuture<InstructionResponse> registerResponseFuture = new CompletableFuture<>();
+    when(fnApiControlClient.handle(any(BeamFnApi.InstructionRequest.class)))
+        .thenReturn(registerResponseFuture);
+
+    ProcessBundleDescriptor descriptor1 =
+        ProcessBundleDescriptor.newBuilder().setId("descriptor1").build();
+
+    Map<String, RemoteInputDestination<WindowedValue<?>>> remoteInputs =
+        Collections.singletonMap(
+            "inputPC",
+            RemoteInputDestination.of(
+                (FullWindowedValueCoder)
+                    FullWindowedValueCoder.of(VarIntCoder.of(), GlobalWindow.Coder.INSTANCE),
+                SDK_GRPC_READ_TRANSFORM));
+
+    BundleProcessor processor1 = sdkHarnessClient.getProcessor(descriptor1, remoteInputs);
+    when(dataService.send(any(), any())).thenReturn(mock(CloseableFnDataReceiver.class));
+
+    StateRequestHandler stateRequestHandler = Mockito.mock(StateRequestHandler.class);
+    List<ByteString> cacheTokens =
+        Collections.singletonList(ByteString.copyFrom("testToken", Charsets.UTF_8));
+    when(stateRequestHandler.getCacheTokens()).thenReturn(cacheTokens);
+
+    processor1.newBundle(
+        ImmutableMap.of(SDK_GRPC_WRITE_TRANSFORM, mock(RemoteOutputReceiver.class)),
+        stateRequestHandler,
+        BundleProgressHandler.ignored());
+
+    // Verify that the cache token list is retrieved from the state handler
+    Mockito.verify(stateRequestHandler).getCacheTokens();
   }
 
   private static class TestFn extends DoFn<String, String> {
