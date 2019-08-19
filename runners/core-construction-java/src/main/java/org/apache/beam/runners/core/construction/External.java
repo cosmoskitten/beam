@@ -24,6 +24,7 @@ import java.util.Collections;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
 import javax.annotation.Nullable;
+
 import org.apache.beam.model.expansion.v1.ExpansionApi;
 import org.apache.beam.model.pipeline.v1.Endpoints;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
@@ -40,6 +41,7 @@ import org.apache.beam.sdk.values.PValue;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.vendor.grpc.v1p21p0.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.grpc.v1p21p0.io.grpc.ManagedChannelBuilder;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Strings;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
 
@@ -185,6 +187,10 @@ public class External {
 
       ExpansionApi.ExpansionResponse response =
           DEFAULT.getExpansionServiceClient(endpoint).expand(request);
+
+      if(!Strings.isNullOrEmpty(response.getError())) {
+        throw new RuntimeException(String.format("expansion service error: %s", response.getError()));
+      }
 
       expandedComponents = response.getComponents();
       expandedTransform = response.getTransform();
