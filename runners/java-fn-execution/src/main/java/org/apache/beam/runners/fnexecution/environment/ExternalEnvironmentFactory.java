@@ -96,8 +96,8 @@ public class ExternalEnvironmentFactory implements EnvironmentFactory {
         RunnerApi.ExternalPayload.parseFrom(environment.getPayload());
     final String workerId = idGenerator.getId();
 
-    BeamFnApi.NotifyRunnerAvailableRequest notifyRunnerAvailableRequest =
-        BeamFnApi.NotifyRunnerAvailableRequest.newBuilder()
+    BeamFnApi.StartWorkerRequest startWorkerRequest =
+        BeamFnApi.StartWorkerRequest.newBuilder()
             .setWorkerId(workerId)
             .setControlEndpoint(controlServiceServer.getApiServiceDescriptor())
             .setLoggingEndpoint(loggingServiceServer.getApiServiceDescriptor())
@@ -107,12 +107,12 @@ public class ExternalEnvironmentFactory implements EnvironmentFactory {
             .build();
 
     LOG.debug("Requesting worker ID {}", workerId);
-    BeamFnApi.NotifyRunnerAvailableResponse notifyRunnerAvailableResponse =
+    BeamFnApi.StartWorkerResponse startWorkerResponse =
         BeamFnExternalWorkerPoolGrpc.newBlockingStub(
                 ManagedChannelFactory.createDefault().forDescriptor(externalPayload.getEndpoint()))
-            .notifyRunnerAvailable(notifyRunnerAvailableRequest);
-    if (!notifyRunnerAvailableResponse.getError().isEmpty()) {
-      throw new RuntimeException(notifyRunnerAvailableResponse.getError());
+            .startWorker(startWorkerRequest);
+    if (!startWorkerResponse.getError().isEmpty()) {
+      throw new RuntimeException(startWorkerResponse.getError());
     }
 
     // Wait on a client from the gRPC server.
@@ -142,7 +142,23 @@ public class ExternalEnvironmentFactory implements EnvironmentFactory {
       public InstructionRequestHandler getInstructionRequestHandler() {
         return finalInstructionHandler;
       }
+
+      @Override
+      public void close() throws Exception {
+        finalInstructionHandler.close();
+        BeamFnApi.StopWorkerRequest stopWorkerRequest =
+                BeamFnApi.StopWorkerRequest.newBuilder().setWorkerId(workerId).build();
+        LOG.debug("Closing worker ID {}", workerId);
+        BeamFnApi.StartWorkerResponse stopWorkerResponse =
+                BeamFnExternalWorkerPoolGrpc.newBlockingStub(
+                        ManagedChannelFactory.createDefault().forDescriptor(externalPayload.getEndpoint()))
+                        .stopWorker(stopWorkerRequest);
+        if (!stopWorkerResponse.getError().isEmpty()) {
+          throw new RuntimeException(stopWorkerResponse.getError());
+        }
+      }
     };
+
   }
 
   /** Provider of ExternalEnvironmentFactory. */
