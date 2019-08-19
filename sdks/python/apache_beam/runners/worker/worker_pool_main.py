@@ -23,6 +23,7 @@ import argparse
 import logging
 import sys
 import subprocess
+import threading
 import time
 from concurrent import futures
 
@@ -49,7 +50,7 @@ class BeamFnExternalWorkerPoolServicer(
         worker_server.start()
         return worker_address, worker_server
 
-    def NotifyRunnerAvailable(self, start_worker_request, context):
+    def StartWorker(self, start_worker_request, unused_context):
         try:
             if self._use_process:
                 command = ['python', '-c',
@@ -85,10 +86,15 @@ class BeamFnExternalWorkerPoolServicer(
                 worker_thread.daemon = True
                 worker_thread.start()
 
-            return beam_fn_api_pb2.NotifyRunnerAvailableResponse()
+            return beam_fn_api_pb2.StartWorkerResponse()
         except Exception as exn:
-            return beam_fn_api_pb2.NotifyRunnerAvailableResponse(
+            return beam_fn_api_pb2.StartWorkerResponse(
                 error=str(exn))
+
+    def StopWorker(self, stop_worker_request, unused_context):
+        logging.info("Stopping worker %s" % stop_worker_request.worker_id)
+        return beam_fn_api_pb2.StartWorkerResponse()
+
 
 def main(argv=None):
     """Entry point for launching the worker pool service for external environment."""
