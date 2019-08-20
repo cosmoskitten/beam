@@ -116,15 +116,15 @@ def main(argv=None):
   """Entry point for worker pool service for external environments."""
 
   parser = argparse.ArgumentParser()
-  parser.add_argument('--worker_threads',
+  parser.add_argument('--threads_per_worker',
                       type=int,
                       default=12,
                       help='Number of threads per SDK worker.')
   parser.add_argument('--container_executable',
                       type=str,
                       default=None,
-                      help='Executable that implements the container contract.')
-  parser.add_argument('--servicer_port',
+                      help='Executable that implements the Beam SDK container contract.')
+  parser.add_argument('--service_port',
                       type=int,
                       required=True,
                       help='Bind port for the worker pool service.')
