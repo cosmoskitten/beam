@@ -17,8 +17,8 @@
 """
 Worker pool entry point.
 
-The worker pool exposes an RPC service that can be used by EXTERNAL
-environments to start and stop the SDK workers.
+The worker pool exposes an RPC service that is used with EXTERNAL
+environment to start and stop the SDK workers.
 
 This entry point is used by the Python SDK container in worker pool mode.
 """
