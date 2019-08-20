@@ -68,8 +68,8 @@ func main() {
             "--servicer_port=50000",
             "--container_executable=/opt/apache/beam/boot",
         }
-        log.Printf("Executing: python %v", strings.Join(args, " "))
-        log.Fatalf("Python exited: %v", execx.Execute("python", args...))
+        log.Printf("Starting Python SDK worker pool: python %v", strings.Join(args, " "))
+        log.Fatalf("Python SDK worker pool exited: %v", execx.Execute("python", args...))
 	}
 
 	if *id == "" {
