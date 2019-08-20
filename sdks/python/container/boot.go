@@ -65,7 +65,7 @@ func main() {
 		args := []string{
 			"-m",
 			"apache_beam.runners.worker.worker_pool_main",
-			"--servicer_port=50000",
+			"--service_port=50000",
 			"--container_executable=/opt/apache/beam/boot",
 		}
 		log.Printf("Starting Python SDK worker pool: python %v", strings.Join(args, " "))

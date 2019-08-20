@@ -140,9 +140,9 @@ def main(argv=None):
   args, _ = parser.parse_known_args(argv)
 
   address, server = (BeamFnExternalWorkerPoolServicer.start(
-      worker_threads=args.worker_threads,
+      worker_threads=args.threads_per_worker,
       use_process=True,
-      port=args.servicer_port,
+      port=args.service_port,
       container_executable=args.container_executable))
   logging.getLogger().setLevel(logging.INFO)
   logging.info('Started worker pool servicer at port: %s with executable: %s',
