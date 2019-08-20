@@ -40,6 +40,7 @@ class BeamFnExternalWorkerPoolServicer(
         self._worker_threads = worker_threads
         self._use_process = use_process
         self._container_executable = container_executable
+        self._worker_processes = {}
 
     @classmethod
     def start(cls, worker_threads=1, use_process=False, port=0, container_executable=None):
@@ -70,8 +71,9 @@ class BeamFnExternalWorkerPoolServicer(
                                '--control_endpoint=%s' % start_worker_request.control_endpoint.url,
                                ]
 
-                logging.warn("Starting worker with command %s" % (command))
+                logging.warn("Starting worker with command %s" % command)
                 worker_process = subprocess.Popen(command, stdout=subprocess.PIPE)
+                self._worker_processes[start_worker_request.worker_id] = worker_process
 
                 # Register to kill the subprocess on exit.
                 atexit.register(worker_process.kill)
@@ -92,7 +94,10 @@ class BeamFnExternalWorkerPoolServicer(
                 error=str(exn))
 
     def StopWorker(self, stop_worker_request, unused_context):
-        logging.info("Stopping worker %s" % stop_worker_request.worker_id)
+        worker_process = self._worker_processes.pop(stop_worker_request.worker_id)
+        if worker_process:
+          logging.info("Stopping worker %s" % stop_worker_request.worker_id)
+          worker_process.kill
         return beam_fn_api_pb2.StartWorkerResponse()
 
 
