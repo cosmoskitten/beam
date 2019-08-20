@@ -106,8 +106,16 @@ class BeamFnExternalWorkerPoolServicer(
   def StopWorker(self, stop_worker_request, unused_context):
     worker_process = self._worker_processes.pop(stop_worker_request.worker_id)
     if worker_process:
+      def kill_worker_process():
+        try:
+          worker_process.kill()
+        except OSError:
+          # ignore already terminated process
+          return
       logging.info("Stopping worker %s" % stop_worker_request.worker_id)
-      threading.Timer(1, lambda: worker_process.kill()).start()
+      # communicate is necessary to avoid zombie process
+      # time box communicate (it has no timeout parameter in Py2)
+      threading.Timer(1, kill_worker_process).start()
       worker_process.communicate()
     return beam_fn_api_pb2.StartWorkerResponse()
 
