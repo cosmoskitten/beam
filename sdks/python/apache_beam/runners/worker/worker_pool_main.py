@@ -14,7 +14,14 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
-"""Worker pool entry point."""
+"""
+Worker pool entry point.
+
+The worker pool exposes an RPC service that can be used by EXTERNAL
+environments to start and stop the SDK workers.
+
+This entry point is used by the Python SDK container in worker pool mode.
+"""
 
 from __future__ import absolute_import
 
@@ -126,24 +133,24 @@ def main(argv=None):
   parser = argparse.ArgumentParser()
   parser.add_argument('--threads_per_worker',
                       type=int,
-                      default=12,
+                      default=argparse.SUPPRESS,
+                      dest='worker_threads',
                       help='Number of threads per SDK worker.')
   parser.add_argument('--container_executable',
                       type=str,
                       default=None,
-                      help='Executable that implements the Beam SDK container contract.')
+                      help='Executable that implements the Beam SDK '
+                           'container contract.')
   parser.add_argument('--service_port',
                       type=int,
                       required=True,
+                      dest='port',
                       help='Bind port for the worker pool service.')
 
   args, _ = parser.parse_known_args(argv)
 
-  address, server = (BeamFnExternalWorkerPoolServicer.start(
-      worker_threads=args.threads_per_worker,
-      use_process=True,
-      port=args.service_port,
-      container_executable=args.container_executable))
+  address, server = (BeamFnExternalWorkerPoolServicer.start(use_process=True,
+                                                            **vars(args)))
   logging.getLogger().setLevel(logging.INFO)
   logging.info('Started worker pool servicer at port: %s with executable: %s',
                address, args.container_executable)
