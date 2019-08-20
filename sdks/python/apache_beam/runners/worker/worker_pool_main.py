@@ -97,7 +97,8 @@ class BeamFnExternalWorkerPoolServicer(
         worker_process = self._worker_processes.pop(stop_worker_request.worker_id)
         if worker_process:
           logging.info("Stopping worker %s" % stop_worker_request.worker_id)
-          worker_process.kill
+          threading.Timer(1, lambda: worker_process.kill()).start()
+          worker_process.communicate()
         return beam_fn_api_pb2.StartWorkerResponse()
 
 
