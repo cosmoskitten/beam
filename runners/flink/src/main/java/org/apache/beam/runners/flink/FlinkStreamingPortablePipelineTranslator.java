@@ -92,11 +92,9 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditio
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.BiMap;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.HashMultiset;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableSet;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Maps;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Sets;
 import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.common.functions.FlatMapFunction;
 import org.apache.flink.api.common.functions.MapFunction;
@@ -224,12 +222,7 @@ public class FlinkStreamingPortablePipelineTranslator
 
   @Override
   public Set<String> knownUrns() {
-    // Do not expose Read as a known URN because we only want to support Read
-    // through the Java ExpansionService. We can't translate Reads for other
-    // languages.
-    return Sets.difference(
-        urnToTransformTranslator.keySet(),
-        ImmutableSet.of(PTransformTranslation.READ_TRANSFORM_URN));
+    return urnToTransformTranslator.keySet();
   }
 
   @Override
