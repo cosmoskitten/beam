@@ -33,18 +33,16 @@ class SdfReadLineRestrictionProvider(core.RestrictionProvider):
       return f.tell()
 
   def initial_restriction(self, element):
-    return (0, self._get_file_size(element['file_pattern']))
+    return OffsetRange(0, self._get_file_size(element['file_pattern']))
 
   def create_tracker(self, restriction):
-    return OffsetRestrictionTracker(restriction[0], restriction[1])
+    return OffsetRestrictionTracker(restriction)
 
   def split(self, element, restriction):
-    for offset_range in OffsetRange(restriction[0], restriction[1]).split(
-        element['desired_chunk_size']):
-      yield (offset_range.start, offset_range.stop)
+    return restriction.split(element['desired_chunk_size'])
 
   def restriction_size(self, element, restriction):
-    return restriction[1] - restriction[0]
+    return restriction.size()
 
 
 class SdfReadLine(core.DoFn):
