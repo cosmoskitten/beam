@@ -78,6 +78,8 @@ task crossLanguagePythonJavaFlink {
     def options = [
         "--runner=PortableRunner",
         "--experiments=worker_threads=100",
+        // Need to add this to correctly translate bounded sources with an Impulse
+        "--experiments=beam_fn_api",
         "--parallelism=2",
         "--shutdown_sources_on_final_watermark",
         "--environment_cache_millis=10000",
@@ -105,6 +107,8 @@ task crossLanguagePortableWordCount {
         "--output=/tmp/py-wordcount-portable",
         "--runner=PortableRunner",
         "--experiments=worker_threads=100",
+        // Need to add this to correctly translate bounded sources with an Impulse
+        "--experiments=beam_fn_api",
         "--parallelism=2",
         "--shutdown_sources_on_final_watermark",
         "--environment_cache_millis=10000",
