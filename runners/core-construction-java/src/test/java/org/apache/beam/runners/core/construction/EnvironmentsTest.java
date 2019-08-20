@@ -224,7 +224,7 @@ public class EnvironmentsTest implements Serializable {
     SdkComponents components = SdkComponents.create();
     components.registerEnvironment(Environments.createDockerEnvironment("java"));
     ReadPayload payload =
-        ReadTranslation.toProto(Read.from(CountingSource.unbounded()), components);
+        ReadTranslation.toProto(Read.from(CountingSource.upTo(10)), components);
     RehydratedComponents rehydratedComponents =
         RehydratedComponents.forComponents(components.toComponents());
     PTransform builder =
