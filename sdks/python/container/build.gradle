@@ -51,7 +51,7 @@ golang {
   }
 }
 
-task buildDocker {
+task buildAll {
   dependsOn ':sdks:python:container:py2:docker'
   dependsOn ':sdks:python:container:py35:docker'
   dependsOn ':sdks:python:container:py36:docker'

@@ -294,6 +294,13 @@ class PortableRunnerInternalTest(unittest.TestCase):
             ).SerializeToString()))
 
 
+def hasDockerImage():
+  image = PortableRunner.default_docker_image()
+  check_image = subprocess.check_output(["docker", "images", "-q", image])
+  return check_image != ''
+
+
+@unittest.skipIf(not hasDockerImage(), "no docker image")
 class PortableRunnerTestWithLocalDocker(PortableRunnerTest):
   def create_options(self):
     options = super(PortableRunnerTestWithLocalDocker, self).create_options()
