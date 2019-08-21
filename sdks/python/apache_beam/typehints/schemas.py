@@ -86,16 +86,16 @@ SCHEMA_REGISTRY = SchemaTypeRegistry()
 
 # Bi-directional mappings
 _PRIMITIVES = (
-    (np.int8, schema_pb2.AtomicType.BYTE),
-    (np.int16, schema_pb2.AtomicType.INT16),
-    (np.int32, schema_pb2.AtomicType.INT32),
-    (np.int64, schema_pb2.AtomicType.INT64),
-    (np.float32, schema_pb2.AtomicType.FLOAT),
-    (np.float64, schema_pb2.AtomicType.DOUBLE),
-    (unicode, schema_pb2.AtomicType.STRING),
-    (bool, schema_pb2.AtomicType.BOOLEAN),
+    (np.int8, schema_pb2.BYTE),
+    (np.int16, schema_pb2.INT16),
+    (np.int32, schema_pb2.INT32),
+    (np.int64, schema_pb2.INT64),
+    (np.float32, schema_pb2.FLOAT),
+    (np.float64, schema_pb2.DOUBLE),
+    (unicode, schema_pb2.STRING),
+    (bool, schema_pb2.BOOLEAN),
     (bytes if sys.version_info.major >= 3 else ByteString,
-     schema_pb2.AtomicType.BYTES),
+     schema_pb2.BYTES),
 )
 
 PRIMITIVE_TO_ATOMIC_TYPE = dict((typ, atomic) for typ, atomic in _PRIMITIVES)
@@ -105,16 +105,16 @@ ATOMIC_TYPE_TO_PRIMITIVE = dict((atomic, typ) for typ, atomic in _PRIMITIVES)
 PRIMITIVE_TO_ATOMIC_TYPE.update({
     # In python 3, this is a no-op because str == unicode,
     # but in python 2 it overrides the bytes -> BYTES mapping.
-    str: schema_pb2.AtomicType.STRING,
+    str: schema_pb2.STRING,
     # In python 2, this is a no-op because we define it as the bi-directional
     # mapping above. This just ensures the one-way mapping is defined in python
     # 3.
-    ByteString: schema_pb2.AtomicType.BYTES,
+    ByteString: schema_pb2.BYTES,
     # Allow users to specify a native int, and use INT64 as the cross-language
     # representation. Technically ints have unlimited precision, but RowCoder
     # should throw an error if it sees one with a bit width > 64 when encoding.
-    int: schema_pb2.AtomicType.INT64,
-    float: schema_pb2.AtomicType.DOUBLE,
+    int: schema_pb2.INT64,
+    float: schema_pb2.DOUBLE,
 })
 
 
@@ -141,9 +141,6 @@ def typing_to_runner_api(type_):
   # a supported primitive type.
   elif type_ in PRIMITIVE_TO_ATOMIC_TYPE:
     return schema_pb2.FieldType(atomic_type=PRIMITIVE_TO_ATOMIC_TYPE[type_])
-
-  elif type_ == ByteString:
-    result = schema_pb2.AtomicType.BYTES
 
   elif _match_is_exactly_mapping(type_):
     key_type, value_type = map(typing_to_runner_api, _get_args(type_))

@@ -106,7 +106,7 @@ class SchemaTest(unittest.TestCase):
     all_nonoptional_primitives = [
         schema_pb2.FieldType(atomic_type=typ)
         for typ in schema_pb2.AtomicType.values()
-        if typ is not schema_pb2.AtomicType.UNSPECIFIED
+        if typ is not schema_pb2.UNSPECIFIED
     ]
 
     # The bytes type cannot survive a roundtrip to/from proto in Python 2.
@@ -114,12 +114,12 @@ class SchemaTest(unittest.TestCase):
     # bytes == str, and we map str to STRING).
     if not IS_PYTHON_3:
       all_nonoptional_primitives.remove(
-          schema_pb2.FieldType(atomic_type=schema_pb2.AtomicType.BYTES))
+          schema_pb2.FieldType(atomic_type=schema_pb2.BYTES))
 
     all_optional_primitives = [
         schema_pb2.FieldType(nullable=True, atomic_type=typ)
         for typ in schema_pb2.AtomicType.values()
-        if typ is not schema_pb2.AtomicType.UNSPECIFIED
+        if typ is not schema_pb2.UNSPECIFIED
     ]
 
     all_primitives = all_nonoptional_primitives + all_optional_primitives
@@ -153,21 +153,21 @@ class SchemaTest(unittest.TestCase):
                         schema_pb2.Field(
                             name='id',
                             type=schema_pb2.FieldType(
-                                atomic_type=schema_pb2.AtomicType.INT64)),
+                                atomic_type=schema_pb2.INT64)),
                         schema_pb2.Field(
                             name='name',
                             type=schema_pb2.FieldType(
-                                atomic_type=schema_pb2.AtomicType.STRING)),
+                                atomic_type=schema_pb2.STRING)),
                         schema_pb2.Field(
                             name='optional_map',
                             type=schema_pb2.FieldType(
                                 nullable=True,
                                 map_type=schema_pb2.MapType(
                                     key_type=schema_pb2.FieldType(
-                                        atomic_type=schema_pb2.AtomicType.STRING
+                                        atomic_type=schema_pb2.STRING
                                     ),
                                     value_type=schema_pb2.FieldType(
-                                        atomic_type=schema_pb2.AtomicType.DOUBLE
+                                        atomic_type=schema_pb2.DOUBLE
                                     )))),
                         schema_pb2.Field(
                             name='optional_array',
@@ -175,7 +175,7 @@ class SchemaTest(unittest.TestCase):
                                 nullable=True,
                                 array_type=schema_pb2.ArrayType(
                                     element_type=schema_pb2.FieldType(
-                                        atomic_type=schema_pb2.AtomicType.FLOAT)
+                                        atomic_type=schema_pb2.FLOAT)
                                 ))),
                         schema_pb2.Field(
                             name='array_optional',
@@ -183,7 +183,7 @@ class SchemaTest(unittest.TestCase):
                                 array_type=schema_pb2.ArrayType(
                                     element_type=schema_pb2.FieldType(
                                         nullable=True,
-                                        atomic_type=schema_pb2.AtomicType.BYTES)
+                                        atomic_type=schema_pb2.BYTES)
                                 ))),
                     ]))),
     ]
@@ -203,22 +203,22 @@ class SchemaTest(unittest.TestCase):
   def test_unknown_atomic_raise_valueerror(self):
     self.assertRaises(
         ValueError, lambda: typing_from_runner_api(
-            schema_pb2.FieldType(atomic_type=schema_pb2.AtomicType.UNSPECIFIED))
+            schema_pb2.FieldType(atomic_type=schema_pb2.UNSPECIFIED))
     )
 
   def test_str_maps_to_string(self):
     self.assertEquals(
-        schema_pb2.FieldType(atomic_type=schema_pb2.AtomicType.STRING),
+        schema_pb2.FieldType(atomic_type=schema_pb2.STRING),
         typing_to_runner_api(str))
 
   def test_int_maps_to_int64(self):
     self.assertEquals(
-        schema_pb2.FieldType(atomic_type=schema_pb2.AtomicType.INT64),
+        schema_pb2.FieldType(atomic_type=schema_pb2.INT64),
         typing_to_runner_api(int))
 
   def test_float_maps_to_float64(self):
     self.assertEquals(
-        schema_pb2.FieldType(atomic_type=schema_pb2.AtomicType.DOUBLE),
+        schema_pb2.FieldType(atomic_type=schema_pb2.DOUBLE),
         typing_to_runner_api(float))
 
   def test_trivial_example(self):
@@ -236,27 +236,27 @@ class SchemaTest(unittest.TestCase):
                 schema_pb2.Field(
                     name='name',
                     type=schema_pb2.FieldType(
-                        atomic_type=schema_pb2.AtomicType.STRING),
+                        atomic_type=schema_pb2.STRING),
                 ),
                 schema_pb2.Field(
                     name='age',
                     type=schema_pb2.FieldType(
                         nullable=True,
-                        atomic_type=schema_pb2.AtomicType.INT64)),
+                        atomic_type=schema_pb2.INT64)),
                 schema_pb2.Field(
                     name='interests',
                     type=schema_pb2.FieldType(
                         array_type=schema_pb2.ArrayType(
                             element_type=schema_pb2.FieldType(
-                                atomic_type=schema_pb2.AtomicType.STRING)))),
+                                atomic_type=schema_pb2.STRING)))),
                 schema_pb2.Field(
                     name='height',
                     type=schema_pb2.FieldType(
-                        atomic_type=schema_pb2.AtomicType.DOUBLE)),
+                        atomic_type=schema_pb2.DOUBLE)),
                 schema_pb2.Field(
                     name='blob',
                     type=schema_pb2.FieldType(
-                        atomic_type=schema_pb2.AtomicType.BYTES)),
+                        atomic_type=schema_pb2.BYTES)),
             ])))
 
     # Only test that the fields are equal. If we attempt to test the entire type

@@ -113,9 +113,10 @@ REQUIRED_PACKAGES = [
     'hdfs>=2.1.0,<3.0.0',
     'httplib2>=0.8,<=0.12.0',
     'mock>=1.0.1,<3.0.0',
+    'numpy>=1.14,<2.0',
     'pymongo>=3.8.0,<4.0.0',
     'oauth2client>=2.0.1,<4',
-    'protobuf>=3.8.0.post1,<4',
+    'protobuf>=3.5.0.post1,<4',
     # [BEAM-6287] pyarrow is not supported on Windows for Python 2
     ('pyarrow>=0.11.1,<0.15.0; python_version >= "3.0" or '
      'platform_system != "Windows"'),

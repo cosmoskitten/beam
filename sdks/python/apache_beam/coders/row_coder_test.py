@@ -64,21 +64,21 @@ class CodersTest(unittest.TestCase):
             schema_pb2.Field(
                 name="name",
                 type=schema_pb2.FieldType(
-                    atomic_type=schema_pb2.AtomicType.STRING)),
+                    atomic_type=schema_pb2.STRING)),
             schema_pb2.Field(
                 name="age",
                 type=schema_pb2.FieldType(
-                    atomic_type=schema_pb2.AtomicType.INT32)),
+                    atomic_type=schema_pb2.INT32)),
             schema_pb2.Field(
                 name="address",
                 type=schema_pb2.FieldType(
-                    atomic_type=schema_pb2.AtomicType.STRING, nullable=True)),
+                    atomic_type=schema_pb2.STRING, nullable=True)),
             schema_pb2.Field(
                 name="aliases",
                 type=schema_pb2.FieldType(
                     array_type=schema_pb2.ArrayType(
                         element_type=schema_pb2.FieldType(
-                            atomic_type=schema_pb2.AtomicType.STRING)))),
+                            atomic_type=schema_pb2.STRING)))),
         ])
     coder = RowCoder(schema)
 

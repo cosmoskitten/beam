@@ -59,7 +59,7 @@ class RowCoder(FastCoder):
     return named_tuple_from_schema(self.schema)
 
   def as_cloud_object(self, coders_context=None):
-    raise NotImplementedError("TODO")
+    raise NotImplementedError("as_cloud_object not supported for RowCoder")
 
   def __eq__(self, other):
     return type(self) == type(other) and self.schema == other.schema
@@ -70,6 +70,10 @@ class RowCoder(FastCoder):
   def to_runner_api_parameter(self, unused_context):
     return (common_urns.coders.ROW.urn, self.schema, [])
 
+  @Coder.register_urn(common_urns.coders.ROW.urn, schema_pb2.Schema)
+  def from_runner_api_parameter(payload, components, unused_context):
+    return RowCoder(payload)
+
   @staticmethod
   def from_type_hint(named_tuple_type, registry):
     return RowCoder(named_tuple_to_schema(named_tuple_type))
@@ -78,12 +82,12 @@ class RowCoder(FastCoder):
 def coder_from_type(type_):
   type_info = type_.WhichOneof("type_info")
   if type_info == "atomic_type":
-    if type_.atomic_type in (schema_pb2.AtomicType.INT32,
-                             schema_pb2.AtomicType.INT64):
+    if type_.atomic_type in (schema_pb2.INT32,
+                             schema_pb2.INT64):
       return VarIntCoder()
-    elif type_.atomic_type == schema_pb2.AtomicType.DOUBLE:
+    elif type_.atomic_type == schema_pb2.DOUBLE:
       return FloatCoder()
-    elif type_.atomic_type == schema_pb2.AtomicType.STRING:
+    elif type_.atomic_type == schema_pb2.STRING:
       return StrUtf8Coder()
   elif type_info == "array_type":
     return IterableCoder(coder_from_type(type_.array_type.element_type))
@@ -93,13 +97,6 @@ def coder_from_type(type_):
   raise ValueError(
       "Encountered a type that is not currently supported by RowCoder: %s" %
       type_)
-
-
-# pylint: disable=unused-variable
-
-@Coder.register_urn(common_urns.coders.ROW.urn, schema_pb2.Schema)
-def from_runner_api_parameter(payload, components, unused_context):
-  return RowCoder(payload)
 
 
 class RowCoderImpl(StreamCoderImpl):
@@ -124,7 +121,6 @@ class RowCoderImpl(StreamCoderImpl):
       nulls = list(attr is None for attr in attrs)
       if any(nulls):
         words = array('B', itertools.repeat(0, (nvals+7)//8))
-        index = 0
         for i, is_null in enumerate(nulls):
           words[i//8] |= is_null << (i % 8)
 
