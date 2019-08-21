@@ -20,6 +20,9 @@ Worker pool entry point.
 The worker pool exposes an RPC service that is used with EXTERNAL
 environment to start and stop the SDK workers.
 
+The worker pool uses child processes for parallelism; threads are
+subject to the GIL and not sufficient.
+
 This entry point is used by the Python SDK container in worker pool mode.
 """
 
@@ -84,6 +87,8 @@ class BeamFnExternalWorkerPoolServicer(
                        start_worker_request.worker_id)]
         if self._container_executable:
           # command as per container spec
+          # the executable is responsible to handle concurrency
+          # for artifact retrieval and other side effects
           command = [self._container_executable,
                      '--id=%s' % start_worker_request.worker_id,
                      '--logging_endpoint=%s'
@@ -116,6 +121,8 @@ class BeamFnExternalWorkerPoolServicer(
       return beam_fn_api_pb2.StartWorkerResponse(error=str(exn))
 
   def StopWorker(self, stop_worker_request, unused_context):
+    # applicable for process mode to ensure process cleanup
+    # thread based workers terminate automatically
     worker_process = self._worker_processes.pop(stop_worker_request.worker_id)
     if worker_process:
       def kill_worker_process():
@@ -129,7 +136,7 @@ class BeamFnExternalWorkerPoolServicer(
       # time box communicate (it has no timeout parameter in Py2)
       threading.Timer(1, kill_worker_process).start()
       worker_process.communicate()
-    return beam_fn_api_pb2.StartWorkerResponse()
+    return beam_fn_api_pb2.StopWorkerResponse()
 
 
 def main(argv=None):

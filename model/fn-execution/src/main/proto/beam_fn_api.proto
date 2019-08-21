@@ -821,9 +821,13 @@ message StopWorkerRequest {
   string worker_id = 1;
 }
 
+message StopWorkerResponse {
+  string error = 1;
+}
+
 service BeamFnExternalWorkerPool {
   // Start the SDK worker with the given ID.
   rpc StartWorker (StartWorkerRequest) returns (StartWorkerResponse) {}
   // Stop the SDK worker.
-  rpc StopWorker (StopWorkerRequest) returns (StartWorkerResponse) {}
+  rpc StopWorker (StopWorkerRequest) returns (StopWorkerResponse) {}
 }

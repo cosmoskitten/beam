@@ -149,7 +149,7 @@ public class ExternalEnvironmentFactory implements EnvironmentFactory {
         BeamFnApi.StopWorkerRequest stopWorkerRequest =
             BeamFnApi.StopWorkerRequest.newBuilder().setWorkerId(workerId).build();
         LOG.debug("Closing worker ID {}", workerId);
-        BeamFnApi.StartWorkerResponse stopWorkerResponse =
+        BeamFnApi.StopWorkerResponse stopWorkerResponse =
             BeamFnExternalWorkerPoolGrpc.newBlockingStub(
                     ManagedChannelFactory.createDefault()
                         .forDescriptor(externalPayload.getEndpoint()))
