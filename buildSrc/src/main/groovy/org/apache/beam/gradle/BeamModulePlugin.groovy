@@ -1987,7 +1987,10 @@ class BeamModulePlugin implements Plugin<Project> {
           dependsOn = ['installGcpTest']
           mustRunAfter = [
             ':runners:flink:1.5:job-server-container:docker',
-            ':sdks:python:container:buildAll'
+            ':sdks:python:container:py2:docker',
+            ':sdks:python:container:py35:docker',
+            ':sdks:python:container:py36:docker',
+            ':sdks:python:container:py37:docker'
           ]
           doLast {
             // TODO: Figure out GCS credentials and use real GCS input and output.
