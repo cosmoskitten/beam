@@ -18,11 +18,9 @@
 
 import CommonJobProperties as common
 import CommonTestProperties.SDK
+import DockerPublisher
 
 class Flink {
-  private static final String repositoryRoot = 'gcr.io/apache-beam-testing/beam_portability'
-  private static final String dockerTag = 'latest'
-  private static final String jobServerImageTag = "${repositoryRoot}/flink-job-server:${dockerTag}"
   private static final String flinkVersion = '1.7'
   private static final String flinkDownloadUrl = 'https://archive.apache.org/dist/flink/flink-1.7.0/flink-1.7.0-bin-hadoop28-scala_2.11.tgz'
   private static final String FLINK_DIR = '"$WORKSPACE/src/.test-infra/dataproc"'
@@ -35,38 +33,22 @@ class Flink {
     this.jobName = jobName
   }
 
- /**
-  * Returns SDK Harness image tag to be used as an environment_config in the job definition.
-  *
-  * @param sdk - SDK
-  */
-  static String getSDKHarnessImageTag(SDK sdk) {
-    switch (sdk) {
-      case CommonTestProperties.SDK.PYTHON:
-        return "${repositoryRoot}/python:${dockerTag}"
-      case CommonTestProperties.SDK.JAVA:
-        return "${repositoryRoot}/java:${dockerTag}"
-      default:
-        String sdkName = sdk.name().toLowerCase()
-        throw new IllegalArgumentException("${sdkName} SDK is not supported")
-    }
-  }
-
   /**
    * Creates Flink cluster and specifies cleanup steps.
    *
    * @param job - jenkins job
    * @param jobName - string to be used as a base for cluster name
-   * @param sdk - SDK
+   * @param sdkHarnessImages - a list of published SDK Harness images tags
    * @param workerCount - the initial number of worker nodes
    * @param slotsPerTaskmanager - the number of slots per Flink task manager
    */
-  static Flink setUp(job, String jobName, SDK sdk, Integer workerCount, Integer slotsPerTaskmanager = 1) {
-    Flink flink = new Flink(job, jobName)
+  static Flink setUp(job, String jobName, List<String> sdkHarnessImages, Integer workerCount, Integer slotsPerTaskmanager = 1) {
+    DockerPublisher publisher = new DockerPublisher()
+    publisher.publish(job, ":runners:flink:${flinkVersion}:job-server-container:docker", 'flink-job-server')
 
-    flink.prepareSDKHarness(sdk)
-    flink.prepareFlinkJobServer()
-    flink.setupFlinkCluster(sdk, workerCount, slotsPerTaskmanager)
+    String jobServerImageTag = publisher.getFullImageName('flink-job-server')
+    Flink flink = new Flink(job, jobName)
+    flink.setupFlinkCluster(sdkHarnessImages, jobServerImageTag, workerCount, slotsPerTaskmanager)
     flink.addTeardownFlinkStep()
 
     return flink
@@ -87,54 +69,11 @@ class Flink {
     }
   }
 
-  private void prepareSDKHarness(SDK sdk) {
-    job.steps {
-      String sdkName = sdk.name().toLowerCase()
-      String image = "${repositoryRoot}/${sdkName}"
-      String imageTag = "${image}:${dockerTag}"
-
-      shell("echo \"Building SDK harness for ${sdkName} SDK.\"")
-      gradle {
-        rootBuildScriptDir(common.checkoutDir)
-        common.setGradleSwitches(delegate)
-        tasks(":sdks:${sdkName}:container:docker")
-        switches("-Pdocker-repository-root=${repositoryRoot}")
-        switches("-Pdocker-tag=${dockerTag}")
-      }
-      shell("echo \"Tagging Harness' image\"...")
-      shell("docker tag ${image} ${imageTag}")
-      shell("echo \"Pushing Harness' image\"...")
-      shell("docker push ${imageTag}")
-    }
-  }
-
-  private void prepareFlinkJobServer() {
-    job.steps {
-      String image = "${repositoryRoot}/flink-job-server"
-      String imageTag = "${image}:${dockerTag}"
-
-      shell('echo "Building Flink job Server"')
-
-      gradle {
-        rootBuildScriptDir(common.checkoutDir)
-        common.setGradleSwitches(delegate)
-        tasks(":runners:flink:${flinkVersion}:job-server-container:docker")
-        switches("-Pdocker-repository-root=${repositoryRoot}")
-        switches("-Pdocker-tag=${dockerTag}")
-      }
-
-      shell("echo \"Tagging Flink Job Server's image\"...")
-      shell("docker tag ${image} ${imageTag}")
-      shell("echo \"Pushing Flink Job Server's image\"...")
-      shell("docker push ${imageTag}")
-    }
-  }
-
-  private void setupFlinkCluster(SDK sdk, Integer workerCount, Integer slotsPerTaskmanager) {
+  private void setupFlinkCluster(List<String> sdkHarnessImages, String jobServerImageTag, Integer workerCount, Integer slotsPerTaskmanager) {
     String gcsBucket = 'gs://beam-flink-cluster'
     String clusterName = getClusterName()
     String artifactsDir = "${gcsBucket}/${clusterName}"
-    String imagesToPull = getSDKHarnessImageTag(sdk)
+    String imagesToPull = sdkHarnessImages.join(' ')
 
     job.steps {
       environmentVariables {
