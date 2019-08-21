@@ -18,7 +18,7 @@
 package org.apache.beam.runners.spark;
 
 import static org.apache.beam.runners.core.construction.PipelineResources.detectClassPathResourcesToStage;
-import static org.apache.beam.runners.spark.SparkPipelineOptions.prepareFilesToStageForRemoteClusterExecution;
+import static org.apache.beam.runners.spark.SparkPipelineOptions.prepareFilesToStage;
 
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -29,6 +29,7 @@ import org.apache.beam.runners.core.construction.graph.ExecutableStage;
 import org.apache.beam.runners.core.construction.graph.GreedyPipelineFuser;
 import org.apache.beam.runners.core.construction.graph.PipelineTrimmer;
 import org.apache.beam.runners.core.metrics.MetricsPusher;
+import org.apache.beam.runners.fnexecution.jobsubmission.PortablePipelineResult;
 import org.apache.beam.runners.fnexecution.jobsubmission.PortablePipelineRunner;
 import org.apache.beam.runners.fnexecution.provisioning.JobInfo;
 import org.apache.beam.runners.spark.aggregators.AggregatorsAccumulator;
@@ -54,7 +55,7 @@ public class SparkPipelineRunner implements PortablePipelineRunner {
   }
 
   @Override
-  public SparkPipelineResult run(RunnerApi.Pipeline pipeline, JobInfo jobInfo) {
+  public PortablePipelineResult run(RunnerApi.Pipeline pipeline, JobInfo jobInfo) {
     SparkBatchPortablePipelineTranslator translator = new SparkBatchPortablePipelineTranslator();
 
     // Don't let the fuser fuse any subcomponents of native transforms.
@@ -74,7 +75,7 @@ public class SparkPipelineRunner implements PortablePipelineRunner {
       LOG.info(
           "PipelineOptions.filesToStage was not specified. Defaulting to files from the classpath");
     }
-    prepareFilesToStageForRemoteClusterExecution(pipelineOptions);
+    prepareFilesToStage(pipelineOptions);
     LOG.info(
         "Will stage {} files. (Enable logging at DEBUG level to see which files will be staged.)",
         pipelineOptions.getFilesToStage().size());
@@ -102,7 +103,8 @@ public class SparkPipelineRunner implements PortablePipelineRunner {
               LOG.info(String.format("Job %s finished.", jobInfo.jobId()));
             });
 
-    SparkPipelineResult result = new SparkPipelineResult.BatchMode(submissionFuture, jsc);
+    PortablePipelineResult result =
+        new SparkPipelineResult.PortableBatchMode(submissionFuture, jsc);
     MetricsPusher metricsPusher =
         new MetricsPusher(
             MetricsAccumulator.getInstance().value(),

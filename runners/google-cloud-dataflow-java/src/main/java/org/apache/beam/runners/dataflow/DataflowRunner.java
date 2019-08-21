@@ -22,10 +22,10 @@ import static org.apache.beam.runners.core.construction.PipelineResources.detect
 import static org.apache.beam.sdk.util.CoderUtils.encodeToByteArray;
 import static org.apache.beam.sdk.util.SerializableUtils.serializeToByteArray;
 import static org.apache.beam.sdk.util.StringUtils.byteArrayToJsonString;
-import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.MoreObjects.firstNonNull;
-import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkArgument;
-import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkState;
-import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Strings.isNullOrEmpty;
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.MoreObjects.firstNonNull;
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkState;
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Strings.isNullOrEmpty;
 
 import com.fasterxml.jackson.databind.Module;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -48,6 +48,7 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashSet;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Random;
@@ -118,6 +119,10 @@ import org.apache.beam.sdk.transforms.Combine.CombineFn;
 import org.apache.beam.sdk.transforms.Combine.GroupedValues;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.DoFn.ProcessContext;
+import org.apache.beam.sdk.transforms.DoFn.ProcessElement;
+import org.apache.beam.sdk.transforms.GroupByKey;
+import org.apache.beam.sdk.transforms.GroupIntoBatches;
 import org.apache.beam.sdk.transforms.Impulse;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
@@ -150,12 +155,13 @@ import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.sdk.values.TypeDescriptors;
 import org.apache.beam.sdk.values.ValueWithRecordId;
 import org.apache.beam.sdk.values.WindowingStrategy;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.annotations.VisibleForTesting;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Joiner;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Utf8;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableList;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableMap;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Iterables;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Joiner;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Utf8;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterators;
 import org.joda.time.DateTimeUtils;
 import org.joda.time.DateTimeZone;
 import org.joda.time.format.DateTimeFormat;
@@ -236,6 +242,14 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
     if (missing.size() > 0) {
       throw new IllegalArgumentException(
           "Missing required values: " + Joiner.on(',').join(missing));
+    }
+
+    if (dataflowOptions.getRegion() == null) {
+      dataflowOptions.setRegion("us-central1");
+      LOG.warn(
+          "--region not set; will default to us-central1. Future releases of Beam will "
+              + "require the user to set the region explicitly. "
+              + "https://cloud.google.com/compute/docs/regions-zones/regions-zones");
     }
 
     PathValidator validator = dataflowOptions.getPathValidator();
@@ -414,6 +428,14 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
       // Dataflow Streaming runner overrides the SPLITTABLE_PROCESS_KEYED transform
       // natively in the Dataflow service.
     } else {
+      overridesBuilder
+          // Replace GroupIntoBatches before the state/timer replacements below since
+          // GroupIntoBatches internally uses a stateful DoFn.
+          .add(
+          PTransformOverride.of(
+              PTransformMatchers.classEqualTo(GroupIntoBatches.class),
+              new BatchGroupIntoBatchesOverrideFactory()));
+
       overridesBuilder
           // State and timer pardos are implemented by expansion to GBK-then-ParDo
           .add(
@@ -830,6 +852,19 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
       hooks.modifyEnvironmentBeforeSubmission(newJob.getEnvironment());
     }
 
+    // Upload the job to GCS and remove the graph object from the API call.  The graph
+    // will be downloaded from GCS by the service.
+    if (hasExperiment(options, "upload_graph")) {
+      DataflowPackage stagedGraph =
+          options
+              .getStager()
+              .stageToFile(
+                  DataflowPipelineTranslator.jobToString(newJob).getBytes(UTF_8),
+                  DATAFLOW_GRAPH_FILE_NAME);
+      newJob.getSteps().clear();
+      newJob.setStepsLocation(stagedGraph.getLocation());
+    }
+
     if (!isNullOrEmpty(options.getDataflowJobFile())
         || !isNullOrEmpty(options.getTemplateLocation())) {
       boolean isTemplate = !isNullOrEmpty(options.getTemplateLocation());
@@ -876,19 +911,6 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
     }
     if (options.getCreateFromSnapshot() != null && !options.getCreateFromSnapshot().isEmpty()) {
       newJob.setCreatedFromSnapshotId(options.getCreateFromSnapshot());
-    }
-
-    // Upload the job to GCS and remove the graph object from the API call.  The graph
-    // will be downloaded from GCS by the service.
-    if (hasExperiment(options, "upload_graph")) {
-      DataflowPackage stagedGraph =
-          options
-              .getStager()
-              .stageToFile(
-                  DataflowPipelineTranslator.jobToString(newJob).getBytes(UTF_8),
-                  DATAFLOW_GRAPH_FILE_NAME);
-      newJob.getSteps().clear();
-      newJob.setStepsLocation(stagedGraph.getLocation());
     }
 
     Job jobResult;
@@ -1420,6 +1442,61 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
 
   static {
     DataflowPipelineTranslator.registerTransformTranslator(Impulse.class, new ImpulseTranslator());
+  }
+
+  private static class BatchGroupIntoBatchesOverrideFactory<K, V>
+      implements PTransformOverrideFactory<
+          PCollection<KV<K, V>>, PCollection<KV<K, Iterable<V>>>, GroupIntoBatches<K, V>> {
+
+    @Override
+    public PTransformReplacement<PCollection<KV<K, V>>, PCollection<KV<K, Iterable<V>>>>
+        getReplacementTransform(
+            AppliedPTransform<
+                    PCollection<KV<K, V>>, PCollection<KV<K, Iterable<V>>>, GroupIntoBatches<K, V>>
+                transform) {
+      return PTransformReplacement.of(
+          PTransformReplacements.getSingletonMainInput(transform),
+          new BatchGroupIntoBatches(transform.getTransform().getBatchSize()));
+    }
+
+    @Override
+    public Map<PValue, ReplacementOutput> mapOutputs(
+        Map<TupleTag<?>, PValue> outputs, PCollection<KV<K, Iterable<V>>> newOutput) {
+      return ReplacementOutputs.singleton(outputs, newOutput);
+    }
+  }
+
+  /** Specialized implementation of {@link GroupIntoBatches} for bounded Dataflow pipelines. */
+  static class BatchGroupIntoBatches<K, V>
+      extends PTransform<PCollection<KV<K, V>>, PCollection<KV<K, Iterable<V>>>> {
+    private final long batchSize;
+
+    private BatchGroupIntoBatches(long batchSize) {
+      this.batchSize = batchSize;
+    }
+
+    @Override
+    public PCollection<KV<K, Iterable<V>>> expand(PCollection<KV<K, V>> input) {
+      return input
+          .apply("GroupAll", GroupByKey.create())
+          .apply(
+              "SplitIntoBatches",
+              ParDo.of(
+                  new DoFn<KV<K, Iterable<V>>, KV<K, Iterable<V>>>() {
+                    @ProcessElement
+                    public void process(ProcessContext c) {
+                      // Iterators.partition lazily creates the partitions as they are accessed
+                      // allowing it to partition very large iterators.
+                      Iterator<List<V>> iterator =
+                          Iterators.partition(c.element().getValue().iterator(), (int) batchSize);
+
+                      // Note that GroupIntoBatches only outputs when the batch is non-empty.
+                      while (iterator.hasNext()) {
+                        c.output(KV.of(c.element().getKey(), iterator.next()));
+                      }
+                    }
+                  }));
+    }
   }
 
   private static class StreamingUnboundedReadOverrideFactory<T>

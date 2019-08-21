@@ -17,8 +17,8 @@
  */
 package org.apache.beam.sdk.io.elasticsearch;
 
-import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkArgument;
-import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkState;
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkState;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
@@ -51,6 +51,7 @@ import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.io.BoundedSource;
 import org.apache.beam.sdk.options.PipelineOptions;
+import org.apache.beam.sdk.options.ValueProvider;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
@@ -63,7 +64,7 @@ import org.apache.beam.sdk.util.Sleeper;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PDone;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.http.HttpEntity;
 import org.apache.http.HttpHost;
 import org.apache.http.auth.AuthScope;
@@ -454,7 +455,7 @@ public class ElasticsearchIO {
     abstract ConnectionConfiguration getConnectionConfiguration();
 
     @Nullable
-    abstract String getQuery();
+    abstract ValueProvider<String> getQuery();
 
     abstract boolean isWithMetadata();
 
@@ -468,7 +469,7 @@ public class ElasticsearchIO {
     abstract static class Builder {
       abstract Builder setConnectionConfiguration(ConnectionConfiguration connectionConfiguration);
 
-      abstract Builder setQuery(String query);
+      abstract Builder setQuery(ValueProvider<String> query);
 
       abstract Builder setWithMetadata(boolean withMetadata);
 
@@ -502,6 +503,20 @@ public class ElasticsearchIO {
     public Read withQuery(String query) {
       checkArgument(query != null, "query can not be null");
       checkArgument(!query.isEmpty(), "query can not be empty");
+      return withQuery(ValueProvider.StaticValueProvider.of(query));
+    }
+
+    /**
+     * Provide a {@link ValueProvider} that provides the query used while reading from
+     * Elasticsearch. This is useful for cases when the query must be dynamic.
+     *
+     * @param query the query. See <a
+     *     href="https://www.elastic.co/guide/en/elasticsearch/reference/2.4/query-dsl.html">Query
+     *     DSL</a>
+     * @return a {@link PTransform} reading data from Elasticsearch.
+     */
+    public Read withQuery(ValueProvider<String> query) {
+      checkArgument(query != null, "query can not be null");
       return builder().setQuery(query).build();
     }
 
@@ -726,7 +741,7 @@ public class ElasticsearchIO {
     public boolean start() throws IOException {
       restClient = source.spec.getConnectionConfiguration().createClient();
 
-      String query = source.spec.getQuery();
+      String query = source.spec.getQuery() != null ? source.spec.getQuery().get() : null;
       if (query == null) {
         query = "{\"query\": { \"match_all\": {} }}";
       }
@@ -1013,7 +1028,7 @@ public class ElasticsearchIO {
      * docs (like Elasticsearch bulk size advice). See
      * https://www.elastic.co/guide/en/elasticsearch/guide/current/bulk.html Depending on the
      * execution engine, size of bundles may vary, this sets the maximum size. Change this if you
-     * need to have smaller ElasticSearch bulks.
+     * need to have smaller Elasticsearch bulks.
      *
      * @param batchSize maximum batch size in number of documents
      * @return the {@link Write} with connection batch size set
@@ -1029,7 +1044,7 @@ public class ElasticsearchIO {
      * (like Elasticsearch bulk size advice). See
      * https://www.elastic.co/guide/en/elasticsearch/guide/current/bulk.html Depending on the
      * execution engine, size of bundles may vary, this sets the maximum size. Change this if you
-     * need to have smaller ElasticSearch bulks.
+     * need to have smaller Elasticsearch bulks.
      *
      * @param batchSizeBytes maximum batch size in bytes
      * @return the {@link Write} with connection batch size in bytes set

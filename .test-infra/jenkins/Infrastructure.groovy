@@ -106,6 +106,18 @@ class Infrastructure {
     }
   }
 
+  static void scaleCluster(def context, String jobName, Integer workerCount) {
+    context.steps {
+      environmentVariables {
+        env("FLINK_NUM_WORKERS", workerCount)
+      }
+      shell("gcloud dataproc clusters delete ${getClusterName(jobName)} --quiet")
+
+      shell('echo Setting up flink cluster')
+      shell("cd ${common.makePathAbsolute('src/.test-infra/dataproc/')}; ./create_flink_cluster.sh")
+    }
+  }
+
   private static GString getClusterName(String jobName) {
     return "${jobName.toLowerCase().replace("_", "-")}-\$BUILD_ID"
   }

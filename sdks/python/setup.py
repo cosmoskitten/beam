@@ -109,18 +109,18 @@ REQUIRED_PACKAGES = [
     'fastavro>=0.21.4,<0.22',
     'future>=0.16.0,<1.0.0',
     'futures>=3.2.0,<4.0.0; python_version < "3.0"',
-    'grpcio>=1.8,<2',
+    'grpcio>=1.12.1,<2',
     'hdfs>=2.1.0,<3.0.0',
     'httplib2>=0.8,<=0.12.0',
     'mock>=1.0.1,<3.0.0',
     'pymongo>=3.8.0,<4.0.0',
     'oauth2client>=2.0.1,<4',
-    # grpcio 1.8.1 and above requires protobuf 3.5.0.post1.
     'protobuf>=3.5.0.post1,<4',
     # [BEAM-6287] pyarrow is not supported on Windows for Python 2
-    ('pyarrow>=0.11.1,<0.14.0; python_version >= "3.0" or '
+    ('pyarrow>=0.11.1,<0.15.0; python_version >= "3.0" or '
      'platform_system != "Windows"'),
-    'pydot>=1.2.0,<1.3',
+    'pydot>=1.2.0,<2',
+    'python-dateutil>=2.8.0,<3',
     'pytz>=2018.3',
     # [BEAM-5628] Beam VCF IO is not supported in Python 3.
     'pyvcf>=0.6.8,<0.7.0; python_version < "3.0"',
@@ -130,6 +130,7 @@ REQUIRED_PACKAGES = [
 
 REQUIRED_TEST_PACKAGES = [
     'nose>=1.3.7',
+    'nose_xunitmp>=0.4.1',
     'numpy>=1.14.3,<2',
     'pandas>=0.23.4,<0.24',
     'parameterized>=0.6.0,<0.7.0',
@@ -147,8 +148,8 @@ GCP_REQUIREMENTS = [
     'google-cloud-datastore>=1.7.1,<1.8.0',
     'google-cloud-pubsub>=0.39.0,<0.40.0',
     # GCP packages required by tests
-    'google-cloud-bigquery>=1.6.0,<1.7.0',
-    'google-cloud-core>=0.28.1,<0.30.0',
+    'google-cloud-bigquery>=1.6.0,<1.18.0',
+    'google-cloud-core>=0.28.1,<2',
     'google-cloud-bigtable>=0.31.1,<0.33.0',
 ]
 

@@ -33,8 +33,10 @@ from __future__ import absolute_import
 from __future__ import division
 
 import argparse
+import base64
 from builtins import object
 from builtins import range
+from decimal import Decimal
 
 from past.builtins import unicode
 
@@ -444,7 +446,7 @@ def examples_wordcount_minimal(renames):
       # [END examples_wordcount_minimal_count]
 
       # [START examples_wordcount_minimal_map]
-      | beam.Map(lambda word_count: '%s: %s' % (word_count[0], word_count[1]))
+      | beam.MapTuple(lambda word, count: '%s: %s' % (word, count))
       # [END examples_wordcount_minimal_map]
 
       # [START examples_wordcount_minimal_write]
@@ -1080,6 +1082,22 @@ def model_bigqueryio(p, write_project='', write_dataset='', write_table=''):
       datasetId='samples',
       tableId='weather_stations')
   # [END model_bigqueryio_table_spec_object]
+
+  # [START model_bigqueryio_data_types]
+  bigquery_data = [{
+      'string': 'abc',
+      'bytes': base64.b64encode(b'\xab\xac'),
+      'integer': 5,
+      'float': 0.5,
+      'numeric': Decimal('5'),
+      'boolean': True,
+      'timestamp': '2018-12-31 12:44:31.744957 UTC',
+      'date': '2018-12-31',
+      'time': '12:44:31',
+      'datetime': '2018-12-31T12:44:31',
+      'geography': 'POINT(30 10)'
+  }]
+  # [END model_bigqueryio_data_types]
 
   # [START model_bigqueryio_read_table]
   max_temperatures = (
