@@ -36,7 +36,7 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
 
-/** Bounded + Bounded Test for {@code BeamStandardJoinRel}. */
+/** Bounded + Bounded Test for {@code BeamCoGBKJoinRel}. */
 public class BeamCoGBKJoinRelBoundedVsBoundedTest extends BaseRelTest {
   @Rule public final TestPipeline pipeline = TestPipeline.create();
   @Rule public ExpectedException thrown = ExpectedException.none();
