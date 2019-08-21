@@ -121,6 +121,20 @@ class DockerCommand {
   }
 
   /**
+   * Returns logs for the container specified by {@code containerId}.
+   *
+   * @throws IOException if an IOException occurs or if the given container id does not exist
+   */
+  public String getContainerLogs(String containerId)
+      throws IOException, TimeoutException, InterruptedException {
+    checkArgument(containerId != null);
+    checkArgument(
+        CONTAINER_ID_PATTERN.matcher(containerId).matches(),
+        "Container ID must be a 64-character hexadecimal string");
+    return runShortCommand(Arrays.asList(dockerExecutable, "logs", containerId), true, "\n");
+  }
+
+  /**
    * Kills a docker container by container id.
    *
    * @throws IOException if an IOException occurs or if the given container id does not exist
@@ -134,10 +148,41 @@ class DockerCommand {
     runShortCommand(Arrays.asList(dockerExecutable, "kill", containerId));
   }
 
-  /** Run the given command invocation and return stdout as a String. */
+  /**
+   * Removes docker container with container id.
+   *
+   * @throws IOException if an IOException occurs, or if the given container id either does not
+   *     exist or is still running
+   */
+  public void removeContainer(String containerId)
+      throws IOException, TimeoutException, InterruptedException {
+    checkArgument(containerId != null);
+    checkArgument(
+        CONTAINER_ID_PATTERN.matcher(containerId).matches(),
+        "Container ID must be a 64-character hexadecimal string");
+    runShortCommand(Arrays.asList(dockerExecutable, "rm", containerId));
+  }
+
   private String runShortCommand(List<String> invocation)
       throws IOException, TimeoutException, InterruptedException {
+    return runShortCommand(invocation, false, "");
+  }
+
+  /**
+   * Runs a command, blocks until {@link DockerCommand#commandTimeout} has elapsed, then returns the
+   * command's output.
+   *
+   * @param invocation command and arguments to be run
+   * @param redirectErrorStream if true, redirect stderr of the process to its stdout
+   * @param delimiter used for separating output lines
+   * @return stdout of the command, including stderr if {@code redirectErrorStream} is true
+   * @throws TimeoutException if command has not finished by {@link DockerCommand#commandTimeout}
+   */
+  private String runShortCommand(
+      List<String> invocation, boolean redirectErrorStream, CharSequence delimiter)
+      throws IOException, TimeoutException, InterruptedException {
     ProcessBuilder pb = new ProcessBuilder(invocation);
+    pb.redirectErrorStream(redirectErrorStream);
     Process process = pb.start();
     // TODO: Consider supplying executor service here.
     CompletableFuture<String> resultString =
@@ -147,17 +192,22 @@ class DockerCommand {
               BufferedReader reader =
                   new BufferedReader(
                       new InputStreamReader(process.getInputStream(), StandardCharsets.UTF_8));
-              return reader.lines().collect(Collectors.joining());
+              return reader.lines().collect(Collectors.joining(delimiter));
             });
+    CompletableFuture<String> errorFuture;
     // NOTE: We only consume the error string in the case of an error.
-    CompletableFuture<String> errorFuture =
-        CompletableFuture.supplyAsync(
-            () -> {
-              BufferedReader reader =
-                  new BufferedReader(
-                      new InputStreamReader(process.getErrorStream(), StandardCharsets.UTF_8));
-              return reader.lines().collect(Collectors.joining());
-            });
+    if (redirectErrorStream) {
+      errorFuture = CompletableFuture.completedFuture("(Redirected to stdout)");
+    } else {
+      errorFuture =
+          CompletableFuture.supplyAsync(
+              () -> {
+                BufferedReader reader =
+                    new BufferedReader(
+                        new InputStreamReader(process.getErrorStream(), StandardCharsets.UTF_8));
+                return reader.lines().collect(Collectors.joining(delimiter));
+              });
+    }
     // TODO: Retry on interrupt?
     boolean processDone = process.waitFor(commandTimeout.toMillis(), TimeUnit.MILLISECONDS);
     if (!processDone) {
