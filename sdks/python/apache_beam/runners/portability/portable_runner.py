@@ -84,7 +84,7 @@ class PortableRunner(runner.PipelineRunner):
   @staticmethod
   def default_docker_image():
     if 'USER' in os.environ:
-      version_suffix = ''.join([str(i) for i in sys.version_info[0:2]])
+      version_suffix = '.'.join([str(i) for i in sys.version_info[0:2]])
       logging.warning('Make sure that locally built Python SDK docker image '
                       'has Python %d.%d interpreter.' % (
                           sys.version_info[0], sys.version_info[1]))
