@@ -170,8 +170,4 @@ public class BeamRuleSets {
               .build())
     };
   }
-
-  public static List<RelOptRule> getBeamConverterRules() {
-    return BEAM_CONVERTERS;
-  }
 }
