@@ -27,9 +27,11 @@ import org.apache.beam.sdk.extensions.sql.impl.rule.BeamEnumerableConverterRule;
 import org.apache.beam.sdk.extensions.sql.impl.rule.BeamIntersectRule;
 import org.apache.beam.sdk.extensions.sql.impl.rule.BeamJoinAssociateRule;
 import org.apache.beam.sdk.extensions.sql.impl.rule.BeamJoinPushThroughJoinRule;
-import org.apache.beam.sdk.extensions.sql.impl.rule.BeamJoinRule;
 import org.apache.beam.sdk.extensions.sql.impl.rule.BeamMinusRule;
+import org.apache.beam.sdk.extensions.sql.impl.rule.BeamSideInputJoinRule;
+import org.apache.beam.sdk.extensions.sql.impl.rule.BeamSideInputLookupJoinRule;
 import org.apache.beam.sdk.extensions.sql.impl.rule.BeamSortRule;
+import org.apache.beam.sdk.extensions.sql.impl.rule.BeamStandardJoinRule;
 import org.apache.beam.sdk.extensions.sql.impl.rule.BeamUncollectRule;
 import org.apache.beam.sdk.extensions.sql.impl.rule.BeamUnionRule;
 import org.apache.beam.sdk.extensions.sql.impl.rule.BeamUnnestRule;
@@ -151,7 +153,9 @@ public class BeamRuleSets {
           BeamUnionRule.INSTANCE,
           BeamUncollectRule.INSTANCE,
           BeamUnnestRule.INSTANCE,
-          BeamJoinRule.INSTANCE);
+          BeamSideInputJoinRule.INSTANCE,
+          BeamStandardJoinRule.INSTANCE,
+          BeamSideInputLookupJoinRule.INSTANCE);
 
   private static final List<RelOptRule> BEAM_TO_ENUMERABLE =
       ImmutableList.of(BeamEnumerableConverterRule.INSTANCE);
@@ -165,5 +169,9 @@ public class BeamRuleSets {
               .addAll(LOGICAL_OPTIMIZATIONS)
               .build())
     };
+  }
+
+  public static List<RelOptRule> getBeamConverterRules() {
+    return BEAM_CONVERTERS;
   }
 }
