@@ -917,8 +917,20 @@ class AppliedPTransform(object):
         for tag, id in proto.outputs.items()}
     # This annotation is expected by some runners.
     if proto.spec.urn == common_urns.primitives.PAR_DO.urn:
-      result.transform.output_tags = set(proto.outputs.keys()).difference(
-          {'None'})
+      # Some external transforms require output tags to be not to be modified.
+      # So we randomly select one of the output tags as the main output and
+      # leave others as side outputs. Transform execution should not change
+      # dependending on which output tag we choose as the main output here.
+      from apache_beam.transforms.core import RunnerAPIPTransformHolder
+      external_transform = isinstance(result.transform,
+                                      RunnerAPIPTransformHolder)
+      main_output_tag = 'None' if not external_transform else \
+      proto.outputs.keys()[0]
+      result.transform.main_output_tag = main_output_tag
+
+      output_tags = set(proto.outputs.keys()).difference(
+          {main_output_tag})
+      result.transform.output_tags = output_tags
     if not result.parts:
       for tag, pcoll_id in proto.outputs.items():
         if pcoll_id not in proto.inputs.values():
