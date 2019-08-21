@@ -21,11 +21,13 @@ import CommonTestProperties
 import LoadTestsBuilder as loadTestsBuilder
 import PhraseTriggeringPostCommitBuilder
 import Flink
+import SDKHarnessPublisher
 
-String pythonHarnessImageTag = Flink.getSDKHarnessImageTag(CommonTestProperties.SDK.PYTHON)
+SDKHarnessPublisher sdkPublisher = new SDKHarnessPublisher()
+String pythonHarnessImageTag = sdkPublisher.getFullImageName(CommonTestProperties.SDK.PYTHON)
 String now = new Date().format("MMddHHmmss", TimeZone.getTimeZone('UTC'))
 
-def loadTestConfigurations = { datasetName -> [
+def scenarios = { datasetName -> [
         [
                 title        : 'CoGroupByKey Python Load test: 2GB of 100B records with a single key',
                 itClass      : 'apache_beam.testing.load_tests.co_group_by_key_test:CoGroupByKeyTest.testCoGroupByKey',
@@ -149,15 +151,17 @@ def loadTestConfigurations = { datasetName -> [
 ]}
 
 def loadTest = { scope, triggeringContext ->
-  def numberOfWorkers = 5
-  def flink = new Flink(scope, 'beam_LoadTests_Python_CoGBK_Flink_Batch')
-  flink.prepareSDKHarness(CommonTestProperties.SDK.PYTHON)
-  flink.prepareJobServer()
-  flink.setUp(CommonTestProperties.SDK.PYTHON, numberOfWorkers)
-
   def datasetName = loadTestsBuilder.getBigQueryDataset('load_test', triggeringContext)
-  def testConfigs = loadTestConfigurations(datasetName)
-  loadTestsBuilder.loadTests(scope, CommonTestProperties.SDK.PYTHON, testConfigs, 'CoGBK', 'batch')
+  def sdk = CommonTestProperties.SDK.PYTHON
+  def numberOfWorkers = 5
+  List<Map> testScenarios = scenarios(datasetName)
+
+  sdkPublisher.publishSDKHarness(scope, sdk)
+  def flink = new Flink(scope, 'beam_LoadTests_Python_CoGBK_Flink_Batch')
+  flink.prepareJobServer()
+  flink.setUp([pythonHarnessImageTag], numberOfWorkers)
+
+  loadTestsBuilder.loadTests(scope, sdk, testScenarios, 'CoGBK', 'batch')
 }
 
 PhraseTriggeringPostCommitBuilder.postCommitJob(
