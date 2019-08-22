@@ -201,6 +201,7 @@ class DataInputOperation(RunnerIOOperation):
 class _StateBackedIterable(object):
   def __init__(self, state_handler, state_key, coder_or_impl):
     self._state_handler = state_handler
+    # TODO mxm This is the beam fn api key
     self._state_key = state_key
     if isinstance(coder_or_impl, coders.Coder):
       self._coder_impl = coder_or_impl.get_impl()
@@ -208,17 +209,9 @@ class _StateBackedIterable(object):
       self._coder_impl = coder_or_impl
 
   def __iter__(self):
-    # This is the continuation token this might be useful
-    data, continuation_token = self._state_handler.blocking_get(self._state_key)
-    while True:
-      input_stream = coder_impl.create_InputStream(data)
-      while input_stream.size() > 0:
-        yield self._coder_impl.decode_from_stream(input_stream, True)
-      if not continuation_token:
-        break
-      else:
-        data, continuation_token = self._state_handler.blocking_get(
-            self._state_key, continuation_token)
+    materialized = self._state_handler.blocking_get(
+        self._state_key, self._coder_impl)
+    return iter(materialized)
 
   def __reduce__(self):
     return list, (list(self),)
@@ -493,6 +486,7 @@ class FnApiUserStateContext(userstate.UserStateContext):
         key, window, self._timer_receivers[timer_spec.name])
 
   def get_state(self, *args):
+    # TODO mxm here starts the state retrieval
     state_handle = self._all_states.get(args)
     if state_handle is None:
       state_handle = self._all_states[args] = self._create_state(*args)
