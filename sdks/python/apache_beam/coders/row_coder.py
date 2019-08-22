@@ -142,16 +142,25 @@ class RowCoderImpl(StreamCoderImpl):
       c.encode_to_stream(attr, out, True)
 
   def decode_from_stream(self, in_stream, nested):
-    # TODO: handle schema changes
     nvals = self.SIZE_CODER.decode_from_stream(in_stream, True)
     words = array('B')
     words.fromstring(self.NULL_CODER.decode_from_stream(in_stream, True))
 
     if words:
-      nulls = [(words[i // 8] >> (i % 8)) & 0x01 for i in range(nvals)]
+      nulls = ((words[i // 8] >> (i % 8)) & 0x01 for i in range(nvals))
     else:
       nulls = itertools.repeat(False, nvals)
 
+    # If this coder's schema has more attributes than the encoded value, then
+    # the schema must have changed. Populate the unencoded fields with nulls.
+    if len(self.components) > nvals:
+      nulls = itertools.chain(
+          nulls,
+          itertools.repeat(True, len(self.components) - nvals))
+
+    # Note that if this coder's schema has *fewer* attributes than the encoded
+    # value, we just need to ignore the additional values, which will occur
+    # here because we only decode as many values as we have coders for.
     return self.constructor(*(
         None if is_null else c.decode_from_stream(in_stream, True)
         for c, is_null in zip(self.components, nulls)))

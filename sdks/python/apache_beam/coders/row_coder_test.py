@@ -124,6 +124,44 @@ class RowCoderTest(unittest.TestCase):
     c = RowCoder.from_type_hint(Test, None)
     self.assertRaises(ValueError, lambda: c.encode(Test(foo=None)))
 
+  def test_schema_remove_column(self):
+    fields = [("field1", str), ("field2", str)]
+    # new schema is missing one field that was in the old schema
+    Old = typing.NamedTuple('Old', fields)
+    New = typing.NamedTuple('New', fields[:-1])
+
+    old_coder = RowCoder.from_type_hint(Old, None)
+    new_coder = RowCoder.from_type_hint(New, None)
+
+    self.assertEquals(
+        New("foo"), new_coder.decode(old_coder.encode(Old("foo", "bar"))))
+
+  def test_schema_add_column(self):
+    fields = [("field1", str), ("field2", typing.Optional[str])]
+    # new schema has one (optional) field that didn't exist in the old schema
+    Old = typing.NamedTuple('Old', fields[:-1])
+    New = typing.NamedTuple('New', fields)
+
+    old_coder = RowCoder.from_type_hint(Old, None)
+    new_coder = RowCoder.from_type_hint(New, None)
+
+    self.assertEquals(
+        New("bar", None), new_coder.decode(old_coder.encode(Old("bar"))))
+
+  def test_schema_add_column_with_null_value(self):
+    fields = [("field1", typing.Optional[str]), ("field2", str),
+              ("field3", typing.Optional[str])]
+    # new schema has one (optional) field that didn't exist in the old schema
+    Old = typing.NamedTuple('Old', fields[:-1])
+    New = typing.NamedTuple('New', fields)
+
+    old_coder = RowCoder.from_type_hint(Old, None)
+    new_coder = RowCoder.from_type_hint(New, None)
+
+    self.assertEquals(
+        New(None, "baz", None),
+        new_coder.decode(old_coder.encode(Old(None, "baz"))))
+
 
 if __name__ == "__main__":
   logging.getLogger().setLevel(logging.INFO)
