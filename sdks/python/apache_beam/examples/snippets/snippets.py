@@ -1419,3 +1419,32 @@ def accessing_valueprovider_info_after_run():
   p.run().wait_until_finish()
 
   # [END AccessingValueProviderInfoAfterRunSnip1]
+
+  # [START CustomSessionWindow1]
+  def assign(self, context):
+    timestamp = context.timestamp
+    return [IntervalWindow(timestamp, timestamp + self.gap_size)]
+
+  # [END CustomSessionWindow1]
+
+  # [START CustomSessionWindow2]
+  def assign(self, context):
+    timestamp = context.timestamp
+
+    try:
+      gap = Duration.of(context.element[1][“gap”])
+      except:
+      gap = self.gap_size
+
+    return [IntervalWindow(timestamp, timestamp + gap)]
+
+  # [END CustomSessionWindow2]
+
+  # [START CustomSessionWindow1]
+  'user_session_window'   >>
+
+  beam.WindowInto(DynamicSessions(gap_size=gap_size),
+                  gap_attribute=gap_attribute),
+  timestamp_combiner=window.TimestampCombiner.OUTPUT_AT_EOW)
+
+  # [END CustomSessionWindow1]
