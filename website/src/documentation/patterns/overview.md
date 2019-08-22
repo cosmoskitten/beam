@@ -23,17 +23,20 @@ limitations under the License.
 Pipeline patterns demonstrate common Beam use cases. Pipeline patterns are based on real-world Beam deployments. Each pattern has a description, examples, and a solution or psuedocode.
 
 **File processing patterns** - Patterns for reading from and writing to files
-* [Processing files as they arrive]({{ site.baseurl }}/documentation/patterns/file-processing-patterns/#processing-files-as-they-arrive)
-* [Accessing filenames]({{ site.baseurl }}/documentation/patterns/file-processing-patterns/#accessing-filenames)
+* [Processing files as they arrive]({{ site.baseurl }}/documentation/patterns/file-processing/#processing-files-as-they-arrive)
+* [Accessing filenames]({{ site.baseurl }}/documentation/patterns/file-processing/#accessing-filenames)
 
 **Side input patterns** - Patterns for processing supplementary data
-* [Using global window side inputs in non-global windows]({{ site.baseurl }}/documentation/patterns/side-input-patterns/#using-global-window-side-inputs-in-non-global-windows)
+* [Using global window side inputs in non-global windows]({{ site.baseurl }}/documentation/patterns/side-input/#using-global-window-side-inputs-in-non-global-windows)
 
 **Pipeline option patterns** - Patterns for configuring pipelines
-* [Retroactively logging runtime parameters]({{ site.baseurl }}/documentation/patterns/pipeline-option-patterns/#retroactively-logging-runtime-parameters)
+* [Retroactively logging runtime parameters]({{ site.baseurl }}/documentation/patterns/pipeline-option/#retroactively-logging-runtime-parameters)
 
 **Custom I/O patterns**
-* [Choosing between built-in and custom connectors]({{ site.baseurl }}/documentation/patterns/custom-io-patterns/#choosing-between-built-in-and-custom-connectors)
+* [Choosing between built-in and custom connectors]({{ site.baseurl }}/documentation/patterns/custom-io/#choosing-between-built-in-and-custom-connectors)
+
+**Custom window patterns**
+* [TITLE]({{ site.baseurl }}/documentation/patterns/custom-window/#TITLE)
 
 ## Contributing a pattern
 
