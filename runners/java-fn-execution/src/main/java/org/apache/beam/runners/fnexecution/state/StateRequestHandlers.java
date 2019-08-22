@@ -25,7 +25,7 @@ import java.util.EnumMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
+import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.ConcurrentHashMap;
@@ -156,22 +156,19 @@ public class StateRequestHandlers {
     ByteString clear(K key, W window);
 
     /** Returns an Iterable over the currently valid cache tokens. */
-    default Iterable<ByteString> getCacheTokens() {
-      return Collections.emptyList();
+    @Nullable
+    default ByteString getCacheToken() {
+      return null;
     }
 
     /** Clears the currently valid cache tokens. */
-    default void clearCacheTokens() {}
+    default void clearCacheToken() {}
 
     class BagWithCacheToken<V> {
       public final Iterable<V> bagIterable;
       @Nullable public final ByteString cacheToken;
 
-      public BagWithCacheToken(Iterable<V> bagIterable) {
-        this(bagIterable, null);
-      }
-
-      public BagWithCacheToken(Iterable<V> bagIterable, ByteString cacheToken) {
+      public BagWithCacheToken(Iterable<V> bagIterable, @Nullable ByteString cacheToken) {
         this.bagIterable = bagIterable;
         this.cacheToken = cacheToken;
       }
@@ -461,14 +458,15 @@ public class StateRequestHandlers {
 
     @Override
     public Iterable<ByteString> getCacheTokens() {
-      Set allTokens =
-          handlerCache.values().stream().map(h -> h.getCacheTokens()).collect(Collectors.toSet());
-      return Iterables.concat(allTokens);
+      return handlerCache.values().stream()
+          .map(BagUserStateHandler::getCacheToken)
+          .filter(Objects::nonNull)
+          .collect(Collectors.toSet());
     }
 
     @Override
-    public void clearCacheTokens() {
-      handlerCache.values().forEach(h -> h.clearCacheTokens());
+    public void invalidateCacheTokens() {
+      handlerCache.values().forEach(BagUserStateHandler::clearCacheToken);
     }
 
     private static <W extends BoundedWindow>

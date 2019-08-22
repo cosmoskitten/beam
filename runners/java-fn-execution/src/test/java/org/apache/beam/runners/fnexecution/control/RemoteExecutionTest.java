@@ -895,7 +895,7 @@ public class RemoteExecutionTest implements Serializable {
                 return new BagUserStateHandler<ByteString, Object, BoundedWindow>() {
                   @Override
                   public BagWithCacheToken get(ByteString key, BoundedWindow window) {
-                    return new BagWithCacheToken<>((Iterable) userStateData.get(userStateId));
+                    return new BagWithCacheToken<>(userStateData.get(userStateId), null);
                   }
 
                   @Override

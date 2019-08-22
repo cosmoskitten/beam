@@ -45,7 +45,7 @@ public interface StateRequestHandler {
   }
 
   /** Clears the list of valid cache tokens. */
-  default void clearCacheTokens() {}
+  default void invalidateCacheTokens() {}
 
   static StateRequestHandler unsupported() {
     return request -> {
