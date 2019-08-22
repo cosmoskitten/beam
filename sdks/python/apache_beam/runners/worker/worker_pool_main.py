@@ -68,10 +68,10 @@ class BeamFnExternalWorkerPoolServicer(
     worker_server.start()
 
     # Register to kill the subprocesses on exit.
-    def kill_worker_processes():
-      for worker_process in cls._worker_processes.values():
+    def kill_worker_processes(worker_processes):
+      for worker_process in worker_processes.values():
         worker_process.kill()
-    atexit.register(kill_worker_processes)
+    atexit.register(kill_worker_processes, cls._worker_processes)
 
     return worker_address, worker_server
 
