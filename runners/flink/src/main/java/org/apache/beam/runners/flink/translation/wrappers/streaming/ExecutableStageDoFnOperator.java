@@ -31,6 +31,7 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.UUID;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
@@ -70,8 +71,6 @@ import org.apache.beam.runners.fnexecution.state.StateRequestHandler;
 import org.apache.beam.runners.fnexecution.state.StateRequestHandlers;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.VoidCoder;
-import org.apache.beam.sdk.fn.IdGenerator;
-import org.apache.beam.sdk.fn.IdGenerators;
 import org.apache.beam.sdk.fn.data.FnDataReceiver;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.state.BagState;
@@ -89,8 +88,6 @@ import org.apache.beam.sdk.values.WindowingStrategy;
 import org.apache.beam.vendor.grpc.v1p21p0.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Charsets;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.cache.Cache;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.cache.CacheBuilder;
 import org.apache.beam.vendor.sdk.v2.sdk.extensions.protobuf.ByteStringCoder;
 import org.apache.flink.api.common.state.ListStateDescriptor;
 import org.apache.flink.api.common.typeutils.base.StringSerializer;
@@ -262,10 +259,9 @@ public class ExecutableStageDoFnOperator<InputT, OutputT> extends DoFnOperator<I
     private final StateInternals stateInternals;
     private final KeyedStateBackend<ByteBuffer> keyedStateBackend;
     private final Lock stateBackendLock;
-    /** Cache is scoped by state id. */
-    private final Cache<String, ByteString> cacheTokens;
 
-    private final IdGenerator cacheTokenGenerator;
+    /** Holds the current valid ache token for this operator. */
+    private volatile ByteString currentCacheToken;
 
     BagUserStateFactory(
         StateInternals stateInternals,
@@ -275,8 +271,12 @@ public class ExecutableStageDoFnOperator<InputT, OutputT> extends DoFnOperator<I
       this.stateInternals = stateInternals;
       this.keyedStateBackend = keyedStateBackend;
       this.stateBackendLock = stateBackendLock;
-      this.cacheTokens = CacheBuilder.newBuilder().maximumSize(MAX_CACHE_SIZE).build();
-      this.cacheTokenGenerator = IdGenerators.incrementingLongs();
+      updateAndGetCacheToken();
+    }
+
+    private ByteString updateAndGetCacheToken() {
+      currentCacheToken = ByteString.copyFrom(UUID.randomUUID().toString(), Charsets.UTF_8);
+      return currentCacheToken;
     }
 
     @Override
@@ -307,7 +307,7 @@ public class ExecutableStageDoFnOperator<InputT, OutputT> extends DoFnOperator<I
             BagState<V> bagState =
                 stateInternals.state(namespace, StateTags.bag(userStateId, valueCoder));
 
-            return new BagWithCacheToken<>(bagState.read(), generateAndRegisterCacheKey());
+            return new BagWithCacheToken<>(bagState.read(), currentCacheToken);
           } finally {
             stateBackendLock.unlock();
           }
@@ -333,7 +333,7 @@ public class ExecutableStageDoFnOperator<InputT, OutputT> extends DoFnOperator<I
               bagState.add(values.next());
             }
 
-            return generateAndRegisterCacheKey();
+            return updateAndGetCacheToken();
           } finally {
             stateBackendLock.unlock();
           }
@@ -357,26 +357,20 @@ public class ExecutableStageDoFnOperator<InputT, OutputT> extends DoFnOperator<I
                 stateInternals.state(namespace, StateTags.bag(userStateId, valueCoder));
             bagState.clear();
 
-            return generateAndRegisterCacheKey();
+            return updateAndGetCacheToken();
           } finally {
             stateBackendLock.unlock();
           }
         }
 
         @Override
-        public Iterable<ByteString> getCacheTokens() {
-          return cacheTokens.asMap().values();
+        public ByteString getCacheToken() {
+          return currentCacheToken;
         }
 
         @Override
-        public void clearCacheTokens() {
-          cacheTokens.invalidateAll();
-        }
-
-        private ByteString generateAndRegisterCacheKey() {
-          ByteString cacheToken = ByteString.copyFrom(cacheTokenGenerator.getId(), Charsets.UTF_8);
-          cacheTokens.put(userStateId, cacheToken);
-          return cacheToken;
+        public void clearCacheToken() {
+          updateAndGetCacheToken();
         }
 
         private void prepareStateBackend(K key) {

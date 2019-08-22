@@ -23,6 +23,7 @@ import static org.hamcrest.Matchers.hasSize;
 import static org.hamcrest.Matchers.instanceOf;
 import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.iterableWithSize;
+import static org.hamcrest.Matchers.not;
 import static org.hamcrest.collection.IsIterableContainingInOrder.contains;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
@@ -680,35 +681,59 @@ public class ExecutableStageDoFnOperatorTest {
         StateRequestHandlers.forBagUserStateHandlerFactory(
             processBundleDescriptor, bagUserStateFactory);
 
-    List<RequestGenerator> requestGenerators =
-        Arrays.asList(
-            ExecutableStageDoFnOperatorTest::getRequest,
-            ExecutableStageDoFnOperatorTest::getAppend,
-            ExecutableStageDoFnOperatorTest::getClear);
+    // There should be no cache token available before any requests have been made
+    assertThat(stateRequestHandler.getCacheTokens(), iterableWithSize(0));
 
-    for (RequestGenerator requestGenerator : requestGenerators) {
-      // initial number of cache tokens should be zero
-      assertThat(stateRequestHandler.getCacheTokens(), iterableWithSize(0));
+    // Make a request to generate a cache token
+    stateRequestHandler.handle(getRequest(key1, userState1));
+    ByteString cacheToken = Iterables.getOnlyElement(stateRequestHandler.getCacheTokens());
+
+    // For every state read the tokens remains unchanged
+    stateRequestHandler.handle(getRequest(key1, userState1));
+    assertThat(stateRequestHandler.getCacheTokens(), contains(cacheToken));
+
+    // The token is still valid for another key in the same key range
+    stateRequestHandler.handle(getRequest(key2, userState1));
+    assertThat(stateRequestHandler.getCacheTokens(), contains(cacheToken));
+
+    // The token is still valid for another state cell in the same key range
+    stateRequestHandler.handle(getRequest(key2, userState2));
+    assertThat(stateRequestHandler.getCacheTokens(), contains(cacheToken));
+
+    // Cache token may be invalidated
+    stateRequestHandler.invalidateCacheTokens();
+    assertThat(Iterables.getOnlyElement(stateRequestHandler.getCacheTokens()), is(not(cacheToken)));
+    cacheToken = Iterables.getOnlyElement(stateRequestHandler.getCacheTokens());
+
+    List<RequestGenerator> writeGenerators =
+        Arrays.asList(
+            ExecutableStageDoFnOperatorTest::getAppend, ExecutableStageDoFnOperatorTest::getClear);
+
+    for (RequestGenerator req : writeGenerators) {
+      ByteString newCacheToken;
 
       // For every new state a cache token should be generated
-      stateRequestHandler.handle(requestGenerator.getRequest(key1, userState1));
-      assertThat(stateRequestHandler.getCacheTokens(), iterableWithSize(1));
+      stateRequestHandler.handle(req.writeRequest(key1, userState1));
+      newCacheToken = Iterables.getOnlyElement(stateRequestHandler.getCacheTokens());
+      assertThat(newCacheToken, is(not(cacheToken)));
+      cacheToken = newCacheToken;
 
-      // Cache tokens are scoped by user state id, so the number of tokens will not change after
-      // this
-      stateRequestHandler.handle(requestGenerator.getRequest(key2, userState1));
-      assertThat(stateRequestHandler.getCacheTokens(), iterableWithSize(1));
+      // Cache tokens are scoped by user state, so the number of tokens will not change
+      stateRequestHandler.handle(req.writeRequest(key2, userState1));
+      newCacheToken = Iterables.getOnlyElement(stateRequestHandler.getCacheTokens());
+      assertThat(newCacheToken, is(not(cacheToken)));
+      cacheToken = newCacheToken;
 
-      // Another cache token should be generated for userState2
-      stateRequestHandler.handle(requestGenerator.getRequest(key2, userState2));
-      assertThat(stateRequestHandler.getCacheTokens(), iterableWithSize(2));
-
-      stateRequestHandler.clearCacheTokens();
+      // The cache token will stay stay the same for userState2
+      stateRequestHandler.handle(req.writeRequest(key2, userState2));
+      newCacheToken = Iterables.getOnlyElement(stateRequestHandler.getCacheTokens());
+      assertThat(newCacheToken, is(not(cacheToken)));
+      cacheToken = newCacheToken;
     }
   }
 
   private interface RequestGenerator {
-    BeamFnApi.StateRequest getRequest(ByteString key, String userStateId) throws Exception;
+    BeamFnApi.StateRequest writeRequest(ByteString key, String userStateId) throws Exception;
   }
 
   private static BeamFnApi.StateRequest getRequest(ByteString key, String userStateId)
