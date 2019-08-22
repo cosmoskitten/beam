@@ -1440,11 +1440,11 @@ def accessing_valueprovider_info_after_run():
 
   # [END CustomSessionWindow2]
 
-  # [START CustomSessionWindow1]
+  # [START CustomSessionWindow3]
   'user_session_window'   >>
 
   beam.WindowInto(DynamicSessions(gap_size=gap_size),
                   gap_attribute=gap_attribute),
   timestamp_combiner=window.TimestampCombiner.OUTPUT_AT_EOW)
 
-  # [END CustomSessionWindow1]
+  # [END CustomSessionWindow3]
