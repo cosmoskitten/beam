@@ -39,7 +39,7 @@ Person = typing.NamedTuple("Person", [
 coders_registry.register_coder(Person, RowCoder)
 
 
-class CodersTest(unittest.TestCase):
+class RowCoderTest(unittest.TestCase):
   TEST_CASES = [
       Person("Jon Snow", 23, None, ["crow", "wildling"]),
       Person("Daenerys Targaryen", 25, "Westeros", ["Mother of Dragons"]),
