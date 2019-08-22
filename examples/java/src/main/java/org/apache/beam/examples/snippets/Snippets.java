@@ -724,8 +724,7 @@ public class Snippets {
     public static DynamicSessions withDefaultGapDuration(Duration gapDuration) {
       return new DynamicSessions(gapDuration);
     }
-
-    // [START CustomSessionWindow4]
+    // [END CustomSessionWindow4]
 
     @Override
     public void mergeWindows(MergeContext c) throws Exception {}
