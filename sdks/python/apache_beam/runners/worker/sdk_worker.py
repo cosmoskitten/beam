@@ -37,11 +37,14 @@ import grpc
 from future.utils import raise_
 from future.utils import with_metaclass
 
+from apache_beam.coders import coder_impl
 from apache_beam.portability.api import beam_fn_api_pb2
 from apache_beam.portability.api import beam_fn_api_pb2_grpc
 from apache_beam.runners.worker import bundle_processor
 from apache_beam.runners.worker import data_plane
 from apache_beam.runners.worker.channel_factory import GRPCChannelFactory
+from apache_beam.runners.worker.statecache import CacheStateKey
+from apache_beam.runners.worker.statecache import StateCache
 from apache_beam.runners.worker.worker_id_interceptor import WorkerIdInterceptor
 
 
@@ -107,7 +110,7 @@ class SdkHarness(object):
       # SdkHarness manage function registration and share self._fns with all
       # the workers. This is needed because function registration (register)
       # and exceution(process_bundle) are send over different request and we
-      # do not really know which woker is going to process bundle
+      # do not really know which worker is going to process bundle
       # for a function till we get process_bundle request. Moreover
       # same function is reused by different process bundle calls and
       # potentially get executed by different worker. Hence we need a
@@ -331,7 +334,8 @@ class BundleProcessorCache(object):
 
 class SdkWorker(object):
 
-  def __init__(self, bundle_processor_cache, profiler_factory=None):
+  def __init__(self, bundle_processor_cache,
+               profiler_factory=None):
     self.bundle_processor_cache = bundle_processor_cache
     self.profiler_factory = profiler_factory
 
@@ -362,8 +366,9 @@ class SdkWorker(object):
     bundle_processor = self.bundle_processor_cache.get(
         instruction_id, request.process_bundle_descriptor_reference)
     try:
+      # TODO mxm cache tokens here
       with bundle_processor.state_handler.process_instruction_id(
-          instruction_id):
+          instruction_id, request.cache_tokens):
         with self.maybe_profile(instruction_id):
           delayed_applications, requests_finalization = (
               bundle_processor.process_bundle(instruction_id))
@@ -464,6 +469,7 @@ class GrpcStateHandlerFactory(StateHandlerFactory):
     self._lock = threading.Lock()
     self._throwing_state_handler = ThrowingStateHandler()
     self._credentials = credentials
+    self.state_cache = StateCache(100)
 
   def create_state_handler(self, api_service_descriptor):
     if not api_service_descriptor:
@@ -489,8 +495,9 @@ class GrpcStateHandlerFactory(StateHandlerFactory):
           # Add workerId to the grpc channel
           grpc_channel = grpc.intercept_channel(grpc_channel,
                                                 WorkerIdInterceptor())
-          self._state_handler_cache[url] = GrpcStateHandler(
-              beam_fn_api_pb2_grpc.BeamFnStateStub(grpc_channel))
+          self._state_handler_cache[url] = CachingGrpcStateHandler(
+              beam_fn_api_pb2_grpc.BeamFnStateStub(grpc_channel),
+              self.state_cache)
     return self._state_handler_cache[url]
 
   def close(self):
@@ -527,7 +534,8 @@ class GrpcStateHandler(object):
   _DONE = object()
 
   def __init__(self, state_stub):
-    self._lock = threading.Lock()
+    # TODO mxm seems unnecessary
+    #self._lock = threading.Lock()
     self._state_stub = state_stub
     self._requests = queue.Queue()
     self._responses_by_id = {}
@@ -537,15 +545,20 @@ class GrpcStateHandler(object):
     self.start()
 
   @contextlib.contextmanager
-  def process_instruction_id(self, bundle_id):
+  def process_instruction_id(self, bundle_id, cache_tokens):
     if getattr(self._context, 'process_instruction_id', None) is not None:
       raise RuntimeError(
           'Already bound to %r' % self._context.process_instruction_id)
     self._context.process_instruction_id = bundle_id
+    if getattr(self._context, 'cache_tokens', None) is not None:
+      raise RuntimeError(
+          'Cache tokens already to %s' % self._context.cache_tokens)
+    self._context.cache_tokens = cache_tokens
     try:
       yield
     finally:
       self._context.process_instruction_id = None
+      self._context.cache_tokens = None
 
   def start(self):
     self._done = False
@@ -577,13 +590,20 @@ class GrpcStateHandler(object):
     self._done = True
     self._requests.put(self._DONE)
 
-  def blocking_get(self, state_key, continuation_token=None):
-    response = self._blocking_request(
-        beam_fn_api_pb2.StateRequest(
-            state_key=state_key,
-            get=beam_fn_api_pb2.StateGetRequest(
-                continuation_token=continuation_token)))
-    return response.get.data, response.get.continuation_token
+  def blocking_get(self, state_key, coder):
+    materialized = []
+    while True:
+      response = self._blocking_request(
+          beam_fn_api_pb2.StateRequest(
+              state_key=state_key,
+              get=beam_fn_api_pb2.StateGetRequest()))
+      data, continuation_token = \
+        response.get.data, response.get.continuation_token
+      input_stream = coder_impl.create_InputStream(data)
+      while input_stream.size() > 0:
+        materialized.append(coder.decode_from_stream(input_stream, True))
+      if not continuation_token:
+        return materialized
 
   def blocking_append(self, state_key, data):
     self._blocking_request(
@@ -597,7 +617,7 @@ class GrpcStateHandler(object):
             state_key=state_key,
             clear=beam_fn_api_pb2.StateClearRequest()))
 
-  def _blocking_request(self, request):
+  def  _blocking_request(self, request):
     request.id = self._next_id()
     request.instruction_reference = self._context.process_instruction_id
     self._responses_by_id[request.id] = future = _Future()
@@ -613,11 +633,60 @@ class GrpcStateHandler(object):
     if response.error:
       raise RuntimeError(response.error)
     else:
+      # TODO mxm here we could update the cache token
       return response
 
   def _next_id(self):
     self._last_id += 1
     return str(self._last_id)
+
+
+class CachingGrpcStateHandler(GrpcStateHandler):
+  """ TODO mxm """
+
+  def __init__(self, state_stub, global_state_cache):
+    super(CachingGrpcStateHandler, self).__init__(state_stub)
+    self._state_cache = global_state_cache
+
+  def blocking_get(self, state_key, coder):
+    cache_tokens = self._context.cache_tokens
+    if not cache_tokens:
+      # no cache tokens, can't do a lookup in the cache
+      return super(CachingGrpcStateHandler, self).blocking_get(
+          state_key, coder)
+    cache_state_key = CachingGrpcStateHandler.convert_to_cache_key(state_key)
+    value = self._state_cache.get(cache_state_key, cache_tokens)
+    if not value:
+      # Cache miss, need to retrieve from the Runner
+      value = super(CachingGrpcStateHandler, self).blocking_get(
+          state_key, coder)
+      # TODO mxm uses always the first cache token for now
+      self._state_cache.put(
+          CachingGrpcStateHandler.convert_to_cache_key(state_key),
+          cache_tokens[0], value)
+    return value
+
+  def blocking_append(self, state_key, data):
+    cache_tokens = self._context.cache_tokens
+    self._state_cache.put(
+        CachingGrpcStateHandler.convert_to_cache_key(state_key),
+        cache_tokens, data)
+    # TODO mxm make append non-blocking
+    super(CachingGrpcStateHandler, self).blocking_append(state_key, data)
+
+  def blocking_clear(self, state_key):
+    self._state_cache.clear(
+        CachingGrpcStateHandler.convert_to_cache_key(state_key))
+    # TODO mxm make clear non-blocking
+    super(CachingGrpcStateHandler, self).blocking_clear(state_key)
+
+  @staticmethod
+  def convert_to_cache_key(state_key):
+    return CacheStateKey(
+        transform_id=state_key.bag_user_state.ptransform_id,
+        state_id=state_key.bag_user_state.user_state_id,
+        window=state_key.bag_user_state.window,
+        key=state_key.bag_user_state.key)
 
 
 class _Future(object):

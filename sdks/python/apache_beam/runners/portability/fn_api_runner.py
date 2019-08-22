@@ -908,10 +908,10 @@ class FnApiRunner(runner.PipelineRunner):
       self._checkpoint = None
 
     @contextlib.contextmanager
-    def process_instruction_id(self, unused_instruction_id):
+    def process_instruction_id(self, unused_instruction_id, cache_tokens):
       yield
 
-    def blocking_get(self, state_key, continuation_token=None):
+    def blocking_get(self, state_key, coder, continuation_token=None):
       with self._lock:
         full_state = self._state[self._to_key(state_key)]
         if self._use_continuation_tokens:
