@@ -17,19 +17,25 @@
  */
 package org.apache.beam.sdk.extensions.zetasketch;
 
+import com.google.api.services.bigquery.model.Table;
 import com.google.api.services.bigquery.model.TableFieldSchema;
+import com.google.api.services.bigquery.model.TableReference;
 import com.google.api.services.bigquery.model.TableRow;
 import com.google.api.services.bigquery.model.TableSchema;
 import java.nio.ByteBuffer;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.Date;
 import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.ByteArrayCoder;
 import org.apache.beam.sdk.extensions.gcp.options.GcpOptions;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.TypedRead.Method;
 import org.apache.beam.sdk.io.gcp.bigquery.SchemaAndRecord;
+import org.apache.beam.sdk.io.gcp.testing.BigqueryClient;
 import org.apache.beam.sdk.io.gcp.testing.BigqueryMatcher;
 import org.apache.beam.sdk.options.ApplicationNameOptions;
 import org.apache.beam.sdk.testing.PAssert;
@@ -38,6 +44,8 @@ import org.apache.beam.sdk.testing.TestPipelineOptions;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.values.PCollection;
+import org.junit.AfterClass;
+import org.junit.BeforeClass;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -49,25 +57,73 @@ import org.junit.runners.JUnit4;
 @RunWith(JUnit4.class)
 public class BigQueryHllSketchCompatibilityIT {
 
-  private static final String DATASET_NAME = "zetasketch_compatibility_test";
+  private static final String APP_NAME;
+  private static final String PROJECT_ID;
+  private static final String DATASET_ID;
 
-  // Table for testReadSketchFromBigQuery()
+  private static final List<String> TEST_DATA =
+      Arrays.asList("Apple", "Orange", "Banana", "Orange");
+
+  // Data Table: used by testReadSketchFromBigQuery())
   // Schema: only one STRING field named "data".
   // Content: prepopulated with 4 rows: "Apple", "Orange", "Banana", "Orange"
-  private static final String DATA_TABLE_NAME = "hll_data";
+  private static final String DATA_TABLE_ID = "hll_data";
   private static final String DATA_FIELD_NAME = "data";
+  private static final String DATA_FIELD_TYPE = "STRING";
   private static final String QUERY_RESULT_FIELD_NAME = "sketch";
   private static final Long EXPECTED_COUNT = 3L;
 
-  // Table for testWriteSketchToBigQuery()
+  // Sketch Table: used by testWriteSketchToBigQuery()
   // Schema: only one BYTES field named "sketch".
   // Content: will be overridden by the sketch computed by the test pipeline each time the test runs
-  private static final String SKETCH_TABLE_NAME = "hll_sketch";
+  private static final String SKETCH_TABLE_ID = "hll_sketch";
   private static final String SKETCH_FIELD_NAME = "sketch";
-  private static final List<String> TEST_DATA =
-      Arrays.asList("Apple", "Orange", "Banana", "Orange");
+  private static final String SKETCH_FIELD_TYPE = "BYTES";
   // SHA-1 hash of string "[3]", the string representation of a row that has only one field 3 in it
   private static final String EXPECTED_CHECKSUM = "f1e31df9806ce94c5bdbbfff9608324930f4d3f1";
+
+  static {
+    ApplicationNameOptions options =
+        TestPipeline.testingPipelineOptions().as(ApplicationNameOptions.class);
+    APP_NAME = options.getAppName();
+    PROJECT_ID = options.as(GcpOptions.class).getProject();
+    DATASET_ID = String.format("zetasketch_%tY_%<tm_%<td_%<tH_%<tM_%<tS", new Date());
+  }
+
+  @BeforeClass
+  public static void prepareDatasetAndDataTable() throws Exception {
+    BigqueryClient bq = BigqueryClient.getClient(APP_NAME);
+    bq.createNewDataset(PROJECT_ID, DATASET_ID);
+
+    // Create Data Table
+    TableSchema dataTableSchema =
+        new TableSchema()
+            .setFields(
+                Collections.singletonList(
+                    new TableFieldSchema().setName(DATA_FIELD_NAME).setType(DATA_FIELD_TYPE)));
+    Table dataTable =
+        new Table()
+            .setSchema(dataTableSchema)
+            .setTableReference(
+                new TableReference()
+                    .setProjectId(PROJECT_ID)
+                    .setDatasetId(DATASET_ID)
+                    .setTableId(DATA_TABLE_ID));
+    bq.createNewTable(PROJECT_ID, DATASET_ID, dataTable);
+
+    // Prepopulate test data to Data Table
+    List<Map<String, Object>> rows =
+        TEST_DATA.stream()
+            .map(v -> Collections.singletonMap(DATA_FIELD_NAME, (Object) v))
+            .collect(Collectors.toList());
+    bq.insertDataToTable(PROJECT_ID, DATASET_ID, DATA_TABLE_ID, rows);
+  }
+
+  @AfterClass
+  public static void deleteDataset() throws Exception {
+    BigqueryClient bq = BigqueryClient.getClient(APP_NAME);
+    bq.deleteDataset(PROJECT_ID, DATASET_ID);
+  }
 
   /**
    * Test that HLL++ sketch computed in BigQuery can be processed by Beam. Hll sketch is computed by
@@ -77,7 +133,7 @@ public class BigQueryHllSketchCompatibilityIT {
    */
   @Test
   public void testReadSketchFromBigQuery() {
-    String tableSpec = String.format("%s.%s", DATASET_NAME, DATA_TABLE_NAME);
+    String tableSpec = String.format("%s.%s", DATASET_ID, DATA_TABLE_ID);
     String query =
         String.format(
             "SELECT HLL_COUNT.INIT(%s) AS %s FROM %s",
@@ -111,25 +167,21 @@ public class BigQueryHllSketchCompatibilityIT {
    */
   @Test
   public void testWriteSketchToBigQuery() {
-    String tableSpec = String.format("%s.%s", DATASET_NAME, SKETCH_TABLE_NAME);
+    String tableSpec = String.format("%s.%s", DATASET_ID, SKETCH_TABLE_ID);
     String query =
         String.format("SELECT HLL_COUNT.EXTRACT(%s) FROM %s", SKETCH_FIELD_NAME, tableSpec);
     TableSchema tableSchema =
         new TableSchema()
             .setFields(
                 Collections.singletonList(
-                    new TableFieldSchema().setName(SKETCH_FIELD_NAME).setType("BYTES")));
+                    new TableFieldSchema().setName(SKETCH_FIELD_NAME).setType(SKETCH_FIELD_TYPE)));
 
     TestPipelineOptions options =
         TestPipeline.testingPipelineOptions().as(TestPipelineOptions.class);
     // After the pipeline finishes, BigqueryMatcher will send a query to retrieve the estimated
     // count and verifies its correctness using checksum.
     options.setOnSuccessMatcher(
-        BigqueryMatcher.createUsingStandardSql(
-            options.as(ApplicationNameOptions.class).getAppName(),
-            options.as(GcpOptions.class).getProject(),
-            query,
-            EXPECTED_CHECKSUM));
+        BigqueryMatcher.createUsingStandardSql(APP_NAME, PROJECT_ID, query, EXPECTED_CHECKSUM));
 
     Pipeline p = Pipeline.create(options);
     p.apply(Create.of(TEST_DATA))

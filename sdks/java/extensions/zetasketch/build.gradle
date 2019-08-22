@@ -23,6 +23,8 @@ applyJavaNature()
 
 description = "Apache Beam :: SDKs :: Java :: Extensions :: ZetaSketch"
 
+evaluationDependsOn(":runners:google-cloud-dataflow-java:worker:legacy-worker")
+
 def zetasketch_version = "0.1.0"
 
 dependencies {
@@ -42,10 +44,13 @@ task integrationTest(type: Test) {
     group = "Verification"
     def gcpProject = project.findProperty('gcpProject') ?: 'apache-beam-testing'
     def gcpTempRoot = project.findProperty('gcpTempRoot') ?: 'gs://temp-storage-for-end-to-end-tests'
+    def dataflowWorkerJar = project.findProperty('dataflowWorkerJar') ?: project(":runners:google-cloud-dataflow-java:worker:legacy-worker").shadowJar.archivePath
     systemProperty "beamTestPipelineOptions", JsonOutput.toJson([
             "--runner=TestDataflowRunner",
             "--project=${gcpProject}",
             "--tempRoot=${gcpTempRoot}",
+            "--dataflowWorkerJar=${dataflowWorkerJar}",
+            "--workerHarnessContainerImage=",
     ])
 
     // Disable Gradle cache: these ITs interact with live service that should always be considered "out of date"
