@@ -86,13 +86,14 @@ class CodersTest(unittest.TestCase):
       self.assertEqual(test_case, coder.decode(coder.encode(test_case)))
 
   @unittest.skip(
-      "Need to decide whether to defer to the stream writer for these checks "
-      "or add explicit checks"
+      "BEAM-8030 - Overflow behavior in VarIntCoder is currently inconsistent"
   )
   def test_overflows(self):
     IntTester = typing.NamedTuple('IntTester', [
-        #('i8', typing.Optional[np.int8]),
-        #('i16', typing.Optional[np.int16]),
+        # TODO(BEAM-7996): Test int8 and int16 here as well when those types are
+        # supported
+        # ('i8', typing.Optional[np.int8]),
+        # ('i16', typing.Optional[np.int16]),
         ('i32', typing.Optional[np.int32]),
         ('i64', typing.Optional[np.int64]),
     ])
