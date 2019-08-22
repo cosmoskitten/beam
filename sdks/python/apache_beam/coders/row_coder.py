@@ -44,6 +44,12 @@ class RowCoder(FastCoder):
   """
 
   def __init__(self, schema):
+    """Initializes a :class:`RowCoder`.
+
+    Args:
+      schema (schema_pb2.Schema): The protobuf representation of the schema of
+        the data that the RowCoder will be used to encode/decode.
+    """
     self.schema = schema
     self.components = [
         coder_from_type(field.type) for field in self.schema.fields
