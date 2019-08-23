@@ -17,7 +17,7 @@
  */
 
 plugins { id 'org.apache.beam.module' }
-applyJavaNature()
+applyJavaNature(automaticModuleName: 'beam.sdks.java.extensions.joinlibrary')
 
 description = "Apache Beam :: SDKs :: Java :: Extensions :: Join library"
 

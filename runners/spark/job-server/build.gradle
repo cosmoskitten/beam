@@ -28,6 +28,7 @@ apply plugin: 'application'
 mainClassName = "org.apache.beam.runners.spark.SparkJobServerDriver"
 
 applyJavaNature(
+  automaticModuleName: 'beam.runners.spark.jobserver',
   validateShadowJar: false,
   exportJavadoc: false,
   shadowClosure: {

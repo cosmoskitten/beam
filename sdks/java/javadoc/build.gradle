@@ -24,7 +24,7 @@
  * used as part of the beam-site source tree.
  */
 plugins { id 'org.apache.beam.module' }
-applyJavaNature()
+applyJavaNature(setAutomaticModuleName: false)
 description = "Apache Beam :: SDKs :: Java :: Aggregated Javadoc"
 
 for (p in rootProject.subprojects) {
@@ -34,7 +34,7 @@ for (p in rootProject.subprojects) {
 }
 
 ext.getExportedJavadocProjects = {
-  def exportedJavadocProjects = new ArrayList<>();
+  def exportedJavadocProjects = new ArrayList<>()
   for (p in rootProject.subprojects) {
     if (!p.path.equals(project.path) && !p.path.equals(':sdks:java:bom')) {
       def subproject = p // project(':' + p.name)
