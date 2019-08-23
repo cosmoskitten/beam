@@ -88,7 +88,7 @@ class BeamModulePlugin implements Plugin<Project> {
     boolean enableStrictDependencies = false
 
     /** Override the default "beam-" + `dash separated path` archivesBaseName. */
-    String archivesBaseName = null;
+    String archivesBaseName = null
 
     /**
      * List of additional lint warnings to disable.
@@ -123,13 +123,23 @@ class BeamModulePlugin implements Plugin<Project> {
      *
      * The shadowJar / shadowTestJar tasks execute the specified closure to configure themselves.
      */
-    Closure shadowClosure;
+    Closure shadowClosure
 
     /** Controls whether this project is published to Maven. */
     boolean publish = true
 
     /** Controls whether javadoc is exported for this project. */
     boolean exportJavadoc = true
+
+    /** Controls whether Automatic Module Header name should be set in MANIFEST.MF file. */
+    boolean setAutomaticModuleName = true
+
+    /**
+     * Automatic-Module-Name Header value to be set in MANFIEST.MF file.
+     *
+     * @see: https://github.com/GoogleCloudPlatform/cloud-opensource-java/blob/master/library-best-practices/JLBP-20.md
+     */
+    String automaticModuleName = null
   }
 
   /** A class defining the set of configurable properties accepted by applyPortabilityNature. */
@@ -143,7 +153,17 @@ class BeamModulePlugin implements Plugin<Project> {
     List<String> shadowJarValidationExcludes = ["org/apache/beam/**"]
 
     /** Override the default "beam-" + `dash separated path` archivesBaseName. */
-    String archivesBaseName = null;
+    String archivesBaseName = null
+
+    /** Controls whether Automatic Module Header name should be set in MANIFEST.MF file. */
+    boolean setAutomaticModuleName = true
+
+    /**
+     * Automatic-Module-Name Header value to be set in MANFIEST.MF file.
+     *
+     * @see: https://github.com/GoogleCloudPlatform/cloud-opensource-java/blob/master/library-best-practices/JLBP-20.md
+     */
+    String automaticModuleName
   }
 
   // A class defining the set of configurable properties for createJavaExamplesArchetypeValidationTask
@@ -917,6 +937,8 @@ class BeamModulePlugin implements Plugin<Project> {
       }
 
       project.jar {
+        setAutomaticModuleNameHeader(configuration, project)
+
         zip64 true
         into("META-INF/") {
           from "${project.rootProject.projectDir}/LICENSE"
@@ -1276,7 +1298,6 @@ class BeamModulePlugin implements Plugin<Project> {
         }
       }
     }
-
     // When applied in a module's build.gradle file, this closure provides task for running
     // IO integration tests (manually, without PerfKitBenchmarker).
     project.ext.enableJavaPerformanceTesting = {
@@ -1566,6 +1587,8 @@ class BeamModulePlugin implements Plugin<Project> {
               exportJavadoc: false,
               enableSpotbugs: false,
               archivesBaseName: configuration.archivesBaseName,
+              setAutomaticModuleName: configuration.setAutomaticModuleName,
+              automaticModuleName: configuration.automaticModuleName,
               shadowJarValidationExcludes: it.shadowJarValidationExcludes,
               shadowClosure: GrpcVendoring.shadowClosure() << {
                 // We perform all the code relocations but don't include
@@ -2039,6 +2062,16 @@ class BeamModulePlugin implements Plugin<Project> {
         addPortableWordCountTask(false)
         addPortableWordCountTask(true)
       }
+    }
+  }
+
+  private void setAutomaticModuleNameHeader(JavaNatureConfiguration configuration, Project project) {
+    if (configuration.automaticModuleName) {
+      project.jar.manifest {
+        attributes 'Automatic-Module-Name': configuration.automaticModuleName
+      }
+    } else if (configuration.setAutomaticModuleName) {
+      throw new GradleException("Expected automaticModuleName to be set for the module.")
     }
   }
 }

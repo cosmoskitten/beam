@@ -19,7 +19,7 @@
 import groovy.json.JsonOutput
 
 plugins { id 'org.apache.beam.module' }
-applyJavaNature()
+applyJavaNature(automaticModuleName: 'beam.sdks.java.io.hadoop.format')
 provideIntegrationTestingDependencies()
 enableJavaPerformanceTesting()
 
@@ -102,7 +102,7 @@ dependencies {
 task createTargetDirectoryForCassandra() {
   doLast {
     if (!project.file("target").exists()) {
-      project.file("target").mkdirs();
+      project.file("target").mkdirs()
     }
   }
 }
