@@ -21,6 +21,8 @@ limitations under the License.
 # Custom window patterns
 The samples on this page demonstrate common custom window patterns. You can create custom windows with [`WindowFn` functions]({{ site.baseurl }}/documentation/programming-guide/#windowing#provided-windowing-functions). For more information, see the [programming guide section on windowing]({{ site.baseurl }}/documentation/programming-guide/#windowing).
 
+**Note**: Merging windows isn't supported in Python.
+
 ## Using data to dynamically set session window gaps
 
 You can modify the [`assignWindows`](https://beam.apache.org/releases/javadoc/current/index.html?org/apache/beam/sdk/transforms/windowing/SlidingWindows.html) function to use data-driven gaps instead of fixed windows.
