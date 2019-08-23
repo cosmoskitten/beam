@@ -36,6 +36,7 @@ applyJavaNature(
       include(dependency("org.apache.calcite.avatica:.*"))
       include(dependency("org.codehaus.janino:.*"))
       include(dependency("com.google.zetasql:.*"))
+      include(dependency("com.google.api.grpc:proto-google-common-protos"))
     }
     // guava uses the com.google.common and com.google.thirdparty package namespaces
     relocate("com.google.common", project.getJavaRelocatedPath("com.google.common")) {
