@@ -206,10 +206,11 @@ class SchemaTest(unittest.TestCase):
             schema_pb2.FieldType(atomic_type=schema_pb2.UNSPECIFIED))
     )
 
-  def test_str_maps_to_string(self):
-    self.assertEquals(
-        schema_pb2.FieldType(atomic_type=schema_pb2.STRING),
-        typing_to_runner_api(str))
+  @unittest.skipIf(IS_PYTHON_3, 'str is acceptable in python 3')
+  def test_str_raises_error_py2(self):
+    self.assertRaises(lambda: typing_to_runner_api(str))
+    self.assertRaises(lambda: typing_to_runner_api(
+        NamedTuple('Test', [('int', int), ('str', str)])))
 
   def test_int_maps_to_int64(self):
     self.assertEquals(
@@ -223,9 +224,9 @@ class SchemaTest(unittest.TestCase):
 
   def test_trivial_example(self):
     MyCuteClass = NamedTuple('MyCuteClass', [
-        ('name', str),
+        ('name', unicode),
         ('age', Optional[int]),
-        ('interests', List[str]),
+        ('interests', List[unicode]),
         ('height', float),
         ('blob', ByteString),
     ])

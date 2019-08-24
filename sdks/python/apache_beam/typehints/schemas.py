@@ -36,8 +36,8 @@ bytes       <-----> BYTES
 ByteString  ---/
 
 py2:
+str will be rejected since it is ambiguous.
 unicode     <-----> STRING
-str/bytes   ---/
 ByteString  <-----> BYTES
 """
 
@@ -103,9 +103,6 @@ ATOMIC_TYPE_TO_PRIMITIVE = dict((atomic, typ) for typ, atomic in _PRIMITIVES)
 
 # One-way mappings
 PRIMITIVE_TO_ATOMIC_TYPE.update({
-    # In python 3, this is a no-op because str == unicode,
-    # but in python 2 it overrides the bytes -> BYTES mapping.
-    str: schema_pb2.STRING,
     # In python 2, this is a no-op because we define it as the bi-directional
     # mapping above. This just ensures the one-way mapping is defined in python
     # 3.
@@ -159,6 +156,13 @@ def typing_to_runner_api(type_):
     element_type = typing_to_runner_api(_get_args(type_)[0])
     return schema_pb2.FieldType(
         array_type=schema_pb2.ArrayType(element_type=element_type))
+
+  elif sys.version_info.major == 2 and type_ == str:
+    raise ValueError(
+        "type 'str' is not supported in python 2. Please use 'unicode' or "
+        "'typing.ByteString' instead to unambiguously indicate if this is a "
+        "UTF-8 string or a byte array."
+    )
 
   raise ValueError("Unsupported type: %s" % type_)
 
