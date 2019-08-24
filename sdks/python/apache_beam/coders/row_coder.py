@@ -47,8 +47,9 @@ class RowCoder(FastCoder):
     """Initializes a :class:`RowCoder`.
 
     Args:
-      schema (schema_pb2.Schema): The protobuf representation of the schema of
-        the data that the RowCoder will be used to encode/decode.
+      schema (apache_beam.portability.api.schema_pb2.Schema): The protobuf
+        representation of the schema of the data that the RowCoder will be used
+        to encode/decode.
     """
     self.schema = schema
     self.components = [
