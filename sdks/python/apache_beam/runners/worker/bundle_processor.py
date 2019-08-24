@@ -73,17 +73,14 @@ if typing.TYPE_CHECKING:
   from apache_beam.runners.worker import data_plane
 
 # This module is experimental. No backwards-compatibility guarantees.
-ParameterType = Union['message.Message', bytes, None]
+ParameterType = Union[Type['message.Message'], Type[bytes], None]
 ConstructorFn = Callable[
-    [
-        'BeamTransformFactory',
-        ParameterType,
-        beam_runner_api_pb2.PTransform,
-        'PipelineContext',
-        Dict[str, operations.Operation]
-    ],
-    operations.Operation
-]
+    ['BeamTransformFactory',
+     Union['message.Message', bytes],
+     beam_runner_api_pb2.PTransform,
+     'PipelineContext',
+     Dict[str, operations.Operation]],
+    operations.Operation]
 
 DATA_INPUT_URN = 'beam:source:runner:0.1'
 DATA_OUTPUT_URN = 'beam:sink:runner:0.1'

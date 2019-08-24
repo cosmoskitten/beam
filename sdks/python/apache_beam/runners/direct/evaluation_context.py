@@ -40,7 +40,7 @@ from apache_beam.utils import counters
 if typing.TYPE_CHECKING:
   from apache_beam.pipeline import AppliedPTransform
   from apache_beam.pvalue import AsSideInput, PCollection
-  from apache_beam.runners.direct.bundle_factory import BundleFactory
+  from apache_beam.runners.direct.bundle_factory import BundleFactory, _Bundle
   from apache_beam.utils.timestamp import Timestamp
 
 class _ExecutionContext(object):
@@ -375,10 +375,12 @@ class EvaluationContext(object):
         self._transform_keyed_states[applied_ptransform])
 
   def create_bundle(self, output_pcollection):
+    # type: (pvalue.PCollection) -> _Bundle
     """Create an uncommitted bundle for the specified PCollection."""
     return self._bundle_factory.create_bundle(output_pcollection)
 
   def create_empty_committed_bundle(self, output_pcollection):
+    # type: (pvalue.PCollection) -> _Bundle
     """Create empty bundle useful for triggering evaluation."""
     return self._bundle_factory.create_empty_committed_bundle(
         output_pcollection)

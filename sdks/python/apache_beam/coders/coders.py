@@ -82,8 +82,12 @@ __all__ = ['Coder',
 
 CoderT = TypeVar('CoderT', bound='Coder')
 ProtoCoderT = TypeVar('ProtoCoderT', bound='ProtoCoder')
-ParameterType = Union['message.Message', bytes, None]
-ConstructorFn = Callable[[ParameterType, List['Coder'], 'PipelineContext'], Any]
+ParameterType = Union[Type['message.Message'], Type[bytes], None]
+ConstructorFn = Callable[
+  [Union['message.Message', bytes],
+   List['Coder'],
+   'PipelineContext'],
+  Any]
 
 
 def serialize_coder(coder):
@@ -268,11 +272,26 @@ class Coder(object):
   _known_urns = {}  # type: Dict[str, Tuple[ParameterType, ConstructorFn]]
 
   @classmethod
+  @typing.overload
   def register_urn(cls,
                    urn,  # type: str
                    parameter_type,  # type: ParameterType
-                   fn=None  # type: Optional[ConstructorFn]
                   ):
+    # type: (...) -> ConstructorFn
+    pass
+
+  @classmethod
+  @typing.overload
+  def register_urn(cls,
+                   urn,  # type: str
+                   parameter_type,  # type: ParameterType
+                   fn  # type: ConstructorFn
+                  ):
+    # type: (...) -> None
+    pass
+
+  @classmethod
+  def register_urn(cls, urn, parameter_type, fn=None):
     """Registers a urn with a constructor.
 
     For example, if 'beam:fn:foo' had parameter type FooPayload, one could

@@ -45,6 +45,7 @@ class BundleFactory(object):
     return _Bundle(output_pcollection, self._stacked)
 
   def create_empty_committed_bundle(self, output_pcollection):
+    # type: (pvalue.PCollection) -> _Bundle
     bundle = self.create_bundle(output_pcollection)
     bundle.commit(None)
     return bundle

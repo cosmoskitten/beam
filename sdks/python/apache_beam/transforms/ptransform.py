@@ -94,8 +94,10 @@ __all__ = [
     ]
 
 PTransformT = TypeVar('PTransformT', bound='PTransform')
-ParameterType = Union['message.Message', bytes, None]
-ConstructorFn = Callable[[ParameterType, 'PipelineContext'], Any]
+ParameterType = Union[Type['message.Message'], Type[bytes], None]
+ConstructorFn = Callable[
+    [Union['message.Message', bytes], 'PipelineContext'],
+    Any]
 T = TypeVar('T')
 PValueT = TypeVar('PValueT', bound=pvalue.PValue)
 
@@ -692,6 +694,7 @@ class PTransform(WithTypeHints[InT, OutT], HasDisplayData):
       raise
 
   def to_runner_api_parameter(self, unused_context):
+    # type: (PipelineContext) -> Tuple[str, ParameterType]
     # The payload here is just to ease debugging.
     return (python_urns.GENERIC_COMPOSITE_TRANSFORM,
             getattr(self, '_fn_api_payload', str(self)))

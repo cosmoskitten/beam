@@ -27,6 +27,15 @@ import shutil
 import tempfile
 import typing
 from builtins import object
+from typing import Optional
+
+if typing.TYPE_CHECKING:
+  from apache_beam import pvalue
+  from apache_beam import PTransform
+  from apache_beam.options.pipeline_options import PipelineOptions
+  from apache_beam.pipeline import AppliedPTransform
+  from apache_beam.pipeline import Pipeline
+  from apache_beam.pipeline import PipelineVisitor
 
 __all__ = ['PipelineRunner', 'PipelineState', 'PipelineResult']
 
@@ -106,7 +115,11 @@ class PipelineRunner(object):
   materialized values in order to reduce footprint.
   """
 
-  def run(self, transform, options=None):
+  def run(self,
+          transform,  # type: PTransform
+          options=None  # type: Optional[PipelineOptions]
+         ):
+    # type: (...) -> PipelineResult
     """Run the given transform or callable with this runner.
 
     Blocks until the pipeline is complete.  See also `PipelineRunner.run_async`.
@@ -115,7 +128,11 @@ class PipelineRunner(object):
     result.wait_until_finish()
     return result
 
-  def run_async(self, transform, options=None):
+  def run_async(self,
+                transform,  # type: PTransform
+                options=None  # type: Optional[PipelineOptions]
+               ):
+    # type: (...) -> PipelineResult
     """Run the given transform or callable with this runner.
 
     May return immediately, executing the pipeline in the background.
@@ -134,7 +151,10 @@ class PipelineRunner(object):
       transform(PBegin(p))
     return p.run()
 
-  def run_pipeline(self, pipeline, options):
+  def run_pipeline(self,
+                   pipeline,  # type: Pipeline
+                   options  # type: PipelineOptions
+                  ):
     """Execute the entire pipeline or the sub-DAG reachable from a node.
 
     Runners should override this method.
@@ -147,6 +167,7 @@ class PipelineRunner(object):
     class RunVisitor(PipelineVisitor):
 
       def __init__(self, runner):
+        # type: (PipelineRunner) -> None
         self.runner = runner
 
       def visit_transform(self, transform_node):
@@ -158,7 +179,11 @@ class PipelineRunner(object):
 
     pipeline.visit(RunVisitor(self))
 
-  def apply(self, transform, input, options):
+  def apply(self,
+            transform,  # type: PTransform
+            input,  # type: pvalue.PCollection
+            options  # type: PipelineOptions
+           ):
     """Runner callback for a pipeline.apply call.
 
     Args:
@@ -181,7 +206,10 @@ class PipelineRunner(object):
     # The base case of apply is to call the transform's expand.
     return transform.expand(input)
 
-  def run_transform(self, transform_node, options):
+  def run_transform(self,
+                    transform_node,  # type: AppliedPTransform
+                    options  # type: PipelineOptions
+                   ):
     """Runner callback for a pipeline.run call.
 
     Args:
@@ -295,6 +323,7 @@ class PValueCache(object):
     return self.to_cache_key(pobj.real_producer, pobj.tag)
 
 
+# FIXME: replace with PipelineState(str, enum.Enum)
 class PipelineState(object):
   """State of the Pipeline, as returned by :attr:`PipelineResult.state`.
 

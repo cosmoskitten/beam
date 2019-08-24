@@ -99,6 +99,10 @@ class SourceBase(HasDisplayData, urns.RunnerApiFn, Generic[T]):
   """
   urns.RunnerApiFn.register_pickle_urn(python_urns.PICKLED_SOURCE)
 
+  def is_bounded(self):
+    # type: () -> bool
+    raise NotImplementedError
+
 
 class BoundedSource(SourceBase[T]):
   """A source that reads a finite amount of input records.
@@ -861,7 +865,7 @@ class Read(ptransform.PTransform[pvalue.PBeginType, OutT]):
   """A transform that reads a PCollection."""
 
   def __init__(self, source):
-    # type: (BoundedSource) -> None
+    # type: (SourceBase) -> None
     """Initializes a Read transform.
 
     Args:
@@ -926,6 +930,7 @@ class Read(ptransform.PTransform[pvalue.PBeginType, OutT]):
             'source_dd': self.source}
 
   def to_runner_api_parameter(self, context):
+    # type: (PipelineContext) -> Tuple[str, ptransform.ParameterType]
     return (common_urns.deprecated_primitives.READ.urn,
             beam_runner_api_pb2.ReadPayload(
                 source=self.source.to_runner_api(context),
@@ -935,6 +940,7 @@ class Read(ptransform.PTransform[pvalue.PBeginType, OutT]):
 
   @staticmethod
   def from_runner_api_parameter(parameter, context):
+    # type: (beam_runner_api_pb2.ReadPayload, PipelineContext) -> Read
     return Read(SourceBase.from_runner_api(parameter.source, context))
 
 

@@ -567,9 +567,13 @@ class _TaggedReceivers(dict):
 class _ParDoEvaluator(_TransformEvaluator):
   """TransformEvaluator for ParDo transform."""
 
-  def __init__(self, evaluation_context, applied_ptransform,
-               input_committed_bundle, side_inputs,
-               perform_dofn_pickle_test=True):
+  def __init__(self,
+               evaluation_context, # type: EvaluationContext
+               applied_ptransform,  # type: AppliedPTransform
+               input_committed_bundle,
+               side_inputs,
+               perform_dofn_pickle_test=True
+              ):
     super(_ParDoEvaluator, self).__init__(
         evaluation_context, applied_ptransform, input_committed_bundle,
         side_inputs)

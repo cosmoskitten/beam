@@ -750,8 +750,12 @@ class SequenceCoderImpl(StreamCoderImpl):
   # Default buffer size of 64kB of handling iterables of unknown length.
   _DEFAULT_BUFFER_SIZE = 64 * 1024
 
-  def __init__(self, elem_coder,
-               read_state=None, write_state=None, write_state_threshold=0):
+  def __init__(self,
+               elem_coder,  # type: Coder
+               read_state=None,  # type: Optional[Callable[[bytes, Coder], Iterable]]
+               write_state=None,  # type: Optional[Callable[[Iterable, Coder], bytes]]
+               write_state_threshold=0  # type: int
+              ):
     self._elem_coder = elem_coder
     self._read_state = read_state
     self._write_state = write_state

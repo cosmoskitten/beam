@@ -85,10 +85,11 @@ if typing.TYPE_CHECKING:
   from google.protobuf import message
   from apache_beam.runners.portability import fn_api_runner
 
-ConstructorFn = Callable[[Union['message.Message', bytes],
-                          'FnApiRunner.StateServicer',
-                          Optional['fn_api_runner.ExtendedProvisionInfo']],
-                         Any]
+ConstructorFn = Callable[
+    [Union['message.Message', bytes],
+     'FnApiRunner.StateServicer',
+     Optional['fn_api_runner.ExtendedProvisionInfo']],
+    Any]
 
 # This module is experimental. No backwards-compatibility guarantees.
 

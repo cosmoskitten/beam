@@ -57,6 +57,7 @@ from builtins import object
 from builtins import zip
 from typing import Dict
 from typing import List
+from typing import Optional
 from typing import Union
 
 from future.utils import with_metaclass
@@ -83,6 +84,7 @@ from apache_beam.utils.annotations import deprecated
 
 if typing.TYPE_CHECKING:
   from apache_beam.portability.api import beam_runner_api_pb2
+  from apache_beam.runners import PipelineResult
   from apache_beam.runners.pipeline_context import PipelineContext
 
 __all__ = ['Pipeline', 'PTransformOverride']
@@ -103,7 +105,11 @@ class Pipeline(object):
   (e.g. ``input | "label" >> my_tranform``).
   """
 
-  def __init__(self, runner=None, options=None, argv=None):
+  def __init__(self,
+               runner=None,  # type: Optional[PipelineRunner]
+               options=None,  # type: Optional[PipelineOptions]
+               argv=None  # type: Optional[List[str]]
+              ):
     """Initialize a pipeline object.
 
     Args:
@@ -405,6 +411,7 @@ class Pipeline(object):
       self._check_replacement(override)
 
   def run(self, test_runner_api=True):
+    # type: (bool) -> PipelineResult
     """Runs the pipeline. Returns whatever our runner returns after running."""
 
     # When possible, invoke a round trip through the runner API.
@@ -435,6 +442,7 @@ class Pipeline(object):
       self.run().wait_until_finish()
 
   def visit(self, visitor):
+    # type: (PipelineVisitor) -> None
     """Visits depth-first every node of a pipeline's DAG.
 
     Runner-internal implementation detail; no backwards-compatibility guarantees
@@ -677,8 +685,12 @@ class Pipeline(object):
       return proto
 
   @staticmethod
-  def from_runner_api(proto, runner, options, return_context=False,
-                      allow_proto_holders=False):
+  def from_runner_api(proto,  # type: beam_runner_api_pb2.Pipeline
+                      runner,  # type: PipelineRunner
+                      options,  # type: PipelineOptions
+                      return_context=False,
+                      allow_proto_holders=False
+                     ):
     # type: (...) -> Pipeline
     """For internal use only; no backwards-compatibility guarantees."""
     p = Pipeline(runner=runner, options=options)
@@ -753,7 +765,7 @@ class AppliedPTransform(object):
                parent,
                transform,  # type: ptransform.PTransform
                full_label,
-               inputs
+               inputs  # type: Iterable[pvalue.PCollection]
               ):
     self.parent = parent
     self.transform = transform
@@ -765,7 +777,7 @@ class AppliedPTransform(object):
     self.full_label = full_label
     self.inputs = inputs or ()
     self.side_inputs = () if transform is None else tuple(transform.side_inputs)
-    self.outputs = {}  # type: Dict[Union[str, int, None], pvalue.PValue]
+    self.outputs = {}  # type: Dict[Union[str, int, None], Union[pvalue.PValue, pvalue.DoOutputsTuple]]
     self.parts = []  # type: List[AppliedPTransform]
 
   def __repr__(self):
@@ -870,6 +882,7 @@ class AppliedPTransform(object):
           visitor.visit_value(v, self)
 
   def named_inputs(self):
+    # type: () -> Dict[str, pvalue.PCollection]
     # TODO(BEAM-1833): Push names up into the sdk construction.
     main_inputs = {str(ix): input
                    for ix, input in enumerate(self.inputs)
@@ -879,6 +892,7 @@ class AppliedPTransform(object):
     return dict(main_inputs, **side_inputs)
 
   def named_outputs(self):
+    # type: () -> Dict[str, pvalue.PCollection]
     return {str(tag): output for tag, output in self.outputs.items()
             if isinstance(output, pvalue.PCollection)}
 
@@ -912,6 +926,7 @@ class AppliedPTransform(object):
 
   @staticmethod
   def from_runner_api(proto, context):
+    # type: (beam_runner_api_pb2.PTransform, PipelineContext) -> AppliedPTransform
     def is_side_input(tag):
       # As per named_inputs() above.
       return tag.startswith('side')

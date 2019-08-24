@@ -42,7 +42,10 @@ if typing.TYPE_CHECKING:
   from apache_beam.runners.pipeline_context import PipelineContext
 
 ParameterType = Union[Type[message.Message], Type[bytes], None]
-ConstructorFn = Callable[[ParameterType, 'PipelineContext'], Any]
+ConstructorFn = Callable[
+    [Union['message.Message', bytes],
+     'PipelineContext'],
+    Any]
 
 
 class RunnerApiFn(object):
