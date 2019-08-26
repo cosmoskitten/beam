@@ -16,21 +16,16 @@
  * limitations under the License.
  */
 
-import DockerPublisher
-
 class Flink {
-  private static final String flinkVersion = '1.7'
   private static final String flinkDownloadUrl = 'https://archive.apache.org/dist/flink/flink-1.7.0/flink-1.7.0-bin-hadoop28-scala_2.11.tgz'
   private static final String FLINK_DIR = '"$WORKSPACE/src/.test-infra/dataproc"'
   private static final String FLINK_SCRIPT = 'flink_cluster.sh'
   private def job
   private String jobName
-  private String jobServerImageTag
 
   Flink(job, String jobName) {
     this.job = job
     this.jobName = jobName
-    this.jobServerImageTag = ''
   }
 
   /**
@@ -38,10 +33,11 @@ class Flink {
    *
    * @param sdkHarnessImages - the list of published SDK Harness images tags
    * @param workerCount - the initial number of worker nodes
+   * @param jobServerImage -  the Flink job server image tag. If left empty, cluster will be set up without the job server.
    * @param slotsPerTaskmanager - the number of slots per Flink task manager
    */
-  void setUp(List<String> sdkHarnessImages, Integer workerCount, Integer slotsPerTaskmanager = 1) {
-    setupFlinkCluster(sdkHarnessImages, workerCount, slotsPerTaskmanager)
+  void setUp(List<String> sdkHarnessImages, Integer workerCount, String jobServerImage = '', Integer slotsPerTaskmanager = 1) {
+    setupFlinkCluster(sdkHarnessImages, workerCount, jobServerImage, slotsPerTaskmanager)
     addTeardownFlinkStep()
   }
 
@@ -56,16 +52,11 @@ class Flink {
       environmentVariables {
         env("FLINK_NUM_WORKERS", workerCount)
       }
-      shell("cd ${FLINK_DIR}; ./${FLINK_SCRIPT} scale")
+      shell("cd ${FLINK_DIR}; ./${FLINK_SCRIPT} restart")
     }
   }
 
-  void prepareJobServer(DockerPublisher jobServerPublisher = new DockerPublisher()) {
-    this.jobServerImageTag = jobServerPublisher.getFullImageName('flink-job-server')
-    jobServerPublisher.publish(job, ":runners:flink:${flinkVersion}:job-server-container:docker", 'flink-job-server')
-  }
-
-  private void setupFlinkCluster(List<String> sdkHarnessImages, Integer workerCount, Integer slotsPerTaskmanager) {
+  private void setupFlinkCluster(List<String> sdkHarnessImages, Integer workerCount, String jobServerImage, Integer slotsPerTaskmanager) {
     String gcsBucket = 'gs://beam-flink-cluster'
     String clusterName = getClusterName()
     String artifactsDir = "${gcsBucket}/${clusterName}"
@@ -85,8 +76,8 @@ class Flink {
           env("HARNESS_IMAGES_TO_PULL", imagesToPull)
         }
 
-        if(jobServerImageTag) {
-          env("JOB_SERVER_IMAGE", jobServerImageTag)
+        if(jobServerImage) {
+          env("JOB_SERVER_IMAGE", jobServerImage)
           env("ARTIFACTS_DIR", artifactsDir)
         }
       }
@@ -94,6 +85,10 @@ class Flink {
       shell('echo Setting up flink cluster')
       shell("cd ${FLINK_DIR}; ./${FLINK_SCRIPT} create")
     }
+  }
+
+  private GString getClusterName() {
+    return "${jobName.toLowerCase().replace("_", "-")}-\$BUILD_ID"
   }
 
   private void addTeardownFlinkStep() {
@@ -106,9 +101,5 @@ class Flink {
         onlyIfBuildFails(false)
       }
     }
-  }
-
-  private GString getClusterName() {
-    return "${jobName.toLowerCase().replace("_", "-")}-\$BUILD_ID"
   }
 }

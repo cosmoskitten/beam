@@ -21,7 +21,7 @@ import CommonJobProperties as common
 class DockerPublisher {
   private String repositoryRoot
 
-  DockerPublisher(String repositoryRoot = 'gcr.io/apache-beam-testing/beam_portability') {
+  DockerPublisher(String repositoryRoot) {
     this.repositoryRoot = repositoryRoot
   }
 
@@ -34,8 +34,8 @@ class DockerPublisher {
    * @param imageTag - tag of a docker image
    */
   final void publish(job, String gradleTask, String imageName, String imageTag = 'latest') {
-    executeGradleTask(job, gradleTask, imageTag)
-    pushDockerImage(job, imageName, imageTag)
+    build(job, gradleTask, imageTag)
+    push(job, imageName, imageTag)
   }
 
   /**
@@ -49,7 +49,7 @@ class DockerPublisher {
     return "${image}:${imageTag}"
   }
 
-  private void executeGradleTask(job, String gradleTask, String imageTag) {
+  private void build(job, String gradleTask, String imageTag) {
     job.steps {
       gradle {
         rootBuildScriptDir(common.checkoutDir)
@@ -61,7 +61,7 @@ class DockerPublisher {
     }
   }
 
-  private void pushDockerImage(job, String imageName, String imageTag) {
+  private void push(job, String imageName, String imageTag) {
     String image = "${repositoryRoot}/${imageName}"
     String targetImage = getFullImageName(imageName, imageTag)
 

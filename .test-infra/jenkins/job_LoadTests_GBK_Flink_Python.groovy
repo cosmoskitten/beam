@@ -20,14 +20,13 @@ import CommonJobProperties as commonJobProperties
 import CommonTestProperties
 import LoadTestsBuilder as loadTestsBuilder
 import PhraseTriggeringPostCommitBuilder
+import Portability.*
 import Flink
-import SDKHarnessPublisher
+import DockerPublisher
 
-SDKHarnessPublisher sdkPublisher = new SDKHarnessPublisher()
-String pythonHarnessImageTag = sdkPublisher.getFullImageName(CommonTestProperties.SDK.PYTHON)
 String now = new Date().format("MMddHHmmss", TimeZone.getTimeZone('UTC'))
 
-def scenarios = { datasetName -> [
+def scenarios = { datasetName, sdkHarnessImageTag -> [
         [
                 title        : 'Load test: 2GB of 10B records',
                 itClass      : 'apache_beam.testing.load_tests.group_by_key_test:GroupByKeyTest.testGroupByKey',
@@ -43,7 +42,7 @@ def scenarios = { datasetName -> [
                         fanout              : 1,
                         parallelism         : 5,
                         job_endpoint        : 'localhost:8099',
-                        environment_config  : pythonHarnessImageTag,
+                        environment_config  : sdkHarnessImageTag,
                         environment_type    : 'DOCKER'
                 ]
         ],
@@ -62,7 +61,7 @@ def scenarios = { datasetName -> [
                         fanout              : 1,
                         parallelism         : 5,
                         job_endpoint        : 'localhost:8099',
-                        environment_config  : pythonHarnessImageTag,
+                        environment_config  : sdkHarnessImageTag,
                         environment_type    : 'DOCKER'
                 ]
         ],
@@ -81,7 +80,7 @@ def scenarios = { datasetName -> [
                         fanout              : 1,
                         parallelism         : 5,
                         job_endpoint        : 'localhost:8099',
-                        environment_config  : pythonHarnessImageTag,
+                        environment_config  : sdkHarnessImageTag,
                         environment_type    : 'DOCKER'
                 ]
         ],
@@ -100,7 +99,7 @@ def scenarios = { datasetName -> [
                         fanout              : 4,
                         parallelism         : 16,
                         job_endpoint        : 'localhost:8099',
-                        environment_config  : pythonHarnessImageTag,
+                        environment_config  : sdkHarnessImageTag,
                         environment_type    : 'DOCKER'
                 ]
         ],
@@ -119,7 +118,7 @@ def scenarios = { datasetName -> [
                         fanout              : 8,
                         parallelism         : 16,
                         job_endpoint        : 'localhost:8099',
-                        environment_config  : pythonHarnessImageTag,
+                        environment_config  : sdkHarnessImageTag,
                         environment_type    : 'DOCKER'
                 ]
         ],
@@ -138,7 +137,7 @@ def scenarios = { datasetName -> [
                         fanout              : 1,
                         parallelism         : 5,
                         job_endpoint        : 'localhost:8099',
-                        environment_config  : pythonHarnessImageTag,
+                        environment_config  : sdkHarnessImageTag,
                         environment_type    : 'DOCKER'
                 ]
         ],
@@ -157,7 +156,7 @@ def scenarios = { datasetName -> [
                         fanout              : 1,
                         parallelism         : 5,
                         job_endpoint        : 'localhost:8099',
-                        environment_config  : pythonHarnessImageTag,
+                        environment_config  : sdkHarnessImageTag,
                         environment_type    : 'DOCKER'
                 ]
         ]
@@ -165,15 +164,19 @@ def scenarios = { datasetName -> [
 
 
 def loadTest = { scope, triggeringContext ->
-  def datasetName = loadTestsBuilder.getBigQueryDataset('load_test', triggeringContext)
+  DockerPublisher publisher = new DockerPublisher(Portability.beamRepository)
   def sdk = CommonTestProperties.SDK.PYTHON
-  def numberOfWorkers = 16
-  List<Map> testScenarios = scenarios(datasetName)
+  String sdkName = sdk.name().toLowerCase()
+  String pythonHarnessImageTag = publisher.getFullImageName(sdkName)
 
-  sdkPublisher.publishSDKHarness(scope, sdk)
+  def datasetName = loadTestsBuilder.getBigQueryDataset('load_test', triggeringContext)
+  def numberOfWorkers = 16
+  List<Map> testScenarios = scenarios(datasetName, pythonHarnessImageTag)
+
+  publisher.publish(scope, ":sdks:${sdkName}:container:docker", sdkName)
+  publisher.publish(scope, ":runners:flink:${Portability.flinkVersion}:job-server-container:docker", 'flink-job-server')
   def flink = new Flink(scope, 'beam_LoadTests_Python_GBK_Flink_Batch')
-  flink.prepareJobServer()
-  flink.setUp([pythonHarnessImageTag], numberOfWorkers)
+  flink.setUp([pythonHarnessImageTag], numberOfWorkers, publisher.getFullImageName('flink-job-server'))
 
   def configurations = testScenarios.findAll { it.jobProperties?.parallelism?.value == numberOfWorkers }
   loadTestsBuilder.loadTests(scope, sdk, configurations, "GBK", "batch")
