@@ -385,7 +385,7 @@ public class StatefulParDoEvaluatorFactoryTest implements Serializable {
       final StateSpec<ValueState<String>> stateSpec = StateSpecs.value();
 
       @ProcessElement
-      @DoFn.RequiresTimeSortedInput
+      @RequiresTimeSortedInput
       public void processElement(
           ProcessContext context, @StateId(stateId) ValueState<String> state) {
         String current = MoreObjects.firstNonNull(state.read(), "");

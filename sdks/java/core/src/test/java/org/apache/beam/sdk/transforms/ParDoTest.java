@@ -55,6 +55,7 @@ import java.util.Set;
 import java.util.function.IntFunction;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
+import java.util.stream.LongStream;
 import java.util.stream.StreamSupport;
 import org.apache.beam.sdk.coders.AtomicCoder;
 import org.apache.beam.sdk.coders.Coder;
@@ -85,6 +86,7 @@ import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.testing.TestStream;
 import org.apache.beam.sdk.testing.UsesMapState;
+import org.apache.beam.sdk.testing.UsesRequiresTimeSortedInput;
 import org.apache.beam.sdk.testing.UsesSetState;
 import org.apache.beam.sdk.testing.UsesSideInputs;
 import org.apache.beam.sdk.testing.UsesStatefulParDo;
@@ -114,6 +116,7 @@ import org.apache.beam.sdk.values.TimestampedValue;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TupleTagList;
 import org.apache.beam.sdk.values.TypeDescriptor;
+import org.apache.beam.sdk.values.TypeDescriptors;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Joiner;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.MoreObjects;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions;
@@ -2100,6 +2103,47 @@ public class ParDoTest implements Serializable {
 
       PAssert.that(output)
           .containsInAnyOrder(Lists.newArrayList(12, 42, 84, 97), Lists.newArrayList(0, 1, 2));
+      pipeline.run();
+    }
+
+    @Test
+    @Category({ValidatesRunner.class, UsesStatefulParDo.class, UsesRequiresTimeSortedInput.class})
+    public void testRequiresTimeSortedInput() {
+      // generate list long enough to rule out random shuffle in sorted order
+      int numElements = 1000;
+      List<Long> eventStamps = LongStream.range(0, numElements)
+          .mapToObj(i -> numElements - i)
+          .collect(Collectors.toList());
+      PCollection<Integer> output = pipeline.apply(Create.of(eventStamps))
+          .apply(WithTimestamps.of(e -> Instant.ofEpochMilli(e)))
+          .apply(MapElements
+              .into(TypeDescriptors.kvs(TypeDescriptors.voids(), TypeDescriptors.longs()))
+              .via(e -> KV.of(null, e)))
+          .apply(ParDo.of(new DoFn<KV<Void, Long>, Integer>() {
+
+            @StateId("last")
+            private final StateSpec<ValueState<Long>> lastSpec = StateSpecs.value();
+
+            @RequiresTimeSortedInput
+            @ProcessElement
+            public void process(
+                @Element KV<Void, Long> element,
+                @StateId("last") ValueState<Long> last,
+                OutputReceiver<Integer> output) {
+              long lastVal = MoreObjects.firstNonNull(last.read(), 0L);
+              last.write(element.getValue());
+              output.output((int) (element.getValue() - lastVal));
+            }
+          }));
+      PAssert.that(output).satisfies(values -> {
+        // validate that sum equals count, so that the whole list is made of ones
+        assertEquals(numElements, StreamSupport.stream(values.spliterator(), false).count());
+        assertEquals(numElements, StreamSupport
+            .stream(values.spliterator(), false)
+            .mapToLong(e -> e)
+            .sum());
+        return null;
+      });
       pipeline.run();
     }
   }
