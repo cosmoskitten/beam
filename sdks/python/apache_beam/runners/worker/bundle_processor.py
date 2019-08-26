@@ -201,7 +201,6 @@ class DataInputOperation(RunnerIOOperation):
 class _StateBackedIterable(object):
   def __init__(self, state_handler, state_key, coder_or_impl):
     self._state_handler = state_handler
-    # TODO mxm This is the beam fn api key
     self._state_key = state_key
     if isinstance(coder_or_impl, coders.Coder):
       self._coder_impl = coder_or_impl.get_impl()
@@ -486,7 +485,6 @@ class FnApiUserStateContext(userstate.UserStateContext):
         key, window, self._timer_receivers[timer_spec.name])
 
   def get_state(self, *args):
-    # TODO mxm here starts the state retrieval
     state_handle = self._all_states.get(args)
     if state_handle is None:
       state_handle = self._all_states[args] = self._create_state(*args)

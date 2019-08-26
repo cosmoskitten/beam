@@ -69,6 +69,7 @@ from apache_beam.runners.worker import bundle_processor
 from apache_beam.runners.worker import data_plane
 from apache_beam.runners.worker import sdk_worker
 from apache_beam.runners.worker.channel_factory import GRPCChannelFactory
+from apache_beam.runners.worker.statecache import StateCache
 from apache_beam.transforms import trigger
 from apache_beam.transforms.window import GlobalWindows
 from apache_beam.utils import profiler
@@ -908,10 +909,10 @@ class FnApiRunner(runner.PipelineRunner):
       self._checkpoint = None
 
     @contextlib.contextmanager
-    def process_instruction_id(self, unused_instruction_id, cache_tokens):
+    def process_instruction_id(self, unused_instruction_id):
       yield
 
-    def blocking_get(self, state_key, coder, continuation_token=None):
+    def blocking_get(self, state_key, continuation_token=None):
       with self._lock:
         full_state = self._state[self._to_key(state_key)]
         if self._use_continuation_tokens:
@@ -1064,7 +1065,6 @@ class EmbeddedWorkerHandler(WorkerHandler):
         self, data_plane.InMemoryDataChannel(), state, provision_info)
     self.control_conn = self
     self.data_conn = self.data_plane_handler
-
     self.worker = sdk_worker.SdkWorker(
         sdk_worker.BundleProcessorCache(
             FnApiRunner.SingletonStateHandlerFactory(self.state),
@@ -1385,7 +1385,12 @@ class WorkerHandlerManager(object):
     self._environments = environments
     self._job_provision_info = job_provision_info
     self._cached_handlers = collections.defaultdict(list)
-    self._state = FnApiRunner.StateServicer() # rename?
+    self._state = sdk_worker.CachingMaterializingStateHandler(
+        StateCache(100),
+        # rename?
+        FnApiRunner.StateServicer(),
+        # TODO mxm This need to be changed during testing
+        ["cacheToken"])
     self._grpc_server = None
 
   def get_worker_handlers(self, environment_id, num_workers):
