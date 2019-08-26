@@ -19,14 +19,59 @@
 from __future__ import absolute_import
 from __future__ import print_function
 
+import sys
 import unittest
 
 import mock
 
-from apache_beam.examples.snippets.transforms.element_wise.to_string import *
 from apache_beam.testing.test_pipeline import TestPipeline
 from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
+
+from . import to_string
+
+
+def check_plants(actual):
+  # [START plants]
+  plants = [
+      '🍓,Strawberry',
+      '🥕,Carrot',
+      '🍆,Eggplant',
+      '🍅,Tomato',
+      '🥔,Potato',
+  ]
+  # [END plants]
+  assert_that(actual, equal_to(plants))
+
+
+def check_plant_lists(actual):
+  # [START plant_lists]
+  plant_lists = [
+      "['🍓', 'Strawberry', 'perennial']",
+      "['🥕', 'Carrot', 'biennial']",
+      "['🍆', 'Eggplant', 'perennial']",
+      "['🍅', 'Tomato', 'annual']",
+      "['🥔', 'Potato', 'perennial']",
+  ]
+  # [END plant_lists]
+  if sys.version_info.major == 2:
+    # Python 2 escapes unicode strings with double backslash.
+    import apache_beam as beam
+    actual = actual | beam.Map(lambda s: s.decode('string-escape'))
+  assert_that(actual, equal_to(plant_lists))
+
+
+def check_plants_csv(actual):
+  # [START plants_csv]
+  plants_objects = [
+      '🍓,Strawberry,perennial',
+      '🥕,Carrot,biennial',
+      '🍆,Eggplant,perennial',
+      '🍅,Tomato,annual',
+      '🥔,Potato,perennial',
+  ]
+  # [END plants_csv]
+  assert_that(actual, equal_to(plants_objects))
 
 
 @mock.patch('apache_beam.Pipeline', TestPipeline)
@@ -34,21 +79,14 @@ from apache_beam.testing.util import equal_to
 @mock.patch('apache_beam.examples.snippets.transforms.element_wise.to_string.print', lambda elem: elem)
 # pylint: enable=line-too-long
 class ToStringTest(unittest.TestCase):
-  def __init__(self, methodName):
-    super(ToStringTest, self).__init__(methodName)
-    # [START plants]
-    plants = [
-        "('Strawberry', 'perennial')",
-        "('Carrot', 'biennial')",
-        "('Eggplant', 'perennial')",
-        "('Tomato', 'annual')",
-        "('Potato', 'perennial')",
-    ]
-    # [END plants]
-    self.plants_test = lambda actual: assert_that(actual, equal_to(plants))
+  def test_to_string_kvs(self):
+    to_string.to_string_kvs(check_plants)
 
-  def test_to_string(self):
-    to_string(self.plants_test)
+  def test_to_string_element(self):
+    to_string.to_string_element(check_plant_lists)
+
+  def test_to_string_iterables(self):
+    to_string.to_string_iterables(check_plants_csv)
 
 
 if __name__ == '__main__':
