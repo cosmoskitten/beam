@@ -69,6 +69,7 @@ from apache_beam.runners.worker import bundle_processor
 from apache_beam.runners.worker import data_plane
 from apache_beam.runners.worker import sdk_worker
 from apache_beam.runners.worker.channel_factory import GRPCChannelFactory
+from apache_beam.runners.worker.statecache import StateCache
 from apache_beam.transforms import trigger
 from apache_beam.transforms.window import GlobalWindows
 from apache_beam.utils import profiler
@@ -908,10 +909,10 @@ class FnApiRunner(runner.PipelineRunner):
       self._checkpoint = None
 
     @contextlib.contextmanager
-    def process_instruction_id(self, unused_instruction_id, cache_tokens):
+    def process_instruction_id(self, unused_instruction_id):
       yield
 
-    def blocking_get(self, state_key, coder, continuation_token=None):
+    def blocking_get(self, state_key, continuation_token=None):
       with self._lock:
         full_state = self._state[self._to_key(state_key)]
         if self._use_continuation_tokens:
@@ -1064,10 +1065,14 @@ class EmbeddedWorkerHandler(WorkerHandler):
         self, data_plane.InMemoryDataChannel(), state, provision_info)
     self.control_conn = self
     self.data_conn = self.data_plane_handler
-
     self.worker = sdk_worker.SdkWorker(
         sdk_worker.BundleProcessorCache(
-            FnApiRunner.SingletonStateHandlerFactory(self.state),
+            FnApiRunner.SingletonStateHandlerFactory(
+                sdk_worker.CachingMaterializingStateHandler(
+                    StateCache(100),
+                    self.state,
+                    # TODO mxm This needs to be changed during testing
+                    ["cache_token"])),
             data_plane.InMemoryDataChannelFactory(
                 self.data_plane_handler.inverse()),
             {}))

@@ -15,38 +15,42 @@
 # limitations under the License.
 #
 
-"""TODO mxm"""
+"""TODO mxm document this"""
 import collections
 from threading import Lock
 
-# (cache_token, value)
-
 
 class StateCache(object):
+  """ Cache for Beam state, scoped by state key.
+
+  For a given state_key, caches a (cache_token, value) tuple and allows to
+  read the cache if a valid cache token is supplied.
+  """
 
   def __init__(self, max_entries):
     self._cache = LRUCache(max_entries)
     self._lock = Lock()
 
   def get(self, state_key, cache_tokens):
-    #assert isinstance(state_key, StateKey.__class__)
     with self._lock:
       cache_entry = self._cache.get(state_key)
     if cache_entry:
       token, value = cache_entry
-      return value if token in cache_tokens else None
+      return value if cache_tokens and token in cache_tokens else None
     else:
       return None
 
   def put(self, state_key, cache_token, value):
-    #assert isinstance(state_key, StateKey.__class__)
     with self._lock:
       return self._cache.put(state_key, (cache_token, value))
 
   def clear(self, state_key):
-    #assert isinstance(state_key, StateKey.__class__)
     with self._lock:
       self._cache.clear(state_key)
+
+  def clear_all(self):
+    with self._lock:
+      self._cache.clear_all()
 
   def __len__(self):
     return len(self._cache)
@@ -72,32 +76,8 @@ class LRUCache(object):
   def clear(self, key):
     self._cache.pop(key, None)
 
+  def clear_all(self):
+    self._cache.clear()
+
   def __len__(self):
     return len(self._cache)
-
-
-class CacheStateKey(object):
-
-  def __init__(self, transform_id, state_id, window, key):
-    self.transform_id = transform_id
-    self.state_id = state_id
-    self.window = window
-    self.key = key
-
-  def __eq__(self, other):
-    return (isinstance(other, self.__class__) and
-            other.transform_id == self.transform_id and
-            other.state_id == self.state_id and
-            other.window == self.window and
-            other.key == self.key)
-
-  def __hash__(self):
-    return hash((self.transform_id, self.state_id, self.window, self.key))
-
-  def __repr__(self):
-    return ("CacheStateKey["
-            "transform_id={},"
-            "state_id={},"
-            "window={},"
-            "key={}]"
-            .format(self.transform_id, self.state_id, self.window, self.key))
