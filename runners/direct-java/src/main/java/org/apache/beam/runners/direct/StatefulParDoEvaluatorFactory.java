@@ -22,11 +22,12 @@ import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Prec
 import com.google.auto.value.AutoValue;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
-import javax.annotation.Nullable;
+import java.util.PriorityQueue;
 import org.apache.beam.runners.core.KeyedWorkItem;
 import org.apache.beam.runners.core.KeyedWorkItems;
 import org.apache.beam.runners.core.StateNamespace;
@@ -237,10 +238,12 @@ final class StatefulParDoEvaluatorFactory<K, InputT, OutputT> implements Transfo
 
     private final DoFnLifecycleManagerRemovingTransformEvaluator<KV<K, InputT>> delegateEvaluator;
     private final List<TimerData> pushedBackTimers = new ArrayList<>();
+    private final DirectTimerInternals timerInternals;
 
     public StatefulParDoEvaluator(
         DoFnLifecycleManagerRemovingTransformEvaluator<KV<K, InputT>> delegateEvaluator) {
       this.delegateEvaluator = delegateEvaluator;
+      this.timerInternals = delegateEvaluator.getParDoEvaluator().getStepContext().timerInternals();
     }
 
     @Override
@@ -250,28 +253,26 @@ final class StatefulParDoEvaluatorFactory<K, InputT, OutputT> implements Transfo
         delegateEvaluator.processElement(windowedValue);
       }
 
-      @Nullable Instant lastFired = null;
-      for (TimerData timer : gbkResult.getValue().timersIterable()) {
+      Instant currentInputWatermark = timerInternals.currentInputWatermarkTime();
+      PriorityQueue<TimerData> toBeFiredTimers =
+          new PriorityQueue<>(Comparator.comparing(TimerData::getTimestamp));
+      gbkResult.getValue().timersIterable().forEach(toBeFiredTimers::add);
+      while (!toBeFiredTimers.isEmpty()) {
+        TimerData timer = toBeFiredTimers.poll();
         checkState(
             timer.getNamespace() instanceof WindowNamespace,
             "Expected Timer %s to be in a %s, but got %s",
             timer,
             WindowNamespace.class.getSimpleName(),
             timer.getNamespace().getClass().getName());
-        checkState(
-            lastFired == null || !lastFired.isAfter(timer.getTimestamp()),
-            "lastFired was %s, current %s",
-            lastFired,
-            timer.getTimestamp());
-        if (lastFired != null && lastFired.isBefore(timer.getTimestamp())) {
-          pushedBackTimers.add(timer);
-        } else {
-          lastFired = timer.getTimestamp();
-          WindowNamespace<?> windowNamespace = (WindowNamespace) timer.getNamespace();
-          BoundedWindow timerWindow = windowNamespace.getWindow();
-          delegateEvaluator.onTimer(timer, timerWindow);
+        WindowNamespace<?> windowNamespace = (WindowNamespace) timer.getNamespace();
+        BoundedWindow timerWindow = windowNamespace.getWindow();
+        delegateEvaluator.onTimer(timer, timerWindow);
+        if (timerInternals.containsUpdateForTimeBefore(currentInputWatermark)) {
+          break;
         }
       }
+      pushedBackTimers.addAll(toBeFiredTimers);
     }
 
     @Override
