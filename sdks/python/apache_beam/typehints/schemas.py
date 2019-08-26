@@ -139,6 +139,13 @@ def typing_to_runner_api(type_):
   elif type_ in PRIMITIVE_TO_ATOMIC_TYPE:
     return schema_pb2.FieldType(atomic_type=PRIMITIVE_TO_ATOMIC_TYPE[type_])
 
+  elif sys.version_info.major == 2 and type_ == str:
+    raise ValueError(
+        "type 'str' is not supported in python 2. Please use 'unicode' or "
+        "'typing.ByteString' instead to unambiguously indicate if this is a "
+        "UTF-8 string or a byte array."
+    )
+
   elif _match_is_exactly_mapping(type_):
     key_type, value_type = map(typing_to_runner_api, _get_args(type_))
     return schema_pb2.FieldType(
@@ -156,13 +163,6 @@ def typing_to_runner_api(type_):
     element_type = typing_to_runner_api(_get_args(type_)[0])
     return schema_pb2.FieldType(
         array_type=schema_pb2.ArrayType(element_type=element_type))
-
-  elif sys.version_info.major == 2 and type_ == str:
-    raise ValueError(
-        "type 'str' is not supported in python 2. Please use 'unicode' or "
-        "'typing.ByteString' instead to unambiguously indicate if this is a "
-        "UTF-8 string or a byte array."
-    )
 
   raise ValueError("Unsupported type: %s" % type_)
 
