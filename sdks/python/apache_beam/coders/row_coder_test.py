@@ -119,13 +119,13 @@ class RowCoderTest(unittest.TestCase):
       self.assertRaises(OverflowError, lambda: c.encode(case))
 
   def test_none_in_non_nullable_field_throws(self):
-    Test = typing.NamedTuple('Test', [('foo', str)])
+    Test = typing.NamedTuple('Test', [('foo', unicode)])
 
     c = RowCoder.from_type_hint(Test, None)
     self.assertRaises(ValueError, lambda: c.encode(Test(foo=None)))
 
   def test_schema_remove_column(self):
-    fields = [("field1", str), ("field2", str)]
+    fields = [("field1", unicode), ("field2", unicode)]
     # new schema is missing one field that was in the old schema
     Old = typing.NamedTuple('Old', fields)
     New = typing.NamedTuple('New', fields[:-1])
@@ -137,7 +137,7 @@ class RowCoderTest(unittest.TestCase):
         New("foo"), new_coder.decode(old_coder.encode(Old("foo", "bar"))))
 
   def test_schema_add_column(self):
-    fields = [("field1", str), ("field2", typing.Optional[str])]
+    fields = [("field1", unicode), ("field2", typing.Optional[unicode])]
     # new schema has one (optional) field that didn't exist in the old schema
     Old = typing.NamedTuple('Old', fields[:-1])
     New = typing.NamedTuple('New', fields)
@@ -149,8 +149,8 @@ class RowCoderTest(unittest.TestCase):
         New("bar", None), new_coder.decode(old_coder.encode(Old("bar"))))
 
   def test_schema_add_column_with_null_value(self):
-    fields = [("field1", typing.Optional[str]), ("field2", str),
-              ("field3", typing.Optional[str])]
+    fields = [("field1", typing.Optional[unicode]), ("field2", unicode),
+              ("field3", typing.Optional[unicode])]
     # new schema has one (optional) field that didn't exist in the old schema
     Old = typing.NamedTuple('Old', fields[:-1])
     New = typing.NamedTuple('New', fields)
