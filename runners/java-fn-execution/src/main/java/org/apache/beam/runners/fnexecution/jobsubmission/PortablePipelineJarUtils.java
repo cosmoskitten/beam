@@ -17,10 +17,38 @@
  */
 package org.apache.beam.runners.fnexecution.jobsubmission;
 
-/** Contains common code for writing and reading portable pipeline jars. */
+/**
+ * Contains common code for writing and reading portable pipeline jars.
+ *
+ * <p>Jar layout:
+ *
+ * <ul>
+ *   <li>META-INF/
+ *       <ul>
+ *         <li>MANIFEST.MF
+ *       </ul>
+ *   <li>BEAM-PIPELINE/
+ *       <ul>
+ *         <li>pipeline.json
+ *         <li>pipeline-options.json
+ *       </ul>
+ *   <li>BEAM-ARTIFACT-STAGING/
+ *       <ul>
+ *         <li>artifact-manifest.json
+ *         <li>artifacts/
+ *             <ul>
+ *               <li>...artifact files...
+ *             </ul>
+ *       </ul>
+ *   <li>...Java classes...
+ * </ul>
+ */
 public abstract class PortablePipelineJarUtils {
-  static final String ARTIFACT_FOLDER_NAME = "beam-artifact-staging";
-  static final String ARTIFACT_MANIFEST_NAME = "beam-artifact-manifest.json";
-  static final String PIPELINE_FILE_NAME = "beam-pipeline.textproto";
-  static final String PIPELINE_OPTIONS_FILE_NAME = "beam-pipeline-options.textproto";
+  private static final String ARTIFACT_STAGING_FOLDER_PATH = "BEAM-ARTIFACT-STAGING";
+  static final String ARTIFACT_FOLDER_PATH = ARTIFACT_STAGING_FOLDER_PATH + "/artifacts";
+  private static final String PIPELINE_FOLDER_PATH = "BEAM-PIPELINE";
+  static final String ARTIFACT_MANIFEST_PATH =
+      ARTIFACT_STAGING_FOLDER_PATH + "/artifact-manifest.json";
+  static final String PIPELINE_PATH = PIPELINE_FOLDER_PATH + "/pipeline.json";
+  static final String PIPELINE_OPTIONS_PATH = PIPELINE_FOLDER_PATH + "/pipeline-options.json";
 }

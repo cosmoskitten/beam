@@ -152,10 +152,9 @@ public class PortablePipelineJarCreator implements PortablePipelineRunner {
         new HashSet<>(
             ImmutableList.of(
                 JarFile.MANIFEST_NAME,
-                PortablePipelineJarUtils.ARTIFACT_FOLDER_NAME,
-                PortablePipelineJarUtils.ARTIFACT_MANIFEST_NAME,
-                PortablePipelineJarUtils.PIPELINE_FILE_NAME,
-                PortablePipelineJarUtils.PIPELINE_OPTIONS_FILE_NAME));
+                PortablePipelineJarUtils.ARTIFACT_MANIFEST_PATH,
+                PortablePipelineJarUtils.PIPELINE_PATH,
+                PortablePipelineJarUtils.PIPELINE_OPTIONS_PATH));
     while (inputJarEntries.hasMoreElements()) {
       JarEntry inputJarEntry = inputJarEntries.nextElement();
       InputStream inputStream = inputJar.getInputStream(inputJarEntry);
@@ -173,14 +172,14 @@ public class PortablePipelineJarCreator implements PortablePipelineRunner {
   }
 
   private void writePipeline(Pipeline pipeline, JarOutputStream outputStream) throws IOException {
-    JarEntry jarEntry = new JarEntry(PortablePipelineJarUtils.PIPELINE_FILE_NAME);
+    JarEntry jarEntry = new JarEntry(PortablePipelineJarUtils.PIPELINE_PATH);
     outputStream.putNextEntry(jarEntry);
     pipeline.writeTo(outputStream);
   }
 
   private void writePipelineOptions(Struct optionsProto, JarOutputStream outputStream)
       throws IOException {
-    JarEntry jarEntry = new JarEntry(PortablePipelineJarUtils.PIPELINE_OPTIONS_FILE_NAME);
+    JarEntry jarEntry = new JarEntry(PortablePipelineJarUtils.PIPELINE_OPTIONS_PATH);
     outputStream.putNextEntry(jarEntry);
     optionsProto.writeTo(outputStream);
   }
@@ -209,7 +208,7 @@ public class PortablePipelineJarCreator implements PortablePipelineRunner {
     ProxyManifest.Builder proxyManifestBuilder = ProxyManifest.newBuilder().setManifest(manifest);
     for (ArtifactMetadata artifact : manifest.getArtifactList()) {
       String outputPath =
-          PortablePipelineJarUtils.ARTIFACT_FOLDER_NAME + "/" + UUID.randomUUID().toString();
+          PortablePipelineJarUtils.ARTIFACT_FOLDER_PATH + "/" + UUID.randomUUID().toString();
       LOG.trace("Copying artifact {} to {}", artifact.getName(), outputPath);
       proxyManifestBuilder.addLocation(
           Location.newBuilder().setName(artifact.getName()).setUri("/" + outputPath).build());
@@ -230,7 +229,7 @@ public class PortablePipelineJarCreator implements PortablePipelineRunner {
   /** Writes {@code proxyManifest} to {@code outputStream} as a JSON file. */
   private void writeProxyManifest(ProxyManifest proxyManifest, JarOutputStream outputStream)
       throws IOException {
-    outputStream.putNextEntry(new JarEntry(PortablePipelineJarUtils.ARTIFACT_MANIFEST_NAME));
+    outputStream.putNextEntry(new JarEntry(PortablePipelineJarUtils.ARTIFACT_MANIFEST_PATH));
     try (WritableByteChannel byteChannel = Channels.newChannel(outputStream)) {
       byteChannel.write(StandardCharsets.UTF_8.encode(JsonFormat.printer().print(proxyManifest)));
     }
