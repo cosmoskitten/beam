@@ -31,6 +31,7 @@ import static org.mockito.MockitoAnnotations.initMocks;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.Serializable;
+import java.nio.channels.WritableByteChannel;
 import java.util.Collections;
 import java.util.List;
 import java.util.jar.Attributes.Name;
@@ -59,6 +60,7 @@ public class PortablePipelineJarCreatorTest implements Serializable {
 
   @Mock private JarFile inputJar;
   @Mock private JarOutputStream outputStream;
+  @Mock private WritableByteChannel outputChannel;
   @Mock private ArtifactRetriever retrievalServiceStub;
   private PortablePipelineJarCreator jarCreator;
 
@@ -69,6 +71,8 @@ public class PortablePipelineJarCreatorTest implements Serializable {
     when(inputJar.getInputStream(any())).thenReturn(emptyInputStream);
     when(retrievalServiceStub.getArtifact(any())).thenReturn(Collections.emptyIterator());
     jarCreator = new PortablePipelineJarCreator(null);
+    jarCreator.outputStream = outputStream;
+    jarCreator.outputChannel = outputChannel;
   }
 
   @Test
@@ -76,7 +80,7 @@ public class PortablePipelineJarCreatorTest implements Serializable {
     List<JarEntry> entries =
         ImmutableList.of(new JarEntry("foo"), new JarEntry("bar"), new JarEntry("baz"));
     when(inputJar.entries()).thenReturn(Collections.enumeration(entries));
-    jarCreator.copyResourcesFromJar(inputJar, outputStream);
+    jarCreator.copyResourcesFromJar(inputJar);
     verify(outputStream, times(3)).putNextEntry(any());
   }
 
@@ -84,7 +88,7 @@ public class PortablePipelineJarCreatorTest implements Serializable {
   public void testCopyResourcesFromJar_ignoresManifest() throws IOException {
     List<JarEntry> manifestEntry = ImmutableList.of(new JarEntry(JarFile.MANIFEST_NAME));
     when(inputJar.entries()).thenReturn(Collections.enumeration(manifestEntry));
-    jarCreator.copyResourcesFromJar(inputJar, outputStream);
+    jarCreator.copyResourcesFromJar(inputJar);
     verify(outputStream, never()).putNextEntry(any());
   }
 
@@ -92,7 +96,7 @@ public class PortablePipelineJarCreatorTest implements Serializable {
   public void testCopyResourcesFromJar_ignoresDuplicates() throws IOException {
     List<JarEntry> duplicateEntries = ImmutableList.of(new JarEntry("foo"), new JarEntry("foo"));
     when(inputJar.entries()).thenReturn(Collections.enumeration(duplicateEntries));
-    jarCreator.copyResourcesFromJar(inputJar, outputStream);
+    jarCreator.copyResourcesFromJar(inputJar);
     verify(outputStream, times(1)).putNextEntry(any());
   }
 
@@ -107,7 +111,7 @@ public class PortablePipelineJarCreatorTest implements Serializable {
         .thenReturn(GetManifestResponse.newBuilder().setManifest(manifest).build());
 
     ProxyManifest proxyManifest =
-        jarCreator.copyStagedArtifacts("retrievalToken", outputStream, retrievalServiceStub);
+        jarCreator.copyStagedArtifacts("retrievalToken", retrievalServiceStub);
 
     assertEquals(manifest, proxyManifest.getManifest());
     List<String> outputArtifactNames =
@@ -127,7 +131,7 @@ public class PortablePipelineJarCreatorTest implements Serializable {
     when(retrievalServiceStub.getManifest(any()))
         .thenReturn(GetManifestResponse.newBuilder().setManifest(manifest).build());
 
-    jarCreator.copyStagedArtifacts("retrievalToken", outputStream, retrievalServiceStub);
+    jarCreator.copyStagedArtifacts("retrievalToken", retrievalServiceStub);
 
     verify(outputStream, times(2)).putNextEntry(any());
   }

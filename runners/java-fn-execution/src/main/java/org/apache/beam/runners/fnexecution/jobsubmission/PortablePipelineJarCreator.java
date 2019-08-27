@@ -57,7 +57,7 @@ import org.apache.beam.runners.fnexecution.provisioning.JobInfo;
 import org.apache.beam.sdk.fn.test.InProcessManagedChannelFactory;
 import org.apache.beam.sdk.metrics.MetricResults;
 import org.apache.beam.sdk.options.PortablePipelineOptions;
-import org.apache.beam.vendor.grpc.v1p21p0.com.google.protobuf.Struct;
+import org.apache.beam.vendor.grpc.v1p21p0.com.google.protobuf.MessageOrBuilder;
 import org.apache.beam.vendor.grpc.v1p21p0.com.google.protobuf.util.JsonFormat;
 import org.apache.beam.vendor.grpc.v1p21p0.io.grpc.ManagedChannel;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
@@ -71,11 +71,18 @@ import org.slf4j.LoggerFactory;
 /**
  * {@link PortablePipelineRunner} that bundles the input pipeline along with all dependencies,
  * artifacts, etc. required to run the pipeline into a jar that can be executed later.
+ *
+ * <p>Each {@link PortablePipelineJarCreator} instance is not threadsafe; a new instance is expected
+ * to be constructed and {@link #run} once per job.
  */
 public class PortablePipelineJarCreator implements PortablePipelineRunner {
   private static final Logger LOG = LoggerFactory.getLogger(PortablePipelineJarCreator.class);
 
   private final Class mainClass;
+
+  @VisibleForTesting JarOutputStream outputStream;
+  /** Wrapper over {@link #outputStream}. */
+  @VisibleForTesting WritableByteChannel outputChannel;
 
   public PortablePipelineJarCreator(Class mainClass) {
     this.mainClass = mainClass;
@@ -94,16 +101,19 @@ public class PortablePipelineJarCreator implements PortablePipelineRunner {
 
     File outputFile = new File(pipelineOptions.getOutputExecutablePath());
     LOG.info("Creating jar {}", outputFile.getAbsolutePath());
-    try (JarOutputStream outputStream =
-        new JarOutputStream(new FileOutputStream(outputFile), createManifest(mainClass))) {
-      writeClassPathResources(mainClass.getClassLoader(), outputStream);
-      writePipeline(pipeline, outputStream);
-      writePipelineOptions(PipelineOptionsTranslation.toProto(pipelineOptions), outputStream);
-      writeArtifacts(jobInfo.retrievalToken(), outputStream);
+    outputStream = new JarOutputStream(new FileOutputStream(outputFile), createManifest(mainClass));
+    outputChannel = Channels.newChannel(outputStream);
+    writeClassPathResources(mainClass.getClassLoader());
+    writeAsJson(pipeline, PortablePipelineJarUtils.PIPELINE_PATH);
+    writeAsJson(
+        PipelineOptionsTranslation.toProto(pipelineOptions),
+        PortablePipelineJarUtils.PIPELINE_OPTIONS_PATH);
+    writeArtifacts(jobInfo.retrievalToken());
+    // Closing the channel also closes the underlying stream.
+    outputChannel.close();
 
-      LOG.info("Jar {} created successfully.", outputFile.getAbsolutePath());
-      return new JarCreatorPipelineResult();
-    }
+    LOG.info("Jar {} created successfully.", outputFile.getAbsolutePath());
+    return new JarCreatorPipelineResult();
   }
 
   @VisibleForTesting
@@ -130,20 +140,18 @@ public class PortablePipelineJarCreator implements PortablePipelineRunner {
     return manifest;
   }
 
-  /** Copy resources from {@code classLoader} to {@code outputStream}. */
-  private void writeClassPathResources(ClassLoader classLoader, JarOutputStream outputStream)
-      throws IOException {
+  /** Copy resources from {@code classLoader} to {@link #outputStream}. */
+  private void writeClassPathResources(ClassLoader classLoader) throws IOException {
     List<String> classPathResources =
         PipelineResources.detectClassPathResourcesToStage(classLoader);
     Preconditions.checkArgument(
         classPathResources.size() == 1, "Expected exactly one jar on " + classLoader.toString());
-    copyResourcesFromJar(new JarFile(classPathResources.get(0)), outputStream);
+    copyResourcesFromJar(new JarFile(classPathResources.get(0)));
   }
 
-  /** Copy resources from {@code inputJar} to {@code outputStream}. */
+  /** Copy resources from {@code inputJar} to {@link #outputStream}. */
   @VisibleForTesting
-  protected void copyResourcesFromJar(JarFile inputJar, JarOutputStream outputStream)
-      throws IOException {
+  protected void copyResourcesFromJar(JarFile inputJar) throws IOException {
     Enumeration<JarEntry> inputJarEntries = inputJar.entries();
     // The zip spec allows multiple files with the same name; the Java zip libraries do not.
     // Keep track of the files we've already written to filter out duplicates.
@@ -171,19 +179,6 @@ public class PortablePipelineJarCreator implements PortablePipelineRunner {
     }
   }
 
-  private void writePipeline(Pipeline pipeline, JarOutputStream outputStream) throws IOException {
-    JarEntry jarEntry = new JarEntry(PortablePipelineJarUtils.PIPELINE_PATH);
-    outputStream.putNextEntry(jarEntry);
-    pipeline.writeTo(outputStream);
-  }
-
-  private void writePipelineOptions(Struct optionsProto, JarOutputStream outputStream)
-      throws IOException {
-    JarEntry jarEntry = new JarEntry(PortablePipelineJarUtils.PIPELINE_OPTIONS_PATH);
-    outputStream.putNextEntry(jarEntry);
-    optionsProto.writeTo(outputStream);
-  }
-
   @VisibleForTesting
   interface ArtifactRetriever {
     GetManifestResponse getManifest(GetManifestRequest request);
@@ -198,8 +193,7 @@ public class PortablePipelineJarCreator implements PortablePipelineRunner {
    * @return A {@link ProxyManifest} pointing to the artifacts' location in the output jar.
    */
   @VisibleForTesting
-  ProxyManifest copyStagedArtifacts(
-      String retrievalToken, JarOutputStream outputStream, ArtifactRetriever retrievalServiceStub)
+  ProxyManifest copyStagedArtifacts(String retrievalToken, ArtifactRetriever retrievalServiceStub)
       throws IOException {
     GetManifestRequest manifestRequest =
         GetManifestRequest.newBuilder().setRetrievalToken(retrievalToken).build();
@@ -226,21 +220,11 @@ public class PortablePipelineJarCreator implements PortablePipelineRunner {
     return proxyManifestBuilder.build();
   }
 
-  /** Writes {@code proxyManifest} to {@code outputStream} as a JSON file. */
-  private void writeProxyManifest(ProxyManifest proxyManifest, JarOutputStream outputStream)
-      throws IOException {
-    outputStream.putNextEntry(new JarEntry(PortablePipelineJarUtils.ARTIFACT_MANIFEST_PATH));
-    try (WritableByteChannel byteChannel = Channels.newChannel(outputStream)) {
-      byteChannel.write(StandardCharsets.UTF_8.encode(JsonFormat.printer().print(proxyManifest)));
-    }
-  }
-
   /**
    * Uses {@link BeamFileSystemArtifactRetrievalService} to fetch artifacts, then writes the
    * artifacts to {@code outputStream}. Include a {@link ProxyManifest} to locate artifacts later.
    */
-  private void writeArtifacts(String retrievalToken, JarOutputStream outputStream)
-      throws Exception {
+  private void writeArtifacts(String retrievalToken) throws Exception {
     try (GrpcFnServer artifactServer =
         GrpcFnServer.allocatePortAndCreateFor(
             BeamFileSystemArtifactRetrievalService.create(), InProcessServerFactory.create())) {
@@ -252,7 +236,6 @@ public class PortablePipelineJarCreator implements PortablePipelineRunner {
       ProxyManifest proxyManifest =
           copyStagedArtifacts(
               retrievalToken,
-              outputStream,
               new ArtifactRetriever() {
                 @Override
                 public GetManifestResponse getManifest(GetManifestRequest request) {
@@ -264,9 +247,15 @@ public class PortablePipelineJarCreator implements PortablePipelineRunner {
                   return retrievalServiceStub.getArtifact(request);
                 }
               });
-      writeProxyManifest(proxyManifest, outputStream);
+      writeAsJson(proxyManifest, PortablePipelineJarUtils.ARTIFACT_MANIFEST_PATH);
       grpcChannel.shutdown();
     }
+  }
+
+  /** Helper method for writing {@code message} in UTF-8 JSON format. */
+  private void writeAsJson(MessageOrBuilder message, String outputPath) throws IOException {
+    outputStream.putNextEntry(new JarEntry(outputPath));
+    outputChannel.write(StandardCharsets.UTF_8.encode(JsonFormat.printer().print(message)));
   }
 
   private static class JarCreatorPipelineResult implements PortablePipelineResult {
