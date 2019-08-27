@@ -28,7 +28,7 @@ class StateCache(object):
   """
 
   def __init__(self, max_entries):
-    self._cache = LRUCache(max_entries)
+    self._cache = self.LRUCache(max_entries)
     self._lock = Lock()
 
   def get(self, state_key, cache_tokens):
@@ -55,29 +55,28 @@ class StateCache(object):
   def __len__(self):
     return len(self._cache)
 
+  class LRUCache(object):
 
-class LRUCache(object):
+    def __init__(self, max_entries):
+      self._maxEntries = max_entries
+      self._cache = collections.OrderedDict()
 
-  def __init__(self, max_entries):
-    self._maxEntries = max_entries
-    self._cache = collections.OrderedDict()
+    def get(self, key):
+      value = self._cache.pop(key, None)
+      if value:
+        self._cache[key] = value
+      return value
 
-  def get(self, key):
-    value = self._cache.pop(key, None)
-    if value:
+    def put(self, key, value):
       self._cache[key] = value
-    return value
+      while len(self._cache) > self._maxEntries:
+        self._cache.popitem(last=False)
 
-  def put(self, key, value):
-    while len(self._cache) >= self._maxEntries:
-      self._cache.popitem(last=False)
-    self._cache[key] = value
+    def clear(self, key):
+      self._cache.pop(key, None)
 
-  def clear(self, key):
-    self._cache.pop(key, None)
+    def clear_all(self):
+      self._cache.clear()
 
-  def clear_all(self):
-    self._cache.clear()
-
-  def __len__(self):
-    return len(self._cache)
+    def __len__(self):
+      return len(self._cache)
