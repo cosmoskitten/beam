@@ -17,6 +17,7 @@
 
 """TODO mxm document this"""
 from __future__ import absolute_import
+
 import collections
 from threading import Lock
 
