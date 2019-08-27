@@ -30,7 +30,7 @@ apply plugin: 'application'
 mainClassName = "org.apache.beam.runners.flink.FlinkJobServerDriver"
 
 applyJavaNature(
-  automaticModuleName: project.findProperty('automatic_module_name'),
+  automaticModuleName: 'org.apache.beam.runners.flink.jobserver',
   archivesBaseName: project.hasProperty('archives_base_name') ? archives_base_name : archivesBaseName,
   validateShadowJar: false,
   exportJavadoc: false,

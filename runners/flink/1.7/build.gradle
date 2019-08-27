@@ -28,7 +28,6 @@ project.ext {
   main_resources_dirs = ["$basePath/src/main/resources"]
   test_resources_dirs = ["$basePath/src/test/resources"]
   archives_base_name = 'beam-runners-flink-1.7'
-  automatic_module_name = 'beam.runners.flink.1.7'
 }
 
 // Load the main build script which contains all build logic.

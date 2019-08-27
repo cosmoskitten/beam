@@ -81,7 +81,7 @@ def excluded_dependencies = [
 ]
 
 applyJavaNature(
-        automaticModuleName: 'beam.runners.gcp.dataflow.java.legacy.worker',
+        automaticModuleName: 'org.apache.beam.runners.dataflow.legacy.worker',
         archivesBaseName: 'beam-runners-google-cloud-dataflow-java-legacy-worker',
         publish: false,
         exportJavadoc: false,

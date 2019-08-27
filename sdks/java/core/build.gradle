@@ -18,7 +18,7 @@
 
 plugins { id 'org.apache.beam.module' }
 applyJavaNature(
-  automaticModuleName: 'beam.sdks.java.core',
+  automaticModuleName: 'org.apache.beam.sdk',
   shadowClosure: {
     dependencies {
       include(dependency(library.java.protobuf_java))

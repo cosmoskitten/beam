@@ -17,7 +17,7 @@
  */
 
 plugins { id 'org.apache.beam.module' }
-applyJavaNature(automaticModuleName: 'beam.sdks.java.io.kafka')
+applyJavaNature(automaticModuleName: 'org.apache.beam.sdk.io.kafka')
 provideIntegrationTestingDependencies()
 enableJavaPerformanceTesting()
 

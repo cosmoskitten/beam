@@ -19,7 +19,7 @@
 import groovy.json.JsonOutput
 
 plugins { id 'org.apache.beam.module' }
-applyJavaNature(automaticModuleName: 'beam.runners.apex')
+applyJavaNature(automaticModuleName: 'org.apache.beam.runners.apex')
 
 description = "Apache Beam :: Runners :: Apex"
 

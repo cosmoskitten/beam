@@ -19,7 +19,7 @@
 plugins { id 'org.apache.beam.module' }
 
 applyJavaNature(
-    automaticModuleName: 'beam.runners.local.java',
+    automaticModuleName: 'org.apache.beam.runners.local',
     archivesBaseName: 'beam-runners-local-java-core'
 )
 

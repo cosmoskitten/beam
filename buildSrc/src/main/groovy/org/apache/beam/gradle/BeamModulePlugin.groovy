@@ -131,7 +131,15 @@ class BeamModulePlugin implements Plugin<Project> {
     /** Controls whether javadoc is exported for this project. */
     boolean exportJavadoc = true
 
-    /** Controls whether Automatic Module Header name should be set in MANIFEST.MF file. */
+    /**
+     * Controls whether Automatic Module Header name should be set in MANIFEST.MF file.
+     *
+     * Set to false if a module should not have this header. It happens when we know for sure
+     * that a module should not be depended on. This includes the following cases:
+     *  - a module contains documentation only (javadoc)
+     *  - pure testing modules (e.g. "file-based-io-tests" module)
+     *  - Apache Beam usage examples
+     */
     boolean setAutomaticModuleName = true
 
     /**
@@ -155,7 +163,15 @@ class BeamModulePlugin implements Plugin<Project> {
     /** Override the default "beam-" + `dash separated path` archivesBaseName. */
     String archivesBaseName = null
 
-    /** Controls whether Automatic Module Header name should be set in MANIFEST.MF file. */
+    /**
+     * Controls whether Automatic Module Header name should be set in MANIFEST.MF file.
+     *
+     * Set to false if a module should not have this header. It happens when we know for sure
+     * that a module should not be depended on. This includes the following cases:
+     *  - a module contains documentation only (javadoc)
+     *  - pure testing modules (e.g. "file-based-io-tests" module)
+     *  - Apache Beam usage examples
+     */
     boolean setAutomaticModuleName = true
 
     /**

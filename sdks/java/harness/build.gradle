@@ -27,7 +27,7 @@ def dependOnProjects = [":sdks:java:fn-execution",
                         ":runners:core-java", ":runners:core-construction-java"]
 
 applyJavaNature(
-  automaticModuleName: 'beam.sdks.java.harness',
+  automaticModuleName: 'org.apache.beam.fn.harness',
   validateShadowJar: false,
   testShadowJar: true,
   shadowClosure:

@@ -20,7 +20,7 @@ import groovy.json.JsonOutput
 
 plugins { id 'org.apache.beam.module' }
 applyJavaNature(
-  automaticModuleName: 'beam.sdks.java.extensions.sql.jdbc',
+  automaticModuleName: 'org.apache.beam.sdk.extensions.sql.jdbc',
   exportJavadoc: false,
   testShadowJar: true,
   validateShadowJar: false,

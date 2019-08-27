@@ -18,7 +18,7 @@
 
 plugins { id 'org.apache.beam.module' }
 applyJavaNature(
-    automaticModuleName: 'beam.sdks.java.testing.testutils',
+    automaticModuleName: 'org.apache.beam.sdk.testing.testutils',
     exportJavadoc: false,
     archivesBaseName: 'beam-sdks-java-test-utils'
 )

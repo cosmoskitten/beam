@@ -18,7 +18,7 @@
 
 plugins { id 'org.apache.beam.module' }
 applyPortabilityNature(
-    automaticModuleName: 'beam.runners.gcp.dataflow.java.worker.windmill',
+    automaticModuleName: 'org.apache.beam.runners.dataflow.worker.windmill',
     shadowJarValidationExcludes: ["org/apache/beam/runners/dataflow/worker/windmill/**"],
     archivesBaseName: 'beam-runners-google-cloud-dataflow-java-windmill'
 )

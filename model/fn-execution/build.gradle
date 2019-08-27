@@ -18,7 +18,7 @@
 
 plugins { id 'org.apache.beam.module' }
 applyPortabilityNature(
-    automaticModuleName: 'beam.model.fn.execution',
+    automaticModuleName: 'org.apache.beam.model.fn.execution',
     shadowJarValidationExcludes: ["org/apache/beam/model/fnexecution/v1/**"]
 )
 

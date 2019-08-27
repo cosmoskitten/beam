@@ -16,7 +16,7 @@
  */
 
 plugins { id 'org.apache.beam.module' }
-applyJavaNature(automaticModuleName: 'beam.runners.java.fn.execution')
+applyJavaNature(automaticModuleName: 'org.apache.beam.runners.fnexecution')
 
 description = "Apache Beam :: Runners :: Java Fn Execution"
 
