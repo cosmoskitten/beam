@@ -41,21 +41,6 @@ class Flink {
     addTeardownFlinkStep()
   }
 
-  /**
-   * Updates the number of worker nodes in a cluster.
-   *
-   * @param workerCount - the new number of worker nodes in the cluster
-   */
-  void scaleCluster(Integer workerCount) {
-    job.steps {
-      shell("echo Changing number of workers to ${workerCount}")
-      environmentVariables {
-        env("FLINK_NUM_WORKERS", workerCount)
-      }
-      shell("cd ${FLINK_DIR}; ./${FLINK_SCRIPT} restart")
-    }
-  }
-
   private void setupFlinkCluster(List<String> sdkHarnessImages, Integer workerCount, String jobServerImage, Integer slotsPerTaskmanager) {
     String gcsBucket = 'gs://beam-flink-cluster'
     String clusterName = getClusterName()
@@ -84,6 +69,21 @@ class Flink {
 
       shell('echo Setting up flink cluster')
       shell("cd ${FLINK_DIR}; ./${FLINK_SCRIPT} create")
+    }
+  }
+
+  /**
+   * Updates the number of worker nodes in a cluster.
+   *
+   * @param workerCount - the new number of worker nodes in the cluster
+   */
+  void scaleCluster(Integer workerCount) {
+    job.steps {
+      shell("echo Changing number of workers to ${workerCount}")
+      environmentVariables {
+        env("FLINK_NUM_WORKERS", workerCount)
+      }
+      shell("cd ${FLINK_DIR}; ./${FLINK_SCRIPT} restart")
     }
   }
 

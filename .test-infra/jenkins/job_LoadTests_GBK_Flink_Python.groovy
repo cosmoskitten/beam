@@ -20,9 +20,8 @@ import CommonJobProperties as commonJobProperties
 import CommonTestProperties
 import LoadTestsBuilder as loadTestsBuilder
 import PhraseTriggeringPostCommitBuilder
-import Portability.*
 import Flink
-import DockerPublisher
+import Docker
 
 String now = new Date().format("MMddHHmmss", TimeZone.getTimeZone('UTC'))
 
@@ -164,7 +163,7 @@ def scenarios = { datasetName, sdkHarnessImageTag -> [
 
 
 def loadTest = { scope, triggeringContext ->
-  DockerPublisher publisher = new DockerPublisher(Portability.beamRepository)
+  Docker publisher = new Docker(scope, loadTestsBuilder.BEAM_REPOSITORY)
   def sdk = CommonTestProperties.SDK.PYTHON
   String sdkName = sdk.name().toLowerCase()
   String pythonHarnessImageTag = publisher.getFullImageName(sdkName)
@@ -173,8 +172,8 @@ def loadTest = { scope, triggeringContext ->
   def numberOfWorkers = 16
   List<Map> testScenarios = scenarios(datasetName, pythonHarnessImageTag)
 
-  publisher.publish(scope, ":sdks:${sdkName}:container:docker", sdkName)
-  publisher.publish(scope, ":runners:flink:${Portability.flinkVersion}:job-server-container:docker", 'flink-job-server')
+  publisher.publish(":sdks:${sdkName}:container:docker", sdkName)
+  publisher.publish(':runners:flink:1.7:job-server-container:docker', 'flink-job-server')
   def flink = new Flink(scope, 'beam_LoadTests_Python_GBK_Flink_Batch')
   flink.setUp([pythonHarnessImageTag], numberOfWorkers, publisher.getFullImageName('flink-job-server'))
 

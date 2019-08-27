@@ -18,38 +18,28 @@
 
 import CommonJobProperties as common
 
-class DockerPublisher {
+class Docker {
+  private def job
   private String repositoryRoot
 
-  DockerPublisher(String repositoryRoot) {
+  Docker(job, String repositoryRoot) {
+    this.job = job
     this.repositoryRoot = repositoryRoot
   }
 
   /**
    * Builds a Docker image from a gradle task and pushes it to the registry.
    *
-   * @param job - jenkins job
    * @param gradleTask - name of a Gradle task
    * @param imageName - name of a docker image
    * @param imageTag - tag of a docker image
    */
-  final void publish(job, String gradleTask, String imageName, String imageTag = 'latest') {
-    build(job, gradleTask, imageTag)
-    push(job, imageName, imageTag)
+  final void publish(String gradleTask, String imageName, String imageTag = 'latest') {
+    build(gradleTask, imageTag)
+    push(imageName, imageTag)
   }
 
-  /**
-   * Returns the name of a docker image in the following format: <repositoryRoot>/<imageName>:<imageTag>
-   *
-   * @param imageName - name of a docker image
-   * @param imageTag - tag of a docker image
-   */
-  final String getFullImageName(String imageName, String imageTag = 'latest') {
-    String image = "${repositoryRoot}/${imageName}"
-    return "${image}:${imageTag}"
-  }
-
-  private void build(job, String gradleTask, String imageTag) {
+  private void build(String gradleTask, String imageTag) {
     job.steps {
       gradle {
         rootBuildScriptDir(common.checkoutDir)
@@ -61,7 +51,7 @@ class DockerPublisher {
     }
   }
 
-  private void push(job, String imageName, String imageTag) {
+  private void push(String imageName, String imageTag) {
     String image = "${repositoryRoot}/${imageName}"
     String targetImage = getFullImageName(imageName, imageTag)
 
@@ -71,5 +61,16 @@ class DockerPublisher {
       shell("echo \"Pushing image\"...")
       shell("docker push ${targetImage}")
     }
+  }
+
+  /**
+   * Returns the name of a docker image in the following format: <repositoryRoot>/<imageName>:<imageTag>
+   *
+   * @param imageName - name of a docker image
+   * @param imageTag - tag of a docker image
+   */
+  final String getFullImageName(String imageName, String imageTag = 'latest') {
+    String image = "${repositoryRoot}/${imageName}"
+    return "${image}:${imageTag}"
   }
 }
