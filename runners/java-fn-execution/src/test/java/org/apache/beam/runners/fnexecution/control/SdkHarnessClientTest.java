@@ -74,8 +74,6 @@ import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.util.WindowedValue.FullWindowedValueCoder;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TupleTagList;
-import org.apache.beam.vendor.grpc.v1p21p0.com.google.protobuf.ByteString;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Charsets;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
 import org.junit.Before;
@@ -602,8 +600,9 @@ public class SdkHarnessClientTest {
     when(dataService.send(any(), any())).thenReturn(mock(CloseableFnDataReceiver.class));
 
     StateRequestHandler stateRequestHandler = Mockito.mock(StateRequestHandler.class);
-    List<ByteString> cacheTokens =
-        Collections.singletonList(ByteString.copyFrom("testToken", Charsets.UTF_8));
+    List<BeamFnApi.ProcessBundleRequest.CacheToken> cacheTokens =
+        Collections.singletonList(
+            BeamFnApi.ProcessBundleRequest.CacheToken.newBuilder().getDefaultInstanceForType());
     when(stateRequestHandler.getCacheTokens()).thenReturn(cacheTokens);
 
     processor1.newBundle(

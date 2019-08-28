@@ -32,6 +32,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.ThreadSafe;
+import org.apache.beam.model.fnexecution.v1.BeamFnApi;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateAppendResponse;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateClearResponse;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateGetResponse;
@@ -134,45 +135,23 @@ public class StateRequestHandlers {
      *
      * <p>TODO: Add support for bag user state chunking and caching if a {@link Reiterable} is
      * returned.
-     *
-     * @return The bag value with a cache token (may be {@code null} if there is none).
      */
-    BagWithCacheToken<V> get(K key, W window);
+    Iterable<V> get(K key, W window);
 
-    /**
-     * Appends the values to the bag user state for the given key and window.
-     *
-     * @return The cache token or {@code null}.
-     */
-    @Nullable
-    ByteString append(K key, W window, Iterator<V> values);
+    /** Appends the values to the bag user state for the given key and window. */
+    void append(K key, W window, Iterator<V> values);
 
-    /**
-     * Clears the bag user state for the given key and window.
-     *
-     * @return The cache token or {@code null}.
-     */
-    @Nullable
-    ByteString clear(K key, W window);
+    /** Clears the bag user state for the given key and window. */
+    void clear(K key, W window);
 
-    /** Returns an Iterable over the currently valid cache tokens. */
+    /** Returns the currently valid cache token. */
     @Nullable
     default ByteString getCacheToken() {
       return null;
     }
 
-    /** Clears the currently valid cache tokens. */
-    default void clearCacheToken() {}
-
-    class BagWithCacheToken<V> {
-      public final Iterable<V> bagIterable;
-      @Nullable public final ByteString cacheToken;
-
-      public BagWithCacheToken(Iterable<V> bagIterable, @Nullable ByteString cacheToken) {
-        this.bagIterable = bagIterable;
-        this.cacheToken = cacheToken;
-      }
-    }
+    /** Invalidates the currently active cache token. */
+    default void invalidateCacheToken() {}
   }
 
   /**
@@ -234,7 +213,7 @@ public class StateRequestHandlers {
     }
 
     @Override
-    public Iterable<ByteString> getCacheTokens() {
+    public Iterable<BeamFnApi.ProcessBundleRequest.CacheToken> getCacheTokens() {
       return Iterables.concat(
           handlers.values().stream()
               .map(StateRequestHandler::getCacheTokens)
@@ -316,7 +295,7 @@ public class StateRequestHandlers {
     }
 
     @Override
-    public Iterable<ByteString> getCacheTokens() {
+    public Iterable<BeamFnApi.ProcessBundleRequest.CacheToken> getCacheTokens() {
       return Collections.emptyList();
     }
 
@@ -457,16 +436,23 @@ public class StateRequestHandlers {
     }
 
     @Override
-    public Iterable<ByteString> getCacheTokens() {
+    public Iterable<BeamFnApi.ProcessBundleRequest.CacheToken> getCacheTokens() {
       return handlerCache.values().stream()
           .map(BagUserStateHandler::getCacheToken)
           .filter(Objects::nonNull)
+          .map(
+              token ->
+                  BeamFnApi.ProcessBundleRequest.CacheToken.newBuilder()
+                      .setUserState(
+                          BeamFnApi.ProcessBundleRequest.CacheToken.UserState.getDefaultInstance())
+                      .setToken(token)
+                      .build())
           .collect(Collectors.toSet());
     }
 
     @Override
     public void invalidateCacheTokens() {
-      handlerCache.values().forEach(BagUserStateHandler::clearCacheToken);
+      handlerCache.values().forEach(BagUserStateHandler::invalidateCacheToken);
     }
 
     private static <W extends BoundedWindow>
@@ -481,21 +467,13 @@ public class StateRequestHandlers {
           request.getGet().getContinuationToken().isEmpty(),
           "Continuation tokens are unsupported.");
 
-      BagUserStateHandler.BagWithCacheToken bagWithCacheToken = handler.get(key, window);
-
-      StateResponse.Builder responseBuilder =
+      return CompletableFuture.completedFuture(
           StateResponse.newBuilder()
               .setId(request.getId())
               .setGet(
                   StateGetResponse.newBuilder()
                       // Note that this doesn't copy the actual bytes, just the references.
-                      .setData(ByteString.copyFrom(bagWithCacheToken.bagIterable)));
-
-      if (bagWithCacheToken.cacheToken != null) {
-        responseBuilder.setCacheToken(bagWithCacheToken.cacheToken);
-      }
-
-      return CompletableFuture.completedFuture(responseBuilder);
+                      .setData(ByteString.copyFrom(handler.get(key, window)))));
     }
 
     private static <W extends BoundedWindow>
@@ -504,19 +482,11 @@ public class StateRequestHandlers {
             ByteString key,
             W window,
             BagUserStateHandler<ByteString, ByteString, W> handler) {
-      ByteString cacheToken =
-          handler.append(key, window, ImmutableList.of(request.getAppend().getData()).iterator());
-
-      StateResponse.Builder responseBuilder =
+      handler.append(key, window, ImmutableList.of(request.getAppend().getData()).iterator());
+      return CompletableFuture.completedFuture(
           StateResponse.newBuilder()
               .setId(request.getId())
-              .setAppend(StateAppendResponse.getDefaultInstance());
-
-      if (cacheToken != null) {
-        responseBuilder.setCacheToken(cacheToken);
-      }
-
-      return CompletableFuture.completedFuture(responseBuilder);
+              .setAppend(StateAppendResponse.getDefaultInstance()));
     }
 
     private static <W extends BoundedWindow>
@@ -525,18 +495,11 @@ public class StateRequestHandlers {
             ByteString key,
             W window,
             BagUserStateHandler<ByteString, ByteString, W> handler) {
-      ByteString cacheToken = handler.clear(key, window);
-
-      StateResponse.Builder responseBuilder =
+      handler.clear(key, window);
+      return CompletableFuture.completedFuture(
           StateResponse.newBuilder()
               .setId(request.getId())
-              .setClear(StateClearResponse.getDefaultInstance());
-
-      if (cacheToken != null) {
-        responseBuilder.setCacheToken(cacheToken);
-      }
-
-      return CompletableFuture.completedFuture(responseBuilder);
+              .setClear(StateClearResponse.getDefaultInstance()));
     }
 
     private <K, V, W extends BoundedWindow> BagUserStateHandler<K, V, W> createHandler(

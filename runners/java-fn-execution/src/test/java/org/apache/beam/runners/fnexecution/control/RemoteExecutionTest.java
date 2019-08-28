@@ -894,21 +894,19 @@ public class RemoteExecutionTest implements Serializable {
                   Coder<BoundedWindow> windowCoder) {
                 return new BagUserStateHandler<ByteString, Object, BoundedWindow>() {
                   @Override
-                  public BagWithCacheToken get(ByteString key, BoundedWindow window) {
-                    return new BagWithCacheToken<>(userStateData.get(userStateId), null);
+                  public Iterable<Object> get(ByteString key, BoundedWindow window) {
+                    return (Iterable) userStateData.get(userStateId);
                   }
 
                   @Override
-                  public ByteString append(
+                  public void append(
                       ByteString key, BoundedWindow window, Iterator<Object> values) {
                     Iterators.addAll(userStateData.get(userStateId), (Iterator) values);
-                    return null;
                   }
 
                   @Override
-                  public ByteString clear(ByteString key, BoundedWindow window) {
+                  public void clear(ByteString key, BoundedWindow window) {
                     userStateData.get(userStateId).clear();
-                    return null;
                   }
                 };
               }

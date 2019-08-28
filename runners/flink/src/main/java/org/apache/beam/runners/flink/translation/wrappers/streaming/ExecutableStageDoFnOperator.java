@@ -253,15 +253,11 @@ public class ExecutableStageDoFnOperator<InputT, OutputT> extends DoFnOperator<I
   static class BagUserStateFactory<K extends ByteString, V, W extends BoundedWindow>
       implements StateRequestHandlers.BagUserStateHandlerFactory<K, V, W> {
 
-    /** Upper limit of the number of valid cache tokens to hand out to the SDK. */
-    private static final int MAX_CACHE_SIZE = 100;
-
     private final StateInternals stateInternals;
     private final KeyedStateBackend<ByteBuffer> keyedStateBackend;
     private final Lock stateBackendLock;
-
-    /** Holds the current valid ache token for this operator. */
-    private volatile ByteString currentCacheToken;
+    /** Holds the current valid cache token for this operator. */
+    private final ByteString cacheToken;
 
     BagUserStateFactory(
         StateInternals stateInternals,
@@ -271,12 +267,7 @@ public class ExecutableStageDoFnOperator<InputT, OutputT> extends DoFnOperator<I
       this.stateInternals = stateInternals;
       this.keyedStateBackend = keyedStateBackend;
       this.stateBackendLock = stateBackendLock;
-      updateAndGetCacheToken();
-    }
-
-    private ByteString updateAndGetCacheToken() {
-      currentCacheToken = ByteString.copyFrom(UUID.randomUUID().toString(), Charsets.UTF_8);
-      return currentCacheToken;
+      this.cacheToken = ByteString.copyFrom(UUID.randomUUID().toString(), Charsets.UTF_8);
     }
 
     @Override
@@ -291,7 +282,7 @@ public class ExecutableStageDoFnOperator<InputT, OutputT> extends DoFnOperator<I
       return new StateRequestHandlers.BagUserStateHandler<K, V, W>() {
 
         @Override
-        public BagWithCacheToken<V> get(K key, W window) {
+        public Iterable<V> get(K key, W window) {
           try {
             stateBackendLock.lock();
             prepareStateBackend(key);
@@ -307,14 +298,14 @@ public class ExecutableStageDoFnOperator<InputT, OutputT> extends DoFnOperator<I
             BagState<V> bagState =
                 stateInternals.state(namespace, StateTags.bag(userStateId, valueCoder));
 
-            return new BagWithCacheToken<>(bagState.read(), currentCacheToken);
+            return bagState.read();
           } finally {
             stateBackendLock.unlock();
           }
         }
 
         @Override
-        public ByteString append(K key, W window, Iterator<V> values) {
+        public void append(K key, W window, Iterator<V> values) {
           try {
             stateBackendLock.lock();
             prepareStateBackend(key);
@@ -332,15 +323,13 @@ public class ExecutableStageDoFnOperator<InputT, OutputT> extends DoFnOperator<I
             while (values.hasNext()) {
               bagState.add(values.next());
             }
-
-            return updateAndGetCacheToken();
           } finally {
             stateBackendLock.unlock();
           }
         }
 
         @Override
-        public ByteString clear(K key, W window) {
+        public void clear(K key, W window) {
           try {
             stateBackendLock.lock();
             prepareStateBackend(key);
@@ -356,8 +345,6 @@ public class ExecutableStageDoFnOperator<InputT, OutputT> extends DoFnOperator<I
             BagState<V> bagState =
                 stateInternals.state(namespace, StateTags.bag(userStateId, valueCoder));
             bagState.clear();
-
-            return updateAndGetCacheToken();
           } finally {
             stateBackendLock.unlock();
           }
@@ -365,12 +352,8 @@ public class ExecutableStageDoFnOperator<InputT, OutputT> extends DoFnOperator<I
 
         @Override
         public ByteString getCacheToken() {
-          return currentCacheToken;
-        }
-
-        @Override
-        public void clearCacheToken() {
-          updateAndGetCacheToken();
+          // Cache tokens remains valid for the life time of the operator
+          return cacheToken;
         }
 
         private void prepareStateBackend(K key) {

@@ -20,7 +20,6 @@ package org.apache.beam.runners.fnexecution.state;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
-import javax.annotation.Nullable;
 import org.apache.beam.runners.core.InMemoryStateInternals;
 import org.apache.beam.runners.core.StateInternals;
 import org.apache.beam.runners.core.StateNamespace;
@@ -30,7 +29,6 @@ import org.apache.beam.runners.core.StateTags;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.state.BagState;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
-import org.apache.beam.vendor.grpc.v1p21p0.com.google.protobuf.ByteString;
 
 /**
  * Holds user state in memory. Only one key is active at a time due to the GroupReduceFunction being
@@ -82,33 +80,29 @@ public class InMemoryBagUserStateFactory<K, V, W extends BoundedWindow>
     }
 
     @Override
-    public BagWithCacheToken<V> get(K key, W window) {
+    public Iterable<V> get(K key, W window) {
       initStateInternals(key);
       StateNamespace namespace = StateNamespaces.window(windowCoder, window);
       BagState<V> bagState = stateInternals.state(namespace, stateTag);
-      return new BagWithCacheToken<>(bagState.read(), null);
+      return bagState.read();
     }
 
     @Override
-    @Nullable
-    public ByteString append(K key, W window, Iterator<V> values) {
+    public void append(K key, W window, Iterator<V> values) {
       initStateInternals(key);
       StateNamespace namespace = StateNamespaces.window(windowCoder, window);
       BagState<V> bagState = stateInternals.state(namespace, stateTag);
       while (values.hasNext()) {
         bagState.add(values.next());
       }
-      return null;
     }
 
     @Override
-    @Nullable
-    public ByteString clear(K key, W window) {
+    public void clear(K key, W window) {
       initStateInternals(key);
       StateNamespace namespace = StateNamespaces.window(windowCoder, window);
       BagState<V> bagState = stateInternals.state(namespace, stateTag);
       bagState.clear();
-      return null;
     }
 
     private void initStateInternals(K key) {
