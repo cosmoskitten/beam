@@ -199,18 +199,23 @@ class DataInputOperation(RunnerIOOperation):
 
 
 class _StateBackedIterable(object):
-  def __init__(self, state_handler, state_key, coder_or_impl):
+  def __init__(self, state_handler, state_key, coder_or_impl,
+               is_user_state=False):
     self._state_handler = state_handler
     self._state_key = state_key
     if isinstance(coder_or_impl, coders.Coder):
       self._coder_impl = coder_or_impl.get_impl()
     else:
       self._coder_impl = coder_or_impl
+    self._is_user_state = is_user_state
 
   def __iter__(self):
-    materialized = self._state_handler.blocking_get(
-        self._state_key, self._coder_impl)
-    return iter(materialized)
+    if self._is_user_state:
+      return self._state_handler.blocking_get_cached(
+          self._state_key, self._coder_impl)
+    else:
+      return self._state_handler.blocking_get(
+          self._state_key, self._coder_impl)
 
   def __reduce__(self):
     return list, (list(self),)
@@ -351,7 +356,8 @@ class SynchronousBagRuntimeState(userstate.BagRuntimeState):
   def read(self):
     return _ConcatIterable(
         [] if self._cleared else _StateBackedIterable(
-            self._state_handler, self._state_key, self._value_coder),
+            self._state_handler, self._state_key, self._value_coder,
+            is_user_state=True),
         self._added_elements)
 
   def add(self, value):
@@ -385,7 +391,8 @@ class SynchronousSetRuntimeState(userstate.SetRuntimeState):
   def _compact_data(self, rewrite=True):
     accumulator = set(_ConcatIterable(
         set() if self._cleared else _StateBackedIterable(
-            self._state_handler, self._state_key, self._value_coder),
+            self._state_handler, self._state_key, self._value_coder,
+            is_user_state=True),
         self._added_elements))
 
     if rewrite and accumulator:

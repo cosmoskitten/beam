@@ -647,44 +647,49 @@ class CachingMaterializingStateHandler(object):
       raise RuntimeError(
           'Cache tokens already set to %s' % self._context.cache_tokens)
     # TODO Also handle cache tokens for side input, if present
-    cache_token = None
+    user_state_cache_token = None
     for cache_token_struct in cache_tokens:
       if cache_token_struct.HasField("user_state"):
-        assert not cache_token
-        cache_token = cache_token.token
+        assert not user_state_cache_token
+        user_state_cache_token = user_state_cache_token.token
     try:
-      self._context.cache_tokens = [cache_token]
+      self._context.cache_tokens = [user_state_cache_token]
       with self._underlying.process_instruction_id(bundle_id):
         yield
     finally:
       self._context.cache_tokens = None
 
   def blocking_get(self, state_key, coder):
+    return self._materialize_iter(state_key, coder)
+
+  def blocking_get_cached(self, state_key, coder):
     cache_tokens = self._get_cache_tokens()
     if not cache_tokens:
       # no cache tokens, can't do a lookup/store in the cache
-      return self._materialize(state_key, coder)
+      return self._materialize_iter(state_key, coder)
     cache_state_key = self.convert_to_cache_key(state_key)
-    value = self._state_cache.get(cache_state_key, cache_tokens)
-    if value is None:
+    cached_value = self._state_cache.get(cache_state_key, cache_tokens)
+    if cached_value is None:
       # Cache miss, need to retrieve from the Runner
-      value = self._materialize(state_key, coder)
+      materialized = cached_value = []
+      for val in self._materialize_iter(state_key, coder):
+        materialized.append(val)
       self._state_cache.put(
           cache_state_key,
-          cache_tokens[0], value)
-    return value
+          cache_tokens[0],
+          materialized)
+    return iter(cached_value)
 
-  def _materialize(self, state_key, coder):
+  def _materialize_iter(self, state_key, coder):
     continuation_token = None
-    materialized = []
     while True:
       data, continuation_token = \
           self._underlying.blocking_get(state_key, continuation_token)
       input_stream = coder_impl.create_InputStream(data)
       while input_stream.size() > 0:
-        materialized.append(coder.decode_from_stream(input_stream, True))
+        yield coder.decode_from_stream(input_stream, True)
       if not continuation_token:
-        return materialized
+        break
 
   def append(self, state_key, data):
     cache_tokens = self._get_cache_tokens()
