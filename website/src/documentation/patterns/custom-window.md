@@ -21,7 +21,7 @@ limitations under the License.
 # Custom window patterns
 The samples on this page demonstrate common custom window patterns. You can create custom windows with [`WindowFn` functions]({{ site.baseurl }}/documentation/programming-guide/#windowing#provided-windowing-functions). For more information, see the [programming guide section on windowing]({{ site.baseurl }}/documentation/programming-guide/#windowing).
 
-**Note**: Merging windows isn't supported in Python.
+**Note**: Custom merging windows isn't supported in Python.
 
 ## Using data to dynamically set session window gaps
 
@@ -99,7 +99,7 @@ User #1 sees two events separated by 12 seconds. With standard sessions, the gap
 
 User #2 sees four events, seperated by two, seven, and three seconds, respectively. Since none of the gaps are greater than the default, the four events are in the same standard session and added together (18 points).
 
-#### Dyanmic sessions
+#### Dynamic sessions
 The dynamic sessions specify a five-second gap, so they use the following windows and scores:
 
 ```
