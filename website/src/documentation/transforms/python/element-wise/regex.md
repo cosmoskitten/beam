@@ -24,6 +24,17 @@ limitations under the License.
 localStorage.setItem('language', 'language-py')
 </script>
 
+<table>
+  <td>
+    <a class="button" target="_blank"
+        href="https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.util.html#apache_beam.transforms.util.Regex">
+      <img src="https://beam.apache.org/images/logos/sdks/python.png"
+          width="20px" height="20px" alt="Pydoc" />
+      Pydoc
+    </a>
+  </td>
+</table>
+<br>
 Filters input string elements based on a regex. May also transform them based on the matching groups.
 
 ## Examples
@@ -338,3 +349,15 @@ Output `PCollection` after `Regex.split`:
 * [FlatMap]({{ site.baseurl }}/documentation/transforms/python/elementwise/flatmap) behaves the same as `Map`, but for
   each input it may produce zero or more outputs.
 * [Map]({{ site.baseurl }}/documentation/transforms/python/elementwise/map) applies a simple 1-to-1 mapping function over each element in the collection
+
+<table>
+  <td>
+    <a class="button" target="_blank"
+        href="https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.util.html#apache_beam.transforms.util.Regex">
+      <img src="https://beam.apache.org/images/logos/sdks/python.png"
+          width="20px" height="20px" alt="Pydoc" />
+      Pydoc
+    </a>
+  </td>
+</table>
+<br>
