@@ -46,8 +46,7 @@ def process_tfma(schema_file,
       None.
   eval_model_dir: A directory where the eval model is located.
   max_eval_rows: Number of rows to query from BigQuery.
-  pipeline_args: additional DataflowRunner or DirectRunner args passed to
-  the beam pipeline.
+  pipeline_args: additional runner args passed to the beam pipeline.
   publish_to_bq:
   project:
   metrics_dataset:

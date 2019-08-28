@@ -40,18 +40,29 @@ task installChicagoTaxiDependencies() {
 task runChicagoTaxi(dependsOn: [installGcpTest, installChicagoTaxiDependencies]) {
   def gcsRoot = findProperty('gcsRoot')
   def runner = findProperty('runner')
+  def sdkLocation = "${files(configurations.distTarBall.files).singleFile}"
+  def jobEndpoint = findProperty('jobEndpoint')
+  def environmentConfig = findProperty('environmentConfig')
+  def environmentType = findProperty('environmentType')
 
   if (runner == 'DataflowRunner' || runner == 'TestDataflowRunner') {
     dependsOn ':sdks:python:sdist'
   }
 
-  def cliArgs = "${gcsRoot} ${runner} ${files(configurations.distTarBall.files).singleFile}"
-
   doLast {
-    exec {
-      workingDir "$rootProject.projectDir/sdks/python/apache_beam/testing/benchmarks/chicago_taxi/"
-      executable 'sh'
-      args '-c', ". ${envdir}/bin/activate && ./run_chicago.sh ${cliArgs}"
+    environmentVariables {
+      env('GCS_BUCKET', gcsRoot)
+      env('RUNNER', runner)
+      env('SDK_LOCATION', sdkLocation)
+      env('JOB_ENDPOINT', jobEndpoint)
+      env('ENVIRONMENT_CONFIG', environmentConfig)
+      env('ENVIRONMENT_TYPE', environmentType)
+
+      exec {
+        workingDir "$rootProject.projectDir/sdks/python/apache_beam/testing/benchmarks/chicago_taxi/"
+        executable 'sh'
+        args '-c', ". ${envdir}/bin/activate && ./run_chicago.sh"
+      }
     }
   }
 }

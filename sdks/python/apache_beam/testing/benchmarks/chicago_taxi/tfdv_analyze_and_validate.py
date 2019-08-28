@@ -88,8 +88,7 @@ def compute_stats(input_handle,
     stats_path: Directory in which stats are materialized.
     max_rows: Number of rows to query from BigQuery
     for_eval: Query for eval set rows from BigQuery
-    pipeline_args: additional DataflowRunner or DirectRunner args passed to the
-      beam pipeline.
+    pipeline_args: additional runner args passed to the beam pipeline.
   """
 
   pipeline = beam.Pipeline(argv=pipeline_args)
