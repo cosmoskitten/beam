@@ -34,7 +34,7 @@ for (p in rootProject.subprojects) {
 }
 
 ext.getExportedJavadocProjects = {
-  def exportedJavadocProjects = new ArrayList<>();
+  def exportedJavadocProjects = new ArrayList<>()
   for (p in rootProject.subprojects) {
     if (!p.path.equals(project.path) && !p.path.equals(':sdks:java:bom')) {
       def subproject = p // project(':' + p.name)
