@@ -65,6 +65,7 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableSet;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
+import org.hamcrest.Description;
 import org.joda.time.Duration;
 import org.junit.Before;
 import org.junit.Rule;
@@ -160,7 +161,7 @@ public class SpannerIOWriteTest implements Serializable {
                 new ArgumentMatcher<Statement>() {
 
                   @Override
-                  public boolean matches(Statement argument) {
+                  public boolean matches(Object argument) {
                     if (!(argument instanceof Statement)) {
                       return false;
                     }
@@ -182,7 +183,7 @@ public class SpannerIOWriteTest implements Serializable {
                 new ArgumentMatcher<Statement>() {
 
                   @Override
-                  public boolean matches(Statement argument) {
+                  public boolean matches(Object argument) {
                     if (!(argument instanceof Statement)) {
                       return false;
                     }
@@ -709,7 +710,7 @@ public class SpannerIOWriteTest implements Serializable {
         new ArgumentMatcher<Iterable<Mutation>>() {
 
           @Override
-          public boolean matches(Iterable<Mutation> argument) {
+          public boolean matches(Object argument) {
             if (!(argument instanceof Iterable)) {
               return false;
             }
@@ -718,8 +719,8 @@ public class SpannerIOWriteTest implements Serializable {
           }
 
           @Override
-          public String toString() {
-            return "Iterable must match " + mutations;
+          public void describeTo(Description description) {
+            description.appendText("Iterable must match ").appendValue(mutations);
           }
         });
   }
@@ -729,13 +730,13 @@ public class SpannerIOWriteTest implements Serializable {
         new ArgumentMatcher<Iterable<Mutation>>() {
 
           @Override
-          public boolean matches(Iterable<Mutation> argument) {
+          public boolean matches(Object argument) {
             return argument instanceof Iterable && Iterables.size((Iterable<?>) argument) == size;
           }
 
           @Override
-          public String toString() {
-            return "The size of the iterable must equal " + size;
+          public void describeTo(Description description) {
+            description.appendText("The size of the iterable must equal ").appendValue(size);
           }
         });
   }

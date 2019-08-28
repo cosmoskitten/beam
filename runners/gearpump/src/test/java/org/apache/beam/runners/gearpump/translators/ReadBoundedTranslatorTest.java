@@ -37,9 +37,9 @@ import org.mockito.ArgumentMatcher;
 /** Tests for {@link ReadBoundedTranslator}. */
 public class ReadBoundedTranslatorTest {
 
-  private static class BoundedSourceWrapperMatcher implements ArgumentMatcher<DataSource> {
+  private static class BoundedSourceWrapperMatcher extends ArgumentMatcher<DataSource> {
     @Override
-    public boolean matches(DataSource o) {
+    public boolean matches(Object o) {
       return o instanceof BoundedSourceWrapper;
     }
   }

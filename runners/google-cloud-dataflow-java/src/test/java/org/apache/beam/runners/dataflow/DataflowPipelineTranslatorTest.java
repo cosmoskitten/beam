@@ -120,9 +120,9 @@ public class DataflowPipelineTranslatorTest implements Serializable {
 
   // A Custom Mockito matcher for an initial Job that checks that all
   // expected fields are set.
-  private static class IsValidCreateRequest implements ArgumentMatcher<Job> {
+  private static class IsValidCreateRequest extends ArgumentMatcher<Job> {
     @Override
-    public boolean matches(Job o) {
+    public boolean matches(Object o) {
       Job job = (Job) o;
       return job.getId() == null
           && job.getProjectId() == null

@@ -85,7 +85,7 @@ public class ReadSpannerSchemaTest {
                 new ArgumentMatcher<Statement>() {
 
                   @Override
-                  public boolean matches(Statement argument) {
+                  public boolean matches(Object argument) {
                     if (!(argument instanceof Statement)) {
                       return false;
                     }
@@ -107,7 +107,7 @@ public class ReadSpannerSchemaTest {
                 new ArgumentMatcher<Statement>() {
 
                   @Override
-                  public boolean matches(Statement argument) {
+                  public boolean matches(Object argument) {
                     if (!(argument instanceof Statement)) {
                       return false;
                     }
