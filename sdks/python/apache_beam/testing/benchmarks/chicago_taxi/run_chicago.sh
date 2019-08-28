@@ -16,30 +16,40 @@
 #    limitations under the License.
 #
 
-# This script builds a Docker container with the user specified requirements on top of
-# an existing Python worker Docker container (either one you build from source as
-# described in CONTAINERS.md or from a released Docker container).
-set -e
+#    This script builds a Docker container with the user specified requirements on top of
+#    an existing Python worker Docker container (either one you build from source as
+#    described in CONTAINERS.md or from a released Docker container).
+#
+#    Example usage:
+#    GCS_BUCKET=gs://<GCS_BUCKET>/chicago-taxi \
+#    RUNNER=PortableRunner \
+#    JOB_ENDPOINT=localhost:8099 \
+#    ENVIRONMENT_CONFIG=gcr.io/<IMAGE_REPOSITORY>/python:latest \
+#    ENVIRONMENT_TYPE=DOCKER \
+#    ./run_chicago.sh
+#
+set -Eeuxo pipefail
 echo Starting distributed TFDV stats computation and schema generation...
 
-if [[ -z "$1" ]]; then
+if [[ -z "$GCS_BUCKET" ]]; then
   echo "GCS bucket name required"
   exit 1
 fi
 
-if [[ -z "$2" ]]; then
+if [[ -z "$RUNNER" ]]; then
   echo "Runner required"
   exit 1
 fi
 
-if [[ -z "$3" ]]; then
-  echo "SDK location needed"
-  exit 1
+if [[ "$RUNNER" == "PortableRunner" ]]; then
+  for env in "JOB_ENDPOINT" "ENVIRONMENT_CONFIG" "ENVIRONMENT_TYPE"
+  do
+    if [[ -z "${!env}" ]]; then
+      echo "$env required"
+      exit 1
+    fi
+  done
 fi
-
-GCS_BUCKET=$1
-RUNNER=$2
-SDK_LOCATION=$3
 
 JOB_ID="chicago-taxi-tfdv-$(date +%Y%m%d-%H%M%S)"
 JOB_OUTPUT_PATH=${GCS_BUCKET}/${JOB_ID}/chicago_taxi_output
@@ -81,7 +91,10 @@ python tfdv_analyze_and_validate.py \
   --metrics_table='tfdv_analyze' \
   --metric_reporting_project ${GCP_PROJECT} \
   --sdk_location=${SDK_LOCATION} \
-  --setup_file ./setup.py
+  --setup_file ./setup.py \
+  --environment_config=${ENVIRONMENT_CONFIG} \
+  --environment_type=${ENVIRONMENT_TYPE} \
+  --job_endpoint=${JOB_ENDPOINT}
 
 EVAL_JOB_ID=${JOB_ID}-eval
 
@@ -106,7 +119,10 @@ python tfdv_analyze_and_validate.py \
   --metrics_table='chicago_taxi_tfdv_validate' \
   --sdk_location=${SDK_LOCATION} \
   --metric_reporting_project ${GCP_PROJECT} \
-  --setup_file ./setup.py
+  --setup_file ./setup.py \
+  --environment_config=${ENVIRONMENT_CONFIG} \
+  --environment_type=${ENVIRONMENT_TYPE} \
+  --job_endpoint=${JOB_ENDPOINT}
 
 # End analyze and validate
 echo Preprocessing train data...
@@ -128,7 +144,10 @@ python preprocess.py \
   --metrics_table='chicago_taxi_preprocess' \
   --sdk_location=${SDK_LOCATION} \
   --metric_reporting_project ${GCP_PROJECT} \
-  --setup_file ./setup.py
+  --setup_file ./setup.py \
+  --environment_config=${ENVIRONMENT_CONFIG} \
+  --environment_type=${ENVIRONMENT_TYPE} \
+  --job_endpoint=${JOB_ENDPOINT}
 
 #Train ML engine
 TRAINER_JOB_ID="chicago_taxi_trainer_$(date +%Y%m%d_%H%M%S)"
@@ -189,4 +208,7 @@ python process_tfma.py \
   --metrics_table='chicago_taxi_process_tfma' \
   --sdk_location=${SDK_LOCATION} \
   --metric_reporting_project ${GCP_PROJECT} \
-  --setup_file ./setup.py
+  --setup_file ./setup.py \
+  --environment_config=${ENVIRONMENT_CONFIG} \
+  --environment_type=${ENVIRONMENT_TYPE} \
+  --job_endpoint=${JOB_ENDPOINT}

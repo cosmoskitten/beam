@@ -20,11 +20,11 @@ import argparse
 import tensorflow as tf
 import tensorflow_model_analysis as tfma
 from tensorflow_model_analysis.evaluators import evaluator
+from trainer import taxi
 
 import apache_beam as beam
 from apache_beam.testing.load_tests.load_test_metrics_utils import (
-    MeasureTime, MetricsReader)
-from trainer import taxi
+  MeasureTime, MetricsReader)
 
 
 def process_tfma(schema_file,
@@ -46,8 +46,7 @@ def process_tfma(schema_file,
       None.
   eval_model_dir: A directory where the eval model is located.
   max_eval_rows: Number of rows to query from BigQuery.
-  pipeline_args: additional DataflowRunner or DirectRunner args passed to
-  the beam pipeline.
+  pipeline_args: additional runner args passed to the beam pipeline.
   publish_to_bq:
   project:
   metrics_dataset:

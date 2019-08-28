@@ -23,13 +23,12 @@ import tensorflow as tf
 from tensorflow.python.lib.io import file_io
 import tensorflow_data_validation as tfdv
 from tensorflow_metadata.proto.v0 import statistics_pb2
+from google.protobuf import text_format
+from trainer import taxi
 
 import apache_beam as beam
 from apache_beam.testing.load_tests.load_test_metrics_utils import MeasureTime
 from apache_beam.testing.load_tests.load_test_metrics_utils import MetricsReader
-
-from google.protobuf import text_format
-from trainer import taxi
 
 namespace = 'NAMESPACE_TFDV_ANALYZE_AND_VALIDATE'
 
@@ -88,8 +87,7 @@ def compute_stats(input_handle,
     stats_path: Directory in which stats are materialized.
     max_rows: Number of rows to query from BigQuery
     for_eval: Query for eval set rows from BigQuery
-    pipeline_args: additional DataflowRunner or DirectRunner args passed to the
-      beam pipeline.
+    pipeline_args: additional runner args passed to the beam pipeline.
   """
 
   pipeline = beam.Pipeline(argv=pipeline_args)

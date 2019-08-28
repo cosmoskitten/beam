@@ -22,11 +22,11 @@ import tensorflow_transform as transform
 import tensorflow_transform.beam as tft_beam
 from tensorflow_transform.coders import example_proto_coder
 from tensorflow_transform.tf_metadata import dataset_metadata, dataset_schema
+from trainer import taxi
 
 import apache_beam as beam
 from apache_beam.testing.load_tests.load_test_metrics_utils import (
-    MeasureTime, MetricsReader)
-from trainer import taxi
+  MeasureTime, MetricsReader)
 
 namespace = 'NAMESPACE_PREPROCESS'
 
@@ -76,8 +76,7 @@ def transform_data(input_handle,
       provided, this will load the transform_fn from disk instead of computing
       it over the data. Hint: this is useful for transforming eval data.
     max_rows: Number of rows to query from BigQuery
-    pipeline_args: additional DataflowRunner or DirectRunner args passed to the
-      beam pipeline.
+    pipeline_args: additional runner args passed to the beam pipeline.
   """
 
   def preprocessing_fn(inputs):
