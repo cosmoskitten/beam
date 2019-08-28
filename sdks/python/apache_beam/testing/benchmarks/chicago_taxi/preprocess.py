@@ -76,8 +76,7 @@ def transform_data(input_handle,
       provided, this will load the transform_fn from disk instead of computing
       it over the data. Hint: this is useful for transforming eval data.
     max_rows: Number of rows to query from BigQuery
-    pipeline_args: additional DataflowRunner or DirectRunner args passed to the
-      beam pipeline.
+    pipeline_args: additional runner args passed to the beam pipeline.
   """
 
   def preprocessing_fn(inputs):
