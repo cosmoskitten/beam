@@ -629,16 +629,13 @@ class GrpcStateHandler(object):
 
 
 class CachingMaterializingStateHandler(object):
-  """  A State handler which retrieves and caches state.
-
-  TODO mxm
-  """
+  """ A State handler which retrieves and caches state. """
 
   def __init__(self, global_state_cache, underlying, cache_tokens=None):
     self._underlying = underlying
     self._state_cache = global_state_cache
     self._context = threading.local()
-    # TODO mxm document this
+    # Only used to insert cache tokens during testing
     self._cache_tokens = cache_tokens
 
   @contextlib.contextmanager
@@ -646,8 +643,14 @@ class CachingMaterializingStateHandler(object):
     if getattr(self._context, 'cache_tokens', None) is not None:
       raise RuntimeError(
           'Cache tokens already set to %s' % self._context.cache_tokens)
-    self._context.cache_tokens = cache_tokens
+    # TODO Also handle cache tokens for side input, if present
+    cache_token = None
+    for cache_token_struct in cache_tokens:
+      if cache_token_struct.HasField("user_state"):
+        assert not cache_token
+        cache_token = cache_token.token
     try:
+      self._context.cache_tokens = [cache_token]
       with self._underlying.process_instruction_id(bundle_id):
         yield
     finally:
@@ -663,7 +666,6 @@ class CachingMaterializingStateHandler(object):
     if value is None:
       # Cache miss, need to retrieve from the Runner
       value = self._materialize(state_key, coder)
-      # TODO mxm uses always the first cache token for now
       self._state_cache.put(
           cache_state_key,
           cache_tokens[0], value)
