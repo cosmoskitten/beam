@@ -363,13 +363,13 @@ class SynchronousBagRuntimeState(userstate.BagRuntimeState):
 
   def _commit(self):
     if self._cleared:
-      self._state_handler.blocking_clear(self._state_key)
+      self._state_handler.clear(self._state_key)
     if self._added_elements:
       value_coder_impl = self._value_coder.get_impl()
       out = coder_impl.create_OutputStream()
       for element in self._added_elements:
         value_coder_impl.encode_to_stream(element, out, True)
-      self._state_handler.blocking_append(self._state_key, out.get())
+      self._state_handler.append(self._state_key, out.get())
 
 
 # TODO(BEAM-5428): Implement cross-bundle state caching.
@@ -389,13 +389,13 @@ class SynchronousSetRuntimeState(userstate.SetRuntimeState):
         self._added_elements))
 
     if rewrite and accumulator:
-      self._state_handler.blocking_clear(self._state_key)
+      self._state_handler.clear(self._state_key)
 
       value_coder_impl = self._value_coder.get_impl()
       out = coder_impl.create_OutputStream()
       for element in accumulator:
         value_coder_impl.encode_to_stream(element, out, True)
-      self._state_handler.blocking_append(self._state_key, out.get())
+      self._state_handler.append(self._state_key, out.get())
 
       # Since everthing is already committed so we can safely reinitialize
       # added_elements here.
@@ -409,7 +409,7 @@ class SynchronousSetRuntimeState(userstate.SetRuntimeState):
   def add(self, value):
     if self._cleared:
       # This is a good time explicitly clear.
-      self._state_handler.blocking_clear(self._state_key)
+      self._state_handler.clear(self._state_key)
       self._cleared = False
 
     self._added_elements.add(value)
@@ -422,13 +422,13 @@ class SynchronousSetRuntimeState(userstate.SetRuntimeState):
 
   def _commit(self):
     if self._cleared:
-      self._state_handler.blocking_clear(self._state_key)
+      self._state_handler.clear(self._state_key)
     if self._added_elements:
       value_coder_impl = self._value_coder.get_impl()
       out = coder_impl.create_OutputStream()
       for element in self._added_elements:
         value_coder_impl.encode_to_stream(element, out, True)
-      self._state_handler.blocking_append(self._state_key, out.get())
+      self._state_handler.append(self._state_key, out.get())
 
 
 class OutputTimer(object):

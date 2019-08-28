@@ -515,13 +515,13 @@ class ThrowingStateHandler(object):
         'out state ApiServiceDescriptor for instruction %s and state key %s.'
         % (state_key, instruction_reference))
 
-  def blocking_append(self, state_key, data, instruction_reference):
+  def append(self, state_key, data, instruction_reference):
     raise RuntimeError(
         'Unable to handle state requests for ProcessBundleDescriptor without '
         'out state ApiServiceDescriptor for instruction %s and state key %s.'
         % (state_key, instruction_reference))
 
-  def blocking_clear(self, state_key, instruction_reference):
+  def clear(self, state_key, instruction_reference):
     raise RuntimeError(
         'Unable to handle state requests for ProcessBundleDescriptor without '
         'out state ApiServiceDescriptor for instruction %s and state key %s.'
@@ -592,35 +592,38 @@ class GrpcStateHandler(object):
                 continuation_token=continuation_token)))
     return response.get.data, response.get.continuation_token
 
-  def blocking_append(self, state_key, data):
-    self._blocking_request(
+  def append(self, state_key, data):
+    self._request(
         beam_fn_api_pb2.StateRequest(
             state_key=state_key,
             append=beam_fn_api_pb2.StateAppendRequest(data=data)))
 
-  def blocking_clear(self, state_key):
-    self._blocking_request(
+  def clear(self, state_key):
+    self._request(
         beam_fn_api_pb2.StateRequest(
             state_key=state_key,
             clear=beam_fn_api_pb2.StateClearRequest()))
 
-  def  _blocking_request(self, request):
+  def _request(self, request):
     request.id = self._next_id()
     request.instruction_reference = self._context.process_instruction_id
     self._responses_by_id[request.id] = future = _Future()
     self._requests.put(request)
-    while not future.wait(timeout=1):
+    return future
+
+  def _blocking_request(self, request):
+    req_future = self._request(request)
+    while not req_future.wait(timeout=1):
       if self._exc_info:
         t, v, tb = self._exc_info
         raise_(t, v, tb)
       elif self._done:
         raise RuntimeError()
     del self._responses_by_id[request.id]
-    response = future.get()
+    response = req_future.get()
     if response.error:
       raise RuntimeError(response.error)
     else:
-      # TODO mxm here we could update the cache token
       return response
 
   def _next_id(self):
@@ -683,18 +686,16 @@ class CachingMaterializingStateHandler(object):
       if not continuation_token:
         return materialized
 
-  def blocking_append(self, state_key, data):
+  def append(self, state_key, data):
     cache_tokens = self._get_cache_tokens()
     self._state_cache.put(
         self.convert_to_cache_key(state_key),
         cache_tokens, data)
-    # TODO mxm make append non-blocking
-    self._underlying.blocking_append(state_key, data)
+    self._underlying.append(state_key, data)
 
-  def blocking_clear(self, state_key):
+  def clear(self, state_key):
     self._state_cache.clear(self.convert_to_cache_key(state_key))
-    # TODO mxm make clear non-blocking
-    self._underlying.blocking_clear(state_key)
+    self._underlying.clear(state_key)
 
   def _get_cache_tokens(self):
     return self._cache_tokens \

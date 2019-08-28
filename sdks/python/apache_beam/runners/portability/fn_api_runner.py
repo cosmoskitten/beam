@@ -483,7 +483,7 @@ class FnApiRunner(runner.PipelineRunner):
                 side_input_id=tag,
                 window=window,
                 key=key))
-        worker_handler.state.blocking_append(state_key, elements_data)
+        worker_handler.state.append(state_key, elements_data)
 
   def _run_bundle_multiple_times_for_testing(
       self, worker_handler_list, process_bundle_descriptor, data_input,
@@ -636,7 +636,7 @@ class FnApiRunner(runner.PipelineRunner):
       out = create_OutputStream()
       for element in values:
         element_coder_impl.encode_to_stream(element, out, True)
-      worker_handler.state.blocking_append(
+      worker_handler.state.append(
           beam_fn_api_pb2.StateKey(
               runner=beam_fn_api_pb2.StateKey.Runner(key=token)),
           out.get())
@@ -933,11 +933,11 @@ class FnApiRunner(runner.PipelineRunner):
           assert not continuation_token
           return b''.join(full_state), None
 
-    def blocking_append(self, state_key, data):
+    def append(self, state_key, data):
       with self._lock:
         self._state[self._to_key(state_key)].append(data)
 
-    def blocking_clear(self, state_key):
+    def clear(self, state_key):
       with self._lock:
         del self._state[self._to_key(state_key)]
 
@@ -962,12 +962,12 @@ class FnApiRunner(runner.PipelineRunner):
               get=beam_fn_api_pb2.StateGetResponse(
                   data=data, continuation_token=continuation_token))
         elif request_type == 'append':
-          self._state.blocking_append(request.state_key, request.append.data)
+          self._state.append(request.state_key, request.append.data)
           yield beam_fn_api_pb2.StateResponse(
               id=request.id,
               append=beam_fn_api_pb2.StateAppendResponse())
         elif request_type == 'clear':
-          self._state.blocking_clear(request.state_key)
+          self._state.clear(request.state_key)
           yield beam_fn_api_pb2.StateResponse(
               id=request.id,
               clear=beam_fn_api_pb2.StateClearResponse())
