@@ -40,6 +40,9 @@ import org.apache.beam.runners.fnexecution.logging.GrpcLoggingService;
 import org.apache.beam.runners.fnexecution.provisioning.StaticGrpcProvisionService;
 import org.apache.beam.sdk.fn.IdGenerator;
 import org.apache.beam.sdk.fn.IdGenerators;
+import org.apache.beam.sdk.options.ManualDockerEnvironmentOptions;
+import org.apache.beam.sdk.options.PipelineOptionsFactory;
+import org.apache.beam.sdk.options.RemoteEnvironmentOptions;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
@@ -80,6 +83,16 @@ public class DockerEnvironmentFactoryTest {
     when(loggingServiceServer.getApiServiceDescriptor()).thenReturn(SERVICE_DESCRIPTOR);
     when(retrievalServiceServer.getApiServiceDescriptor()).thenReturn(SERVICE_DESCRIPTOR);
     when(provisioningServiceServer.getApiServiceDescriptor()).thenReturn(SERVICE_DESCRIPTOR);
+    factory =
+        DockerEnvironmentFactory.forServicesWithDocker(
+            docker,
+            controlServiceServer,
+            loggingServiceServer,
+            retrievalServiceServer,
+            provisioningServiceServer,
+            (workerId, timeout) -> client,
+            ID_GENERATOR,
+            PipelineOptionsFactory.as(RemoteEnvironmentOptions.class));
   }
 
   @RunWith(Parameterized.class)
@@ -115,6 +128,11 @@ public class DockerEnvironmentFactoryTest {
       when(docker.runImage(Mockito.eq(IMAGE_NAME), Mockito.any(), Mockito.any()))
           .thenReturn(CONTAINER_ID);
       when(docker.isContainerRunning(Mockito.eq(CONTAINER_ID))).thenReturn(true);
+
+      ManualDockerEnvironmentOptions pipelineOptions =
+          PipelineOptionsFactory.as(ManualDockerEnvironmentOptions.class);
+      pipelineOptions.setRetainDockerContainers(true);
+
       DockerEnvironmentFactory factory =
           DockerEnvironmentFactory.forServicesWithDocker(
               docker,
@@ -124,7 +142,7 @@ public class DockerEnvironmentFactoryTest {
               provisioningServiceServer,
               throwsException ? exceptionClientSource : normalClientSource,
               ID_GENERATOR,
-              retainDockerContainer);
+              pipelineOptions);
       if (throwsException) {
         expectedException.expect(Exception.class);
       }
