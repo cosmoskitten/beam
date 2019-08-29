@@ -28,36 +28,36 @@ def avatica_version = "1.15.0"
 def prefix = "org.apache.beam.vendor.calcite.v1_20_0"
 
 List<String> packagesToRelocate = [
-  "com.esri",
-  "com.google.common",
-  "com.google.thirdparty",
-  "com.google.protobuf",
-  "com.fasterxml",
-  "com.jayway",
-  "com.yahoo",
-  "org.apache.calcite",
-  "org.apache.commons",
-  "org.apache.http",
-  "org.codehaus",
-  "org.pentaho",
-  "org.yaml"
+        "com.esri",
+        "com.google.common",
+        "com.google.thirdparty",
+        "com.google.protobuf",
+        "com.fasterxml",
+        "com.jayway",
+        "com.yahoo",
+        "org.apache.calcite",
+        "org.apache.commons",
+        "org.apache.http",
+        "org.codehaus",
+        "org.pentaho",
+        "org.yaml"
 ]
 
 vendorJava(
-  dependencies: [
-    "org.apache.calcite:calcite-core:$calcite_version",
-    "org.apache.calcite:calcite-linq4j:$calcite_version",
-    "org.apache.calcite.avatica:avatica-core:$avatica_version",
-    library.java.protobuf_java,
-    library.java.slf4j_api
-  ],
-  relocations: packagesToRelocate.collectEntries {
-    [ (it): "${prefix}.${it}" ]
-  },
-  exclusions: [
-    "org/slf4j/**"
-  ],
-  groupId: group,
-  artifactId: "beam-vendor-calcite-1_20_0",
-  version: version,
+        dependencies: [
+                "org.apache.calcite:calcite-core:$calcite_version",
+                "org.apache.calcite:calcite-linq4j:$calcite_version",
+                "org.apache.calcite.avatica:avatica-core:$avatica_version",
+                library.java.protobuf_java,
+                library.java.slf4j_api
+        ],
+        relocations: packagesToRelocate.collectEntries {
+          [ (it): "${prefix}.${it}" ]
+        },
+        exclusions: [
+                "org/slf4j/**"
+        ],
+        groupId: group,
+        artifactId: "beam-vendor-calcite-1_20_0",
+        version: version,
 )
