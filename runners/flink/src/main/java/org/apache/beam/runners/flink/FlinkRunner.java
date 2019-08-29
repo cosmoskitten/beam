@@ -19,12 +19,16 @@ package org.apache.beam.runners.flink;
 
 import static org.apache.beam.runners.core.construction.PipelineResources.detectClassPathResourcesToStage;
 
+import java.net.URLClassLoader;
 import java.util.ArrayList;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.SortedSet;
 import java.util.TreeSet;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 import org.apache.beam.runners.core.metrics.MetricsPusher;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.PipelineResult;
@@ -76,8 +80,15 @@ public class FlinkRunner extends PipelineRunner<PipelineResult> {
     }
 
     if (flinkOptions.getFilesToStage() == null) {
-      flinkOptions.setFilesToStage(
-          detectClassPathResourcesToStage(FlinkRunner.class.getClassLoader()));
+      List<String> filesToStage =
+          Stream.concat(
+                  Stream.of(FlinkRunner.class.getClassLoader()),
+                  parentClosure(Thread.currentThread().getContextClassLoader()))
+              .filter(loader -> loader instanceof URLClassLoader)
+              .flatMap(loader -> detectClassPathResourcesToStage(loader).stream())
+              .distinct()
+              .collect(Collectors.toList());
+      flinkOptions.setFilesToStage(filesToStage);
       LOG.info(
           "PipelineOptions.filesToStage was not specified. "
               + "Defaulting to files from the classpath: will stage {} files. "
@@ -87,6 +98,15 @@ public class FlinkRunner extends PipelineRunner<PipelineResult> {
     }
 
     return new FlinkRunner(flinkOptions);
+  }
+
+  private static Stream<ClassLoader> parentClosure(ClassLoader loader) {
+    List<ClassLoader> ret = new ArrayList<>();
+    while (loader != null) {
+      ret.add(loader);
+      loader = loader.getParent();
+    }
+    return ret.stream();
   }
 
   private FlinkRunner(FlinkPipelineOptions options) {
