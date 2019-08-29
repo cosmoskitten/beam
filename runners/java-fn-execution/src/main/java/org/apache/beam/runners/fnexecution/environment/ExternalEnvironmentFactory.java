@@ -34,6 +34,8 @@ import org.apache.beam.runners.fnexecution.logging.GrpcLoggingService;
 import org.apache.beam.runners.fnexecution.provisioning.StaticGrpcProvisionService;
 import org.apache.beam.sdk.fn.IdGenerator;
 import org.apache.beam.sdk.fn.channel.ManagedChannelFactory;
+import org.apache.beam.sdk.options.PipelineOptions;
+import org.apache.beam.sdk.options.RemoteEnvironmentOptions;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -52,14 +54,16 @@ public class ExternalEnvironmentFactory implements EnvironmentFactory {
       GrpcFnServer<ArtifactRetrievalService> retrievalServiceServer,
       GrpcFnServer<StaticGrpcProvisionService> provisioningServiceServer,
       ControlClientPool.Source clientSource,
-      IdGenerator idGenerator) {
+      IdGenerator idGenerator,
+      PipelineOptions pipelineOptions) {
     return new ExternalEnvironmentFactory(
         controlServiceServer,
         loggingServiceServer,
         retrievalServiceServer,
         provisioningServiceServer,
         idGenerator,
-        clientSource);
+        clientSource,
+        pipelineOptions);
   }
 
   private final GrpcFnServer<FnApiControlClientPoolService> controlServiceServer;
@@ -68,6 +72,7 @@ public class ExternalEnvironmentFactory implements EnvironmentFactory {
   private final GrpcFnServer<StaticGrpcProvisionService> provisioningServiceServer;
   private final IdGenerator idGenerator;
   private final ControlClientPool.Source clientSource;
+  private final PipelineOptions pipelineOptions;
 
   private ExternalEnvironmentFactory(
       GrpcFnServer<FnApiControlClientPoolService> controlServiceServer,
@@ -75,13 +80,15 @@ public class ExternalEnvironmentFactory implements EnvironmentFactory {
       GrpcFnServer<ArtifactRetrievalService> retrievalServiceServer,
       GrpcFnServer<StaticGrpcProvisionService> provisioningServiceServer,
       IdGenerator idGenerator,
-      ControlClientPool.Source clientSource) {
+      ControlClientPool.Source clientSource,
+      PipelineOptions pipelineOptions) {
     this.controlServiceServer = controlServiceServer;
     this.loggingServiceServer = loggingServiceServer;
     this.retrievalServiceServer = retrievalServiceServer;
     this.provisioningServiceServer = provisioningServiceServer;
     this.idGenerator = idGenerator;
     this.clientSource = clientSource;
+    this.pipelineOptions = pipelineOptions;
   }
 
   /** Creates a new, active {@link RemoteEnvironment} backed by an unmanaged worker. */
@@ -96,6 +103,7 @@ public class ExternalEnvironmentFactory implements EnvironmentFactory {
         RunnerApi.ExternalPayload.parseFrom(environment.getPayload());
     final String workerId = idGenerator.getId();
 
+    String semiPersistDir = pipelineOptions.as(RemoteEnvironmentOptions.class).getSemiPersistDir();
     BeamFnApi.StartWorkerRequest startWorkerRequest =
         BeamFnApi.StartWorkerRequest.newBuilder()
             .setWorkerId(workerId)
@@ -103,6 +111,7 @@ public class ExternalEnvironmentFactory implements EnvironmentFactory {
             .setLoggingEndpoint(loggingServiceServer.getApiServiceDescriptor())
             .setArtifactEndpoint(retrievalServiceServer.getApiServiceDescriptor())
             .setProvisionEndpoint(provisioningServiceServer.getApiServiceDescriptor())
+            .setSemiPersistDir(semiPersistDir)
             .putAllParams(externalPayload.getParamsMap())
             .build();
 
@@ -163,6 +172,12 @@ public class ExternalEnvironmentFactory implements EnvironmentFactory {
 
   /** Provider of ExternalEnvironmentFactory. */
   public static class Provider implements EnvironmentFactory.Provider {
+    private final PipelineOptions pipelineOptions;
+
+    public Provider(PipelineOptions options) {
+      this.pipelineOptions = options;
+    }
+
     @Override
     public EnvironmentFactory createEnvironmentFactory(
         GrpcFnServer<FnApiControlClientPoolService> controlServiceServer,
@@ -177,7 +192,8 @@ public class ExternalEnvironmentFactory implements EnvironmentFactory {
           retrievalServiceServer,
           provisioningServiceServer,
           clientPool.getSource(),
-          idGenerator);
+          idGenerator,
+          pipelineOptions);
     }
 
     @Override

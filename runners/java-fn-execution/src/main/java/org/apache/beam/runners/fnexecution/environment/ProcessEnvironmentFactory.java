@@ -30,6 +30,8 @@ import org.apache.beam.runners.fnexecution.control.InstructionRequestHandler;
 import org.apache.beam.runners.fnexecution.logging.GrpcLoggingService;
 import org.apache.beam.runners.fnexecution.provisioning.StaticGrpcProvisionService;
 import org.apache.beam.sdk.fn.IdGenerator;
+import org.apache.beam.sdk.options.PipelineOptions;
+import org.apache.beam.sdk.options.RemoteEnvironmentOptions;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.slf4j.Logger;
@@ -50,7 +52,8 @@ public class ProcessEnvironmentFactory implements EnvironmentFactory {
       GrpcFnServer<ArtifactRetrievalService> retrievalServiceServer,
       GrpcFnServer<StaticGrpcProvisionService> provisioningServiceServer,
       ControlClientPool.Source clientSource,
-      IdGenerator idGenerator) {
+      IdGenerator idGenerator,
+      PipelineOptions pipelineOptions) {
     return new ProcessEnvironmentFactory(
         processManager,
         controlServiceServer,
@@ -58,7 +61,8 @@ public class ProcessEnvironmentFactory implements EnvironmentFactory {
         retrievalServiceServer,
         provisioningServiceServer,
         idGenerator,
-        clientSource);
+        clientSource,
+        pipelineOptions);
   }
 
   private final ProcessManager processManager;
@@ -68,6 +72,7 @@ public class ProcessEnvironmentFactory implements EnvironmentFactory {
   private final GrpcFnServer<StaticGrpcProvisionService> provisioningServiceServer;
   private final IdGenerator idGenerator;
   private final ControlClientPool.Source clientSource;
+  private final PipelineOptions pipelineOptions;
 
   private ProcessEnvironmentFactory(
       ProcessManager processManager,
@@ -76,7 +81,8 @@ public class ProcessEnvironmentFactory implements EnvironmentFactory {
       GrpcFnServer<ArtifactRetrievalService> retrievalServiceServer,
       GrpcFnServer<StaticGrpcProvisionService> provisioningServiceServer,
       IdGenerator idGenerator,
-      ControlClientPool.Source clientSource) {
+      ControlClientPool.Source clientSource,
+      PipelineOptions pipelineOptions) {
     this.processManager = processManager;
     this.controlServiceServer = controlServiceServer;
     this.loggingServiceServer = loggingServiceServer;
@@ -84,6 +90,7 @@ public class ProcessEnvironmentFactory implements EnvironmentFactory {
     this.provisioningServiceServer = provisioningServiceServer;
     this.idGenerator = idGenerator;
     this.clientSource = clientSource;
+    this.pipelineOptions = pipelineOptions;
   }
 
   /** Creates a new, active {@link RemoteEnvironment} backed by a forked process. */
@@ -104,13 +111,15 @@ public class ProcessEnvironmentFactory implements EnvironmentFactory {
     String provisionEndpoint = provisioningServiceServer.getApiServiceDescriptor().getUrl();
     String controlEndpoint = controlServiceServer.getApiServiceDescriptor().getUrl();
 
+    String semiPersistDir = pipelineOptions.as(RemoteEnvironmentOptions.class).getSemiPersistDir();
     ImmutableList<String> args =
         ImmutableList.of(
             String.format("--id=%s", workerId),
             String.format("--logging_endpoint=%s", loggingEndpoint),
             String.format("--artifact_endpoint=%s", artifactEndpoint),
             String.format("--provision_endpoint=%s", provisionEndpoint),
-            String.format("--control_endpoint=%s", controlEndpoint));
+            String.format("--control_endpoint=%s", controlEndpoint),
+            String.format("--semi_persist_dir=%s", semiPersistDir));
 
     LOG.debug("Creating Process for worker ID {}", workerId);
     // Wrap the blocking call to clientSource.get in case an exception is thrown.
@@ -148,6 +157,12 @@ public class ProcessEnvironmentFactory implements EnvironmentFactory {
 
   /** Provider of ProcessEnvironmentFactory. */
   public static class Provider implements EnvironmentFactory.Provider {
+    private final PipelineOptions pipelineOptions;
+
+    public Provider(PipelineOptions options) {
+      this.pipelineOptions = options;
+    }
+
     @Override
     public EnvironmentFactory createEnvironmentFactory(
         GrpcFnServer<FnApiControlClientPoolService> controlServiceServer,
@@ -163,7 +178,8 @@ public class ProcessEnvironmentFactory implements EnvironmentFactory {
           retrievalServiceServer,
           provisioningServiceServer,
           clientPool.getSource(),
-          idGenerator);
+          idGenerator,
+          pipelineOptions);
     }
   }
 }
