@@ -83,7 +83,7 @@ public class FlinkJobInvoker extends JobInvoker {
         pipeline,
         flinkOptions,
         serverConfig.getFlinkConfDir(),
-        detectClassPathResourcesToStage(FlinkJobInvoker.class.getClassLoader()));
+        detectClassPathResourcesToStage(FlinkJobInvoker.class));
   }
 
   static JobInvocation createJobInvocation(
