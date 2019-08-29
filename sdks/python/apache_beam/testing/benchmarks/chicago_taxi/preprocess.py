@@ -123,7 +123,7 @@ def transform_data(input_handle,
     return outputs
 
   metrics_monitor = None
-  if publish_to_bq:
+  if publish_to_bq == 'true':
     metrics_monitor = MetricsReader(
         project_name=project,
         bq_table=metrics_table,
@@ -217,7 +217,7 @@ def main():
       '--publish_to_big_query',
       help='Whether to publish to BQ',
       default=None,
-      type=bool)
+      type=str)
 
   parser.add_argument(
       '--metrics_dataset',

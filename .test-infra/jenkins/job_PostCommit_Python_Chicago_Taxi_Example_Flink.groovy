@@ -47,6 +47,8 @@ def job = { scope ->
       tasks(':sdks:python:apache_beam:testing:benchmarks:chicago_taxi:run')
       switches('-PgcsRoot=gs://temp-storage-for-perf-tests/chicago-taxi')
       switches('-Prunner=PortableRunner')
+      switches('-PpublishToBigQuery=false')
+      switches('-PmetricsTableSuffix=-flink')
       switches('-PjobEndpoint=localhost:8099')
       switches("-PenvironmentConfig=${pythonHarnessImageTag}")
       switches('-PenvironmentType=DOCKER')
