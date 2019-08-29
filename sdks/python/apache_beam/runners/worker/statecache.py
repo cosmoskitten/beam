@@ -46,6 +46,18 @@ class StateCache(object):
     with self._lock:
       return self._cache.put(state_key, (cache_token, value))
 
+  def append(self, state_key, cache_token, elements):
+    with self._lock:
+      entry = self._cache.get(state_key)
+      if entry is None:
+        value = []
+      else:
+        token, value = entry
+        assert cache_token == token
+      for element in elements:
+        value.append(element)
+      self._cache.put(state_key, (cache_token, value))
+
   def clear(self, state_key):
     with self._lock:
       self._cache.clear(state_key)

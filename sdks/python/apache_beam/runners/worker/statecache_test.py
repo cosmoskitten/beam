@@ -40,6 +40,18 @@ class StateCacheTest(unittest.TestCase):
     self.assertEqual(cache.get("key", []), None)
     self.assertEqual(cache.get("key", None), None)
 
+  def test_append(self):
+    cache = StateCache(3)
+    cache.put("key", "cache_token", ['val'])
+    # test append for existing key
+    cache.append("key", "cache_token", ['yet', 'another', 'val'])
+    self.assertEqual(len(cache), 1)
+    self.assertEqual(cache.get("key", "cache_token"), ['val', 'yet', 'another', 'val'])
+    # test append without existing key
+    cache.append("key2", "cache_token", ['another', 'val'])
+    self.assertEqual(len(cache), 2)
+    self.assertEqual(cache.get("key2", "cache_token"), ['another', 'val'])
+
   def test_overwrite(self):
     cache = StateCache(2)
     cache.put("key", "cache_token", "value")
@@ -86,13 +98,13 @@ class StateCacheTest(unittest.TestCase):
     cache.put("key3", "cache_token", "value3")
     cache.put("key4", "cache_token4", "value4")
     cache.put("key5", "cache_token", "value0")
-    cache.put("key5", "cache_token", "value5")
+    cache.put("key5", "cache_token", ["value5"])
     self.assertEqual(len(cache), 5)
     self.assertEqual(cache.get("key", "cache_token"), "value")
     self.assertEqual(cache.get("key2", "cache_token2"), "value2")
     self.assertEqual(cache.get("key3", "cache_token"), "value3")
     self.assertEqual(cache.get("key4", "cache_token4"), "value4")
-    self.assertEqual(cache.get("key5", "cache_token"), "value5")
+    self.assertEqual(cache.get("key5", "cache_token"), ["value5"])
     # insert another key to trigger cache eviction
     cache.put("key6", "cache_token2", "value7")
     self.assertEqual(len(cache), 5)
@@ -113,6 +125,11 @@ class StateCacheTest(unittest.TestCase):
     self.assertEqual(len(cache), 5)
     # least recently used key should be gone ("key4")
     self.assertEqual(cache.get("key4", "cache_token"), None)
+    # make "key5" used by appending to it
+    cache.append("key5", "cache_token", "another")
+    self.assertEqual(len(cache), 5)
+    # least recently used key should be gone ("key6")
+    self.assertEqual(cache.get("key6", "cache_token"), None)
 
 
 if __name__ == '__main__':
