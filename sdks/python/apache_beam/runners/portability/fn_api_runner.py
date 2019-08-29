@@ -69,6 +69,7 @@ from apache_beam.runners.worker import bundle_processor
 from apache_beam.runners.worker import data_plane
 from apache_beam.runners.worker import sdk_worker
 from apache_beam.runners.worker.channel_factory import GRPCChannelFactory
+from apache_beam.runners.worker.sdk_worker import _Future
 from apache_beam.runners.worker.statecache import StateCache
 from apache_beam.transforms import trigger
 from apache_beam.transforms.window import GlobalWindows
@@ -936,10 +937,12 @@ class FnApiRunner(runner.PipelineRunner):
     def append(self, state_key, data):
       with self._lock:
         self._state[self._to_key(state_key)].append(data)
+      return _Future.done()
 
     def clear(self, state_key):
       with self._lock:
         del self._state[self._to_key(state_key)]
+      return _Future.done()
 
     @staticmethod
     def _to_key(state_key):

@@ -46,7 +46,8 @@ class StateCacheTest(unittest.TestCase):
     # test append for existing key
     cache.append("key", "cache_token", ['yet', 'another', 'val'])
     self.assertEqual(len(cache), 1)
-    self.assertEqual(cache.get("key", "cache_token"), ['val', 'yet', 'another', 'val'])
+    self.assertEqual(cache.get("key", "cache_token"),
+                     ['val', 'yet', 'another', 'val'])
     # test append without existing key
     cache.append("key2", "cache_token", ['another', 'val'])
     self.assertEqual(len(cache), 2)

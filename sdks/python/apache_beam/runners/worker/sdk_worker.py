@@ -593,13 +593,13 @@ class GrpcStateHandler(object):
     return response.get.data, response.get.continuation_token
 
   def append(self, state_key, data):
-    self._request(
+    return self._request(
         beam_fn_api_pb2.StateRequest(
             state_key=state_key,
             append=beam_fn_api_pb2.StateAppendRequest(data=data)))
 
   def clear(self, state_key):
-    self._request(
+    return self._request(
         beam_fn_api_pb2.StateRequest(
             state_key=state_key,
             clear=beam_fn_api_pb2.StateClearRequest()))
@@ -691,16 +691,20 @@ class CachingMaterializingStateHandler(object):
       if not continuation_token:
         break
 
-  def append(self, state_key, data):
-    cache_tokens = self._get_cache_tokens()
-    self._state_cache.put(
-        self.convert_to_cache_key(state_key),
-        cache_tokens, data)
-    self._underlying.append(state_key, data)
+  def append(self, state_key, coder, elements):
+    # Update the cache
+    cache_token = self._get_cache_token()
+    cache_key = self.convert_to_cache_key(state_key)
+    self._state_cache.append(cache_key, cache_token, elements)
+    # Write to state handler
+    out = coder_impl.create_OutputStream()
+    for element in elements:
+      coder.encode_to_stream(element, out, True)
+    return self._underlying.append(state_key, out.get())
 
   def clear(self, state_key):
     self._state_cache.clear(self.convert_to_cache_key(state_key))
-    self._underlying.clear(state_key)
+    return self._underlying.clear(state_key)
 
   def _get_cache_token(self):
     return self._cache_token \
@@ -740,3 +744,11 @@ class _Future(object):
   def set(self, value):
     self._value = value
     self._event.set()
+
+  @classmethod
+  def done(cls):
+    if not hasattr(cls, 'DONE'):
+      done_future = _Future()
+      done_future.set(None)
+      cls.DONE = done_future
+    return cls.DONE
