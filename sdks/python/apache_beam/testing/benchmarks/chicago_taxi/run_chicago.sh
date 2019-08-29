@@ -26,9 +26,11 @@
 #    JOB_ENDPOINT=localhost:8099 \
 #    ENVIRONMENT_CONFIG=gcr.io/<IMAGE_REPOSITORY>/python:latest \
 #    ENVIRONMENT_TYPE=DOCKER \
+#    PUBLISH_TO_BIG_QUERY=false \
+#    METRICS_TABLE_SUFFIX=flink \
 #    ./run_chicago.sh
 #
-set -Eeuxo pipefail
+set -Eexo pipefail
 echo Starting distributed TFDV stats computation and schema generation...
 
 if [[ -z "$GCS_BUCKET" ]]; then
@@ -49,6 +51,10 @@ if [[ "$RUNNER" == "PortableRunner" ]]; then
       exit 1
     fi
   done
+fi
+
+if [[ "$PUBLISH_TO_BIG_QUERY" != "true" ]]; then
+  PUBLISH_TO_BIG_QUERY="false"
 fi
 
 JOB_ID="chicago-taxi-tfdv-$(date +%Y%m%d-%H%M%S)"
@@ -86,9 +92,9 @@ python tfdv_analyze_and_validate.py \
   --save_main_session \
   --runner ${RUNNER} \
   --max_rows=${MAX_ROWS} \
-  --publish_to_big_query=true \
+  --publish_to_big_query=${PUBLISH_TO_BIG_QUERY} \
   --metrics_dataset='beam_performance' \
-  --metrics_table='tfdv_analyze' \
+  --metrics_table='tfdv_analyze'${METRICS_TABLE_SUFFIX} \
   --metric_reporting_project ${GCP_PROJECT} \
   --sdk_location=${SDK_LOCATION} \
   --setup_file ./setup.py \
@@ -114,9 +120,9 @@ python tfdv_analyze_and_validate.py \
   --save_main_session \
   --runner ${RUNNER} \
   --max_rows=${MAX_ROWS} \
-  --publish_to_big_query=true \
+  --publish_to_big_query=${PUBLISH_TO_BIG_QUERY} \
   --metrics_dataset='beam_performance' \
-  --metrics_table='chicago_taxi_tfdv_validate' \
+  --metrics_table='chicago_taxi_tfdv_validate'${METRICS_TABLE_SUFFIX} \
   --sdk_location=${SDK_LOCATION} \
   --metric_reporting_project ${GCP_PROJECT} \
   --setup_file ./setup.py \
@@ -139,9 +145,9 @@ python preprocess.py \
   --job_name ${JOB_ID} \
   --runner ${RUNNER} \
   --max_rows ${MAX_ROWS} \
-  --publish_to_big_query=true \
+  --publish_to_big_query=${PUBLISH_TO_BIG_QUERY} \
   --metrics_dataset='beam_performance' \
-  --metrics_table='chicago_taxi_preprocess' \
+  --metrics_table='chicago_taxi_preprocess'${METRICS_TABLE_SUFFIX} \
   --sdk_location=${SDK_LOCATION} \
   --metric_reporting_project ${GCP_PROJECT} \
   --setup_file ./setup.py \
@@ -179,7 +185,7 @@ gcloud ml-engine jobs submit training ${TRAINER_JOB_ID} \
                                     -- \
                                     --train-files ${TRAIN_FILE} \
                                     --train-steps ${TRAIN_STEPS} \
-                                   --eval-files ${EVAL_FILE} \
+                                    --eval-files ${EVAL_FILE} \
                                     --eval-steps ${EVAL_STEPS} \
                                     --output-dir ${WORKING_DIR} \
                                     --schema-file ${SCHEMA_PATH} \
@@ -203,9 +209,9 @@ python process_tfma.py \
   --save_main_session \
   --runner ${RUNNER} \
   --max_eval_rows=${MAX_ROWS} \
-  --publish_to_big_query=true \
+  --publish_to_big_query=${PUBLISH_TO_BIG_QUERY} \
   --metrics_dataset='beam_performance' \
-  --metrics_table='chicago_taxi_process_tfma' \
+  --metrics_table='chicago_taxi_process_tfma'${METRICS_TABLE_SUFFIX} \
   --sdk_location=${SDK_LOCATION} \
   --metric_reporting_project ${GCP_PROJECT} \
   --setup_file ./setup.py \
