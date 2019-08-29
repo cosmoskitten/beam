@@ -668,7 +668,7 @@ class CachingMaterializingStateHandler(object):
       # no cache tokens, can't do a lookup/store in the cache
       return self._materialize_iter(state_key, coder)
     cache_state_key = self.convert_to_cache_key(state_key)
-    cached_value = self._state_cache.get(cache_state_key, cache_tokens)
+    cached_value = self._state_cache.get(cache_state_key, cache_tokens[0])
     if cached_value is None:
       # Cache miss, need to retrieve from the Runner
       materialized = cached_value = []

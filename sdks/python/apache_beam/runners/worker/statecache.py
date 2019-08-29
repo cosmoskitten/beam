@@ -33,12 +33,12 @@ class StateCache(object):
     self._cache = self.LRUCache(max_entries)
     self._lock = Lock()
 
-  def get(self, state_key, cache_tokens):
+  def get(self, state_key, cache_token):
     with self._lock:
       cache_entry = self._cache.get(state_key)
     if cache_entry:
       token, value = cache_entry
-      return value if cache_tokens and token in cache_tokens else None
+      return value if token == cache_token else None
     else:
       return None
 

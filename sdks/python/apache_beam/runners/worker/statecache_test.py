@@ -28,7 +28,7 @@ class StateCacheTest(unittest.TestCase):
 
   def test_empty_cache_get(self):
     cache = StateCache(5)
-    self.assertEqual(cache.get("key", ['cache_token']), None)
+    self.assertEqual(cache.get("key", 'cache_token'), None)
     self.assertEqual(cache.get("key", []), None)
     self.assertEqual(cache.get("key", None), None)
 
@@ -36,7 +36,7 @@ class StateCacheTest(unittest.TestCase):
     cache = StateCache(5)
     cache.put("key", "cache_token", "value")
     self.assertEqual(len(cache), 1)
-    self.assertEqual(cache.get("key", ["cache_token"]), "value")
+    self.assertEqual(cache.get("key", "cache_token"), "value")
     self.assertEqual(cache.get("key", []), None)
     self.assertEqual(cache.get("key", None), None)
 
@@ -45,8 +45,8 @@ class StateCacheTest(unittest.TestCase):
     cache.put("key", "cache_token", "value")
     cache.put("key", "cache_token2", "value2")
     self.assertEqual(len(cache), 1)
-    self.assertEqual(cache.get("key", ["cache_token"]), None)
-    self.assertEqual(cache.get("key", ["cache_token2"]), "value2")
+    self.assertEqual(cache.get("key", "cache_token"), None)
+    self.assertEqual(cache.get("key", "cache_token2"), "value2")
 
   def test_eviction(self):
     cache = StateCache(2)
@@ -66,7 +66,7 @@ class StateCacheTest(unittest.TestCase):
     self.assertEqual(len(cache), 1)
     cache.clear("key")
     self.assertEqual(len(cache), 0)
-    self.assertEqual(cache.get("key", ["cache_token"]), None)
+    self.assertEqual(cache.get("key", "cache_token"), None)
 
   def test_clear_all(self):
     cache = StateCache(5)
@@ -75,8 +75,8 @@ class StateCacheTest(unittest.TestCase):
     self.assertEqual(len(cache), 2)
     cache.clear_all()
     self.assertEqual(len(cache), 0)
-    self.assertEqual(cache.get("key", ["cache_token"]), None)
-    self.assertEqual(cache.get("key2", ["cache_token"]), None)
+    self.assertEqual(cache.get("key", "cache_token"), None)
+    self.assertEqual(cache.get("key2", "cache_token"), None)
 
   def test_lru(self):
     cache = StateCache(5)
@@ -88,23 +88,23 @@ class StateCacheTest(unittest.TestCase):
     cache.put("key5", "cache_token", "value0")
     cache.put("key5", "cache_token", "value5")
     self.assertEqual(len(cache), 5)
-    self.assertEqual(cache.get("key", ["cache_token"]), "value")
-    self.assertEqual(cache.get("key2", ["cache_token2"]), "value2")
-    self.assertEqual(cache.get("key3", ["cache_token"]), "value3")
-    self.assertEqual(cache.get("key4", ["cache_token4"]), "value4")
-    self.assertEqual(cache.get("key5", ["cache_token"]), "value5")
+    self.assertEqual(cache.get("key", "cache_token"), "value")
+    self.assertEqual(cache.get("key2", "cache_token2"), "value2")
+    self.assertEqual(cache.get("key3", "cache_token"), "value3")
+    self.assertEqual(cache.get("key4", "cache_token4"), "value4")
+    self.assertEqual(cache.get("key5", "cache_token"), "value5")
     # insert another key to trigger cache eviction
     cache.put("key6", "cache_token2", "value7")
     self.assertEqual(len(cache), 5)
     # least recently used key should be gone ("key")
-    self.assertEqual(cache.get("key", ["cache_token"]), None)
+    self.assertEqual(cache.get("key", "cache_token"), None)
     # trigger a read on "key2"
-    cache.get("key2", ["cache_token"])
+    cache.get("key2", "cache_token")
     # insert another key to trigger cache eviction
     cache.put("key7", "cache_token", "value7")
     self.assertEqual(len(cache), 5)
     # least recently used key should be gone ("key3")
-    self.assertEqual(cache.get("key3", ["cache_token"]), None)
+    self.assertEqual(cache.get("key3", "cache_token"), None)
     # trigger a put on "key2"
     cache.put("key2", "cache_token", "put")
     self.assertEqual(len(cache), 5)
@@ -112,7 +112,7 @@ class StateCacheTest(unittest.TestCase):
     cache.put("key8", "cache_token", "value8")
     self.assertEqual(len(cache), 5)
     # least recently used key should be gone ("key4")
-    self.assertEqual(cache.get("key4", ["cache_token"]), None)
+    self.assertEqual(cache.get("key4", "cache_token"), None)
 
 
 if __name__ == '__main__':
