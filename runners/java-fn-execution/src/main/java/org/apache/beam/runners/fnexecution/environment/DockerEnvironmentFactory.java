@@ -39,6 +39,7 @@ import org.apache.beam.runners.fnexecution.provisioning.StaticGrpcProvisionServi
 import org.apache.beam.sdk.fn.IdGenerator;
 import org.apache.beam.sdk.options.ManualDockerEnvironmentOptions;
 import org.apache.beam.sdk.options.PipelineOptions;
+import org.apache.beam.sdk.options.RemoteEnvironmentOptions;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.net.HostAndPort;
@@ -62,7 +63,7 @@ public class DockerEnvironmentFactory implements EnvironmentFactory {
       GrpcFnServer<StaticGrpcProvisionService> provisioningServiceServer,
       ControlClientPool.Source clientSource,
       IdGenerator idGenerator,
-      boolean retainDockerContainer) {
+      PipelineOptions pipelineOptions) {
     return new DockerEnvironmentFactory(
         docker,
         controlServiceServer,
@@ -71,7 +72,7 @@ public class DockerEnvironmentFactory implements EnvironmentFactory {
         provisioningServiceServer,
         idGenerator,
         clientSource,
-        retainDockerContainer);
+        pipelineOptions);
   }
 
   private final DockerCommand docker;
@@ -81,7 +82,7 @@ public class DockerEnvironmentFactory implements EnvironmentFactory {
   private final GrpcFnServer<StaticGrpcProvisionService> provisioningServiceServer;
   private final IdGenerator idGenerator;
   private final ControlClientPool.Source clientSource;
-  private final boolean retainDockerContainer;
+  private final PipelineOptions pipelineOptions;
 
   private DockerEnvironmentFactory(
       DockerCommand docker,
@@ -91,7 +92,7 @@ public class DockerEnvironmentFactory implements EnvironmentFactory {
       GrpcFnServer<StaticGrpcProvisionService> provisioningServiceServer,
       IdGenerator idGenerator,
       ControlClientPool.Source clientSource,
-      boolean retainDockerContainer) {
+      PipelineOptions pipelineOptions) {
     this.docker = docker;
     this.controlServiceServer = controlServiceServer;
     this.loggingServiceServer = loggingServiceServer;
@@ -99,7 +100,7 @@ public class DockerEnvironmentFactory implements EnvironmentFactory {
     this.provisioningServiceServer = provisioningServiceServer;
     this.idGenerator = idGenerator;
     this.clientSource = clientSource;
-    this.retainDockerContainer = retainDockerContainer;
+    this.pipelineOptions = pipelineOptions;
   }
 
   /** Creates a new, active {@link RemoteEnvironment} backed by a local Docker container. */
@@ -132,13 +133,21 @@ public class DockerEnvironmentFactory implements EnvironmentFactory {
             // host networking on Mac)
             .add("--env=DOCKER_MAC_CONTAINER=" + System.getenv("DOCKER_MAC_CONTAINER"));
 
+    Boolean retainDockerContainer =
+        pipelineOptions.as(ManualDockerEnvironmentOptions.class).getRetainDockerContainers();
+    if (!retainDockerContainer) {
+      dockerArgsBuilder.add("--rm");
+    }
+
+    String semiPersistDir = pipelineOptions.as(RemoteEnvironmentOptions.class).getSemiPersistDir();
     List<String> args =
         ImmutableList.of(
             String.format("--id=%s", workerId),
             String.format("--logging_endpoint=%s", loggingEndpoint),
             String.format("--artifact_endpoint=%s", artifactEndpoint),
             String.format("--provision_endpoint=%s", provisionEndpoint),
-            String.format("--control_endpoint=%s", controlEndpoint));
+            String.format("--control_endpoint=%s", controlEndpoint),
+            String.format("--semi_persist_dir=%s", semiPersistDir));
 
     LOG.debug("Creating Docker Container with ID {}", workerId);
     // Wrap the blocking call to clientSource.get in case an exception is thrown.
@@ -244,11 +253,10 @@ public class DockerEnvironmentFactory implements EnvironmentFactory {
 
   /** Provider for DockerEnvironmentFactory. */
   public static class Provider implements EnvironmentFactory.Provider {
-    private final boolean retainDockerContainer;
+    private final PipelineOptions pipelineOptions;
 
     public Provider(PipelineOptions options) {
-      this.retainDockerContainer =
-          options.as(ManualDockerEnvironmentOptions.class).getRetainDockerContainers();
+      this.pipelineOptions = options;
     }
 
     @Override
@@ -267,7 +275,7 @@ public class DockerEnvironmentFactory implements EnvironmentFactory {
           provisioningServiceServer,
           clientPool.getSource(),
           idGenerator,
-          retainDockerContainer);
+          pipelineOptions);
     }
 
     @Override
