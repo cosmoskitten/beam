@@ -1072,7 +1072,7 @@ class EmbeddedWorkerHandler(WorkerHandler):
                     StateCache(100),
                     self.state,
                     # TODO mxm This needs to be changed during testing
-                    ["cache_token"])),
+                    "cache_token")),
             data_plane.InMemoryDataChannelFactory(
                 self.data_plane_handler.inverse()),
             {}))

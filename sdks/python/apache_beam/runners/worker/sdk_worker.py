@@ -634,18 +634,18 @@ class GrpcStateHandler(object):
 class CachingMaterializingStateHandler(object):
   """ A State handler which retrieves and caches state. """
 
-  def __init__(self, global_state_cache, underlying, cache_tokens=None):
+  def __init__(self, global_state_cache, underlying, cache_token=None):
     self._underlying = underlying
     self._state_cache = global_state_cache
     self._context = threading.local()
     # Only used to insert cache tokens during testing
-    self._cache_tokens = cache_tokens
+    self._cache_token = cache_token
 
   @contextlib.contextmanager
   def process_instruction_id(self, bundle_id, cache_tokens):
-    if getattr(self._context, 'cache_tokens', None) is not None:
+    if getattr(self._context, 'cache_token', None) is not None:
       raise RuntimeError(
-          'Cache tokens already set to %s' % self._context.cache_tokens)
+          'Cache tokens already set to %s' % self._context.cache_token)
     # TODO Also handle cache tokens for side input, if present
     user_state_cache_token = None
     for cache_token_struct in cache_tokens:
@@ -653,22 +653,22 @@ class CachingMaterializingStateHandler(object):
         assert not user_state_cache_token
         user_state_cache_token = user_state_cache_token.token
     try:
-      self._context.cache_tokens = [user_state_cache_token]
+      self._context.cache_token = user_state_cache_token
       with self._underlying.process_instruction_id(bundle_id):
         yield
     finally:
-      self._context.cache_tokens = None
+      self._context.cache_token = None
 
   def blocking_get(self, state_key, coder):
     return self._materialize_iter(state_key, coder)
 
   def blocking_get_cached(self, state_key, coder):
-    cache_tokens = self._get_cache_tokens()
-    if not cache_tokens:
+    cache_token = self._get_cache_token()
+    if not cache_token:
       # no cache tokens, can't do a lookup/store in the cache
       return self._materialize_iter(state_key, coder)
     cache_state_key = self.convert_to_cache_key(state_key)
-    cached_value = self._state_cache.get(cache_state_key, cache_tokens[0])
+    cached_value = self._state_cache.get(cache_state_key, cache_token)
     if cached_value is None:
       # Cache miss, need to retrieve from the Runner
       materialized = cached_value = []
@@ -676,7 +676,7 @@ class CachingMaterializingStateHandler(object):
         materialized.append(val)
       self._state_cache.put(
           cache_state_key,
-          cache_tokens[0],
+          cache_token,
           materialized)
     return iter(cached_value)
 
@@ -702,10 +702,10 @@ class CachingMaterializingStateHandler(object):
     self._state_cache.clear(self.convert_to_cache_key(state_key))
     self._underlying.clear(state_key)
 
-  def _get_cache_tokens(self):
-    return self._cache_tokens \
-        if self._cache_tokens \
-        else self._context.cache_tokens
+  def _get_cache_token(self):
+    return self._cache_token \
+        if self._cache_token \
+        else self._context.cache_token
 
   def restore(self):
     self._underlying.restore()
