@@ -17,7 +17,7 @@
  */
 package org.apache.beam.runners.flink;
 
-import static org.apache.beam.runners.core.construction.PipelineResources.detectClassPathResourcesToStage;
+import static org.apache.beam.runners.flink.ClassLoaderUtils.detectFilesToStageFromClass;
 
 import java.io.IOException;
 import java.util.List;
@@ -83,7 +83,7 @@ public class FlinkJobInvoker extends JobInvoker {
         pipeline,
         flinkOptions,
         serverConfig.getFlinkConfDir(),
-        detectClassPathResourcesToStage(FlinkJobInvoker.class.getClassLoader()));
+        detectFilesToStageFromClass(FlinkJobInvoker.class));
   }
 
   static JobInvocation createJobInvocation(
