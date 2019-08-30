@@ -43,6 +43,7 @@ if typing.TYPE_CHECKING:
   from apache_beam.runners.direct.bundle_factory import BundleFactory, _Bundle
   from apache_beam.utils.timestamp import Timestamp
 
+
 class _ExecutionContext(object):
   """Contains the context for the execution of a single PTransform.
 
@@ -389,6 +390,7 @@ class EvaluationContext(object):
     return self._watermark_manager.extract_all_timers()
 
   def is_done(self, transform=None):
+    # type: (Optional[AppliedPTransform]) -> bool
     """Checks completion of a step or the pipeline.
 
     Args:
@@ -407,6 +409,7 @@ class EvaluationContext(object):
     return True
 
   def _is_transform_done(self, transform):
+    # type: (AppliedPTransform) -> bool
     tw = self._watermark_manager.get_watermarks(transform)
     return tw.output_watermark == WatermarkManager.WATERMARK_POS_INF
 

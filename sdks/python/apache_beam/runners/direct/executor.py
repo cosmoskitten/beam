@@ -25,9 +25,13 @@ import logging
 import sys
 import threading
 import traceback
+import typing
 from builtins import object
 from builtins import range
 from weakref import WeakValueDictionary
+from typing import Generic
+from typing import Type
+from typing import TypeVar
 
 from future.moves import queue
 from future.utils import raise_
@@ -36,6 +40,11 @@ from apache_beam.metrics.execution import MetricsContainer
 from apache_beam.runners.worker import statesampler
 from apache_beam.transforms import sideinputs
 from apache_beam.utils import counters
+
+if typing.TYPE_CHECKING:
+  from apache_beam.runners.direct.evaluation_context import EvaluationContext
+
+T = TypeVar('T')
 
 
 class _ExecutorService(object):
@@ -408,8 +417,11 @@ class _ExecutorServiceParallelExecutor(object):
 
   NUM_WORKERS = 1
 
-  def __init__(self, value_to_consumers, transform_evaluator_registry,
-               evaluation_context):
+  def __init__(self,
+               value_to_consumers,
+               transform_evaluator_registry,
+               evaluation_context  # type: EvaluationContext
+              ):
     self.executor_service = _ExecutorService(
         _ExecutorServiceParallelExecutor.NUM_WORKERS)
     self.transform_executor_services = _TransformExecutorServices(
@@ -481,14 +493,16 @@ class _ExecutorServiceParallelExecutor(object):
         on_complete, transform_executor_service)
     transform_executor_service.schedule(transform_executor)
 
-  class _TypedUpdateQueue(object):
+  class _TypedUpdateQueue(Generic[T]):
     """Type checking update queue with blocking and non-blocking operations."""
 
     def __init__(self, item_type):
+      # type: (Type[T]) -> None
       self._item_type = item_type
-      self._queue = queue.Queue()
+      self._queue = queue.Queue()  # type: queue.Queue[T]
 
     def poll(self):
+      # type: () -> Optional[T]
       try:
         item = self._queue.get_nowait()
         self._queue.task_done()
@@ -497,6 +511,7 @@ class _ExecutorServiceParallelExecutor(object):
         return None
 
     def take(self):
+      # type: () -> T
       # The implementation of Queue.Queue.get() does not propagate
       # KeyboardInterrupts when a timeout is not used.  We therefore use a
       # one-second timeout in the following loop to allow KeyboardInterrupts
@@ -510,6 +525,7 @@ class _ExecutorServiceParallelExecutor(object):
           pass
 
     def offer(self, item):
+      # type: (T) -> None
       assert isinstance(item, self._item_type)
       self._queue.put_nowait(item)
 
@@ -548,6 +564,7 @@ class _ExecutorServiceParallelExecutor(object):
     """MonitorTask continuously runs to ensure that pipeline makes progress."""
 
     def __init__(self, executor):
+      # type: (_ExecutorServiceParallelExecutor) -> None
       self._executor = executor
 
     @property

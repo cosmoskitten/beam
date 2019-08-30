@@ -20,7 +20,9 @@
 from __future__ import absolute_import
 
 import threading
+import typing
 from builtins import object
+from typing import Dict
 
 from apache_beam import pipeline
 from apache_beam import pvalue
@@ -28,6 +30,9 @@ from apache_beam.runners.direct.util import TimerFiring
 from apache_beam.utils.timestamp import MAX_TIMESTAMP
 from apache_beam.utils.timestamp import MIN_TIMESTAMP
 from apache_beam.utils.timestamp import TIME_GRANULARITY
+
+if typing.TYPE_CHECKING:
+  from apache_beam.pipeline import AppliedPTransform
 
 
 class WatermarkManager(object):
@@ -45,7 +50,7 @@ class WatermarkManager(object):
     self._value_to_consumers = value_to_consumers
     self._transform_keyed_states = transform_keyed_states
     # AppliedPTransform -> TransformWatermarks
-    self._transform_to_watermarks = {}
+    self._transform_to_watermarks = {}  # type: Dict[AppliedPTransform, _TransformWatermarks]
 
     for root_transform in root_transforms:
       self._transform_to_watermarks[root_transform] = _TransformWatermarks(
@@ -73,6 +78,7 @@ class WatermarkManager(object):
             input_transform_watermarks)
 
   def get_watermarks(self, applied_ptransform):
+    # type: (AppliedPTransform) -> _TransformWatermarks
     """Gets the input and output watermarks for an AppliedPTransform.
 
     If the applied_ptransform has not processed any elements, return a
