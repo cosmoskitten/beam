@@ -40,6 +40,7 @@ import org.apache.beam.sdk.options.PipelineOptionsValidator;
 import org.apache.beam.sdk.runners.TransformHierarchy;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.View;
+import org.apache.beam.sdk.util.common.ReflectHelpers;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Joiner;
 import org.apache.flink.api.common.JobExecutionResult;
@@ -83,7 +84,7 @@ public class FlinkRunner extends PipelineRunner<PipelineResult> {
       List<String> filesToStage =
           Stream.concat(
                   Stream.of(FlinkRunner.class.getClassLoader()),
-                  parentClosure(Thread.currentThread().getContextClassLoader()))
+                  parentClosure(ReflectHelpers.findClassLoader()))
               .filter(loader -> loader instanceof URLClassLoader)
               .flatMap(loader -> detectClassPathResourcesToStage(loader).stream())
               .distinct()
