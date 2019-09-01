@@ -65,7 +65,7 @@ func main() {
 	flag.Parse()
 
 	if *workerPool == true {
-		workerPoolId := string(os.Getpid())
+		workerPoolId := fmt.Sprintf("%d", os.Getpid())
 		os.Setenv(workerPoolIdEnv, workerPoolId)
 		args := []string{
 			"-m",
