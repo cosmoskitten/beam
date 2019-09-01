@@ -58,19 +58,22 @@ const (
 	requirementsFile  = "requirements.txt"
 	sdkSrcFile        = "dataflow_python_sdk.tar"
 	extraPackagesFile = "extra_packages.txt"
+	workerPoolIdEnv   = "BEAM_PYTHON_WORKER_POOL_ID"
 )
 
 func main() {
 	flag.Parse()
 
 	if *workerPool == true {
+		workerPoolId := string(os.Getpid())
+		os.Setenv(workerPoolIdEnv, workerPoolId)
 		args := []string{
 			"-m",
 			"apache_beam.runners.worker.worker_pool_main",
 			"--service_port=50000",
 			"--container_executable=/opt/apache/beam/boot",
 		}
-		log.Printf("Starting Python SDK worker pool: python %v", strings.Join(args, " "))
+		log.Printf("Starting worker pool %v: python %v", workerPoolId, strings.Join(args, " "))
 		log.Fatalf("Python SDK worker pool exited: %v", execx.Execute("python", args...))
 	}
 
@@ -106,41 +109,11 @@ func main() {
 	}
 
 	// (2) Retrieve and install the staged packages.
+	//
+	// Guard from concurrent artifact retrieval and installation,
+	// when called by child processes in a worker pool.
 
-	func() {
-
-        installCompleteFile := filepath.Join(os.TempDir(), "beam.install.complete")
-
-		// skip if install already complete
-		_, err = os.Stat(installCompleteFile)
-		if err == nil {
-			return
-		}
-
-		// lock to guard from concurrent artifact retrieval and installation,
-		// when called by child processes in a worker pool
-		lock, err := lockfile.New(filepath.Join(os.TempDir(), "beam.install.lck"))
-		if err != nil {
-			log.Fatalf("Cannot init artifact retrieval lock: %v", err)
-		}
-
-		for err = lock.TryLock(); err != nil; err = lock.TryLock() {
-			switch err {
-			case lockfile.ErrBusy, lockfile.ErrNotExist:
-				time.Sleep(5 * time.Second)
-				log.Printf("Worker %v waiting for artifact retrieval lock: %v", *id, lock)
-			default:
-				log.Fatalf("Worker %v could not obtain artifact retrieval lock: %v", *id, err)
-			}
-		}
-		defer lock.Unlock()
-
-		// skip if install already complete
-		_, err = os.Stat(installCompleteFile)
-		if err == nil {
-			return
-		}
-
+	materializeArtifactsFunc := func() {
 		dir := filepath.Join(*semiPersistDir, "staged")
 
 		files, err := artifact.Materialize(ctx, *artifactEndpoint, info.GetRetrievalToken(), dir)
@@ -153,11 +126,14 @@ func main() {
 		if setupErr := installSetupPackages(files, dir); setupErr != nil {
 			log.Fatalf("Failed to install required packages: %v", setupErr)
 		}
+	}
 
-		// mark install complete
-		os.OpenFile(installCompleteFile, os.O_RDONLY|os.O_CREATE, 0666)
-
-    }()
+	workerPoolId := os.Getenv(workerPoolIdEnv)
+	if workerPoolId != "" {
+		multiProcessExactlyOnce(materializeArtifactsFunc, "beam.install.complete."+workerPoolId)
+	} else {
+		materializeArtifactsFunc()
+	}
 
 	// (3) Invoke python
 
@@ -215,4 +191,45 @@ func joinPaths(dir string, paths ...string) []string {
 		ret = append(ret, filepath.Join(dir, filepath.FromSlash(p)))
 	}
 	return ret
+}
+
+// Call the given function exactly once across multiple worker processes.
+// The need for multiple processes is specific to the Python SDK due to the GIL.
+// Should another SDK require it, this could be separated out as shared utility.
+func multiProcessExactlyOnce(actionFunc func(), completeFileName string) {
+	installCompleteFile := filepath.Join(os.TempDir(), completeFileName)
+
+	// skip if install already complete, no need to lock
+	_, err := os.Stat(installCompleteFile)
+	if err == nil {
+		return
+	}
+
+	lock, err := lockfile.New(filepath.Join(os.TempDir(), completeFileName+".lck"))
+	if err != nil {
+		log.Fatalf("Cannot init artifact retrieval lock: %v", err)
+	}
+
+	for err = lock.TryLock(); err != nil; err = lock.TryLock() {
+		if _, ok := err.(lockfile.TemporaryError); ok {
+			time.Sleep(5 * time.Second)
+			log.Printf("Worker %v waiting for artifact retrieval lock: %v", *id, lock)
+		} else {
+			log.Fatalf("Worker %v could not obtain artifact retrieval lock: %v", *id, err)
+		}
+	}
+	defer lock.Unlock()
+
+	// skip if install already complete
+	_, err = os.Stat(installCompleteFile)
+	if err == nil {
+		return
+	}
+
+	// do the real work
+	actionFunc()
+
+	// mark install complete
+	os.OpenFile(installCompleteFile, os.O_RDONLY|os.O_CREATE, 0666)
+
 }
