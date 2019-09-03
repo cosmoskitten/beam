@@ -226,11 +226,10 @@ public interface ProtoFieldOverlay<ValueT> extends FieldValueGetter<Message, Val
     @Override
     public Instant convertGetObject(FieldDescriptor fieldDescriptor, Object object) {
       Message timestamp = (Message) object;
+      Descriptors.Descriptor timestampFieldDescriptor = timestamp.getDescriptorForType();
       return new Instant(
-          (Long) timestamp.getField(fieldDescriptor.getMessageType().findFieldByName("seconds"))
-                  * 1000
-              + (Integer)
-                      timestamp.getField(fieldDescriptor.getMessageType().findFieldByName("nanos"))
+          (Long) timestamp.getField(timestampFieldDescriptor.findFieldByName("seconds")) * 1000
+              + (Integer) timestamp.getField(timestampFieldDescriptor.findFieldByName("nanos"))
                   / 1000000);
     }
 
