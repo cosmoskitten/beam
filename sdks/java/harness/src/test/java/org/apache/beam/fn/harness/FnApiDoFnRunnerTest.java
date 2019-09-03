@@ -51,6 +51,7 @@ import org.apache.beam.runners.core.metrics.MetricsContainerStepMap;
 import org.apache.beam.runners.core.metrics.MonitoringInfoConstants;
 import org.apache.beam.runners.core.metrics.SimpleMonitoringInfoBuilder;
 import org.apache.beam.sdk.Pipeline;
+import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.fn.data.FnDataReceiver;
 import org.apache.beam.sdk.metrics.Counter;
@@ -284,7 +285,7 @@ public class FnApiDoFnRunnerTest implements Serializable {
             StateKey.BagUserState.newBuilder()
                 .setPtransformId(TEST_PTRANSFORM_ID)
                 .setUserStateId(userStateId)
-                .setKey(encode(key))
+                .setKey(encodeOuter(key))
                 .setWindow(
                     ByteString.copyFrom(
                         CoderUtils.encodeToByteArray(
@@ -975,9 +976,17 @@ public class FnApiDoFnRunnerTest implements Serializable {
   }
 
   private ByteString encode(String... values) throws IOException {
+    return encode(Coder.Context.NESTED, values);
+  }
+
+  private ByteString encodeOuter(String... values) throws IOException {
+    return encode(Coder.Context.OUTER, values);
+  }
+
+  private ByteString encode(Coder.Context context, String... values) throws IOException {
     ByteString.Output out = ByteString.newOutput();
     for (String value : values) {
-      StringUtf8Coder.of().encode(value, out);
+      StringUtf8Coder.of().encode(value, out, context);
     }
     return out.toByteString();
   }
