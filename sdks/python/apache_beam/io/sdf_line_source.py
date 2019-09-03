@@ -26,7 +26,8 @@ from apache_beam.io.restriction_trackers import OffsetRestrictionTracker
 from apache_beam.io.restriction_trackers import OffsetRange
 
 class SdfReadLineRestrictionProvider(core.RestrictionProvider):
-
+  """ A `core.RestrictionProvider` implementation which provides
+  `OffsetRestrictionTracker`."""
   def _get_file_size(self, file_name):
     with open(file_name, 'rb') as f:
       f.seek(0, os.SEEK_END)
@@ -46,7 +47,7 @@ class SdfReadLineRestrictionProvider(core.RestrictionProvider):
 
 
 class SdfReadLine(core.DoFn):
-
+  """ An SplittableDoFn which reads lines from file and as output."""
   def process(
       self,
       element,
@@ -70,6 +71,7 @@ class SdfReadLine(core.DoFn):
 
 
 class SdfReadLineSource(ptransform.PTransform):
+  """ A `ptransform.PTransform` that expands to `SdfReadLine`."""
   MIN_BUNDLE_SIZE = 10
 
   def __init__(self, file_patterns, desired_chunk_size=None):
@@ -84,4 +86,3 @@ class SdfReadLineSource(ptransform.PTransform):
     return (pbegin
             | Create(self._metadata_elements)
             | core.ParDo(SdfReadLine()))
-
