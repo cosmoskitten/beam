@@ -19,8 +19,6 @@ from __future__ import absolute_import
 import urllib
 
 from apache_beam import coders
-from apache_beam.io import avroio
-from apache_beam.io import parquetio
 from apache_beam.io import textio
 from apache_beam.io import tfrecordio
 from apache_beam.io.filesystems import FileSystems

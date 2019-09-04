@@ -19,7 +19,6 @@ from __future__ import absolute_import
 
 import logging
 import pickle
-import sys
 import tempfile
 import unittest
 
@@ -30,7 +29,6 @@ from parameterized import parameterized
 from apache_beam.io.filesystems import FileSystems
 from apache_beam.runners.interactive.caching import file_based_cache
 from apache_beam.runners.interactive.caching import file_based_cache_test
-from apache_beam.testing import datatype_inference
 from apache_beam.testing.extra_assertions import ExtraAssertionsMixin
 from apache_beam.testing.test_pipeline import TestPipeline
 from apache_beam.testing.util import assert_that
