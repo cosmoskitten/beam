@@ -154,6 +154,7 @@ public class FnApiDoFnRunner<InputT, OutputT>
           @Override
           public <T> void output(
               TupleTag<T> tag, T output, Instant timestamp, BoundedWindow window) {
+            @SuppressWarnings("unchecked")
             Collection<FnDataReceiver<WindowedValue<T>>> consumers =
                 (Collection) context.localNameToConsumer.get(tag.getId());
             if (consumers == null) {
@@ -185,6 +186,7 @@ public class FnApiDoFnRunner<InputT, OutputT>
   public void processElement(WindowedValue<InputT> elem) {
     currentElement = elem;
     try {
+      @SuppressWarnings("unchecked")
       Iterator<BoundedWindow> windowIterator =
           (Iterator<BoundedWindow>) elem.getWindows().iterator();
       while (windowIterator.hasNext()) {
@@ -203,6 +205,7 @@ public class FnApiDoFnRunner<InputT, OutputT>
     currentTimer = timer;
     currentTimeDomain = timeDomain;
     try {
+      @SuppressWarnings("unchecked")
       Iterator<BoundedWindow> windowIterator =
           (Iterator<BoundedWindow>) timer.getWindows().iterator();
       while (windowIterator.hasNext()) {

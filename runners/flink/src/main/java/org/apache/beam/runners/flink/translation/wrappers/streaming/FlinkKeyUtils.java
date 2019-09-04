@@ -44,7 +44,7 @@ public class FlinkKeyUtils {
     checkNotNull(keyCoder, "Provided coder must not be null");
     final byte[] keyBytes;
     try {
-      keyBytes = CoderUtils.encodeToByteArray(keyCoder, key);
+      keyBytes = CoderUtils.encodeToByteArray(keyCoder, key, Coder.Context.NESTED);
     } catch (Exception e) {
       throw new RuntimeException(String.format(Locale.ENGLISH, "Failed to encode key: %s", key), e);
     }
@@ -59,7 +59,7 @@ public class FlinkKeyUtils {
     @SuppressWarnings("ByteBufferBackingArray")
     final byte[] keyBytes = byteBuffer.array();
     try {
-      return CoderUtils.decodeFromByteArray(keyCoder, keyBytes);
+      return CoderUtils.decodeFromByteArray(keyCoder, keyBytes, Coder.Context.NESTED);
     } catch (Exception e) {
       throw new RuntimeException(
           String.format(
