@@ -42,6 +42,7 @@ from apache_beam.transforms import sideinputs
 from apache_beam.utils import counters
 
 if typing.TYPE_CHECKING:
+  from apache_beam.runners.direct.bundle_factory import _Bundle
   from apache_beam.runners.direct.evaluation_context import EvaluationContext
 
 T = TypeVar('T')
@@ -280,9 +281,15 @@ class TransformExecutor(_ExecutorService.CallableTask):
 
   _MAX_RETRY_PER_BUNDLE = 4
 
-  def __init__(self, transform_evaluator_registry, evaluation_context,
-               input_bundle, fired_timers, applied_ptransform,
-               completion_callback, transform_evaluation_state):
+  def __init__(self,
+               transform_evaluator_registry,
+               evaluation_context,
+               input_bundle,  # type: _Bundle
+               fired_timers,
+               applied_ptransform,
+               completion_callback,
+               transform_evaluation_state
+              ):
     self._transform_evaluator_registry = transform_evaluator_registry
     self._evaluation_context = evaluation_context
     self._input_bundle = input_bundle
@@ -464,6 +471,7 @@ class _ExecutorServiceParallelExecutor(object):
     self.executor_service.shutdown()
 
   def schedule_consumers(self, committed_bundle):
+    # type: (_Bundle) -> None
     if committed_bundle.pcollection in self.value_to_consumers:
       consumers = self.value_to_consumers[committed_bundle.pcollection]
       for applied_ptransform in consumers:
@@ -474,8 +482,11 @@ class _ExecutorServiceParallelExecutor(object):
                                   unprocessed_bundle):
     self.node_to_pending_bundles[applied_ptransform].append(unprocessed_bundle)
 
-  def schedule_consumption(self, consumer_applied_ptransform, committed_bundle,
-                           fired_timers, on_complete):
+  def schedule_consumption(self,
+                           consumer_applied_ptransform,
+                           committed_bundle,  # type: _Bundle
+                           fired_timers, on_complete
+                          ):
     """Schedules evaluation of the given bundle with the transform."""
     assert consumer_applied_ptransform
     assert committed_bundle

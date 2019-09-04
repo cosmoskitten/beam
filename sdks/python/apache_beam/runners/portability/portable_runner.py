@@ -48,6 +48,7 @@ from apache_beam.runners.worker import sdk_worker_main
 from apache_beam.runners.worker import worker_pool_main
 
 if typing.TYPE_CHECKING:
+  from apache_beam.options.pipeline_options import PipelineOptions
   from apache_beam.pipeline import Pipeline
 
 __all__ = ['PortableRunner']
@@ -110,7 +111,7 @@ class PortableRunner(runner.PipelineRunner):
 
   @staticmethod
   def _create_environment(options):
-    # type: (...) -> beam_runner_api_pb2.Environment
+    # type: (PipelineOptions) -> beam_runner_api_pb2.Environment
     portable_options = options.view_as(PortableOptions)
     environment_urn = common_urns.environments.DOCKER.urn
     if portable_options.environment_type == 'DOCKER':
@@ -178,7 +179,7 @@ class PortableRunner(runner.PipelineRunner):
     return server.start()
 
   def run_pipeline(self, pipeline, options):
-    # type: (Pipeline, Any) -> PipelineResult
+    # type: (Pipeline, PipelineOptions) -> PipelineResult
     portable_options = options.view_as(PortableOptions)
 
     # TODO: https://issues.apache.org/jira/browse/BEAM-5525

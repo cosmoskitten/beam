@@ -66,14 +66,16 @@ class Environment(object):
   Provides consistency with how the other componentes are accessed.
   """
   def __init__(self, proto):
+    # type: (beam_runner_api_pb2.Environment) -> None
     self._proto = proto
 
   def to_runner_api(self, context):
-    # type: (PipelineContext) -> Any
+    # type: (PipelineContext) -> beam_runner_api_pb2.Environment
     return self._proto
 
   @staticmethod
   def from_runner_api(proto, context):
+    # type: (beam_runner_api_pb2.Environment) -> Environment
     return Environment(proto)
 
 

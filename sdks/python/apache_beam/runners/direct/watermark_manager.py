@@ -23,6 +23,9 @@ import threading
 import typing
 from builtins import object
 from typing import Dict
+from typing import Iterable
+from typing import List
+from typing import Set
 
 from apache_beam import pipeline
 from apache_beam import pvalue
@@ -33,6 +36,8 @@ from apache_beam.utils.timestamp import TIME_GRANULARITY
 
 if typing.TYPE_CHECKING:
   from apache_beam.pipeline import AppliedPTransform
+  from apache_beam.runners.direct.bundle_factory import _Bundle
+  from apache_beam.utils.timestamp import Timestamp
 
 
 class WatermarkManager(object):
@@ -66,6 +71,7 @@ class WatermarkManager(object):
         self._update_input_transform_watermarks(consumer)
 
   def _update_input_transform_watermarks(self, applied_ptransform):
+    # type: (AppliedPTransform) -> None
     assert isinstance(applied_ptransform, pipeline.AppliedPTransform)
     input_transform_watermarks = []
     for input_pvalue in applied_ptransform.inputs:
@@ -99,9 +105,15 @@ class WatermarkManager(object):
 
     return self._transform_to_watermarks[applied_ptransform]
 
-  def update_watermarks(self, completed_committed_bundle, applied_ptransform,
-                        completed_timers, outputs, unprocessed_bundles,
-                        keyed_earliest_holds, side_inputs_container):
+  def update_watermarks(self,
+                        completed_committed_bundle,  # type: _Bundle
+                        applied_ptransform,  # type: AppliedPTransform
+                        completed_timers,
+                        outputs,
+                        unprocessed_bundles,
+                        keyed_earliest_holds,
+                        side_inputs_container
+                      ):
     assert isinstance(applied_ptransform, pipeline.AppliedPTransform)
     self._update_pending(
         completed_committed_bundle, applied_ptransform, completed_timers,
@@ -110,9 +122,13 @@ class WatermarkManager(object):
     tw.hold(keyed_earliest_holds)
     return self._refresh_watermarks(applied_ptransform, side_inputs_container)
 
-  def _update_pending(self, input_committed_bundle, applied_ptransform,
-                      completed_timers, output_committed_bundles,
-                      unprocessed_bundles):
+  def _update_pending(self,
+                      input_committed_bundle,
+                      applied_ptransform,  # type: AppliedPTransform
+                      completed_timers,
+                      output_committed_bundles,  # type: Iterable[_Bundle]
+                      unprocessed_bundles  # type: Iterable[_Bundle]
+                    ):
     """Updated list of pending bundles for the given AppliedPTransform."""
 
     # Update pending elements. Filter out empty bundles. They do not impact
@@ -181,17 +197,19 @@ class _TransformWatermarks(object):
   def __init__(self, clock, keyed_states, transform):
     self._clock = clock
     self._keyed_states = keyed_states
-    self._input_transform_watermarks = []
+    self._input_transform_watermarks = []  # type: List[_TransformWatermarks]
     self._input_watermark = WatermarkManager.WATERMARK_NEG_INF
     self._output_watermark = WatermarkManager.WATERMARK_NEG_INF
     self._keyed_earliest_holds = {}
-    self._pending = set()  # Scheduled bundles targeted for this transform.
+    # Scheduled bundles targeted for this transform.
+    self._pending = set()  # type: Set[_Bundle]
     self._fired_timers = set()
     self._lock = threading.Lock()
 
     self._label = str(transform)
 
   def update_input_transform_watermarks(self, input_transform_watermarks):
+    # type: (List[_TransformWatermarks]) -> None
     with self._lock:
       self._input_transform_watermarks = input_transform_watermarks
 
@@ -202,11 +220,13 @@ class _TransformWatermarks(object):
 
   @property
   def input_watermark(self):
+    # type: () -> Timestamp
     with self._lock:
       return self._input_watermark
 
   @property
   def output_watermark(self):
+    # type: () -> Timestamp
     with self._lock:
       return self._output_watermark
 
@@ -219,10 +239,12 @@ class _TransformWatermarks(object):
           del self._keyed_earliest_holds[key]
 
   def add_pending(self, pending):
+    # type: (_Bundle) -> None
     with self._lock:
       self._pending.add(pending)
 
   def remove_pending(self, completed):
+    # type: (_Bundle) -> None
     with self._lock:
       # Ignore repeated removes. This will happen if a transform has a repeated
       # input.
@@ -230,6 +252,7 @@ class _TransformWatermarks(object):
         self._pending.remove(completed)
 
   def refresh(self):
+    # type: () -> bool
     """Refresh the watermark for a given transform.
 
     This method looks at the watermark coming from all input PTransforms, and

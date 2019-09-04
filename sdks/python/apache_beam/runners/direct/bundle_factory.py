@@ -121,6 +121,7 @@ class _Bundle(common.Receiver):
     self._tag = None  # optional tag information for this bundle
 
   def get_elements_iterable(self, make_copy=False):
+    # type: (bool) -> Iterable[WindowedValues]
     """Returns iterable elements.
 
     Args:

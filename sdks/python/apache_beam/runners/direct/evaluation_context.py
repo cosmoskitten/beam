@@ -376,12 +376,12 @@ class EvaluationContext(object):
         self._transform_keyed_states[applied_ptransform])
 
   def create_bundle(self, output_pcollection):
-    # type: (pvalue.PCollection) -> _Bundle
+    # type: (PCollection) -> _Bundle
     """Create an uncommitted bundle for the specified PCollection."""
     return self._bundle_factory.create_bundle(output_pcollection)
 
   def create_empty_committed_bundle(self, output_pcollection):
-    # type: (pvalue.PCollection) -> _Bundle
+    # type: (PCollection) -> _Bundle
     """Create empty bundle useful for triggering evaluation."""
     return self._bundle_factory.create_empty_committed_bundle(
         output_pcollection)
