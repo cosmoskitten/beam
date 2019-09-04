@@ -189,7 +189,7 @@ def _get_worker_count(pipeline_options):
   future releases.
 
   Returns:
-    an int containing the worker_threads to use. Default is 12
+    an int containing the worker_threads to use. Default is 10000.
   """
   experiments = pipeline_options.view_as(DebugOptions).experiments
 
@@ -201,8 +201,7 @@ def _get_worker_count(pipeline_options):
       return int(
           re.match(r'worker_threads=(?P<worker_threads>.*)',
                    experiment).group('worker_threads'))
-
-  return 12
+  return 10000
 
 
 def _load_main_session(semi_persistent_directory):
