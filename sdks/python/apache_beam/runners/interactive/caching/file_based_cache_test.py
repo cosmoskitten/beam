@@ -32,7 +32,7 @@ from apache_beam import coders
 from apache_beam.io.filesystems import FileSystems
 from apache_beam.pipeline import Pipeline
 from apache_beam.pvalue import PCollection
-from apache_beam.runners.interactive.caching import filebasedcache
+from apache_beam.runners.interactive.caching import file_based_cache
 from apache_beam.testing import datatype_inference
 
 GENERIC_TEST_DATA = [
@@ -85,7 +85,7 @@ class FileBasedCacheTest(unittest.TestCase):
 
   def cache_class(self, location, *args, **kwargs):
 
-    class MockedFileBasedCache(filebasedcache.FileBasedCache):
+    class MockedFileBasedCache(file_based_cache.FileBasedCache):
 
       _reader_class = mock.MagicMock()
       _writer_class = mock.MagicMock()
@@ -265,7 +265,7 @@ class FileBasedCacheTest(unittest.TestCase):
 
   def test_default_coder(self):
     cache = self.cache_class(
-        self.location, coder=filebasedcache.SafeFastPrimitivesCoder)
+        self.location, coder=file_based_cache.SafeFastPrimitivesCoder)
     cache._reader_passthrough_arguments = {"coder"}
     for element_type in GENERIC_ELEMENT_TYPES:
       cache.truncate()
@@ -273,7 +273,7 @@ class FileBasedCacheTest(unittest.TestCase):
       cache.writer().expand(PCollection(Pipeline(), element_type=None))
       _, kwargs_out = list(cache._writer_class.call_args)
       self.assertEqual(
-          kwargs_out.get("coder"), filebasedcache.SafeFastPrimitivesCoder)
+          kwargs_out.get("coder"), file_based_cache.SafeFastPrimitivesCoder)
 
   def test_inferred_coder(self):
     cache = self.cache_class(self.location)
@@ -343,24 +343,24 @@ class FileBasedCacheTest(unittest.TestCase):
   def test_truncate(self):
     cache = self.cache_class(self.location)
     self.assertEqual(
-        len(list(filebasedcache.glob_files(cache.file_pattern))), 1)
+        len(list(file_based_cache.glob_files(cache.file_pattern))), 1)
     _ = self.create_dummy_file(self.location)
     self.assertEqual(
-        len(list(filebasedcache.glob_files(cache.file_pattern))), 2)
+        len(list(file_based_cache.glob_files(cache.file_pattern))), 2)
     cache.truncate()
     self.assertEqual(
-        len(list(filebasedcache.glob_files(cache.file_pattern))), 1)
+        len(list(file_based_cache.glob_files(cache.file_pattern))), 1)
 
   def test_clear_data(self):
     cache = self.cache_class(self.location)
     self.assertEqual(
-        len(list(filebasedcache.glob_files(cache.file_pattern))), 1)
+        len(list(file_based_cache.glob_files(cache.file_pattern))), 1)
     _ = self.create_dummy_file(self.location)
     self.assertEqual(
-        len(list(filebasedcache.glob_files(cache.file_pattern))), 2)
+        len(list(file_based_cache.glob_files(cache.file_pattern))), 2)
     cache.remove()
     self.assertEqual(
-        len(list(filebasedcache.glob_files(cache.file_pattern))), 0)
+        len(list(file_based_cache.glob_files(cache.file_pattern))), 0)
 
 
 class DummyPColl(object):

@@ -28,30 +28,29 @@ import numpy as np
 from parameterized import parameterized
 
 from apache_beam.io.filesystems import FileSystems
-from apache_beam.runners.interactive.caching import filebasedcache
-from apache_beam.runners.interactive.caching import filebasedcache_test
+from apache_beam.runners.interactive.caching import file_based_cache
+from apache_beam.runners.interactive.caching import file_based_cache_test
 from apache_beam.testing import datatype_inference
 from apache_beam.testing.extra_assertions import ExtraAssertionsMixin
 from apache_beam.testing.test_pipeline import TestPipeline
 from apache_beam.testing.util import assert_that
 
 
-def validate_directly(cache, expected):
-  test = TestCase("__init__")
-  actual = list(cache.read())
-  test.assertUnhashableCountEqual(actual, expected)
+class Validators(ExtraAssertionsMixin):
 
+  def validate_directly(self, cache, expected):
+    actual = list(cache.read())
+    self.assertUnhashableCountEqual(actual, expected)
 
-def validate_through_pipeline(cache, expected):
+  def validate_through_pipeline(self, cache, expected):
 
-  def equal_to_expected(actual):
-    test = TestCase("__init__")
-    test.assertUnhashableCountEqual(actual, expected)
+    def equal_to_expected(actual):
+      self.assertUnhashableCountEqual(actual, expected)
 
-  p = TestPipeline()
-  pcoll = p | "Read" >> cache.reader()
-  assert_that(pcoll, equal_to_expected)
-  p.run()
+    p = TestPipeline()
+    pcoll = p | "Read" >> cache.reader()
+    assert_that(pcoll, equal_to_expected)
+    p.run()
 
 
 DATAFRAME_TEST_DATA = [
@@ -119,23 +118,23 @@ class FileSerializationTestBase(SerializationTestBase):
 
   @parameterized.expand([("pickle", pickle), ("dill", dill)])
   def test_serde_empty(self, _, serializer):
-    self.check_serde_empty(filebasedcache_test.write_directly,
-                           filebasedcache_test.read_directly, serializer)
+    self.check_serde_empty(file_based_cache_test.write_directly,
+                           file_based_cache_test.read_directly, serializer)
 
   @parameterized.expand([("pickle", pickle), ("dill", dill)])
   def test_serde_filled(self, _, serializer):
-    self.check_serde_filled(filebasedcache_test.write_directly,
-                            filebasedcache_test.read_directly, serializer)
+    self.check_serde_filled(file_based_cache_test.write_directly,
+                            file_based_cache_test.read_directly, serializer)
 
 
 class TextBasedCacheSerializationTest(FileSerializationTestBase, TestCase):
 
-  cache_class = filebasedcache.TextBasedCache
+  cache_class = file_based_cache.TextBasedCache
 
 
 class TFRecordBasedCacheSerializationTest(FileSerializationTestBase, TestCase):
 
-  cache_class = filebasedcache.TFRecordBasedCache
+  cache_class = file_based_cache.TFRecordBasedCache
 
 
 # #############################################################################
@@ -188,9 +187,11 @@ class FileRoundtripTestBase(RoundtripTestBase):
       ("{}-{}".format(write_fn.__name__,
                       validate_fn.__name__), write_fn, validate_fn)
       for write_fn in [
-          filebasedcache_test.write_directly,
-          filebasedcache_test.write_through_pipeline
-      ] for validate_fn in [validate_directly, validate_through_pipeline]
+          file_based_cache_test.write_directly,
+          file_based_cache_test.write_through_pipeline
+      ] for validate_fn in
+      [Validators().validate_directly,
+       Validators().validate_through_pipeline]
   ])
   def test_roundtrip(self, _, write_fn, validate_fn):
     return self.check_roundtrip(write_fn, validate_fn, dataset=self.dataset)
@@ -198,14 +199,14 @@ class FileRoundtripTestBase(RoundtripTestBase):
 
 class TextBasedCacheRoundtripTest(FileRoundtripTestBase, TestCase):
 
-  cache_class = filebasedcache.TextBasedCache
-  dataset = filebasedcache_test.GENERIC_TEST_DATA
+  cache_class = file_based_cache.TextBasedCache
+  dataset = file_based_cache_test.GENERIC_TEST_DATA
 
 
 class TFRecordBasedCacheRoundtripTest(FileRoundtripTestBase, TestCase):
 
-  cache_class = filebasedcache.TFRecordBasedCache
-  dataset = filebasedcache_test.GENERIC_TEST_DATA
+  cache_class = file_based_cache.TFRecordBasedCache
+  dataset = file_based_cache_test.GENERIC_TEST_DATA
 
 
 if __name__ == '__main__':
