@@ -180,6 +180,7 @@ project.ext.validatesCrossLanguageRunner = createCrossLanguageValidatesRunnerTas
 
 task testPipelineJar() {
   dependsOn shadowJar
+  dependsOn ":sdks:python:container:docker"
   doLast{
     exec {
       executable "sh"

@@ -52,13 +52,10 @@ cd $(git rev-parse --show-toplevel)
 command -v docker
 docker -v
 
-# Build the container
-TAG=$(date +%Y%m%d-%H%M%S)
-REPOSITORY=$USER-docker-apache.bintray.io/beam
-./gradlew :sdks:python:container:docker -Pdocker-repository-root=$REPOSITORY -Pdocker-tag=$TAG
-
-# Verify it exists
-docker images | grep $TAG
+CONTAINER=$USER-docker-apache.bintray.io/beam/python
+TAG=latest
+# Verify container has been built
+docker images $CONTAINER:$TAG | grep $TAG
 
 # Set up Python environment
 virtualenv $ENV_DIR
@@ -100,7 +97,7 @@ OUTPUT_JAR=flink-test-$(date +%Y%m%d-%H%M%S).jar
   --parallelism 1 \
   --sdk_worker_parallelism 1 \
   --environment_type DOCKER \
-  --environment_config=$REPOSITORY/python:$TAG \
+  --environment_config=$CONTAINER:$TAG \
 ) || TEST_EXIT_CODE=$? # don't fail fast here; clean up before exiting
 
 if [[ "$TEST_EXIT_CODE" -eq 0 ]]; then
