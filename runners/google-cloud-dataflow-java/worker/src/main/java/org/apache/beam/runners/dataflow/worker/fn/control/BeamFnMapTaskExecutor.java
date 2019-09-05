@@ -362,14 +362,24 @@ public class BeamFnMapTaskExecutor extends DataflowMapTaskExecutor {
         latestProgress.set(progressInterpolator.interpolateAndPurge(elementsConsumed));
         progressErrors = 0;
       } catch (Exception exn) {
-        if (!isTransientProgressError(exn.getMessage())) {
+        // JRH schedules progress report every 5 sec. So wait for 5 mins to show the log.
+        if (!isTransientProgressError(exn.getMessage()) && progressErrors == 60) {
           grpcWriteOperationElementsProcessed.accept(-1); // Not supported.
           progressErrors++;
-          LOG.debug(
-              String.format(
-                  "Progress updating failed %s times. Following exception safely handled.",
-                  progressErrors),
-              exn);
+          String bundleId = bundleProcessOperation.getCurrentProcessBundleInstructionId();
+          if (bundleId == null) {
+            LOG.info(
+                String.format(
+                    "Runner failed to get progress from SDK because current bundle has been "
+                        + "finished or not start in SDK yet"));
+          } else {
+            LOG.warn(
+                String.format(
+                    "Runner has failed to get progress from SDK for %s times for bundle %s. "
+                        + "Possibly caused by SDK doesn't support progress report.",
+                    progressErrors, bundleId),
+                exn);
+          }
         }
 
         try {

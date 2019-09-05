@@ -239,6 +239,10 @@ public class RegisterAndProcessBundleOperation extends Operation {
     return processBundleId;
   }
 
+  public String getCurrentProcessBundleInstructionId() {
+    return this.processBundleId;
+  }
+
   @Override
   public void start() throws Exception {
     try (Closeable scope = context.enterStart()) {
