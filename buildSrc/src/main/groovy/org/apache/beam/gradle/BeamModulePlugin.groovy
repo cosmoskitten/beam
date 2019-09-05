@@ -1492,7 +1492,7 @@ class BeamModulePlugin implements Plugin<Project> {
         if (project.rootProject.hasProperty(["docker-repository-root"])) {
           configuration.root = project.rootProject["docker-repository-root"]
         } else {
-          configuration.root = "${System.properties["user.name"]}-docker-apache.bintray.io/beam"
+          configuration.root = "apachebeam"
         }
       }
       if (configuration.tag == null) {
