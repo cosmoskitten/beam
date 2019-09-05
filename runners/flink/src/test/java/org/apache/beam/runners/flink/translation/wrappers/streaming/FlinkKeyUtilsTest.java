@@ -17,15 +17,18 @@
  */
 package org.apache.beam.runners.flink.translation.wrappers.streaming;
 
+import static org.hamcrest.CoreMatchers.not;
 import static org.hamcrest.CoreMatchers.nullValue;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.core.Is.is;
 
-import com.google.protobuf.ByteString;
 import java.nio.ByteBuffer;
+import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.coders.VoidCoder;
-import org.apache.beam.sdk.extensions.protobuf.ByteStringCoder;
+import org.apache.beam.sdk.util.CoderUtils;
+import org.apache.beam.vendor.grpc.v1p21p0.com.google.protobuf.ByteString;
+import org.apache.beam.vendor.sdk.v2.sdk.extensions.protobuf.ByteStringCoder;
 import org.junit.Test;
 
 /** Tests for {@link FlinkKeyUtils}. */
@@ -59,5 +62,18 @@ public class FlinkKeyUtilsTest {
     ByteBuffer encoded = FlinkKeyUtils.encodeKey(key, coder);
     // Ensure outer context is used where no length encoding is used.
     assertThat(encoded.array(), is(bytes));
+  }
+
+  @Test
+  public void testRemoveNestedContext() throws Exception {
+    final String key = "hello world!";
+    final Coder<String> coder = StringUtf8Coder.of();
+    ByteBuffer flinkInternalKey = FlinkKeyUtils.encodeKey(key, coder);
+    byte[] nestedEncoding = CoderUtils.encodeToByteArray(coder, key, Coder.Context.NESTED);
+    // Nested context may not always be present, i.e. if the original encoding was not nested.
+    assertThat(ByteBuffer.wrap(nestedEncoding), is(not(flinkInternalKey)));
+    assertThat(
+        FlinkKeyUtils.removeNestedContext(ByteString.copyFrom(nestedEncoding), coder),
+        is(flinkInternalKey));
   }
 }
