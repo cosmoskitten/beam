@@ -1502,7 +1502,7 @@ class BeamModulePlugin implements Plugin<Project> {
           configuration.tag = 'latest'
         }
       }
-      return "${configuration.root}/${configuration.name}_sdk:${configuration.tag}"
+      return "${configuration.root}/${configuration.name}:${configuration.tag}"
     }
 
     /** ***********************************************************************************************/
