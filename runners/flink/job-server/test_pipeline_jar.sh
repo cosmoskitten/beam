@@ -38,6 +38,11 @@ case $key in
         shift # past argument
         shift # past value
         ;;
+    --project)
+        PROJECT="$2"
+        shift # past argument
+        shift # past value
+        ;;
     *)    # unknown option
         echo "Unknown option: $1"
         exit 1
@@ -48,14 +53,40 @@ done
 # Go to the root of the repository
 cd $(git rev-parse --show-toplevel)
 
-# Verify docker commands exist
+# Verify docker and gcloud commands exist
 command -v docker
+command -v gcloud
 docker -v
+gcloud -v
 
-./gradlew :sdks:python:container:docker
+# ensure gcloud is version 186 or above
+TMPDIR=$(mktemp -d)
+gcloud_ver=$(gcloud -v | head -1 | awk '{print $4}')
+if [[ "$gcloud_ver" < "186" ]]
+then
+  pushd $TMPDIR
+  curl https://dl.google.com/dl/cloudsdk/channels/rapid/downloads/google-cloud-sdk-186.0.0-linux-x86_64.tar.gz --output gcloud.tar.gz
+  tar xf gcloud.tar.gz
+  ./google-cloud-sdk/install.sh --quiet
+  . ./google-cloud-sdk/path.bash.inc
+  popd
+  gcloud components update --quiet || echo 'gcloud components update failed'
+  gcloud -v
+fi
 
-OUTPUT_JAR=flink-test-$(date +%Y%m%d-%H%M%S).jar
+# Build the container
+TAG=$(date +%Y%m%d-%H%M%S)
+CONTAINER=us.gcr.io/$PROJECT/$USER/python
+echo "Using container $CONTAINER"
+./gradlew :sdks:python:container:docker -Pdocker-repository-root=us.gcr.io/$PROJECT/$USER -Pdocker-tag=$TAG
 
+# Verify it exists
+docker images | grep $TAG
+
+# Push the container
+gcloud docker -- push $CONTAINER
+
+# Set up Python environment
 virtualenv $ENV_DIR
 . $ENV_DIR/bin/activate
 pip install --retries 10 -e $PYTHON_ROOT_DIR
@@ -86,16 +117,20 @@ result = pipeline.run()
 result.wait_until_finish()
 "
 
+# Create the jar
+OUTPUT_JAR=flink-test-$(date +%Y%m%d-%H%M%S).jar
 (python -c "$PIPELINE_PY" \
   --runner FlinkRunner \
   --flink_job_server_jar $FLINK_JOB_SERVER_JAR \
   --output_executable_path $OUTPUT_JAR \
-  --environment_type DOCKER \
   --parallelism 1 \
   --sdk_worker_parallelism 1 \
+  --environment_type DOCKER \
+  --environment_config=$CONTAINER:$TAG \
 ) || TEST_EXIT_CODE=$? # don't fail fast here; clean up before exiting
 
 if [[ "$TEST_EXIT_CODE" -eq 0 ]]; then
+  # Execute the jar
   java -jar $OUTPUT_JAR || TEST_EXIT_CODE=$?
 fi
 
