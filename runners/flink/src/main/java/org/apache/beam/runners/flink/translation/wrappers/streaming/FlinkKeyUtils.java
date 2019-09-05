@@ -30,8 +30,10 @@ import java.util.List;
 import java.util.Locale;
 import org.apache.beam.sdk.coders.ByteArrayCoder;
 import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.coders.StructuredCoder;
 import org.apache.beam.sdk.util.CoderUtils;
+import org.apache.beam.vendor.grpc.v1p21p0.com.google.protobuf.ByteString;
 
 /**
  * Utility functions for dealing with key encoding. Beam requires keys to be compared in binary
@@ -44,7 +46,7 @@ public class FlinkKeyUtils {
     checkNotNull(keyCoder, "Provided coder must not be null");
     final byte[] keyBytes;
     try {
-      keyBytes = CoderUtils.encodeToByteArray(keyCoder, key);
+      keyBytes = CoderUtils.encodeToByteArray(keyCoder, key, Coder.Context.OUTER);
     } catch (Exception e) {
       throw new RuntimeException(String.format(Locale.ENGLISH, "Failed to encode key: %s", key), e);
     }
@@ -59,13 +61,32 @@ public class FlinkKeyUtils {
     @SuppressWarnings("ByteBufferBackingArray")
     final byte[] keyBytes = byteBuffer.array();
     try {
-      return CoderUtils.decodeFromByteArray(keyCoder, keyBytes);
+      return CoderUtils.decodeFromByteArray(keyCoder, keyBytes, Coder.Context.OUTER);
     } catch (Exception e) {
       throw new RuntimeException(
           String.format(
               Locale.ENGLISH, "Failed to decode encoded key: %s", Arrays.toString(keyBytes)),
           e);
     }
+  }
+
+  /**
+   * Converts a length-prefixed encoded key (a.k.a nested encoding) to a raw key without length
+   * prefix (a.k.a. OUTER context).
+   */
+  static ByteBuffer removeNestedContext(ByteString serializedKey, Coder keyCoder) {
+    final Object key;
+    try {
+      key =
+          CoderUtils.decodeFromByteArray(
+              keyCoder, serializedKey.toByteArray(), Coder.Context.NESTED);
+    } catch (CoderException e) {
+      throw new RuntimeException(
+          String.format(
+              "Failed to remove nested context from key: %s", serializedKey.toStringUtf8()),
+          e);
+    }
+    return encodeKey(key, keyCoder);
   }
 
   /** The Coder for the Runner's encoded representation of a key. */
