@@ -51,6 +51,9 @@ class TypeInferenceError(ValueError):
 
 def instance_to_type(o):
   """Given a Python object o, return the corresponding type hint.
+
+  Returns:
+    A type from the Beam typehints module.
   """
   t = type(o)
   if o is None:
