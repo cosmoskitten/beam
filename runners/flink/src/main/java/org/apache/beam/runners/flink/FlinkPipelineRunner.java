@@ -133,6 +133,10 @@ public class FlinkPipelineRunner implements PortablePipelineRunner {
     }
   }
 
+  /**
+   * Main method to be called only as the entry point to an executable jar with structure as defined
+   * in {@link PortablePipelineJarUtils}.
+   */
   public static void main(String[] args) throws Exception {
     // Register standard file systems.
     FileSystems.setDefaultPipelineOptions(PipelineOptionsFactory.create());
