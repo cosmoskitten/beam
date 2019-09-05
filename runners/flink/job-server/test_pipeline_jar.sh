@@ -19,9 +19,6 @@
 set -e
 set -v
 
-# Default GCP project for the SDK harness container
-PROJECT=apache-beam-testing
-
 while [[ $# -gt 0 ]]
 do
 key="$1"
@@ -41,11 +38,6 @@ case $key in
         shift # past argument
         shift # past value
         ;;
-    --project)
-        PROJECT="$2"
-        shift # past argument
-        shift # past value
-        ;;
     *)    # unknown option
         echo "Unknown option: $1"
         exit 1
@@ -58,36 +50,15 @@ cd $(git rev-parse --show-toplevel)
 
 # Verify docker and gcloud commands exist
 command -v docker
-command -v gcloud
 docker -v
-gcloud -v
-
-# ensure gcloud is version 186 or above
-TMPDIR=$(mktemp -d)
-gcloud_ver=$(gcloud -v | head -1 | awk '{print $4}')
-if [[ "$gcloud_ver" < "186" ]]
-then
-  pushd $TMPDIR
-  curl https://dl.google.com/dl/cloudsdk/channels/rapid/downloads/google-cloud-sdk-186.0.0-linux-x86_64.tar.gz --output gcloud.tar.gz
-  tar xf gcloud.tar.gz
-  ./google-cloud-sdk/install.sh --quiet
-  . ./google-cloud-sdk/path.bash.inc
-  popd
-  gcloud components update --quiet || echo 'gcloud components update failed'
-  gcloud -v
-fi
 
 # Build the container
 TAG=$(date +%Y%m%d-%H%M%S)
-CONTAINER=us.gcr.io/$PROJECT/$USER/python
-echo "Using container $CONTAINER"
-./gradlew :sdks:python:container:docker -Pdocker-repository-root=us.gcr.io/$PROJECT/$USER -Pdocker-tag=$TAG
+REPOSITORY=$USER-docker-apache.bintray.io/beam
+./gradlew :sdks:python:container:docker -Pdocker-repository-root=$REPOSITORY -Pdocker-tag=$TAG
 
 # Verify it exists
 docker images | grep $TAG
-
-# Push the container
-gcloud docker -- push $CONTAINER
 
 # Set up Python environment
 virtualenv $ENV_DIR
@@ -129,7 +100,7 @@ OUTPUT_JAR=flink-test-$(date +%Y%m%d-%H%M%S).jar
   --parallelism 1 \
   --sdk_worker_parallelism 1 \
   --environment_type DOCKER \
-  --environment_config=$CONTAINER:$TAG \
+  --environment_config=$REPOSITORY/python:$TAG \
 ) || TEST_EXIT_CODE=$? # don't fail fast here; clean up before exiting
 
 if [[ "$TEST_EXIT_CODE" -eq 0 ]]; then
