@@ -89,7 +89,6 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditio
 import org.apache.beam.vendor.sdk.v2.sdk.extensions.protobuf.ByteStringCoder;
 import org.apache.flink.api.common.state.ListStateDescriptor;
 import org.apache.flink.api.common.typeutils.base.StringSerializer;
-import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.runtime.state.KeyedStateBackend;
 import org.apache.flink.streaming.api.operators.InternalTimer;
@@ -187,12 +186,7 @@ public class ExecutableStageDoFnOperator<InputT, OutputT> extends DoFnOperator<I
     // It's a little strange because this operator is responsible for the lifetime of the stage
     // bundle "factory" (manager?) but not the job or Flink bundle factories. How do we make
     // ownership of the higher level "factories" explicit? Do we care?
-    stageContext =
-        contextFactory.get(
-            jobInfo,
-            // Clean up context immediately if its class is not loaded on Flink parent classloader.
-            (caller) ->
-                caller.getClass().getClassLoader() != ExecutionEnvironment.class.getClassLoader());
+    stageContext = contextFactory.get(jobInfo);
     flinkMetricContainer = new FlinkMetricContainer(getRuntimeContext());
 
     stageBundleFactory = stageContext.getStageBundleFactory(executableStage);

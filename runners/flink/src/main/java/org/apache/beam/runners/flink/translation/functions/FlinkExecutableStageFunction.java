@@ -56,7 +56,6 @@ import org.apache.flink.api.common.functions.AbstractRichFunction;
 import org.apache.flink.api.common.functions.GroupReduceFunction;
 import org.apache.flink.api.common.functions.MapPartitionFunction;
 import org.apache.flink.api.common.functions.RuntimeContext;
-import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.util.Collector;
 import org.apache.flink.util.Preconditions;
@@ -127,12 +126,7 @@ public class FlinkExecutableStageFunction<InputT> extends AbstractRichFunction
     runtimeContext = getRuntimeContext();
     container = new FlinkMetricContainer(getRuntimeContext());
     // TODO: Wire this into the distributed cache and make it pluggable.
-    stageContext =
-        contextFactory.get(
-            jobInfo,
-            // Clean up context immediately if its class is not loaded on Flink parent classloader.
-            (caller) ->
-                caller.getClass().getClassLoader() != ExecutionEnvironment.class.getClassLoader());
+    stageContext = contextFactory.get(jobInfo);
     stageBundleFactory = stageContext.getStageBundleFactory(executableStage);
     // NOTE: It's safe to reuse the state handler between partitions because each partition uses the
     // same backing runtime context and broadcast variables. We use checkState below to catch errors
