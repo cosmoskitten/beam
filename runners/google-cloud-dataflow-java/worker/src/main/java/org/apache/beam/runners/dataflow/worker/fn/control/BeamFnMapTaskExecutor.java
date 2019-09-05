@@ -365,20 +365,11 @@ public class BeamFnMapTaskExecutor extends DataflowMapTaskExecutor {
         if (!isTransientProgressError(exn.getMessage())) {
           grpcWriteOperationElementsProcessed.accept(-1); // Not supported.
           progressErrors++;
-          // Only log verbosely every power of two to avoid spamming the logs.
-          if (Integer.bitCount(progressErrors) == 1) {
-            LOG.warn(
-                String.format(
-                    "Progress updating failed %s times. Following exception safely handled.",
-                    progressErrors),
-                exn);
-          } else {
-            LOG.debug(
-                String.format(
-                    "Progress updating failed %s times. Following exception safely handled.",
-                    progressErrors),
-                exn);
-          }
+          LOG.debug(
+              String.format(
+                  "Progress updating failed %s times. Following exception safely handled.",
+                  progressErrors),
+              exn);
         }
 
         try {
