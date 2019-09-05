@@ -21,11 +21,12 @@ import static org.hamcrest.CoreMatchers.nullValue;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.core.Is.is;
 
-import com.google.protobuf.ByteString;
 import java.nio.ByteBuffer;
+import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.coders.VoidCoder;
-import org.apache.beam.sdk.extensions.protobuf.ByteStringCoder;
+import org.apache.beam.vendor.grpc.v1p21p0.com.google.protobuf.ByteString;
+import org.apache.beam.vendor.sdk.v2.sdk.extensions.protobuf.ByteStringCoder;
 import org.junit.Test;
 
 /** Tests for {@link FlinkKeyUtils}. */
@@ -59,5 +60,15 @@ public class FlinkKeyUtilsTest {
     ByteBuffer encoded = FlinkKeyUtils.encodeKey(key, coder);
     // Ensure outer context is used where no length encoding is used.
     assertThat(encoded.array(), is(bytes));
+  }
+
+  @Test
+  public void testRemoveNestedContext() {
+    byte[] bytes = {2, 23, 42};
+    ByteString key = ByteString.copyFrom(bytes);
+    Coder byteStringCoder = ByteStringCoder.of();
+    assertThat(
+        FlinkKeyUtils.removeNestedContext(key, byteStringCoder),
+        is(ByteBuffer.wrap(new byte[] {23, 42})));
   }
 }

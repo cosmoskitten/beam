@@ -343,11 +343,11 @@ public class ExecutableStageDoFnOperator<InputT, OutputT> extends DoFnOperator<I
         }
 
         private void prepareStateBackend(K key) {
-          // Key for state request is shipped already encoded as ByteString,
-          // this is mostly a wrapping with ByteBuffer. We still follow the
-          // usual key encoding procedure.
-          // final ByteBuffer encodedKey = FlinkKeyUtils.encodeKey(key, keyCoder);
-          final ByteBuffer encodedKey = ByteBuffer.wrap(key.toByteArray());
+          // Key for state request is shipped already encoded as ByteString, but it is
+          // encoded with NESTED context which may result in a length prefix. Flink keys
+          // are OUTER context which means they do not contain a length prefix.
+          ByteBuffer encodedKey =
+              FlinkKeyUtils.removeNestedContext(key, (Coder<ByteString>) keyCoder);
           keyedStateBackend.setCurrentKey(encodedKey);
         }
       };
