@@ -28,7 +28,8 @@ class UdfImpl {
   private UdfImpl() {}
 
   /**
-   * Creates {@link org.apache.calcite.schema.Function} from given class.
+   * Creates {@link org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.schema.Function} from
+   * given class.
    *
    * <p>If a method of the given name is not found or it does not suit, returns {@code null}.
    *
@@ -45,7 +46,8 @@ class UdfImpl {
   }
 
   /**
-   * Creates {@link org.apache.calcite.schema.Function} from given method.
+   * Creates {@link org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.schema.Function} from
+   * given method.
    *
    * @param method method that is used to implement the function
    * @return created {@link Function} or null

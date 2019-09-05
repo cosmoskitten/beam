@@ -72,8 +72,10 @@ public interface BeamRelNode extends RelNode {
    * SQLTransform Path (and not JDBC path). When a RelNode wants to calculate its BeamCost or
    * estimate its NodeStats, it may need NodeStat of its inputs. However, it should not call this
    * directly (because maybe its inputs are not physical yet). It should call {@link
-   * org.apache.beam.sdk.extensions.sql.impl.rel.BeamSqlRelUtils#getNodeStats(org.apache.calcite.rel.RelNode,
-   * org.apache.calcite.rel.metadata.RelMetadataQuery)} instead.
+   * org.apache.beam.sdk.extensions.sql.impl.rel.BeamSqlRelUtils#getNodeStats(
+   * org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.RelNode,
+   * org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.metadata.RelMetadataQuery)}
+   * instead.
    */
   NodeStats estimateNodeStats(RelMetadataQuery mq);
 

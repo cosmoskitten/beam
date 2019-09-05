@@ -27,8 +27,9 @@ import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.rules.JoinP
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.tools.RelBuilderFactory;
 
 /**
- * This is exactly similar to {@link org.apache.calcite.rel.rules.JoinPushThroughJoinRule}. It only
- * checks if the condition of the new bottom join is supported.
+ * This is exactly similar to {@link
+ * org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.rules.JoinPushThroughJoinRule}. It
+ * only checks if the condition of the new bottom join is supported.
  */
 public class BeamJoinPushThroughJoinRule extends JoinPushThroughJoinRule {
   /** Instance of the rule that works on logical joins only, and pushes to the right. */
