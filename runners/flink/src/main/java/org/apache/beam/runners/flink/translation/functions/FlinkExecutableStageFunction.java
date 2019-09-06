@@ -85,7 +85,7 @@ public class FlinkExecutableStageFunction<InputT> extends AbstractRichFunction
   private final JobInfo jobInfo;
   // Map from PCollection id to the union tag used to represent this PCollection in the output.
   private final Map<String, Integer> outputMap;
-  private final ExecutableStageContext.Factory contextFactory;
+  private final FlinkExecutableStageContextFactory contextFactory;
   private final Coder windowCoder;
   // Unique name for namespacing metrics; currently just takes the input ID
   private final String stageName;
@@ -107,7 +107,7 @@ public class FlinkExecutableStageFunction<InputT> extends AbstractRichFunction
       RunnerApi.ExecutableStagePayload stagePayload,
       JobInfo jobInfo,
       Map<String, Integer> outputMap,
-      ExecutableStageContext.Factory contextFactory,
+      FlinkExecutableStageContextFactory contextFactory,
       Coder windowCoder) {
     this.stagePayload = stagePayload;
     this.jobInfo = jobInfo;

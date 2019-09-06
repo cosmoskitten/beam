@@ -27,18 +27,18 @@ import org.apache.beam.sdk.options.PortablePipelineOptions;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.MoreObjects;
 
 /** Singleton class that contains one {@link JobFactoryState} per job. */
-public class SparkExecutableStageContext implements ExecutableStageContext.Factory {
+public class SparkExecutableStageContextFactory implements ExecutableStageContext.Factory {
 
-  private static final SparkExecutableStageContext factory = new SparkExecutableStageContext();
+  private static final SparkExecutableStageContextFactory factory = new SparkExecutableStageContextFactory();
   // This map should only ever have a single element, as each job will have its own
   // classloader and therefore its own instance of SparkExecutableStageContextFactory. This
   // code supports multiple JobInfos in order to provide a sensible implementation of
   // Factory.get(JobInfo), which in theory could be called with different JobInfos.
   private final ConcurrentMap<String, JobFactoryState> jobFactories = new ConcurrentHashMap<>();
 
-  private SparkExecutableStageContext() {}
+  private SparkExecutableStageContextFactory() {}
 
-  public static SparkExecutableStageContext factory() {
+  public static SparkExecutableStageContextFactory factory() {
     return factory;
   }
 

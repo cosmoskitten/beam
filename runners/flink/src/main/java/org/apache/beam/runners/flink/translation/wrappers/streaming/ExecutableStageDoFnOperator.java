@@ -56,6 +56,7 @@ import org.apache.beam.runners.core.construction.Timer;
 import org.apache.beam.runners.core.construction.graph.ExecutableStage;
 import org.apache.beam.runners.core.construction.graph.UserStateReference;
 import org.apache.beam.runners.flink.metrics.FlinkMetricContainer;
+import org.apache.beam.runners.flink.translation.functions.FlinkExecutableStageContextFactory;
 import org.apache.beam.runners.flink.translation.functions.FlinkStreamingSideInputHandlerFactory;
 import org.apache.beam.runners.flink.translation.types.CoderTypeSerializer;
 import org.apache.beam.runners.fnexecution.control.BundleProgressHandler;
@@ -112,7 +113,7 @@ public class ExecutableStageDoFnOperator<InputT, OutputT> extends DoFnOperator<I
 
   private final RunnerApi.ExecutableStagePayload payload;
   private final JobInfo jobInfo;
-  private final ExecutableStageContext.Factory contextFactory;
+  private final FlinkExecutableStageContextFactory contextFactory;
   private final Map<String, TupleTag<?>> outputMap;
   private final Map<RunnerApi.ExecutableStagePayload.SideInputId, PCollectionView<?>> sideInputIds;
   /** A lock which has to be acquired when concurrently accessing state and timers. */
@@ -142,7 +143,7 @@ public class ExecutableStageDoFnOperator<InputT, OutputT> extends DoFnOperator<I
       PipelineOptions options,
       RunnerApi.ExecutableStagePayload payload,
       JobInfo jobInfo,
-      ExecutableStageContext.Factory contextFactory,
+      FlinkExecutableStageContextFactory contextFactory,
       Map<String, TupleTag<?>> outputMap,
       WindowingStrategy windowingStrategy,
       Coder keyCoder,
