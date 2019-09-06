@@ -20,7 +20,8 @@
 # 1. Build and stage java artifacts
 # 2. Stage source release on dist.apache.org
 # 3. Stage python binaries
-# 4. Create a PR to update beam-site
+# 4. Stage SDK docker images
+# 5. Create a PR to update beam-site
 
 set -e
 
@@ -43,6 +44,8 @@ GIT_BEAM_WEBSITE=https://github.com/apache/beam-site.git
 PYTHON_ARTIFACTS_DIR=python
 BEAM_ROOT_DIR=beam
 WEBSITE_ROOT_DIR=beam-site
+
+PYTHON_VER=("python2.7" "python3.5" "python3.6" "python3.7")
 
 
 echo "================Setting Up Environment Variables==========="
@@ -196,6 +199,45 @@ if [[ $confirmation = "y" ]]; then
   fi
   svn commit --no-auth-cache
   rm -rf ~/${PYTHON_ARTIFACTS_DIR}
+fi
+
+echo "[Current Step]: Stage SDK docker images"
+echo "Do you want to proceed? [y|N]"
+read confirmation
+if [[ $confirmation = "y" ]]; then
+  echo "============Staging SDK docker images on docker hub========="
+  cd ~
+  if [[ -d ${LOCAL_PYTHON_STAGING_DIR} ]]; then
+    rm -rf ${LOCAL_PYTHON_STAGING_DIR}
+  fi
+  mkdir -p ${LOCAL_PYTHON_STAGING_DIR}
+  cd ${LOCAL_PYTHON_STAGING_DIR}
+
+  echo '-------------------Cloning Beam Release Branch-----------------'
+  git clone ${GIT_REPO_URL}
+  cd ${BEAM_ROOT_DIR}
+  git checkout ${RELEASE_BRANCH}
+
+  echo '-------------------Generating and Pushing Python images-----------------'
+  ./gradlew :sdks:python:container:buildAll -Pdocker-tag=${RELEASE}_rc
+  for ver in "${PYTHON_VER[@]}"; do
+     docker push apachebeam/${ver}_sdk:${RELEASE}_rc &
+  done
+
+  echo '-------------------Generating and Pushing Java images-----------------'
+  ./gradlew :sdks:java:container:dockerPush -Pdocker-tag=${RELEASE}_rc
+
+  echo '-------------------Generating and Pushing Go images-----------------'
+  ./gradlew :sdks:go:container:dockerPush -Pdocker-tag=${RELEASE}_rc
+
+  rm -rf ~/${PYTHON_ARTIFACTS_DIR}
+
+  echo '-------------------Clean up images at local-----------------'
+  for ver in "${PYTHON_VER[@]}"; do
+     docker rmi -f apachebeam/${ver}_sdk:${RELEASE}_rc
+  done
+  docker rmi -f apachebeam/java_sdk:${RELEASE}_rc
+  docker rmi -f apachebeam/go_sdk:${RELEASE}_rc
 fi
 
 echo "[Current Step]: Update beam-site"
