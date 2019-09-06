@@ -21,12 +21,12 @@ import static org.apache.beam.sdk.transforms.Contextful.fn;
 import static org.apache.beam.sdk.transforms.Requirements.requiresSideInputs;
 import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasDisplayItem;
 import static org.apache.beam.sdk.values.TypeDescriptors.integers;
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.hasItem;
 import static org.hamcrest.Matchers.hasKey;
 import static org.hamcrest.Matchers.hasSize;
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertThat;
 
 import java.io.Serializable;
 import java.util.Map;
@@ -538,8 +538,6 @@ public class MapElementsTest implements Serializable {
 
     PAssert.that(result.output()).containsInAnyOrder(1);
 
-    Map<String, String> expectedFailureInfo =
-        ImmutableMap.of("className", "java.lang.ArithmeticException");
     PAssert.thatSingleton(result.failures())
         .satisfies(
             kv -> {
