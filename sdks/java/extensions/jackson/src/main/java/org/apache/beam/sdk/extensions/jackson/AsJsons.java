@@ -69,6 +69,9 @@ public class AsJsons<InputT> extends PTransform<PCollection<InputT>, PCollection
    * processed through the given {@code exceptionHandler} and emitting the result to a failure
    * collection.
    *
+   * <p>See {@link WithFailures} documentation for usage patterns of the returned {@link
+   * WithFailures.Result}.
+   *
    * <p>Example usage:
    *
    * <pre>{@code
