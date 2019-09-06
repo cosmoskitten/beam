@@ -1073,7 +1073,7 @@ public class BigQueryIO {
         SerializableFunction<T, Row> toBeamRow = getToBeamRowFn().apply(beamSchema);
         SerializableFunction<Row, T> fromBeamRow = getFromBeamRowFn().apply(beamSchema);
 
-        rows.setSchema(beamSchema, toBeamRow, fromBeamRow);
+        rows.setSchema(beamSchema, rows.getTypeDescriptor(), toBeamRow, fromBeamRow);
       }
       return rows;
     }

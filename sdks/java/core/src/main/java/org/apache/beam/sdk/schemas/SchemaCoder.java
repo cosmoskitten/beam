@@ -28,20 +28,25 @@ import org.apache.beam.sdk.coders.RowCoder;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.SerializableFunctions;
 import org.apache.beam.sdk.values.Row;
+import org.apache.beam.sdk.values.TypeDescriptor;
+import org.apache.beam.sdk.values.TypeDescriptors;
 
 /** {@link SchemaCoder} is used as the coder for types that have schemas registered. */
 @Experimental(Kind.SCHEMAS)
 public class SchemaCoder<T> extends CustomCoder<T> {
   private final RowCoder rowCoder;
+  private final TypeDescriptor<T> typeDescriptor;
   private final SerializableFunction<T, Row> toRowFunction;
   private final SerializableFunction<Row, T> fromRowFunction;
 
   private SchemaCoder(
       Schema schema,
+      TypeDescriptor<T> typeDescriptor,
       SerializableFunction<T, Row> toRowFunction,
       SerializableFunction<Row, T> fromRowFunction) {
     this.toRowFunction = toRowFunction;
     this.fromRowFunction = fromRowFunction;
+    this.typeDescriptor = typeDescriptor;
     this.rowCoder = RowCoder.of(schema);
   }
 
@@ -51,15 +56,19 @@ public class SchemaCoder<T> extends CustomCoder<T> {
    */
   public static <T> SchemaCoder<T> of(
       Schema schema,
+      TypeDescriptor<T> typeDescriptor,
       SerializableFunction<T, Row> toRowFunction,
       SerializableFunction<Row, T> fromRowFunction) {
-    return new SchemaCoder<>(schema, toRowFunction, fromRowFunction);
+    return new SchemaCoder<>(schema, typeDescriptor, toRowFunction, fromRowFunction);
   }
 
   /** Returns a {@link SchemaCoder} for {@link Row} classes. */
   public static SchemaCoder<Row> of(Schema schema) {
     return new SchemaCoder<>(
-        schema, SerializableFunctions.identity(), SerializableFunctions.identity());
+        schema,
+        TypeDescriptors.rows(),
+        SerializableFunctions.identity(),
+        SerializableFunctions.identity());
   }
 
   /** Returns the schema associated with this type. */
@@ -120,5 +129,10 @@ public class SchemaCoder<T> extends CustomCoder<T> {
   @Override
   public int hashCode() {
     return Objects.hash(rowCoder, getEncodedTypeDescriptor());
+  }
+
+  @Override
+  public TypeDescriptor<T> getEncodedTypeDescriptor() {
+    return this.typeDescriptor;
   }
 }

@@ -895,7 +895,7 @@ public class PubsubIO {
               getNeedsMessageId());
       PCollection<T> read = input.apply(source).apply(MapElements.via(getParseFn()));
       return (getBeamSchema() != null)
-          ? read.setSchema(getBeamSchema(), getToRowFn(), getFromRowFn())
+          ? read.setSchema(getBeamSchema(), read.getTypeDescriptor(), getToRowFn(), getFromRowFn())
           : read.setCoder(getCoder());
     }
 
