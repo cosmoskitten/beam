@@ -66,6 +66,9 @@ public class ParseJsons<OutputT> extends PTransform<PCollection<String>, PCollec
    * parsing elements, passing the raised exception instance and the input element being processed
    * through the given {@code exceptionHandler} and emitting the result to a failure collection.
    *
+   * <p>See {@link WithFailures} documentation for usage patterns of the returned {@link
+   * WithFailures.Result}.
+   *
    * <p>Example usage:
    *
    * <pre>{@code
