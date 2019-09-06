@@ -59,6 +59,10 @@ except ImportError:
 # pylint: enable=wrong-import-order, wrong-import-position
 
 
+def get_payload(args):
+  return ExternalConfigurationPayload(configuration=args).SerializeToString()
+
+
 class PayloadBase(object):
   values = {
       'integer_example': 1,
@@ -104,7 +108,7 @@ class PayloadBase(object):
 
   def test_typing_payload_builder(self):
     result = self.get_typing_payload(self.values)
-    expected = ExternalConfigurationPayload(configuration=self.args)
+    expected = get_payload(self.args)
     self.assertEqual(result, expected)
 
   def test_typing_payload_builder_with_bytes(self):
@@ -112,12 +116,12 @@ class PayloadBase(object):
     string_utf8 coder will be used even if values are not unicode in python 2.x
     """
     result = self.get_typing_payload(self.bytes_values)
-    expected = ExternalConfigurationPayload(configuration=self.args)
+    expected = get_payload(self.args)
     self.assertEqual(result, expected)
 
   def test_typehints_payload_builder(self):
     result = self.get_typehints_payload(self.values)
-    expected = ExternalConfigurationPayload(configuration=self.args)
+    expected = get_payload(self.args)
     self.assertEqual(result, expected)
 
   def test_typehints_payload_builder_with_bytes(self):
@@ -125,7 +129,7 @@ class PayloadBase(object):
     string_utf8 coder will be used even if values are not unicode in python 2.x
     """
     result = self.get_typehints_payload(self.bytes_values)
-    expected = ExternalConfigurationPayload(configuration=self.args)
+    expected = get_payload(self.args)
     self.assertEqual(result, expected)
 
   def test_optional_error(self):
@@ -151,7 +155,7 @@ class ExternalTuplePayloadTest(PayloadBase, unittest.TestCase):
     )
 
     builder = NamedTupleBasedPayloadBuilder(TestSchema(**values))
-    return builder.build()
+    return builder.payload()
 
   def get_typehints_payload(self, values):
     raise unittest.SkipTest("Beam typehints cannot be used with "
@@ -165,14 +169,14 @@ class ExternalImplicitPayloadTest(unittest.TestCase):
   """
   def test_implicit_payload_builder(self):
     builder = ImplicitSchemaPayloadBuilder(PayloadBase.values)
-    result = builder.build()
-    expected = ExternalConfigurationPayload(configuration=PayloadBase.args)
+    result = builder.payload()
+    expected = get_payload(PayloadBase.args)
     self.assertEqual(result, expected)
 
   def test_implicit_payload_builder_with_bytes(self):
     values = PayloadBase.bytes_values
     builder = ImplicitSchemaPayloadBuilder(values)
-    result = builder.build()
+    result = builder.payload()
     if sys.version_info[0] < 3:
       # in python 2.x bytes coder will be inferred
       args = {
@@ -194,10 +198,10 @@ class ExternalImplicitPayloadTest(unittest.TestCase):
               payload=TupleCoder([StrUtf8Coder(), FloatCoder()])
                 .encode(values['optional_kv'])),
       }
-      expected = ExternalConfigurationPayload(configuration=args)
+      expected = get_payload(args)
       self.assertEqual(result, expected)
     else:
-      expected = ExternalConfigurationPayload(configuration=PayloadBase.args)
+      expected = get_payload(PayloadBase.args)
       self.assertEqual(result, expected)
 
 

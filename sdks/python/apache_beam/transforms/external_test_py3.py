@@ -33,7 +33,7 @@ class ExternalDataclassesPayloadTest(PayloadBase, unittest.TestCase):
       optional_integer: typing.Optional[int] = None
       expansion_service: dataclasses.InitVar[typing.Optional[str]] = None
 
-    return DataclassTransform(**values)._payload
+    return ExternalConfigurationPayloadDataclassTransform(**values)._payload
 
   def get_typehints_payload(self, values):
 
