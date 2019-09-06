@@ -17,13 +17,20 @@
  */
 package org.apache.beam.sdk.extensions.jackson;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.io.IOException;
+import java.util.Optional;
+import org.apache.beam.sdk.annotations.Experimental;
+import org.apache.beam.sdk.transforms.Contextful;
+import org.apache.beam.sdk.transforms.InferableFunction;
 import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.transforms.PTransform;
+import org.apache.beam.sdk.transforms.Requirements;
 import org.apache.beam.sdk.transforms.SimpleFunction;
+import org.apache.beam.sdk.transforms.WithFailures;
 import org.apache.beam.sdk.values.PCollection;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Optional;
+import org.apache.beam.sdk.values.TypeDescriptors;
 
 /**
  * {@link PTransform} for serializing objects to JSON {@link String Strings}. Transforms a {@code
@@ -56,6 +63,35 @@ public class AsJsons<InputT> extends PTransform<PCollection<InputT>, PCollection
     return newTransform;
   }
 
+  /**
+   * Returns a new {@link AsJsonsWithFailures} transform that catches exceptions raised while
+   * writing JSON elements, passing the raised exception instance and the input element being
+   * processed through the given {@code exceptionHandler} and emitting the result to a failure
+   * collection.
+   *
+   * <p>Example usage:
+   *
+   * <pre>{@code
+   * WithFailures.Result<PCollection<String>, KV<MyPojo, Map<String, String>>> result =
+   *     pojos.apply(
+   *         AsJsons.of(MyPojo.class)
+   *             .withFailures(new WithFailures.ExceptionAsMapHandler<MyPojo>() {}));
+   *
+   * PCollection<String> output = result.output(); // valid json elements
+   * PCollection<KV<MyPojo, Map<String, String>>> failures = result.failures();
+   * }</pre>
+   */
+  @Experimental(Experimental.Kind.WITH_EXCEPTIONS)
+  public <FailureT> AsJsonsWithFailures<FailureT> withFailures(
+      InferableFunction<WithFailures.ExceptionElement<InputT>, FailureT> exceptionHandler) {
+    return new AsJsonsWithFailures<>(exceptionHandler);
+  }
+
+  private String writeValue(InputT input) throws JsonProcessingException {
+    ObjectMapper mapper = Optional.ofNullable(customMapper).orElse(DEFAULT_MAPPER);
+    return mapper.writeValueAsString(input);
+  }
+
   @Override
   public PCollection<String> expand(PCollection<InputT> input) {
     return input.apply(
@@ -64,13 +100,35 @@ public class AsJsons<InputT> extends PTransform<PCollection<InputT>, PCollection
               @Override
               public String apply(InputT input) {
                 try {
-                  ObjectMapper mapper = Optional.fromNullable(customMapper).or(DEFAULT_MAPPER);
-                  return mapper.writeValueAsString(input);
+                  return writeValue(input);
                 } catch (IOException e) {
                   throw new RuntimeException(
                       "Failed to serialize " + inputClass.getName() + " value: " + input, e);
                 }
               }
             }));
+  }
+
+  /** A {@code PTransform} that adds exception handling to {@link AsJsons}. */
+  public class AsJsonsWithFailures<FailureT>
+      extends PTransform<PCollection<InputT>, WithFailures.Result<PCollection<String>, FailureT>> {
+
+    private InferableFunction<WithFailures.ExceptionElement<InputT>, FailureT> exceptionHandler;
+
+    AsJsonsWithFailures(
+        InferableFunction<WithFailures.ExceptionElement<InputT>, FailureT> exceptionHandler) {
+      this.exceptionHandler = exceptionHandler;
+    }
+
+    @Override
+    public WithFailures.Result<PCollection<String>, FailureT> expand(PCollection<InputT> input) {
+      return input.apply(
+          MapElements.into(TypeDescriptors.strings())
+              .via(
+                  Contextful.fn(
+                      (Contextful.Fn<InputT, String>) (input1, c) -> writeValue(input1),
+                      Requirements.empty()))
+              .exceptionsVia(exceptionHandler));
+    }
   }
 }
