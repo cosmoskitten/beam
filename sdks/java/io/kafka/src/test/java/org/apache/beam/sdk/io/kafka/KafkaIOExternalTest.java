@@ -32,9 +32,9 @@ import org.apache.beam.runners.core.construction.PipelineTranslation;
 import org.apache.beam.runners.core.construction.ReadTranslation;
 import org.apache.beam.runners.core.construction.expansion.ExpansionService;
 import org.apache.beam.sdk.Pipeline;
-import org.apache.beam.sdk.coders.ByteArrayCoder;
 import org.apache.beam.sdk.coders.IterableCoder;
 import org.apache.beam.sdk.coders.KvCoder;
+import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.Impulse;
 import org.apache.beam.sdk.transforms.WithKeys;
@@ -248,35 +248,28 @@ public class KafkaIOExternalTest {
   }
 
   private static byte[] listAsBytes(List<String> stringList) throws IOException {
-    IterableCoder<byte[]> coder = IterableCoder.of(ByteArrayCoder.of());
-    List<byte[]> bytesList =
-        stringList.stream().map(KafkaIOExternalTest::utf8Bytes).collect(Collectors.toList());
+    IterableCoder<String> coder = IterableCoder.of(StringUtf8Coder.of());
     ByteArrayOutputStream baos = new ByteArrayOutputStream();
-    coder.encode(bytesList, baos);
+    coder.encode(stringList, baos);
     return baos.toByteArray();
   }
 
   private static byte[] mapAsBytes(Map<String, String> stringMap) throws IOException {
-    IterableCoder<KV<byte[], byte[]>> coder =
-        IterableCoder.of(KvCoder.of(ByteArrayCoder.of(), ByteArrayCoder.of()));
-    List<KV<byte[], byte[]>> bytesList =
+    IterableCoder<KV<String, String>> coder =
+        IterableCoder.of(KvCoder.of(StringUtf8Coder.of(), StringUtf8Coder.of()));
+    List<KV<String, String>> stringList =
         stringMap.entrySet().stream()
-            .map(kv -> KV.of(utf8Bytes(kv.getKey()), utf8Bytes(kv.getValue())))
+            .map(kv -> KV.of(kv.getKey(), kv.getValue()))
             .collect(Collectors.toList());
     ByteArrayOutputStream baos = new ByteArrayOutputStream();
-    coder.encode(bytesList, baos);
+    coder.encode(stringList, baos);
     return baos.toByteArray();
   }
 
   private static byte[] encodeString(String str) throws IOException {
     ByteArrayOutputStream baos = new ByteArrayOutputStream();
-    ByteArrayCoder.of().encode(utf8Bytes(str), baos);
+    StringUtf8Coder.of().encode(str, baos);
     return baos.toByteArray();
-  }
-
-  private static byte[] utf8Bytes(String str) {
-    Preconditions.checkNotNull(str, "String must not be null.");
-    return str.getBytes(Charsets.UTF_8);
   }
 
   private static class TestStreamObserver<T> implements StreamObserver<T> {
