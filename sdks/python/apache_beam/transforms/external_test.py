@@ -15,7 +15,7 @@
 # limitations under the License.
 #
 
-"""Unit tests for the transform.util classes."""
+"""Unit tests for the transform.external classes."""
 
 from __future__ import absolute_import
 
