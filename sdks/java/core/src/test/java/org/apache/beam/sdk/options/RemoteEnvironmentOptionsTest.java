@@ -30,6 +30,9 @@ public class RemoteEnvironmentOptionsTest {
   @Test
   public void testSemiDirectory() {
     RemoteEnvironmentOptions options = PipelineOptionsFactory.as(RemoteEnvironmentOptions.class);
+    String defaultSemiDir = "/tmp";
+    assertEquals(defaultSemiDir, options.getSemiPersistDir());
+
     String semiDir = "/ab/cd";
     options.setSemiPersistDir(semiDir);
     assertEquals(semiDir, options.getSemiPersistDir());
