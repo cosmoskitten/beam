@@ -346,14 +346,14 @@ public class BeamFnMapTaskExecutor extends DataflowMapTaskExecutor {
         ProcessBundleProgressResponse processBundleProgressResponse =
             MoreFutures.get(bundleProcessOperation.getProcessBundleProgress());
 
-        final List<MonitoringInfo> monitoringInfosList = processBundleProgressResponse
-            .getMonitoringInfosList();
+        final List<MonitoringInfo> monitoringInfosList =
+            processBundleProgressResponse.getMonitoringInfosList();
 
         // Supporting deprecated metrics until all supported runners are migrated to using
         // MonitoringInfos
         Metrics metrics = processBundleProgressResponse.getMetrics();
-        double elementsConsumed = bundleProcessOperation
-            .getInputElementsConsumed(monitoringInfosList);
+        double elementsConsumed =
+            bundleProcessOperation.getInputElementsConsumed(monitoringInfosList);
 
         if (elementsConsumed == 0) {
           elementsConsumed = bundleProcessOperation.getInputElementsConsumed(metrics);

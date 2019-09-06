@@ -22,7 +22,6 @@ import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Prec
 import java.io.Closeable;
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -168,8 +167,8 @@ public class RegisterAndProcessBundleOperation extends Operation {
         grpcReadTransformId = pTransform.getKey();
         grpcReadTransformOutputName =
             Iterables.getOnlyElement(pTransform.getValue().getOutputsMap().keySet());
-        grpcReadTransformOutputPCollectionName = pTransform.getValue().getOutputsMap()
-            .get(grpcReadTransformOutputName);
+        grpcReadTransformOutputPCollectionName =
+            pTransform.getValue().getOutputsMap().get(grpcReadTransformOutputName);
       }
     }
 
@@ -196,7 +195,6 @@ public class RegisterAndProcessBundleOperation extends Operation {
         grpcReadTransformReadWritePCollectionNames.add(pcollectionName);
       }
     }
-
   }
 
   /** Generates a dot description of the process bundle descriptor. */
