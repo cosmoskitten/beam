@@ -52,7 +52,7 @@ vendorJava(
                 library.java.slf4j_api
         ],
         relocations: packagesToRelocate.collectEntries {
-          [ (it): "${prefix}.${it}" ]
+            [ (it): "${prefix}.${it}" ]
         },
         exclusions: [
                 "org/slf4j/**"
