@@ -64,7 +64,6 @@ class GenerateTestRows(beam.PTransform):
   """
   def __init__(self, number, project_id=None, instance_id=None,
                table_id=None):
-    super(WriteToBigTable, self).__init__()
     self.number = number
     self.rand = random.choice(string.ascii_letters + string.digits)
     self.column_family_id = 'cf1'

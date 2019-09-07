@@ -117,7 +117,6 @@ class ComputeTopSessions(beam.PTransform):
   """Computes the top user sessions for each month."""
 
   def __init__(self, sampling_threshold):
-    super(ComputeTopSessions, self).__init__()
     self.sampling_threshold = sampling_threshold
 
   def expand(self, pcoll):

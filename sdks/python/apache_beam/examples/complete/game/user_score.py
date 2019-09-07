@@ -78,7 +78,6 @@ class ParseGameEventFn(beam.DoFn):
   The human-readable time string is not used here.
   """
   def __init__(self):
-    super(ParseGameEventFn, self).__init__()
     self.num_parse_errors = Metrics.counter(self.__class__, 'num_parse_errors')
 
   def process(self, elem):
@@ -103,7 +102,6 @@ class ExtractAndSumScore(beam.PTransform):
   extracted.
   """
   def __init__(self, field):
-    super(ExtractAndSumScore, self).__init__()
     self.field = field
 
   def expand(self, pcoll):

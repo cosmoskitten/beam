@@ -106,7 +106,6 @@ class ParseGameEventFn(beam.DoFn):
   The human-readable time string is not used here.
   """
   def __init__(self):
-    super(ParseGameEventFn, self).__init__()
     self.num_parse_errors = Metrics.counter(self.__class__, 'num_parse_errors')
 
   def process(self, elem):
@@ -130,7 +129,6 @@ class ExtractAndSumScore(beam.PTransform):
   extracted.
   """
   def __init__(self, field):
-    super(ExtractAndSumScore, self).__init__()
     self.field = field
 
   def expand(self, pcoll):
@@ -167,7 +165,6 @@ class WriteToBigQuery(beam.PTransform):
       schema: Dictionary in the format {'column_name': 'bigquery_type'}
       project: Name of the Cloud project containing BigQuery table.
     """
-    super(WriteToBigQuery, self).__init__()
     self.table_name = table_name
     self.dataset = dataset
     self.schema = schema
@@ -190,7 +187,6 @@ class WriteToBigQuery(beam.PTransform):
 # [START main]
 class HourlyTeamScore(beam.PTransform):
   def __init__(self, start_min, stop_min, window_duration):
-    super(HourlyTeamScore, self).__init__()
     self.start_timestamp = str2timestamp(start_min)
     self.stop_timestamp = str2timestamp(stop_min)
     self.window_duration_in_seconds = window_duration * 60

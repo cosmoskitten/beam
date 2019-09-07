@@ -61,7 +61,6 @@ def run(argv=None):
 class TopPerPrefix(beam.PTransform):
 
   def __init__(self, count):
-    super(TopPerPrefix, self).__init__()
     self._count = count
 
   def expand(self, words):
