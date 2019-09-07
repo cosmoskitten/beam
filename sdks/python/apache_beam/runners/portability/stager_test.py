@@ -160,6 +160,7 @@ class StagerTest(unittest.TestCase):
                      self.stager.stage_job_resources(
                          options, staging_location=staging_dir)[1])
 
+  # xdist adds unpicklable modules to the main session.
   def test_with_main_session(self):
     staging_dir = self.make_temp_dir()
     options = PipelineOptions()
