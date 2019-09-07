@@ -74,19 +74,17 @@ public class FlinkKeyUtils {
    * Converts a length-prefixed encoded key (a.k.a nested encoding) to a raw key without length
    * prefix (a.k.a. OUTER context).
    */
-  static ByteBuffer removeNestedContext(ByteString lengthPrefixedKey, Coder<ByteString> keyCoder) {
-    final ByteString rawKey;
+  static ByteBuffer removeNestedContextIfPresent(ByteString serializedKey, Coder keyCoder) {
+    final Object key;
     try {
-      rawKey =
-          CoderUtils.decodeFromByteArray(
-              keyCoder, lengthPrefixedKey.toByteArray(), Coder.Context.NESTED);
+      key = CoderUtils.decodeFromByteArray(keyCoder, serializedKey.toByteArray());
     } catch (CoderException e) {
       throw new RuntimeException(
           String.format(
-              "Failed to remove nested context from key: %s", lengthPrefixedKey.toStringUtf8()),
+              "Failed to remove nested context from key: %s", serializedKey.toStringUtf8()),
           e);
     }
-    return ByteBuffer.wrap(rawKey.toByteArray());
+    return encodeKey(key, keyCoder);
   }
 
   /** The Coder for the Runner's encoded representation of a key. */

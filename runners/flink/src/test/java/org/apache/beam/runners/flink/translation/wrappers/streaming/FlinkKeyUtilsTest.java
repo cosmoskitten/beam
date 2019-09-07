@@ -22,9 +22,11 @@ import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.core.Is.is;
 
 import java.nio.ByteBuffer;
+import java.util.Arrays;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.coders.VoidCoder;
+import org.apache.beam.sdk.util.CoderUtils;
 import org.apache.beam.vendor.grpc.v1p21p0.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.sdk.v2.sdk.extensions.protobuf.ByteStringCoder;
 import org.junit.Test;
@@ -63,12 +65,14 @@ public class FlinkKeyUtilsTest {
   }
 
   @Test
-  public void testRemoveNestedContext() {
-    byte[] bytes = {2, 23, 42};
-    ByteString key = ByteString.copyFrom(bytes);
-    Coder byteStringCoder = ByteStringCoder.of();
-    assertThat(
-        FlinkKeyUtils.removeNestedContext(key, byteStringCoder),
-        is(ByteBuffer.wrap(new byte[] {23, 42})));
+  public void testRemoveNestedContext() throws Exception {
+    // Nested context may not always be present, i.e. if the original encoding was not nested.
+    for (Coder.Context context : Arrays.asList(Coder.Context.NESTED, Coder.Context.OUTER)) {
+      byte[] bytes = CoderUtils.encodeToByteArray(StringUtf8Coder.of(), "hello world", context);
+      ByteString key = ByteString.copyFrom(bytes);
+      Coder stringCoder = StringUtf8Coder.of();
+      assertThat(
+          FlinkKeyUtils.removeNestedContextIfPresent(key, stringCoder), is(ByteBuffer.wrap(bytes)));
+    }
   }
 }
