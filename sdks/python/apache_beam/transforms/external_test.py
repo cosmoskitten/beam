@@ -20,6 +20,7 @@
 from __future__ import absolute_import
 
 import argparse
+import logging
 import os
 import subprocess
 import sys
@@ -186,7 +187,7 @@ class ExternalTransformTest(unittest.TestCase):
 
   @staticmethod
   def run_pipeline(
-      pipeline_options, expansion_service_port, wait_until_finish=True):
+      pipeline_options, expansion_service, wait_until_finish=True):
     # The actual definitions of these transforms is in
     # org.apache.beam.runners.core.construction.TestExpansionService.
     TEST_COUNT_URN = "beam:transforms:xlang:count"
@@ -195,15 +196,18 @@ class ExternalTransformTest(unittest.TestCase):
     # Run a simple count-filtered-letters pipeline.
     p = TestPipeline(options=pipeline_options)
 
-    address = 'localhost:%s' % str(expansion_service_port)
+    if isinstance(expansion_service, int):
+      # Only the port was specified.
+      expansion_service = 'localhost:%s' % str(expansion_service)
+
     res = (
         p
         | beam.Create(list('aaabccxyyzzz'))
         | beam.Map(unicode)
         # TODO(BEAM-6587): Use strings directly rather than ints.
         | beam.Map(lambda x: int(ord(x)))
-        | beam.ExternalTransform(TEST_FILTER_URN, b'middle', address)
-        | beam.ExternalTransform(TEST_COUNT_URN, None, address)
+        | beam.ExternalTransform(TEST_FILTER_URN, b'middle', expansion_service)
+        | beam.ExternalTransform(TEST_COUNT_URN, None, expansion_service)
         # # TODO(BEAM-6587): Remove when above is removed.
         | beam.Map(lambda kv: (chr(kv[0]), kv[1]))
         | beam.Map(lambda kv: '%s: %s' % kv))
@@ -216,9 +220,12 @@ class ExternalTransformTest(unittest.TestCase):
 
 
 if __name__ == '__main__':
+  logging.getLogger().setLevel(logging.INFO)
   parser = argparse.ArgumentParser()
   parser.add_argument('--expansion_service_jar')
   parser.add_argument('--expansion_service_port')
+  parser.add_argument('--expansion_service_target')
+  parser.add_argument('--expansion_service_target_appendix')
   known_args, pipeline_args = parser.parse_known_args(sys.argv)
 
   if known_args.expansion_service_jar:
@@ -228,6 +235,13 @@ if __name__ == '__main__':
         known_args.expansion_service_port)
     pipeline_options = PipelineOptions(pipeline_args)
     ExternalTransformTest.run_pipeline_with_portable_runner(pipeline_options)
+  elif known_args.expansion_service_target:
+    pipeline_options = PipelineOptions(pipeline_args)
+    ExternalTransformTest.run_pipeline(
+        pipeline_options,
+        beam.transforms.external.BeamJarExpansionService(
+            known_args.expansion_service_target,
+            gradle_appendix=known_args.expansion_service_target_appendix))
   else:
     sys.argv = pipeline_args
     unittest.main()
