@@ -25,6 +25,7 @@ from __future__ import print_function
 import contextlib
 import copy
 import threading
+from typing import Dict
 
 from apache_beam import pvalue
 from apache_beam.portability import common_urns
@@ -64,6 +65,8 @@ class ExternalTransform(ptransform.PTransform):
     self._payload = payload
     self._endpoint = endpoint
     self._namespace = self._fresh_namespace()
+    self._inputs = {}  # type: Dict[str, pvalue.PCollection]
+    self._output = {}  # type: Dict[str, pvalue.PCollection]
 
   def default_label(self):
     return '%s(%s)' % (self.__class__.__name__, self._urn)
@@ -82,10 +85,12 @@ class ExternalTransform(ptransform.PTransform):
 
   @classmethod
   def _fresh_namespace(cls):
+    # type: () -> str
     ExternalTransform._namespace_counter += 1
     return '%s_%d' % (cls.get_local_namespace(), cls._namespace_counter)
 
   def expand(self, pvalueish):
+    # type: (pvalue.PCollection) -> pvalue.PCollection
     if isinstance(pvalueish, pvalue.PBegin):
       self._inputs = {}
     elif isinstance(pvalueish, (list, tuple)):

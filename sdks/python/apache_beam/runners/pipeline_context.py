@@ -23,6 +23,12 @@ For internal use only; no backwards-compatibility guarantees.
 from __future__ import absolute_import
 
 from builtins import object
+import typing
+from typing import Any
+from typing import Dict
+from typing import Optional
+from typing import Type
+from typing import Union
 
 from apache_beam import coders
 from apache_beam import pipeline
@@ -40,13 +46,16 @@ class Environment(object):
   Provides consistency with how the other componentes are accessed.
   """
   def __init__(self, proto):
+    # type: (beam_runner_api_pb2.Environment) -> None
     self._proto = proto
 
   def to_runner_api(self, context):
+    # type: (PipelineContext) -> beam_runner_api_pb2.Environment
     return self._proto
 
   @staticmethod
   def from_runner_api(proto, context):
+    # type: (beam_runner_api_pb2.Environment, PipelineContext) -> Environment
     return Environment(proto)
 
 
@@ -146,7 +155,7 @@ class PipelineContext(object):
               self, cls, namespace, getattr(proto, name, None)))
     if default_environment:
       self._default_environment_id = self.environments.get_id(
-          Environment(default_environment), label='default_environment')
+          Environment(default_environment), label='default_environment')  # type: Optional[str]
     else:
       self._default_environment_id = None
     self.use_fake_coders = use_fake_coders
@@ -173,9 +182,11 @@ class PipelineContext(object):
 
   @staticmethod
   def from_runner_api(proto):
+    # type: (beam_runner_api_pb2.Components) -> PipelineContext
     return PipelineContext(proto)
 
   def to_runner_api(self):
+    # type: () -> beam_runner_api_pb2.Components
     context_proto = beam_runner_api_pb2.Components()
     for name in self._COMPONENT_TYPES:
       getattr(self, name).populate_map(getattr(context_proto, name))

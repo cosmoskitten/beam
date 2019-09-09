@@ -25,9 +25,14 @@ import logging
 import sys
 import threading
 import traceback
+import typing
 from builtins import object
 from builtins import range
 from weakref import WeakValueDictionary
+from typing import Any
+from typing import Dict
+from typing import Optional
+from typing import Type
 
 from future.moves import queue
 from future.utils import raise_
@@ -36,6 +41,11 @@ from apache_beam.metrics.execution import MetricsContainer
 from apache_beam.runners.worker import statesampler
 from apache_beam.transforms import sideinputs
 from apache_beam.utils import counters
+
+if typing.TYPE_CHECKING:
+  from apache_beam import pvalue
+  from apache_beam.runners.direct.bundle_factory import _Bundle
+  from apache_beam.runners.direct.evaluation_context import EvaluationContext
 
 
 class _ExecutorService(object):
@@ -271,9 +281,15 @@ class TransformExecutor(_ExecutorService.CallableTask):
 
   _MAX_RETRY_PER_BUNDLE = 4
 
-  def __init__(self, transform_evaluator_registry, evaluation_context,
-               input_bundle, fired_timers, applied_ptransform,
-               completion_callback, transform_evaluation_state):
+  def __init__(self,
+               transform_evaluator_registry,
+               evaluation_context,
+               input_bundle,  # type: _Bundle
+               fired_timers,
+               applied_ptransform,
+               completion_callback,
+               transform_evaluation_state
+              ):
     self._transform_evaluator_registry = transform_evaluator_registry
     self._evaluation_context = evaluation_context
     self._input_bundle = input_bundle
@@ -289,7 +305,7 @@ class TransformExecutor(_ExecutorService.CallableTask):
     self._applied_ptransform = applied_ptransform
     self._completion_callback = completion_callback
     self._transform_evaluation_state = transform_evaluation_state
-    self._side_input_values = {}
+    self._side_input_values = {}  # type: Dict[pvalue.AsSideInput, Any]
     self.blocked = False
     self._call_count = 0
     self._retry_count = 0
@@ -408,8 +424,11 @@ class _ExecutorServiceParallelExecutor(object):
 
   NUM_WORKERS = 1
 
-  def __init__(self, value_to_consumers, transform_evaluator_registry,
-               evaluation_context):
+  def __init__(self,
+               value_to_consumers,
+               transform_evaluator_registry,
+               evaluation_context  # type: EvaluationContext
+              ):
     self.executor_service = _ExecutorService(
         _ExecutorServiceParallelExecutor.NUM_WORKERS)
     self.transform_executor_services = _TransformExecutorServices(
@@ -452,6 +471,7 @@ class _ExecutorServiceParallelExecutor(object):
     self.executor_service.shutdown()
 
   def schedule_consumers(self, committed_bundle):
+    # type: (_Bundle) -> None
     if committed_bundle.pcollection in self.value_to_consumers:
       consumers = self.value_to_consumers[committed_bundle.pcollection]
       for applied_ptransform in consumers:
@@ -462,8 +482,11 @@ class _ExecutorServiceParallelExecutor(object):
                                   unprocessed_bundle):
     self.node_to_pending_bundles[applied_ptransform].append(unprocessed_bundle)
 
-  def schedule_consumption(self, consumer_applied_ptransform, committed_bundle,
-                           fired_timers, on_complete):
+  def schedule_consumption(self,
+                           consumer_applied_ptransform,
+                           committed_bundle,  # type: _Bundle
+                           fired_timers, on_complete
+                          ):
     """Schedules evaluation of the given bundle with the transform."""
     assert consumer_applied_ptransform
     assert committed_bundle
@@ -548,6 +571,7 @@ class _ExecutorServiceParallelExecutor(object):
     """MonitorTask continuously runs to ensure that pipeline makes progress."""
 
     def __init__(self, executor):
+      # type: (_ExecutorServiceParallelExecutor) -> None
       self._executor = executor
 
     @property

@@ -92,6 +92,12 @@ import types
 from builtins import next
 from builtins import object
 from builtins import zip
+from typing import Any
+from typing import Callable
+from typing import Dict
+from typing import Optional
+from typing import Tuple
+from typing import TypeVar
 
 from apache_beam.typehints import native_type_compatibility
 from apache_beam.typehints import typehints
@@ -112,6 +118,9 @@ __all__ = [
     'WithTypeHints',
     'TypeCheckError',
 ]
+
+T = TypeVar('T')
+WithTypeHintsT = TypeVar('WithTypeHintsT', bound='WithTypeHints')
 
 # This is missing in the builtin types module.  str.upper is arbitrary, any
 # method on a C-implemented type will do.
@@ -215,7 +224,10 @@ class IOTypeHints(object):
   """
   __slots__ = ('input_types', 'output_types')
 
-  def __init__(self, input_types=None, output_types=None):
+  def __init__(self,
+               input_types=None,  # type: Optional[Tuple[Tuple[Any, ...], Dict[str, Any]]]
+               output_types=None  # type: Optional[Tuple[Tuple[Any, ...], Dict[str, Any]]]
+              ):
     self.input_types = input_types
     self.output_types = output_types
 
@@ -300,9 +312,11 @@ class IOTypeHints(object):
     self.output_types = ((yielded_type,), {})
 
   def copy(self):
+    # type: () -> IOTypeHints
     return IOTypeHints(self.input_types, self.output_types)
 
   def with_defaults(self, hints):
+    # type: (Optional[IOTypeHints]) -> IOTypeHints
     if not hints:
       return self
     if self._has_input_types():
@@ -337,6 +351,7 @@ class WithTypeHints(object):
     self._type_hints = IOTypeHints()
 
   def _get_or_create_type_hints(self):
+    # type: () -> IOTypeHints
     # __init__ may have not been called
     try:
       return self._type_hints
@@ -360,12 +375,14 @@ class WithTypeHints(object):
     return None
 
   def with_input_types(self, *arg_hints, **kwarg_hints):
+    # type: (WithTypeHintsT, *Any, **Any) -> WithTypeHintsT
     arg_hints = native_type_compatibility.convert_to_beam_types(arg_hints)
     kwarg_hints = native_type_compatibility.convert_to_beam_types(kwarg_hints)
     self._get_or_create_type_hints().set_input_types(*arg_hints, **kwarg_hints)
     return self
 
   def with_output_types(self, *arg_hints, **kwarg_hints):
+    # type: (WithTypeHintsT, *Any, **Any) -> WithTypeHintsT
     arg_hints = native_type_compatibility.convert_to_beam_types(arg_hints)
     kwarg_hints = native_type_compatibility.convert_to_beam_types(kwarg_hints)
     self._get_or_create_type_hints().set_output_types(*arg_hints, **kwarg_hints)
@@ -562,6 +579,7 @@ def getcallargs_forhints_impl_py3(func, type_args, type_kwargs):
 
 
 def get_type_hints(fn):
+  # type: (Any) -> IOTypeHints
   """Gets the type hint associated with an arbitrary object fn.
 
   Always returns a valid IOTypeHints object, creating one if necessary.
@@ -583,6 +601,7 @@ def get_type_hints(fn):
 
 
 def with_input_types(*positional_hints, **keyword_hints):
+  # type: (*Any, **Any) -> Callable[[T], T]
   """A decorator that type-checks defined type-hints with passed func arguments.
 
   All type-hinted arguments can be specified using positional arguments,
@@ -665,6 +684,7 @@ def with_input_types(*positional_hints, **keyword_hints):
 
 
 def with_output_types(*return_type_hint, **kwargs):
+  # type: (*Any, **Any) -> Callable[[T], T]
   """A decorator that type-checks defined type-hints for return values(s).
 
   This decorator will type-check the return value(s) of the decorated function.

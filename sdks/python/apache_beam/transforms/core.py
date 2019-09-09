@@ -29,6 +29,17 @@ import typing
 from builtins import map
 from builtins import object
 from builtins import range
+from typing import Any
+from typing import Callable
+from typing import Generic
+from typing import Iterable
+from typing import Iterator
+from typing import List
+from typing import Optional
+from typing import Set
+from typing import Tuple
+from typing import TypeVar
+from typing import Union
 
 from past.builtins import unicode
 
@@ -70,6 +81,14 @@ try:
 except ImportError:
   funcsigs = None
 
+if typing.TYPE_CHECKING:
+  from google.protobuf import message
+  from apache_beam.pipeline import Pipeline
+  from apache_beam.runners.pipeline_context import PipelineContext
+  from apache_beam.transforms import create_source
+  from apache_beam.transforms.trigger import AccumulationMode
+  from apache_beam.transforms.trigger import DefaultTrigger
+  from apache_beam.transforms.trigger import TriggerFn
 
 __all__ = [
     'DoFn',
@@ -844,6 +863,7 @@ class CombineFn(WithTypeHints, HasDisplayData, urns.RunnerApiFn):
 
   @staticmethod
   def maybe_from_callable(fn, has_side_inputs=True):
+    # type: (Union[CombineFn, Callable], bool) -> CombineFn
     if isinstance(fn, CombineFn):
       return fn
     elif callable(fn) and not has_side_inputs:
@@ -1029,6 +1049,7 @@ class PartitionFn(WithTypeHints):
     return self.__class__.__name__
 
   def partition_for(self, element, num_partitions, *args, **kwargs):
+    # type: (T, int, *Any, **Any) -> int
     """Specify which partition will receive this element.
 
     Args:
@@ -1068,6 +1089,7 @@ class CallableWrapperPartitionFn(PartitionFn):
     self._fn = fn
 
   def partition_for(self, element, num_partitions, *args, **kwargs):
+    # type: (T, int, *Any, **Any) -> int
     return self._fn(element, num_partitions, *args, **kwargs)
 
 
@@ -1107,7 +1129,7 @@ class ParDo(PTransformWithSideInputs):
     super(ParDo, self).__init__(fn, *args, **kwargs)
     # TODO(robertwb): Change all uses of the dofn attribute to use fn instead.
     self.dofn = self.fn
-    self.output_tags = set()
+    self.output_tags = set()  # type: Set[str]
 
     if not isinstance(self.fn, DoFn):
       raise TypeError('ParDo must be called with a DoFn instance.')
@@ -1202,6 +1224,7 @@ class ParDo(PTransformWithSideInputs):
     return self.fn, self.args, self.kwargs, si_tags_and_types, windowing
 
   def to_runner_api_parameter(self, context):
+    # type: (PipelineContext) -> Tuple[str, message.Message]
     assert isinstance(self, ParDo), \
         "expected instance of ParDo, but got %s" % self.__class__
     picked_pardo_fn_data = pickler.dumps(self._pardo_fn_data())
@@ -1211,7 +1234,7 @@ class ParDo(PTransformWithSideInputs):
     if is_splittable:
       restriction_coder = (
           DoFnSignature(self.fn).get_restriction_provider().restriction_coder())
-      restriction_coder_id = context.coders.get_id(restriction_coder)
+      restriction_coder_id = context.coders.get_id(restriction_coder)  # type: Optional[str]
     else:
       restriction_coder_id = None
     return (
@@ -1795,6 +1818,7 @@ class CombinePerKey(PTransformWithSideInputs):
     return hints
 
   def to_runner_api_parameter(self, context):
+    # type: (PipelineContext) -> Tuple[str, beam_runner_api_pb2.CombinePayload]
     if self.args or self.kwargs:
       from apache_beam.transforms.combiners import curry_combine_fn
       combine_fn = curry_combine_fn(self.fn, self.args, self.kwargs)
@@ -1857,7 +1881,11 @@ class CombineValues(PTransformWithSideInputs):
 class CombineValuesDoFn(DoFn):
   """DoFn for performing per-key Combine transforms."""
 
-  def __init__(self, input_pcoll_type, combinefn, runtime_type_check):
+  def __init__(self,
+               input_pcoll_type,
+               combinefn,  # type: CombineFn
+               runtime_type_check,  # type: bool
+              ):
     super(CombineValuesDoFn, self).__init__()
     self.combinefn = combinefn
     self.runtime_type_check = runtime_type_check
@@ -1909,7 +1937,10 @@ class CombineValuesDoFn(DoFn):
 
 class _CombinePerKeyWithHotKeyFanout(PTransform):
 
-  def __init__(self, combine_fn, fanout):
+  def __init__(self,
+               combine_fn,  # type: CombineFn
+               fanout,  # type: Union[int, Callable[[Any], int]]
+              ):
     self._combine_fn = combine_fn
     self._fanout_fn = (
         (lambda key: fanout) if isinstance(fanout, int) else fanout)
@@ -2063,6 +2094,7 @@ class GroupByKey(PTransform):
     return typehints.KV[key_type, typehints.Iterable[value_type]]
 
   def to_runner_api_parameter(self, unused_context):
+    # type: (PipelineContext) -> Tuple[str, None]
     return common_urns.primitives.GROUP_BY_KEY.urn, None
 
   @PTransform.register_urn(common_urns.primitives.GROUP_BY_KEY.urn, None)
@@ -2166,8 +2198,12 @@ class Partition(PTransformWithSideInputs):
 
 
 class Windowing(object):
-  def __init__(self, windowfn, triggerfn=None, accumulation_mode=None,
-               timestamp_combiner=None):
+  def __init__(self,
+               windowfn,  # type: WindowFn
+               triggerfn=None,  # type: Optional[TriggerFn]
+               accumulation_mode=None,
+               timestamp_combiner=None,
+              ):
     global AccumulationMode, DefaultTrigger  # pylint: disable=global-variable-not-assigned
     # pylint: disable=wrong-import-order, wrong-import-position
     from apache_beam.transforms.trigger import AccumulationMode, DefaultTrigger
@@ -2223,6 +2259,7 @@ class Windowing(object):
     return self._is_default
 
   def to_runner_api(self, context):
+    # type: (PipelineContext) -> beam_runner_api_pb2.WindowingStrategy
     return beam_runner_api_pb2.WindowingStrategy(
         window_fn=self.windowfn.to_runner_api(context),
         # TODO(robertwb): Prohibit implicit multi-level merging.
@@ -2265,6 +2302,7 @@ class WindowInto(ParDo):
     """A DoFn that applies a WindowInto operation."""
 
     def __init__(self, windowing):
+      # type: (Windowing) -> None
       self.windowing = windowing
 
     def process(self, element, timestamp=DoFn.TimestampParam,
@@ -2275,10 +2313,11 @@ class WindowInto(ParDo):
       yield WindowedValue(element, context.timestamp, new_windows)
 
   def __init__(self,
-               windowfn,
-               trigger=None,
+               windowfn,  # type: Union[Windowing, WindowFn]
+               trigger=None,  # type: Optional[TriggerFn]
                accumulation_mode=None,
-               timestamp_combiner=None):
+               timestamp_combiner=None
+              ):
     """Initializes a WindowInto transform.
 
     Args:
@@ -2304,6 +2343,7 @@ class WindowInto(ParDo):
     super(WindowInto, self).__init__(self.WindowIntoFn(self.windowing))
 
   def get_windowing(self, unused_inputs):
+    # type: (Any) -> Windowing
     return self.windowing
 
   def infer_output_type(self, input_type):
@@ -2319,6 +2359,7 @@ class WindowInto(ParDo):
     return super(WindowInto, self).expand(pcoll)
 
   def to_runner_api_parameter(self, context):
+    # type: (PipelineContext) -> Tuple[str, message.Message]
     return (
         common_urns.primitives.ASSIGN_WINDOWS.urn,
         self.windowing.to_runner_api(context))
@@ -2365,7 +2406,7 @@ class Flatten(PTransform):
 
   def __init__(self, **kwargs):
     super(Flatten, self).__init__()
-    self.pipeline = kwargs.pop('pipeline', None)
+    self.pipeline = kwargs.pop('pipeline', None)  # type: Optional[Pipeline]
     if kwargs:
       raise ValueError('Unexpected keyword arguments: %s' % list(kwargs))
 
@@ -2387,12 +2428,14 @@ class Flatten(PTransform):
     return result
 
   def get_windowing(self, inputs):
+    # type: (Any) -> Windowing
     if not inputs:
       # TODO(robertwb): Return something compatible with every windowing?
       return Windowing(GlobalWindows())
     return super(Flatten, self).get_windowing(inputs)
 
   def to_runner_api_parameter(self, context):
+    # type: (PipelineContext) -> Tuple[str, None]
     return common_urns.primitives.FLATTEN.urn, None
 
   @staticmethod
@@ -2423,6 +2466,7 @@ class Create(PTransform):
     self.reshuffle = reshuffle
 
   def to_runner_api_parameter(self, context):
+    # type: (PipelineContext) -> Tuple[str, bytes]
     # Required as this is identified by type in PTransformOverrides.
     # TODO(BEAM-3812): Use an actual URN here.
     return self.to_runner_api_pickled(context)
@@ -2473,6 +2517,7 @@ class Create(PTransform):
               | iobase.Read(source).with_output_types(self.get_output_type()))
 
   def get_windowing(self, unused_inputs):
+    # type: (Any) -> Windowing
     return Windowing(GlobalWindows())
 
   @staticmethod
@@ -2481,6 +2526,7 @@ class Create(PTransform):
 
   @staticmethod
   def _create_source(serialized_values, coder):
+    # type: (Any, Any) -> create_source._CreateSource
     from apache_beam.transforms.create_source import _CreateSource
 
     return _CreateSource(serialized_values, coder)
@@ -2496,12 +2542,14 @@ class Impulse(PTransform):
     return pvalue.PCollection(pbegin.pipeline)
 
   def get_windowing(self, inputs):
+    # type: (Any) -> Windowing
     return Windowing(GlobalWindows())
 
   def infer_output_type(self, unused_input_type):
     return bytes
 
   def to_runner_api_parameter(self, unused_context):
+    # type: (PipelineContext) -> Tuple[str, None]
     return common_urns.primitives.IMPULSE.urn, None
 
   @PTransform.register_urn(common_urns.primitives.IMPULSE.urn, None)

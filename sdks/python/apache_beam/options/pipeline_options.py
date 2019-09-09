@@ -24,6 +24,10 @@ import json
 import logging
 from builtins import list
 from builtins import object
+from typing import Any
+from typing import Dict
+from typing import List
+from typing import Optional
 
 from apache_beam.options.value_provider import RuntimeValueProvider
 from apache_beam.options.value_provider import StaticValueProvider
@@ -154,7 +158,9 @@ class PipelineOptions(HasDisplayData):
   By default the options classes will use command line arguments to initialize
   the options.
   """
-  def __init__(self, flags=None, **kwargs):
+  def __init__(self,
+               flags=None,  # type: Optional[List[str]]
+               **kwargs):
     """Initialize an options class.
 
     The initializer will traverse all subclasses, add all their argparse
@@ -899,7 +905,7 @@ class OptionsContext(object):
 
   Can also be used as a decorator.
   """
-  overrides = []
+  overrides = []  # type: List[Dict[str, Any]]
 
   def __init__(self, **options):
     self.options = options

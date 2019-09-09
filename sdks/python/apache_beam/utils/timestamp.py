@@ -25,7 +25,10 @@ from __future__ import division
 
 import datetime
 import functools
+import typing
 from builtins import object
+from typing import Any
+from typing import Union
 
 import dateutil.parser
 import pytz
@@ -47,6 +50,7 @@ class Timestamp(object):
   """
 
   def __init__(self, seconds=0, micros=0):
+    # type: (Union[int, long, float], Union[int, long, float]) -> None
     if not isinstance(seconds, (int, long, float)):
       raise TypeError('Cannot interpret %s %s as seconds.' % (
           seconds, type(seconds)))
@@ -57,6 +61,7 @@ class Timestamp(object):
 
   @staticmethod
   def of(seconds):
+    # type: (Union[int, long, float, Timestamp]) -> Timestamp
     """Return the Timestamp for the given number of seconds.
 
     If the input is already a Timestamp, the input itself will be returned.
@@ -136,10 +141,12 @@ class Timestamp(object):
     return self.to_utc_datetime().isoformat() + 'Z'
 
   def __float__(self):
+    # type: () -> float
     # Note that the returned value may have lost precision.
     return self.micros / 1000000
 
   def __int__(self):
+    # type: () -> int
     # Note that the returned value may have lost precision.
     return self.micros // 1000000
 
@@ -166,17 +173,21 @@ class Timestamp(object):
     return hash(self.micros)
 
   def __add__(self, other):
+    # type: (Union[int, long, float, Duration]) -> Timestamp
     other = Duration.of(other)
     return Timestamp(micros=self.micros + other.micros)
 
   def __radd__(self, other):
+    # type: (Union[int, long, float, Duration]) -> Timestamp
     return self + other
 
   def __sub__(self, other):
+    # type: (Union[int, long, float, Duration]) -> Timestamp
     other = Duration.of(other)
     return Timestamp(micros=self.micros - other.micros)
 
   def __mod__(self, other):
+    # type: (Union[int, long, float, Duration]) -> Duration
     other = Duration.of(other)
     return Duration(micros=self.micros % other.micros)
 
@@ -200,10 +211,12 @@ class Duration(object):
   """
 
   def __init__(self, seconds=0, micros=0):
+    # type: (Union[int, long, float], Union[int, long, float]) -> None
     self.micros = int(seconds * 1000000) + int(micros)
 
   @staticmethod
   def of(seconds):
+    # type: (Union[int, long, float, Duration]) -> Duration
     """Return the Duration for the given number of seconds since Unix epoch.
 
     If the input is already a Duration, the input itself will be returned.
@@ -234,6 +247,7 @@ class Duration(object):
     return 'Duration(%s%d)' % (sign, int_part)
 
   def __float__(self):
+    # type: () -> float
     # Note that the returned value may have lost precision.
     return self.micros / 1000000
 
@@ -257,6 +271,7 @@ class Duration(object):
     return hash(self.micros)
 
   def __neg__(self):
+    # type: () -> Duration
     return Duration(micros=-self.micros)
 
   def __add__(self, other):
@@ -269,6 +284,7 @@ class Duration(object):
     return self + other
 
   def __sub__(self, other):
+    # type: (Union[int, long, float, Duration]) -> Duration
     other = Duration.of(other)
     return Duration(micros=self.micros - other.micros)
 
@@ -276,6 +292,7 @@ class Duration(object):
     return -(self - other)
 
   def __mul__(self, other):
+    # type: (Union[int, long, float, Duration]) -> Duration
     other = Duration.of(other)
     return Duration(micros=self.micros * other.micros // 1000000)
 
@@ -283,6 +300,7 @@ class Duration(object):
     return self * other
 
   def __mod__(self, other):
+    # type: (Union[int, long, float, Duration]) -> Duration
     other = Duration.of(other)
     return Duration(micros=self.micros % other.micros)
 

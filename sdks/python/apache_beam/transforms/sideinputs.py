@@ -26,9 +26,16 @@ AsSingleton, AsIter, AsList and AsDict in apache_beam.pvalue.
 
 from __future__ import absolute_import
 
+import typing
 from builtins import object
+from typing import Iterable
+from typing import Iterator
 
 from apache_beam.transforms import window
+
+if typing.TYPE_CHECKING:
+  from apache_beam.utils.windowed_value import WindowedValue
+  from apache_beam.transforms.window import BoundedWindow
 
 
 # Top-level function so we can identify it later.
@@ -66,6 +73,7 @@ class SideInputMap(object):
     return self._cache[window]
 
   def is_globally_windowed(self):
+    # type: () -> bool
     return self._window_mapping_fn == _global_window_mapping_fn
 
 

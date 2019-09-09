@@ -28,8 +28,18 @@ import logging
 import random
 import re
 import threading
+import typing
 from builtins import next
 from builtins import object
+from typing import Any
+from typing import Callable
+from typing import DefaultDict
+from typing import Dict
+from typing import List
+from typing import Optional
+from typing import Tuple
+from typing import Type
+from typing import TypeVar
 
 from future.utils import itervalues
 from google.protobuf import timestamp_pb2
@@ -57,8 +67,20 @@ from apache_beam.utils import proto_utils
 from apache_beam.utils import timestamp
 from apache_beam.utils import windowed_value
 
-# This module is experimental. No backwards-compatibility guarantees.
+if typing.TYPE_CHECKING:
+  from apache_beam.portability.api import beam_fn_api_pb2_grpc
+  from apache_beam.runners.pipeline_context import PipelineContext
+  from apache_beam.runners.worker import data_plane
 
+# This module is experimental. No backwards-compatibility guarantees.
+T = TypeVar('T')
+ConstructorFn = Callable[
+    ['BeamTransformFactory',
+     Any,
+     beam_runner_api_pb2.PTransform,
+     'PipelineContext',
+     Dict[str, operations.Operation]],
+    operations.Operation]
 
 DATA_INPUT_URN = 'beam:source:runner:0.1'
 DATA_OUTPUT_URN = 'beam:sink:runner:0.1'
@@ -556,8 +578,11 @@ def only_element(iterable):
 class BundleProcessor(object):
   """ A class for processing bundles of elements. """
 
-  def __init__(
-      self, process_bundle_descriptor, state_handler, data_channel_factory):
+  def __init__(self,
+               process_bundle_descriptor,  # type: beam_fn_api_pb2.ProcessBundleDescriptor
+               state_handler,  # type: beam_fn_api_pb2_grpc.BeamFnStateServicer
+               data_channel_factory  # type: data_plane.DataChannelFactory
+              ):
     """Initialize a bundle processor.
 
     Args:
@@ -581,6 +606,7 @@ class BundleProcessor(object):
     self.splitting_lock = threading.Lock()
 
   def create_execution_tree(self, descriptor):
+    # type: (beam_fn_api_pb2.ProcessBundleDescriptor) -> collections.OrderedDict[str, operations.Operation]
     transform_factory = BeamTransformFactory(
         descriptor, self.data_channel_factory, self.counter_factory,
         self.state_sampler, self.state_handler)
@@ -591,7 +617,7 @@ class BundleProcessor(object):
             transform_proto.spec.payload,
             beam_runner_api_pb2.ParDoPayload).side_inputs
 
-    pcoll_consumers = collections.defaultdict(list)
+    pcoll_consumers = collections.defaultdict(list)  # type: DefaultDict[str, List[str]]
     for transform_id, transform_proto in descriptor.transforms.items():
       for tag, pcoll_id in transform_proto.inputs.items():
         if not is_side_input(transform_proto, tag):
@@ -831,8 +857,13 @@ class ExecutionContext(object):
 
 class BeamTransformFactory(object):
   """Factory for turning transform_protos into executable operations."""
-  def __init__(self, descriptor, data_channel_factory, counter_factory,
-               state_sampler, state_handler):
+  def __init__(self,
+               descriptor,  # type: beam_fn_api_pb2.ProcessBundleDescriptor
+               data_channel_factory,
+               counter_factory,
+               state_sampler,
+               state_handler
+              ):
     self.descriptor = descriptor
     self.data_channel_factory = data_channel_factory
     self.counter_factory = counter_factory
@@ -847,10 +878,14 @@ class BeamTransformFactory(object):
                 runner=beam_fn_api_pb2.StateKey.Runner(key=token)),
             element_coder_impl))
 
-  _known_urns = {}
+  _known_urns = {}  # type: Dict[str, Tuple[ConstructorFn, type]]
 
   @classmethod
-  def register_urn(cls, urn, parameter_type):
+  def register_urn(cls,
+                   urn,  # type: str
+                   parameter_type  # type: Optional[Type[T]]
+                  ):
+    # type: (...) -> Callable[[Callable[[BeamTransformFactory, T, beam_runner_api_pb2.PTransform, PipelineContext, Dict[str, operations.Operation]], operations.Operation]], Callable[[BeamTransformFactory, T, beam_runner_api_pb2.PTransform, PipelineContext, Dict[str, operations.Operation]], operations.Operation]]
     def wrapper(func):
       cls._known_urns[urn] = func, parameter_type
       return func
