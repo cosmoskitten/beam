@@ -2281,11 +2281,11 @@ class GroupByKey(PTransform[Tuple[K, V],
           'GroupByKey operation "%s"' % self.label)
 
       reify_output_type = typehints.KV[
-          key_type, typehints.WindowedValue[value_type]]
+          key_type, typehints.WindowedValue[value_type]]  # type: ignore
       gbk_input_type = (
           typehints.KV[
               key_type,
-              typehints.Iterable[typehints.WindowedValue[value_type]]])
+              typehints.Iterable[typehints.WindowedValue[value_type]]])  # type: ignore
       gbk_output_type = typehints.KV[
           key_type, typehints.Iterable[value_type]]
 
