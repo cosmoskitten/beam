@@ -111,6 +111,9 @@ public final class HllCount {
    * merged into a new sketch using {@link HllCount.MergePartial}. Estimated count of distinct
    * elements can be extracted from sketches using {@link HllCount.Extract}.
    *
+   * <p>An "empty sketch" represented by an empty byte array (of length 0) is returned if the input
+   * {@code PCollection} is empty.
+   *
    * <p>Corresponds to the {@code HLL_COUNT.INIT(input [, precision])} function in <a
    * href="https://cloud.google.com/bigquery/docs/reference/standard-sql/hll_functions">BigQuery</a>.
    */
@@ -264,6 +267,9 @@ public final class HllCount {
    *
    * <p>If sketches of different {@code precision}s are merged, the merged sketch will get the
    * minimum precision encountered among all the input sketches.
+   *
+   * <p>An "empty sketch" represented by an empty byte array (of length 0) is returned if the input
+   * {@code PCollection} is empty.
    *
    * <p>Corresponds to the {@code HLL_COUNT.MERGE_PARTIAL(sketch)} function in <a
    * href="https://cloud.google.com/bigquery/docs/reference/standard-sql/hll_functions">BigQuery</a>.
