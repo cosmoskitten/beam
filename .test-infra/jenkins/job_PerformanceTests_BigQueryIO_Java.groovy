@@ -39,10 +39,11 @@ def testJobs = [
                         testBigQueryTable     : 'bqio_write_10GB_java',
                         metricsBigQueryDataset: 'beam_performance',
                         metricsBigQueryTable  : 'bqio_10GB_results_java_stream',
-                        sourceOptions         : '\'{' +
-                                '"num_records": 10485760,' +
-                                '"key_size": 1,' +
-                                '"value_size": 1024}\'',
+                        sourceOptions         : [
+                                "num_records": 10485760,
+                                "key_size": 1,
+                                "value_size": 1024
+                        ],
                         maxNumWorkers         : 5,
                         numWorkers            : 5,
                         autoscalingAlgorithm  : 'NONE',  // Disable autoscale the worker pool.
@@ -64,10 +65,11 @@ def testJobs = [
                         testBigQueryTable     : 'bqio_write_10GB_java',
                         metricsBigQueryDataset: 'beam_performance',
                         metricsBigQueryTable  : 'bqio_10GB_results_java_batch',
-                        sourceOptions         : '\'{' +
-                                '"num_records": 10485760,' +
-                                '"key_size": 1,' +
-                                '"value_size": 1024}\'',
+                        sourceOptions         : [
+                                "num_records": 10485760,
+                                "key_size": 1,
+                                "value_size": 1024
+                        ],
                         maxNumWorkers         : 5,
                         numWorkers            : 5,
                         autoscalingAlgorithm  : 'NONE',  // Disable autoscale the worker pool.
