@@ -202,7 +202,7 @@ class PCollection(PValue):
     # type: (beam_runner_api_pb2.PCollection, PipelineContext) -> PCollection
     # Producer and tag will be filled in later, the key point is that the
     # same object is returned for the same pcollection id.
-    return PCollection(
+    return PCollection(  # type: ignore  # pipeline should not be None, but this looks unused
         None,
         element_type=context.element_type_from_coder_id(proto.coder_id),
         windowing=context.windowing_strategies.get_by_id(
