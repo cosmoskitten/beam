@@ -68,8 +68,13 @@ golang {
   }
 }
 
+def sdk_version = project.rootProject.file('version.txt').text.trim()
+
 docker {
-  name containerImageName(name: "java_sdk")
+  name containerImageName(
+          name: "java_sdk",
+          "tag": project.rootProject.hasProperty(["docker-tag"]) ?
+                  project.rootProject["docker-tag"] : sdk_version)
   dockerfile project.file("./${dockerfileName}")
   files "./build/"
 }
