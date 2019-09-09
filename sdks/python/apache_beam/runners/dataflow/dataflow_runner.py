@@ -1228,6 +1228,7 @@ class _DataflowSideInput(beam.pvalue.AsSideInput):
     }
 
   def _side_input_data(self):
+    # type: () -> pvalue.SideInputData
     return self._data
 
 

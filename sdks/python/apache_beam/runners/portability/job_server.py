@@ -54,6 +54,7 @@ class ExternalJobServer(JobServer):
     self._endpoint = endpoint
 
   def start(self):
+    # type: () -> beam_job_api_pb2_grpc.JobServiceStub
     channel = grpc.insecure_channel(self._endpoint)
     grpc.channel_ready_future(channel).result()
     return beam_job_api_pb2_grpc.JobServiceStub(channel)

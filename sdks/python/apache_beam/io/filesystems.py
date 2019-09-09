@@ -82,6 +82,7 @@ class FileSystems(object):
 
   @staticmethod
   def get_filesystem(path):
+    # type: (str) -> FileSystems
     """Get the correct filesystem for the specified path
     """
     try:
@@ -105,6 +106,7 @@ class FileSystems(object):
 
   @staticmethod
   def join(basepath, *paths):
+    # type: (str, *str) -> str
     """Join two or more pathname components for the filesystem
 
     Args:
