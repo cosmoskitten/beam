@@ -43,9 +43,10 @@ class StateSampler(object):
 
   def _scoped_state(self,
                     counter_name,
-                    name_context,
+                    name_context,  # type: common.NameContext
                     output_counter,
                     metrics_container=None):
+    # type: (...) -> ScopedState
     assert isinstance(name_context, common.NameContext)
     return ScopedState(
         self, counter_name, name_context, output_counter, metrics_container)

@@ -28,6 +28,8 @@ import traceback
 from builtins import next
 from builtins import object
 from builtins import zip
+from typing import TYPE_CHECKING
+from typing import Dict
 
 from future.utils import raise_with_traceback
 from past.builtins import unicode
@@ -46,6 +48,9 @@ from apache_beam.utils.counters import Counter
 from apache_beam.utils.counters import CounterName
 from apache_beam.utils.timestamp import Timestamp
 from apache_beam.utils.windowed_value import WindowedValue
+
+if TYPE_CHECKING:
+  from apache_beam.transforms.core import TimerSpec
 
 
 class NameContext(object):
@@ -130,6 +135,7 @@ class Receiver(object):
   """
 
   def receive(self, windowed_value):
+    # type: (WindowedValue) -> None
     raise NotImplementedError
 
 
@@ -224,6 +230,7 @@ class DoFnSignature(object):
   """
 
   def __init__(self, do_fn):
+    # type: (core.DoFn) -> None
     # We add a property here for all methods defined by Beam DoFn features.
 
     assert isinstance(do_fn, core.DoFn)
@@ -253,7 +260,7 @@ class DoFnSignature(object):
 
     # Handle stateful DoFns.
     self._is_stateful_dofn = userstate.is_stateful_dofn(do_fn)
-    self.timer_methods = {}
+    self.timer_methods = {}  # type: Dict[TimerSpec, MethodWrapper]
     if self._is_stateful_dofn:
       # Populate timer firing methods, keyed by TimerSpec.
       _, all_timer_specs = userstate.get_dofn_specs(do_fn)

@@ -20,6 +20,7 @@
 from __future__ import absolute_import
 
 from apache_beam import pvalue
+from apache_beam.pipeline import AppliedPTransform
 from apache_beam.pipeline import PipelineVisitor
 
 
@@ -42,6 +43,7 @@ class ConsumerTrackingPipelineVisitor(PipelineVisitor):
     self._num_transforms = 0
 
   def visit_transform(self, applied_ptransform):
+    # type: (AppliedPTransform) -> None
     inputs = list(applied_ptransform.inputs)
     if inputs:
       for input_value in inputs:

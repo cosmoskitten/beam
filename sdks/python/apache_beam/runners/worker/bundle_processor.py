@@ -30,6 +30,20 @@ import re
 import threading
 from builtins import next
 from builtins import object
+from typing import TYPE_CHECKING
+from typing import Any
+from typing import Callable
+from typing import DefaultDict
+from typing import Dict
+from typing import Iterable
+from typing import Iterator
+from typing import List
+from typing import Optional
+from typing import Set
+from typing import Tuple
+from typing import Type
+from typing import TypeVar
+from typing import Union
 
 from future.utils import itervalues
 from google.protobuf import timestamp_pb2
@@ -57,8 +71,21 @@ from apache_beam.utils import proto_utils
 from apache_beam.utils import timestamp
 from apache_beam.utils import windowed_value
 
-# This module is experimental. No backwards-compatibility guarantees.
+if TYPE_CHECKING:
+  from google.protobuf import message  # pylint: disable=ungrouped-imports
+  from apache_beam.runners.portability.fn_api_runner import FnApiRunner
+  from apache_beam.runners.worker import data_plane
+  from apache_beam.runners.worker.sdk_worker import GrpcStateHandler
 
+# This module is experimental. No backwards-compatibility guarantees.
+T = TypeVar('T')
+ConstructorFn = Callable[
+    ['BeamTransformFactory',
+     Any,
+     beam_runner_api_pb2.PTransform,
+     Union[message.Message, bytes],
+     Dict[str, List[operations.Operation]]],
+    operations.Operation]
 
 DATA_INPUT_URN = 'beam:source:runner:0.1'
 DATA_OUTPUT_URN = 'beam:sink:runner:0.1'
@@ -73,8 +100,16 @@ URNS_NEEDING_PCOLLECTIONS = set([monitoring_infos.ELEMENT_COUNT_URN,
 class RunnerIOOperation(operations.Operation):
   """Common baseclass for runner harness IO operations."""
 
-  def __init__(self, name_context, step_name, consumers, counter_factory,
-               state_sampler, windowed_coder, transform_id, data_channel):
+  def __init__(self,
+               name_context,
+               step_name,
+               consumers,
+               counter_factory,
+               state_sampler,
+               windowed_coder,
+               transform_id,  # type: str
+               data_channel  # type: data_plane.GrpcClientDataChannel
+              ):
     super(RunnerIOOperation, self).__init__(
         name_context, None, counter_factory, state_sampler)
     self.windowed_coder = windowed_coder
@@ -93,9 +128,11 @@ class DataOutputOperation(RunnerIOOperation):
   """
 
   def set_output_stream(self, output_stream):
+    # type: (data_plane.ClosableOutputStream) -> None
     self.output_stream = output_stream
 
   def process(self, windowed_value):
+    # type: (windowed_value.WindowedValue) -> None
     self.windowed_coder_impl.encode_to_stream(
         windowed_value, self.output_stream, True)
     self.output_stream.maybe_flush()
@@ -129,9 +166,11 @@ class DataInputOperation(RunnerIOOperation):
       self.started = True
 
   def process(self, windowed_value):
+    # type: (windowed_value.WindowedValue) -> None
     self.output(windowed_value)
 
   def process_encoded(self, encoded_windowed_values):
+    # type: (bytes) -> None
     input_stream = coder_impl.create_InputStream(encoded_windowed_values)
     while input_stream.size() > 0:
       with self.splitting_lock:
@@ -185,6 +224,7 @@ class DataInputOperation(RunnerIOOperation):
         return self.stop - 1, None, None, self.stop
 
   def progress_metrics(self):
+    # type: () -> beam_fn_api_pb2.Metrics.PTransform
     with self.splitting_lock:
       metrics = super(DataInputOperation, self).progress_metrics()
       current_element_progress = self.receivers[0].current_element_progress()
@@ -208,6 +248,7 @@ class _StateBackedIterable(object):
       self._coder_impl = coder_or_impl
 
   def __iter__(self):
+    # type: () -> Iterator[Any]
     # This is the continuation token this might be useful
     data, continuation_token = self._state_handler.blocking_get(self._state_key)
     while True:
@@ -334,10 +375,12 @@ class _ConcatIterable(object):
   Unlike itertools.chain, this allows reiteration.
   """
   def __init__(self, first, second):
+    # type: (Iterable[Any], Iterable[Any]) -> None
     self.first = first
     self.second = second
 
   def __iter__(self):
+    # type: () -> Iterator[Any]
     for elem in self.first:
       yield elem
     for elem in self.second:
@@ -354,9 +397,10 @@ class SynchronousBagRuntimeState(userstate.BagRuntimeState):
     self._state_key = state_key
     self._value_coder = value_coder
     self._cleared = False
-    self._added_elements = []
+    self._added_elements = []  # type: List[Any]
 
   def read(self):
+    # type: () -> Iterable[Any]
     return _ConcatIterable(
         [] if self._cleared else _StateBackedIterable(
             self._state_handler, self._state_key, self._value_coder),
@@ -388,7 +432,7 @@ class SynchronousSetRuntimeState(userstate.SetRuntimeState):
     self._state_key = state_key
     self._value_coder = value_coder
     self._cleared = False
-    self._added_elements = set()
+    self._added_elements = set()  # type: Set[Any]
 
   def _compact_data(self, rewrite=True):
     accumulator = set(_ConcatIterable(
@@ -412,6 +456,7 @@ class SynchronousSetRuntimeState(userstate.SetRuntimeState):
     return accumulator
 
   def read(self):
+    # type: () -> Set[Any]
     return self._compact_data(rewrite=False)
 
   def add(self, value):
@@ -556,8 +601,11 @@ def only_element(iterable):
 class BundleProcessor(object):
   """ A class for processing bundles of elements. """
 
-  def __init__(
-      self, process_bundle_descriptor, state_handler, data_channel_factory):
+  def __init__(self,
+               process_bundle_descriptor,  # type: beam_fn_api_pb2.ProcessBundleDescriptor
+               state_handler,  # type: Union[FnApiRunner.StateServicer, GrpcStateHandler]
+               data_channel_factory  # type: data_plane.DataChannelFactory
+              ):
     """Initialize a bundle processor.
 
     Args:
@@ -580,7 +628,10 @@ class BundleProcessor(object):
       op.setup()
     self.splitting_lock = threading.Lock()
 
-  def create_execution_tree(self, descriptor):
+  def create_execution_tree(self,
+                            descriptor  # type: beam_fn_api_pb2.ProcessBundleDescriptor
+                           ):
+    # type: (...) -> collections.OrderedDict[str, operations.Operation]
     transform_factory = BeamTransformFactory(
         descriptor, self.data_channel_factory, self.counter_factory,
         self.state_sampler, self.state_handler)
@@ -591,7 +642,7 @@ class BundleProcessor(object):
             transform_proto.spec.payload,
             beam_runner_api_pb2.ParDoPayload).side_inputs
 
-    pcoll_consumers = collections.defaultdict(list)
+    pcoll_consumers = collections.defaultdict(list)  # type: DefaultDict[str, List[str]]
     for transform_id, transform_proto in descriptor.transforms.items():
       for tag, pcoll_id in transform_proto.inputs.items():
         if not is_side_input(transform_proto, tag):
@@ -599,6 +650,7 @@ class BundleProcessor(object):
 
     @memoize
     def get_operation(transform_id):
+      # type: (str) -> operations.Operation
       transform_consumers = {
           tag: [get_operation(op) for op in pcoll_consumers[pcoll_id]]
           for tag, pcoll_id
@@ -610,6 +662,7 @@ class BundleProcessor(object):
     # Operations must be started (hence returned) in order.
     @memoize
     def topological_height(transform_id):
+      # type: (str) -> int
       return 1 + max(
           [0] +
           [topological_height(consumer)
@@ -629,6 +682,7 @@ class BundleProcessor(object):
       op.reset()
 
   def process_bundle(self, instruction_id):
+    # type: (str) -> Tuple[List[beam_fn_api_pb2.DelayedBundleApplication], bool]
     expected_inputs = []
     for op in self.ops.values():
       if isinstance(op, DataOutputOperation):
@@ -650,7 +704,7 @@ class BundleProcessor(object):
         op.start()
 
       # Inject inputs from data plane.
-      data_channels = collections.defaultdict(list)
+      data_channels = collections.defaultdict(list)  # type: DefaultDict[data_plane.GrpcClientDataChannel, List[str]]
       input_op_by_transform_id = {}
       for input_op in expected_inputs:
         data_channels[input_op.data_channel].append(input_op.transform_id)
@@ -678,14 +732,17 @@ class BundleProcessor(object):
       self.state_sampler.stop_if_still_running()
 
   def finalize_bundle(self):
+    # type: () -> beam_fn_api_pb2.FinalizeBundleResponse
     for op in self.ops.values():
       op.finalize_bundle()
     return beam_fn_api_pb2.FinalizeBundleResponse()
 
   def requires_finalization(self):
+    # type: () -> bool
     return any(op.needs_finalization() for op in self.ops.values())
 
   def try_split(self, bundle_split_request):
+    # type: (...) -> beam_fn_api_pb2.ProcessBundleSplitResponse
     split_response = beam_fn_api_pb2.ProcessBundleSplitResponse()
     with self.splitting_lock:
       for op in self.ops.values():
@@ -713,14 +770,19 @@ class BundleProcessor(object):
 
     return split_response
 
-  def delayed_bundle_application(self, op, deferred_remainder):
+  def delayed_bundle_application(self,
+                                 op,  # type: operations.Operation
+                                 deferred_remainder):
+    # type: (...) -> beam_fn_api_pb2.DelayedBundleApplication
     ptransform_id, main_input_tag, main_input_coder, outputs = op.input_info
     # TODO(SDF): For non-root nodes, need main_input_coder + residual_coder.
     element_and_restriction, watermark = deferred_remainder
     if watermark:
       proto_watermark = timestamp_pb2.Timestamp()
       proto_watermark.FromMicroseconds(watermark.micros)
-      output_watermarks = {output: proto_watermark for output in outputs}
+      output_watermarks = {
+          output: proto_watermark for output in outputs
+      }  # type: Optional[Dict[str, timestamp_pb2.Timestamp]]
     else:
       output_watermarks = None
     return beam_fn_api_pb2.DelayedBundleApplication(
@@ -831,8 +893,13 @@ class ExecutionContext(object):
 
 class BeamTransformFactory(object):
   """Factory for turning transform_protos into executable operations."""
-  def __init__(self, descriptor, data_channel_factory, counter_factory,
-               state_sampler, state_handler):
+  def __init__(self,
+               descriptor,  # type: beam_fn_api_pb2.ProcessBundleDescriptor
+               data_channel_factory,  # type: data_plane.DataChannelFactory
+               counter_factory,
+               state_sampler,
+               state_handler
+              ):
     self.descriptor = descriptor
     self.data_channel_factory = data_channel_factory
     self.counter_factory = counter_factory
@@ -847,16 +914,24 @@ class BeamTransformFactory(object):
                 runner=beam_fn_api_pb2.StateKey.Runner(key=token)),
             element_coder_impl))
 
-  _known_urns = {}
+  _known_urns = {}  # type: Dict[str, Tuple[ConstructorFn, Union[Type[message.Message], Type[bytes], None]]]
 
   @classmethod
-  def register_urn(cls, urn, parameter_type):
+  def register_urn(cls,
+                   urn,  # type: str
+                   parameter_type  # type: Optional[Type[T]]
+                  ):
+    # type: (...) -> Callable[[Callable[[BeamTransformFactory, str, beam_runner_api_pb2.PTransform, T, Dict[str, List[operations.Operation]]], operations.Operation]], Callable[[BeamTransformFactory, str, beam_runner_api_pb2.PTransform, T, Dict[str, List[operations.Operation]]], operations.Operation]]
     def wrapper(func):
       cls._known_urns[urn] = func, parameter_type
       return func
     return wrapper
 
-  def create_operation(self, transform_id, consumers):
+  def create_operation(self,
+                       transform_id,  # type: str
+                       consumers  # type: Dict[str, List[operations.Operation]]
+                      ):
+    # type: (...) -> operations.Operation
     transform_proto = self.descriptor.transforms[transform_id]
     if not transform_proto.unique_name:
       logging.debug("No unique name set for transform %s" % transform_id)
@@ -867,6 +942,7 @@ class BeamTransformFactory(object):
     return creator(self, transform_id, transform_proto, payload, consumers)
 
   def get_coder(self, coder_id):
+    # type: (str) -> coders.Coder
     if coder_id not in self.descriptor.coders:
       raise KeyError("No such coder: %s" % coder_id)
     coder_proto = self.descriptor.coders[coder_id]
@@ -878,6 +954,7 @@ class BeamTransformFactory(object):
           json.loads(coder_proto.spec.payload.decode('utf-8')))
 
   def get_windowed_coder(self, pcoll_id):
+    # type: (str) -> WindowedValueCoder
     coder = self.get_coder(self.descriptor.pcollections[pcoll_id].coder_id)
     # TODO(robertwb): Remove this condition once all runners are consistent.
     if not isinstance(coder, WindowedValueCoder):
@@ -889,21 +966,25 @@ class BeamTransformFactory(object):
       return coder
 
   def get_output_coders(self, transform_proto):
+    # type: (beam_runner_api_pb2.PTransform) -> Dict[str, WindowedValueCoder]
     return {
         tag: self.get_windowed_coder(pcoll_id)
         for tag, pcoll_id in transform_proto.outputs.items()
     }
 
   def get_only_output_coder(self, transform_proto):
+    # type: (beam_runner_api_pb2.PTransform) -> WindowedValueCoder
     return only_element(self.get_output_coders(transform_proto).values())
 
   def get_input_coders(self, transform_proto):
+    # type: (beam_runner_api_pb2.PTransform) -> Dict[str, WindowedValueCoder]
     return {
         tag: self.get_windowed_coder(pcoll_id)
         for tag, pcoll_id in transform_proto.inputs.items()
     }
 
   def get_only_input_coder(self, transform_proto):
+    # type: (beam_runner_api_pb2.PTransform) -> WindowedValueCoder
     return only_element(list(self.get_input_coders(transform_proto).values()))
 
   # TODO(robertwb): Update all operations to take these in the constructor.
@@ -922,12 +1003,18 @@ class TimerConsumer(operations.Operation):
     self._do_op = do_op
 
   def process(self, windowed_value):
+    # type: (windowed_value.WindowedValue) -> None
     self._do_op.process_timer(self._timer_tag, windowed_value)
-
 
 @BeamTransformFactory.register_urn(
     DATA_INPUT_URN, beam_fn_api_pb2.RemoteGrpcPort)
-def create_source_runner(factory, transform_id, transform_proto, grpc_port, consumers):
+def create_source_runner(factory,  # type: BeamTransformFactory
+                         transform_id,  # type: str
+                         transform_proto,  # type: beam_runner_api_pb2.PTransform
+                         grpc_port,  # type: beam_fn_api_pb2.RemoteGrpcPort
+                         consumers  # type: Dict[str, List[operations.Operation]]
+                        ):
+  # type: (...) -> DataInputOperation
   # Timers are the one special case where we don't want to call the
   # (unlabeled) operation.process() method, which we detect here.
   # TODO(robertwb): Consider generalizing if there are any more cases.
@@ -962,7 +1049,13 @@ def create_source_runner(factory, transform_id, transform_proto, grpc_port, cons
 
 @BeamTransformFactory.register_urn(
     DATA_OUTPUT_URN, beam_fn_api_pb2.RemoteGrpcPort)
-def create_sink_runner(factory, transform_id, transform_proto, grpc_port, consumers):
+def create_sink_runner(factory,  # type: BeamTransformFactory
+                       transform_id,  # type: str
+                       transform_proto,  # type: beam_runner_api_pb2.PTransform
+                       grpc_port,  # type: beam_fn_api_pb2.RemoteGrpcPort
+                       consumers  # type: Dict[str, List[operations.Operation]]
+                      ):
+  # type: (...) -> DataOutputOperation
   if grpc_port.coder_id:
     output_coder = factory.get_coder(grpc_port.coder_id)
   else:
@@ -1216,8 +1309,12 @@ def _create_pardo_operation(
   return result
 
 
-def _create_simple_pardo_operation(
-    factory, transform_id, transform_proto, consumers, dofn):
+def _create_simple_pardo_operation(factory,  # type: BeamTransformFactory
+                                   transform_id,
+                                   transform_proto,
+                                   consumers,
+                                   dofn,  # type: beam.DoFn
+                                  ):
   serialized_fn = pickler.dumps((dofn, (), {}, [], None))
   return _create_pardo_operation(
       factory, transform_id, transform_proto, consumers, serialized_fn)
