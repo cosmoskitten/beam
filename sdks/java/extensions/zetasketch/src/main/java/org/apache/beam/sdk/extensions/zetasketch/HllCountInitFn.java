@@ -58,6 +58,11 @@ abstract class HllCountInitFn<InputT, HllT>
   }
 
   @Override
+  public byte[] defaultValue() {
+    return new byte[0];
+  }
+
+  @Override
   public Coder<HyperLogLogPlusPlus<HllT>> getAccumulatorCoder(
       CoderRegistry registry, Coder<InputT> inputCoder) {
     return HyperLogLogPlusPlusCoder.of();
