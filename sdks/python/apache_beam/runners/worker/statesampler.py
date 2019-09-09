@@ -21,6 +21,7 @@ from __future__ import absolute_import
 
 import threading
 from collections import namedtuple
+from typing import Dict
 
 from apache_beam.runners import common
 from apache_beam.utils.counters import Counter
@@ -73,7 +74,7 @@ class StateSampler(statesampler_impl.StateSampler):
     self.states_by_name = {}
     self._prefix = prefix
     self._counter_factory = counter_factory
-    self._states_by_name = {}
+    self._states_by_name = {}  # type: Dict[CounterName, statesampler_impl.ScopedState]
     self.sampling_period_ms = sampling_period_ms
     self.tracked_thread = None
     self.finished = False
@@ -99,6 +100,7 @@ class StateSampler(statesampler_impl.StateSampler):
     self.started = True
 
   def get_info(self):
+    # type: () -> StateSamplerInfo
     """Returns StateSamplerInfo with transition statistics."""
     return StateSamplerInfo(
         self.current_state().name,
@@ -111,6 +113,7 @@ class StateSampler(statesampler_impl.StateSampler):
                    state_name,
                    io_target=None,
                    metrics_container=None):
+    # type: (...) -> statesampler_impl.ScopedState
     """Returns a ScopedState object associated to a Step and a State.
 
     Args:

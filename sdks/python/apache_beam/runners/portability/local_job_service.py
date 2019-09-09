@@ -28,6 +28,11 @@ import traceback
 import uuid
 from builtins import object
 from concurrent import futures
+from typing import TYPE_CHECKING
+from typing import Any
+from typing import Dict
+from typing import List
+from typing import Optional
 
 import grpc
 from google.protobuf import text_format  # type: ignore # not in typeshed
@@ -41,6 +46,9 @@ from apache_beam.portability.api import beam_provision_api_pb2
 from apache_beam.portability.api import endpoints_pb2
 from apache_beam.runners.portability import artifact_service
 from apache_beam.runners.portability import fn_api_runner
+
+if TYPE_CHECKING:
+  from apache_beam.portability.api import beam_runner_api_pb2
 
 TERMINAL_STATES = [
     beam_job_api_pb2.JobState.DONE,
@@ -65,7 +73,7 @@ class LocalJobServicer(beam_job_api_pb2_grpc.JobServiceServicer):
     """
 
   def __init__(self, staging_dir=None):
-    self._jobs = {}
+    self._jobs = {}  # type: Dict[str, BeamJob]
     self._cleanup_staging_dir = staging_dir is None
     self._staging_dir = staging_dir or tempfile.mkdtemp()
     self._artifact_service = artifact_service.BeamFilesystemArtifactService(
@@ -90,6 +98,7 @@ class LocalJobServicer(beam_job_api_pb2_grpc.JobServiceServicer):
       shutil.rmtree(self._staging_dir, ignore_errors=True)
 
   def Prepare(self, request, context=None):
+    # type: (beam_job_api_pb2.PrepareJobRequest, Optional[Any]) -> beam_job_api_pb2.PrepareJobResponse
     # For now, just use the job name as the job id.
     logging.debug('Got Prepare request.')
     preparation_id = '%s-%s' % (request.job_name, uuid.uuid4())
@@ -122,6 +131,7 @@ class LocalJobServicer(beam_job_api_pb2_grpc.JobServiceServicer):
         staging_session_token=preparation_id)
 
   def Run(self, request, context=None):
+    # type: (beam_job_api_pb2.RunJobRequest, Optional[Any]) -> beam_job_api_pb2.RunJobResponse
     job_id = request.preparation_id
     logging.info("Runing job '%s'", job_id)
     self._jobs[job_id].start()
@@ -132,14 +142,17 @@ class LocalJobServicer(beam_job_api_pb2_grpc.JobServiceServicer):
         [job.to_runner_api(context) for job in self._jobs.values()])
 
   def GetState(self, request, context=None):
+    # type: (beam_job_api_pb2.GetJobStateRequest, Optional[Any]) -> beam_job_api_pb2.GetJobStateResponse
     return beam_job_api_pb2.GetJobStateResponse(
         state=self._jobs[request.job_id].state)
 
   def GetPipeline(self, request, context=None):
+    # type: (beam_job_api_pb2.GetJobPipelineRequest, Optional[Any]) -> beam_job_api_pb2.GetJobPipelineResponse
     return beam_job_api_pb2.GetJobPipelineResponse(
         pipeline=self._jobs[request.job_id]._pipeline_proto)
 
   def Cancel(self, request, context=None):
+    # type: (beam_job_api_pb2.CancelJobRequest, Optional[Any]) -> beam_job_api_pb2.CancelJobResponse
     self._jobs[request.job_id].cancel()
     return beam_job_api_pb2.CancelJobRequest(
         state=self._jobs[request.job_id].state)
@@ -170,6 +183,7 @@ class LocalJobServicer(beam_job_api_pb2_grpc.JobServiceServicer):
       yield resp
 
   def DescribePipelineOptions(self, request, context=None):
+    # type: (beam_job_api_pb2.DescribePipelineOptionsRequest, Optional[Any]) -> beam_job_api_pb2.DescribePipelineOptionsResponse
     return beam_job_api_pb2.DescribePipelineOptionsResponse()
 
 
@@ -177,7 +191,11 @@ class SubprocessSdkWorker(object):
   """Manages a SDK worker implemented as a subprocess communicating over grpc.
     """
 
-  def __init__(self, worker_command_line, control_address, worker_id=None):
+  def __init__(self,
+               worker_command_line,  # type: bytes
+               control_address,
+               worker_id=None
+              ):
     self._worker_command_line = worker_command_line
     self._control_address = control_address
     self._worker_id = worker_id
@@ -227,9 +245,9 @@ class BeamJob(threading.Thread):
     """
 
   def __init__(self,
-               job_id,
+               job_id,  # type: str
                pipeline_options,
-               pipeline_proto,
+               pipeline_proto,  # type: beam_runner_api_pb2.Pipeline
                provision_info):
     super(BeamJob, self).__init__()
     self._job_id = job_id
@@ -237,8 +255,8 @@ class BeamJob(threading.Thread):
     self._pipeline_proto = pipeline_proto
     self._provision_info = provision_info
     self._state = None
-    self._state_queues = []
-    self._log_queues = []
+    self._state_queues = []  # type: List[queue.Queue]
+    self._log_queues = []  # type: List[queue.Queue]
     self.state = beam_job_api_pb2.JobState.STARTING
     self.daemon = True
 
