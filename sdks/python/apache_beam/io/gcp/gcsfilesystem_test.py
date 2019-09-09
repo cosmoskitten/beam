@@ -35,7 +35,7 @@ from apache_beam.options.pipeline_options import PipelineOptions
 try:
   from apache_beam.io.gcp import gcsfilesystem
 except ImportError:
-  gcsfilesystem = None
+  gcsfilesystem = None  # type: ignore
 # pylint: enable=wrong-import-order, wrong-import-position
 
 
