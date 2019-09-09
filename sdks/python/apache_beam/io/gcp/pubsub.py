@@ -135,7 +135,8 @@ class PubsubMessage(object):
     return PubsubMessage(msg.data, attributes)
 
 
-class ReadFromPubSub(PTransform):
+# FIXME: it's best to avoid varying types based on init args
+class ReadFromPubSub(PTransform[bytes, Union[PubsubMessage, bytes]]):
   """A ``PTransform`` for reading from Cloud Pub/Sub."""
   # Implementation note: This ``PTransform`` is overridden by Directrunner.
 
@@ -249,7 +250,7 @@ class _WriteStringsToPubSub(PTransform):
     return pcoll | Write(self._sink)
 
 
-class WriteToPubSub(PTransform):
+class WriteToPubSub(PTransform[PubsubMessage, bytes]):
   """A ``PTransform`` for writing messages to Cloud Pub/Sub."""
   # Implementation note: This ``PTransform`` is overridden by Directrunner.
 

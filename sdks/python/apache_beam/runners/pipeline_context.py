@@ -26,9 +26,12 @@ from builtins import object
 import typing
 from typing import Any
 from typing import Dict
+from typing import Generic
 from typing import Optional
 from typing import Type
+from typing import TypeVar
 from typing import Union
+from typing_extensions import Protocol
 
 from apache_beam import coders
 from apache_beam import pipeline
@@ -38,6 +41,21 @@ from apache_beam.portability.api import beam_fn_api_pb2
 from apache_beam.portability.api import beam_runner_api_pb2
 from apache_beam.transforms import core
 from apache_beam.typehints import native_type_compatibility
+
+
+class PortableObject(Protocol):
+  def to_runner_api(self, __context):
+    # type: (PipelineContext) -> Any
+    pass
+
+  @classmethod
+  def from_runner_api(cls, __proto, __context):
+    # type: (Any, PipelineContext) -> Any
+    pass
+
+
+T = TypeVar('T')
+PortableObjectT = TypeVar('PortableObjectT', bound=PortableObject)
 
 
 class Environment(object):
@@ -59,18 +77,23 @@ class Environment(object):
     return Environment(proto)
 
 
-class _PipelineContextMap(object):
+class _PipelineContextMap(Generic[PortableObjectT]):
   """This is a bi-directional map between objects and ids.
 
   Under the hood it encodes and decodes these objects into runner API
   representations.
   """
-  def __init__(self, context, obj_type, namespace, proto_map=None):
+  def __init__(self,
+               context,  # type: PipelineContext
+               obj_type,  # type: Type[PortableObjectT]
+               namespace,  # type: str
+               proto_map=None
+              ):
     self._pipeline_context = context
     self._obj_type = obj_type
     self._namespace = namespace
-    self._obj_to_id = {}
-    self._id_to_obj = {}
+    self._obj_to_id = {}  # type: Dict[PortableObjectT, str]
+    self._id_to_obj = {}  # type: Dict[str, PortableObjectT]
     self._id_to_proto = dict(proto_map) if proto_map else {}
     self._counter = 0
 
@@ -87,6 +110,7 @@ class _PipelineContextMap(object):
       proto_map[id].CopyFrom(proto)
 
   def get_id(self, obj, label=None):
+    # type: (PortableObjectT, Optional[str]) -> str
     if obj not in self._obj_to_id:
       id = self._unique_ref(obj, label)
       self._id_to_obj[id] = obj
@@ -98,6 +122,7 @@ class _PipelineContextMap(object):
     return self._id_to_proto[self.get_id(obj, label)]
 
   def get_by_id(self, id):
+    # type: (str) -> PortableObjectT
     if id not in self._id_to_obj:
       self._id_to_obj[id] = self._obj_type.from_runner_api(
           self._id_to_proto[id], self._pipeline_context)
@@ -120,6 +145,7 @@ class _PipelineContextMap(object):
     return id
 
   def __getitem__(self, id):
+    # type: (str) -> PortableObjectT
     return self.get_by_id(id)
 
   def __contains__(self, id):
@@ -140,10 +166,21 @@ class PipelineContext(object):
       'environments': Environment,
   }
 
-  def __init__(
-      self, proto=None, default_environment=None, use_fake_coders=False,
-      iterable_state_read=None, iterable_state_write=None,
-      namespace='ref', allow_proto_holders=False):
+  transforms = None  # type: _PipelineContextMap[pipeline.AppliedPTransform]
+  pcollections = None  # type: _PipelineContextMap[pvalue.PCollection]
+  coders = None  # type: _PipelineContextMap[coders.Coder]
+  windowing_strategies = None  # type: _PipelineContextMap[core.Windowing]
+  environments = None  # type: _PipelineContextMap[Environment]
+
+  def __init__(self,
+               proto=None,  # type: Optional[Union[beam_runner_api_pb2.Components, beam_fn_api_pb2.ProcessBundleDescriptor]]
+               default_environment=None,  # type: Optional[beam_runner_api_pb2.Environment]
+               use_fake_coders=False,
+               iterable_state_read=None,
+               iterable_state_write=None,
+               namespace='ref',
+               allow_proto_holders=False
+              ):
     if isinstance(proto, beam_fn_api_pb2.ProcessBundleDescriptor):
       proto = beam_runner_api_pb2.Components(
           coders=dict(proto.coders.items()),

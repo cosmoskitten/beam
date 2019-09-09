@@ -95,6 +95,7 @@ from builtins import zip
 from typing import Any
 from typing import Callable
 from typing import Dict
+from typing import Generic
 from typing import Optional
 from typing import Tuple
 from typing import TypeVar
@@ -111,7 +112,6 @@ try:
 except ImportError:
   funcsigs = None
 
-
 __all__ = [
     'with_input_types',
     'with_output_types',
@@ -120,6 +120,8 @@ __all__ = [
 ]
 
 T = TypeVar('T')
+InT = TypeVar('InT')
+OutT = TypeVar('OutT')
 WithTypeHintsT = TypeVar('WithTypeHintsT', bound='WithTypeHints')
 
 # This is missing in the builtin types module.  str.upper is arbitrary, any
@@ -343,7 +345,7 @@ class IOTypeHints(object):
         self.input_types, self.output_types)
 
 
-class WithTypeHints(object):
+class WithTypeHints(Generic[InT, OutT]):
   """A mixin class that provides the ability to set and retrieve type hints.
   """
 

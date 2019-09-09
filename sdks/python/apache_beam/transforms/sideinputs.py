@@ -28,14 +28,18 @@ from __future__ import absolute_import
 
 import typing
 from builtins import object
+from typing import Generic
 from typing import Iterable
 from typing import Iterator
+from typing import TypeVar
 
 from apache_beam.transforms import window
 
 if typing.TYPE_CHECKING:
   from apache_beam.utils.windowed_value import WindowedValue
   from apache_beam.transforms.window import BoundedWindow
+
+T = TypeVar('T')
 
 
 # Top-level function so we can identify it later.
@@ -77,15 +81,17 @@ class SideInputMap(object):
     return self._window_mapping_fn == _global_window_mapping_fn
 
 
-class _FilteringIterable(object):
+class _FilteringIterable(Generic[T]):
   """An iterable containing only those values in the given window.
   """
 
   def __init__(self, iterable, target_window):
+    # type: (Iterable[WindowedValue[T]], BoundedWindow) -> None
     self._iterable = iterable
     self._target_window = target_window
 
   def __iter__(self):
+    # type: () -> Iterator[T]
     for wv in self._iterable:
       if self._target_window in wv.windows:
         yield wv.value

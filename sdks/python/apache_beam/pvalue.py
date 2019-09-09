@@ -33,6 +33,7 @@ from builtins import hex
 from builtins import object
 from typing import Any
 from typing import Dict
+from typing import Generic
 from typing import Iterator
 from typing import Optional
 from typing import Sequence
@@ -64,8 +65,12 @@ __all__ = [
     'EmptySideInput',
 ]
 
+T = TypeVar('T')
+OutT = TypeVar('OutT')
+InT = TypeVar('InT')
 
-class PValue(object):
+
+class PValue(Generic[T]):
   """Base class for PCollection.
 
   Dataflow users should not construct PValue objects directly in their
@@ -80,7 +85,7 @@ class PValue(object):
   def __init__(self,
                pipeline,  # type: Pipeline
                tag=None,  # type: Optional[str]
-               element_type=None,  # type: Optional[type]
+               element_type=None,  # type: Optional[Type[T]]
                windowing=None,  # type: Optional[Windowing]
                is_bounded=True,
               ):
@@ -128,11 +133,13 @@ class PValue(object):
     arglist.insert(1, self)
     return self.pipeline.apply(*arglist, **kwargs)
 
+  # use InT instead of T, to preserve the TypeVar for the plugin
   def __or__(self, ptransform):
+    # type: (PTransform[InT, OutT]) -> PCollection[OutT]
     return self.pipeline.apply(ptransform, self)
 
 
-class PCollection(PValue, typing.Generic[typing.TypeVar('T')]):
+class PCollection(PValue[T]):
   """A multiple values (potentially huge) container.
 
   Dataflow users should not construct PCollection objects directly in their
@@ -206,7 +213,11 @@ class _InvalidUnpickledPCollection(object):
   pass
 
 
-class PBegin(PValue):
+class PBeginType(object):
+  pass
+
+
+class PBegin(PValue[PBeginType]):
   """A pipeline begin marker used as input to create/read transforms.
 
   The class is used internally to represent inputs to Create and Read
@@ -216,7 +227,11 @@ class PBegin(PValue):
   pass
 
 
-class PDone(PValue):
+class PDoneType(object):
+  pass
+
+
+class PDone(PValue[PDoneType]):
   """PDone is the output of a transform that has a trivial result such as Write.
   """
   pass
@@ -306,7 +321,7 @@ class DoOutputsTuple(object):
     return pcoll
 
 
-class TaggedOutput(object):
+class TaggedOutput(Generic[T]):
   """An object representing a tagged value.
 
   ParDo, Map, and FlatMap transforms can emit values on multiple outputs which
@@ -316,6 +331,7 @@ class TaggedOutput(object):
   """
 
   def __init__(self, tag, value):
+    # type: (str, T) -> None
     if not isinstance(tag, (str, unicode)):
       raise TypeError(
           'Attempting to create a TaggedOutput with non-string tag %s' % (tag,))
