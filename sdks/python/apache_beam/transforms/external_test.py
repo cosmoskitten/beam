@@ -44,7 +44,7 @@ from apache_beam.testing.util import equal_to
 try:
   from apache_beam.runners.dataflow.internal import apiclient
 except ImportError:
-  apiclient = None
+  apiclient = None  # type: ignore
 # pylint: enable=wrong-import-order, wrong-import-position
 
 
@@ -52,8 +52,8 @@ except ImportError:
 class ExternalTransformTest(unittest.TestCase):
 
   # This will be overwritten if set via a flag.
-  expansion_service_jar = None
-  expansion_service_port = None
+  expansion_service_jar = None  # type: str
+  expansion_service_port = None  # type: int
 
   class _RunWithExpansion(object):
 
