@@ -40,8 +40,8 @@ def watch(watchable):
   __main__ module is always watched by default, you don't have to instruct
   Interactive Beam. However, if your Beam pipeline is defined in some module
   other than __main__, e.g., inside a class function or a unit test, you can
-  watch() the scope to instruct the whereabout of your pipeline definition so
-  Interactive Beam could apply interacitity to your pipeline when running it.
+  watch() the scope to instruct the whereabouts of your pipeline definition so
+  Interactive Beam could apply interactivity to your pipeline when running it.
 
     For example:
 

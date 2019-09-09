@@ -17,10 +17,10 @@
 
 """Module of the current Interactive Beam environment.
 
+For internal use only; no backwards-compatibility guarantees.
 Provides interfaces to interact with existing Interactive Beam environment.
-Internally used by Interactive Beam. External Interactive Beam users please use
-interactive_beam module in application code or notebook.
-No backward-compatibility guaranteed.
+External Interactive Beam users please use interactive_beam module in
+application code or notebook.
 """
 
 import importlib
