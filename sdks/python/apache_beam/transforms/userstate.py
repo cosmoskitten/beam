@@ -23,12 +23,22 @@ Experimental; no backwards-compatibility guarantees.
 from __future__ import absolute_import
 
 import types
+import typing
 from builtins import object
+from typing import Callable
+from typing import Set
+from typing import Tuple
+from typing import TypeVar
 
 from apache_beam.coders import Coder
 from apache_beam.coders import coders
 from apache_beam.portability.api import beam_runner_api_pb2
 from apache_beam.transforms.timeutil import TimeDomain
+
+if typing.TYPE_CHECKING:
+  from apache_beam.runners.pipeline_context import PipelineContext
+
+CallableT = TypeVar('CallableT', bound=Callable)
 
 
 class StateSpec(object):
@@ -54,6 +64,7 @@ class BagStateSpec(StateSpec):
     self.coder = coder
 
   def to_runner_api(self, context):
+    # type: (PipelineContext) -> beam_runner_api_pb2.StateSpec
     return beam_runner_api_pb2.StateSpec(
         bag_spec=beam_runner_api_pb2.BagStateSpec(
             element_coder_id=context.coders.get_id(self.coder)))
@@ -118,6 +129,7 @@ class CombiningValueStateSpec(StateSpec):
     self.coder = coder
 
   def to_runner_api(self, context):
+    # type: (PipelineContext) -> beam_runner_api_pb2.StateSpec
     return beam_runner_api_pb2.StateSpec(
         combining_spec=beam_runner_api_pb2.CombiningStateSpec(
             combine_fn=self.combine_fn.to_runner_api(context),
@@ -138,6 +150,7 @@ class TimerSpec(object):
     return '%s(%s)' % (self.__class__.__name__, self.name)
 
   def to_runner_api(self, context):
+    # type: (PipelineContext) -> beam_runner_api_pb2.TimerSpec
     return beam_runner_api_pb2.TimerSpec(
         time_domain=TimeDomain.to_runner_api(self.time_domain),
         timer_coder_id=context.coders.get_id(
@@ -145,6 +158,7 @@ class TimerSpec(object):
 
 
 def on_timer(timer_spec):
+  # type: (TimerSpec) -> Callable[[CallableT], CallableT]
   """Decorator for timer firing DoFn method.
 
   This decorator allows a user to specify an on_timer processing method
@@ -174,6 +188,7 @@ def on_timer(timer_spec):
 
 
 def get_dofn_specs(dofn):
+  # type: (...) -> Tuple[Set[StateSpec], Set[TimerSpec]]
   """Gets the state and timer specs for a DoFn, if any.
 
   Args:

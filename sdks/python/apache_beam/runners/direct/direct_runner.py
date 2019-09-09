@@ -27,6 +27,7 @@ import itertools
 import logging
 import time
 import typing
+from typing import Optional
 
 from google.protobuf import wrappers_pb2
 
@@ -244,6 +245,7 @@ class _DirectReadFromPubSub(PTransform):
 
   def _infer_output_coder(self, unused_input_type=None,
                           unused_input_coder=None):
+    # type: (...) -> Optional[coders.Coder]
     return coders.BytesCoder()
 
   def get_windowing(self, inputs):

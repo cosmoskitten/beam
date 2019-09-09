@@ -29,6 +29,7 @@ import sys
 import threading
 from builtins import object
 from builtins import range
+from typing import DefaultDict
 
 import grpc
 from future.utils import raise_
@@ -303,9 +304,10 @@ class BeamFnDataServicer(beam_fn_api_pb2_grpc.BeamFnDataServicer):
   def __init__(self):
     self._lock = threading.Lock()
     self._connections_by_worker_id = collections.defaultdict(
-        _GrpcDataChannel)
+        _GrpcDataChannel)  # type: DefaultDict[str, _GrpcDataChannel]
 
   def get_conn_by_worker_id(self, worker_id):
+    # type: (str) -> _GrpcDataChannel
     with self._lock:
       return self._connections_by_worker_id[worker_id]
 

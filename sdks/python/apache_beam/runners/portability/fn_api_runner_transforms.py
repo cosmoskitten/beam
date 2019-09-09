@@ -24,6 +24,17 @@ import collections
 import functools
 import logging
 from builtins import object
+from typing import Container
+from typing import DefaultDict
+from typing import Dict
+from typing import FrozenSet
+from typing import Iterable
+from typing import Iterator
+from typing import List
+from typing import Optional
+from typing import Set
+from typing import Tuple
+from typing import TypeVar
 
 from past.builtins import unicode
 
@@ -33,6 +44,8 @@ from apache_beam.portability import python_urns
 from apache_beam.portability.api import beam_runner_api_pb2
 from apache_beam.runners.worker import bundle_processor
 from apache_beam.utils import proto_utils
+
+T = TypeVar('T')
 
 # This module is experimental. No backwards-compatibility guarantees.
 
@@ -61,14 +74,20 @@ IMPULSE_BUFFER = b'impulse'
 
 class Stage(object):
   """A set of Transforms that can be sent to the worker for processing."""
-  def __init__(self, name, transforms,
-               downstream_side_inputs=None, must_follow=frozenset(),
-               parent=None, environment=None, forced_root=False):
+  def __init__(self,
+               name,  # type: str
+               transforms,  # type: List[beam_runner_api_pb2.PTransform]
+               downstream_side_inputs=None,  # type: Optional[FrozenSet[str]]
+               must_follow=frozenset(),  # type: FrozenSet[Stage]
+               parent=None,  # type: Optional[Stage]
+               environment=None,  # type: Optional[str]
+               forced_root=False
+              ):
     self.name = name
     self.transforms = transforms
     self.downstream_side_inputs = downstream_side_inputs
     self.must_follow = must_follow
-    self.timer_pcollections = []
+    self.timer_pcollections = []  # type: List[Tuple[str, str]]
     self.parent = parent
     if environment is None:
       environment = functools.reduce(
@@ -93,6 +112,7 @@ class Stage(object):
 
   @staticmethod
   def _extract_environment(transform):
+    # type: (beam_runner_api_pb2.PTransform) -> Optional[str]
     if transform.spec.urn in PAR_DO_URNS:
       pardo_payload = proto_utils.parse_Bytes(
           transform.spec.payload, beam_runner_api_pb2.ParDoPayload)
@@ -106,6 +126,7 @@ class Stage(object):
 
   @staticmethod
   def _merge_environments(env1, env2):
+    # type: (Optional[str], Optional[str]) -> Optional[str]
     if env1 is None:
       return env2
     elif env2 is None:
@@ -118,6 +139,7 @@ class Stage(object):
       return env1
 
   def can_fuse(self, consumer, context):
+    # type: (Stage, TransformContext) -> bool
     try:
       self._merge_environments(self.environment, consumer.environment)
     except ValueError:
@@ -134,6 +156,7 @@ class Stage(object):
         and no_overlap(self.downstream_side_inputs, consumer.side_inputs()))
 
   def fuse(self, other):
+    # type: (Stage) -> Stage
     return Stage(
         "(%s)+(%s)" % (self.name, other.name),
         self.transforms + other.transforms,
@@ -145,10 +168,12 @@ class Stage(object):
         forced_root=self.forced_root or other.forced_root)
 
   def is_runner_urn(self, context):
+    # type: (TransformContext) -> bool
     return any(transform.spec.urn in context.known_runner_urns
                for transform in self.transforms)
 
   def side_inputs(self):
+    # type: () -> Iterator[str]
     for transform in self.transforms:
       if transform.spec.urn in PAR_DO_URNS:
         payload = proto_utils.parse_Bytes(
@@ -180,8 +205,12 @@ class Stage(object):
       new_transforms.append(transform)
     self.transforms = new_transforms
 
-  def executable_stage_transform(
-      self, known_runner_urns, all_consumers, components):
+  def executable_stage_transform(self,
+                                 known_runner_urns,
+                                 all_consumers,
+                                 components  # type: beam_runner_api_pb2.Components
+                                ):
+    # type: (...) -> beam_runner_api_pb2.PTransform
     if (len(self.transforms) == 1
         and self.transforms[0].spec.urn in known_runner_urns):
       return self.transforms[0]
@@ -208,7 +237,7 @@ class Stage(object):
       # Only keep the transforms in this stage.
       # Also gather up payload data as we iterate over the transforms.
       stage_components.transforms.clear()
-      main_inputs = set()
+      main_inputs = set()  # type: Set[str]
       side_inputs = []
       user_states = []
       timers = []
@@ -399,8 +428,12 @@ def leaf_transform_stages(
         yield stage
 
 
-def pipeline_from_stages(
-    pipeline_proto, stages, known_runner_urns, partial):
+def pipeline_from_stages(pipeline_proto,  # type: beam_runner_api_pb2.Pipeline
+                         stages,  # type: Iterable[Stage]
+                         known_runner_urns,
+                         partial  # type: bool
+                        ):
+  # type: (...) -> beam_runner_api_pb2.Pipeline
 
   # In case it was a generator that mutates components as it
   # produces outputs (as is the case with most transformations).
@@ -432,7 +465,7 @@ def pipeline_from_stages(
         add_parent(parent, parents.get(parent))
       components.transforms[parent].subtransforms.append(child)
 
-  all_consumers = collections.defaultdict(set)
+  all_consumers = collections.defaultdict(set)  # type: DefaultDict[str, Set[int]]
   for stage in stages:
     for transform in stage.transforms:
       for pcoll in transform.inputs.values():
@@ -458,6 +491,7 @@ def create_and_optimize_stages(pipeline_proto,
                                phases,
                                known_runner_urns,
                                use_state_iterables=False):
+  # type: (...) -> Tuple[TransformContext, List[Stage]]
   """Create a set of stages given a pipeline proto, and set of optimizations.
 
   Args:
@@ -513,6 +547,7 @@ def optimize_pipeline(
 
 
 def annotate_downstream_side_inputs(stages, pipeline_context):
+  # type: (Iterable[Stage], TransformContext) -> Iterable[Stage]
   """Annotate each stage with fusion-prohibiting information.
 
   Each stage is annotated with the (transitive) set of pcollections that
@@ -537,11 +572,12 @@ def annotate_downstream_side_inputs(stages, pipeline_context):
       all_side_inputs.add(si)
   all_side_inputs = frozenset(all_side_inputs)
 
-  downstream_side_inputs_by_stage = {}
+  downstream_side_inputs_by_stage = {}  # type: Dict[Stage, FrozenSet[str]]
 
   def compute_downstream_side_inputs(stage):
+    # type: (Stage) -> FrozenSet[str]
     if stage not in downstream_side_inputs_by_stage:
-      downstream_side_inputs = frozenset()
+      downstream_side_inputs = frozenset()  # type: FrozenSet[str]
       for transform in stage.transforms:
         for output in transform.outputs.values():
           if output in all_side_inputs:
@@ -560,6 +596,7 @@ def annotate_downstream_side_inputs(stages, pipeline_context):
 
 
 def annotate_stateful_dofns_as_roots(stages, pipeline_context):
+  # type: (Iterable[Stage], TransformContext) -> Iterable[Stage]
   for stage in stages:
     for transform in stage.transforms:
       if transform.spec.urn == common_urns.primitives.PAR_DO.urn:
@@ -571,6 +608,7 @@ def annotate_stateful_dofns_as_roots(stages, pipeline_context):
 
 
 def fix_side_input_pcoll_coders(stages, pipeline_context):
+  # type: (Iterable[Stage], TransformContext) -> Iterable[Stage]
   """Length prefix side input PCollection coders.
   """
   for stage in stages:
@@ -580,6 +618,7 @@ def fix_side_input_pcoll_coders(stages, pipeline_context):
 
 
 def lift_combiners(stages, context):
+  # type: (List[Stage], TransformContext) -> Iterator[Stage]
   """Expands CombinePerKey into pre- and post-grouping stages.
 
   ... -> CombinePerKey -> ...
@@ -654,6 +693,7 @@ def lift_combiners(stages, context):
               is_bounded=output_pcoll.is_bounded))
 
       def make_stage(base_stage, transform):
+        # type: (Stage, beam_runner_api_pb2.PTransform) -> Stage
         return Stage(
             transform.unique_name,
             [transform],
@@ -709,6 +749,7 @@ def lift_combiners(stages, context):
 
 
 def expand_sdf(stages, context):
+  # type: (Iterable[Stage], TransformContext) -> Iterator[Stage]
   """Transforms splitable DoFns into pair+split+read."""
   for stage in stages:
     assert len(stage.transforms) == 1
@@ -749,6 +790,7 @@ def expand_sdf(stages, context):
           return new_id
 
         def make_stage(base_stage, transform_id, extra_must_follow=()):
+          # type: (Stage, str, Iterable[Stage]) -> Stage
           transform = context.components.transforms[transform_id]
           return Stage(
               transform.unique_name,
@@ -778,7 +820,9 @@ def expand_sdf(stages, context):
                 component_coder_ids=[
                     paired_coder_id,
                     context.add_or_get_coder_id(
-                        coders.FloatCoder().to_runner_api(None),
+                        # context can be None here only because FloatCoder does
+                        # not have components
+                        coders.FloatCoder().to_runner_api(None), # type: ignore
                         'doubles_coder')
                 ]))
 
@@ -850,6 +894,7 @@ def expand_sdf(stages, context):
 
 
 def expand_gbk(stages, pipeline_context):
+  # type: (Iterable[Stage], TransformContext) -> Iterator[Stage]
   """Transforms each GBK into a write followed by a read.
   """
   for stage in stages:
@@ -899,6 +944,7 @@ def expand_gbk(stages, pipeline_context):
 
 
 def fix_flatten_coders(stages, pipeline_context):
+  # type: (Iterable[Stage], TransformContext) -> Iterator[Stage]
   """Ensures that the inputs of Flatten have the same coders as the output.
   """
   pcollections = pipeline_context.components.pcollections
@@ -939,6 +985,7 @@ def fix_flatten_coders(stages, pipeline_context):
 
 
 def sink_flattens(stages, pipeline_context):
+  # type: (Iterable[Stage], TransformContext) -> Iterator[Stage]
   """Sink flattens and remove them from the graph.
 
   A flatten that cannot be sunk/fused away becomes multiple writes (to the
@@ -951,7 +998,7 @@ def sink_flattens(stages, pipeline_context):
     if transform.spec.urn == common_urns.primitives.FLATTEN.urn:
       # This is used later to correlate the read and writes.
       buffer_id = create_buffer_id(transform.unique_name)
-      flatten_writes = []
+      flatten_writes = []  # type: List[Stage]
       for local_in, pcoll_in in transform.inputs.items():
         flatten_write = Stage(
             transform.unique_name + '/Write/' + local_in,
@@ -1070,6 +1117,7 @@ def greedily_fuse(stages, pipeline_context):
 
 
 def read_to_impulse(stages, pipeline_context):
+  # type: (Iterable[Stage], TransformContext) -> Iterator[Stage]
   """Translates Read operations into Impulse operations."""
   for stage in stages:
     # First map Reads, if any, to Impulse + triggered read op.
@@ -1107,6 +1155,7 @@ def read_to_impulse(stages, pipeline_context):
 
 
 def impulse_to_input(stages, pipeline_context):
+  # type: (Iterable[Stage], TransformContext) -> Iterator[Stage]
   """Translates Impulse operations into GRPC reads."""
   for stage in stages:
     for transform in list(stage.transforms):
@@ -1123,6 +1172,7 @@ def impulse_to_input(stages, pipeline_context):
 
 
 def extract_impulse_stages(stages, pipeline_context):
+  # type: (Iterable[Stage], TransformContext) -> Iterator[Stage]
   """Splits fused Impulse operations into their own stage."""
   for stage in stages:
     for transform in list(stage.transforms):
@@ -1140,6 +1190,7 @@ def extract_impulse_stages(stages, pipeline_context):
 
 
 def remove_data_plane_ops(stages, pipeline_context):
+  # type: (Iterable[Stage], TransformContext) -> Iterator[Stage]
   for stage in stages:
     for transform in list(stage.transforms):
       if transform.spec.urn in (bundle_processor.DATA_INPUT_URN,
@@ -1151,6 +1202,7 @@ def remove_data_plane_ops(stages, pipeline_context):
 
 
 def inject_timer_pcollections(stages, pipeline_context):
+  # type: (Iterable[Stage], TransformContext) -> Iterator[Stage]
   """Create PCollections for fired timers and to-be-set timers.
 
   At execution time, fired timers and timers-to-set are represented as
@@ -1224,10 +1276,11 @@ def inject_timer_pcollections(stages, pipeline_context):
 
 
 def sort_stages(stages, pipeline_context):
+  # type: (Iterable[Stage], TransformContext) -> List[Stage]
   """Order stages suitable for sequential execution.
   """
   all_stages = set(stages)
-  seen = set()
+  seen = set()  # type: Set[Stage]
   ordered = []
 
   def process(stage):
@@ -1244,6 +1297,7 @@ def sort_stages(stages, pipeline_context):
 
 
 def window_pcollection_coders(stages, pipeline_context):
+  # type: (Iterable[Stage], TransformContext) -> Iterable[Stage]
   """Wrap all PCollection coders as windowed value coders.
 
   This is required as some SDK workers require windowed coders for their
@@ -1287,6 +1341,7 @@ _global_counter = 0
 
 
 def unique_name(existing, prefix):
+  # type: (Optional[Container[str]], str) -> str
   if existing is None:
     global _global_counter
     _global_counter += 1
@@ -1303,6 +1358,7 @@ def unique_name(existing, prefix):
 
 
 def only_element(iterable):
+  # type: (Iterable[T]) -> T
   element, = iterable
   return element
 
