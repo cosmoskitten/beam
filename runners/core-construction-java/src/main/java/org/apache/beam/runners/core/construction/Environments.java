@@ -88,6 +88,7 @@ public class Environments {
    * See https://beam.apache.org/contribute/docker-images/ for more information on how to build a
    * container.
    */
+
   private static final String JAVA_SDK_HARNESS_CONTAINER_URL = "apachebeam/java_sdk";
   public static final Environment JAVA_SDK_HARNESS_ENVIRONMENT =
       createDockerEnvironment(JAVA_SDK_HARNESS_CONTAINER_URL);
