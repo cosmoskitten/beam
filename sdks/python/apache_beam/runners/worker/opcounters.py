@@ -25,12 +25,16 @@ from __future__ import division
 
 import math
 import random
+import typing
 from builtins import hex
 from builtins import object
 
 from apache_beam.utils import counters
 from apache_beam.utils.counters import Counter
 from apache_beam.utils.counters import CounterName
+
+if typing.TYPE_CHECKING:
+  from apache_beam.utils import windowed_value
 
 # This module is experimental. No backwards-compatibility guarantees.
 
@@ -191,6 +195,7 @@ class OperationCounters(object):
     self._next_sample = 0
 
   def update_from(self, windowed_value):
+    # type: (windowed_value.WindowedValue) -> None
     """Add one value to this counter."""
     if self._should_sample():
       self.do_sample(windowed_value)
@@ -210,6 +215,7 @@ class OperationCounters(object):
     return _observable_callback_inner
 
   def do_sample(self, windowed_value):
+    # type: (windowed_value.WindowedValue) -> None
     size, observables = (
         self.coder_impl.get_estimated_size_and_observables(windowed_value))
     if not observables:

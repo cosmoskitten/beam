@@ -19,8 +19,16 @@
 
 from __future__ import absolute_import
 
+import typing
+from typing import Type
+from typing import TypeVar
+from typing import Union
+
 from google.protobuf import any_pb2
 from google.protobuf import struct_pb2
+from google.protobuf import message
+
+MessageT = TypeVar('MessageT', bound=message.Message)
 
 
 def pack_Any(msg):
@@ -46,6 +54,18 @@ def unpack_Any(any_msg, msg_class):
   msg = msg_class()
   any_msg.Unpack(msg)
   return msg
+
+
+@typing.overload
+def parse_Bytes(serialized_bytes, msg_class):
+  # type: (bytes, Type[MessageT]) -> MessageT
+  pass
+
+
+@typing.overload
+def parse_Bytes(serialized_bytes, msg_class):
+  # type: (bytes, Union[Type[bytes], None]) -> bytes
+  pass
 
 
 def parse_Bytes(serialized_bytes, msg_class):

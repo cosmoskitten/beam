@@ -43,11 +43,21 @@ import operator
 import os
 import sys
 import threading
+import typing
 from builtins import hex
 from builtins import object
 from builtins import zip
 from functools import reduce
 from functools import wraps
+from typing import Any
+from typing import Callable
+from typing import Dict
+from typing import Optional
+from typing import Sequence
+from typing import Tuple
+from typing import Type
+from typing import TypeVar
+from typing import Union
 
 from google.protobuf import message
 
@@ -68,11 +78,25 @@ from apache_beam.typehints.trivial_inference import instance_to_type
 from apache_beam.typehints.typehints import validate_composite_type_param
 from apache_beam.utils import proto_utils
 
+if typing.TYPE_CHECKING:
+  from google.protobuf import message
+  from apache_beam import coders
+  from apache_beam.pipeline import Pipeline
+  from apache_beam.runners.pipeline_context import PipelineContext
+  from apache_beam.transforms.core import Windowing
+  from apache_beam.portability.api import beam_runner_api_pb2
+
 __all__ = [
     'PTransform',
     'ptransform_fn',
     'label_from_callable',
     ]
+
+T = TypeVar('T')
+PTransformT = TypeVar('PTransformT', bound='PTransform')
+ConstructorFn = Callable[
+    [Optional[Any], 'PipelineContext'],
+    Any]
 
 
 class _PValueishTransform(object):
@@ -307,34 +331,40 @@ class PTransform(WithTypeHints, HasDisplayData):
   with input as an argument.
   """
   # By default, transforms don't have any side inputs.
-  side_inputs = ()
+  side_inputs = ()  # type: Sequence[pvalue.AsSideInput]
 
   # Used for nullary transforms.
-  pipeline = None
+  pipeline = None  # type: Optional[Pipeline]
 
   # Default is unset.
-  _user_label = None
+  _user_label = None  # type: Optional[str]
 
   def __init__(self, label=None):
+    # type: (Optional[str]) -> None
     super(PTransform, self).__init__()
     self.label = label
 
   @property
   def label(self):
+    # type: () -> str
     return self._user_label or self.default_label()
 
   @label.setter
   def label(self, value):
+    # type: (Optional[str]) -> None
     self._user_label = value
 
   def default_label(self):
+    # type: () -> str
     return self.__class__.__name__
 
-  def with_input_types(self, input_type_hint):
+  # Note: this signature is required for type inspection (see Liskov Substitution Principle)
+  def with_input_types(self, *input_type_hints, **unused_kwargs):
+    # type: (PTransformT, *Any, **Any) -> PTransformT
     """Annotates the input type of a :class:`PTransform` with a type-hint.
 
     Args:
-      input_type_hint (type): An instance of an allowed built-in type, a custom
+      input_type_hints (type): An instance of an allowed built-in type, a custom
         class, or an instance of a
         :class:`~apache_beam.typehints.typehints.TypeConstraint`.
 
@@ -349,8 +379,16 @@ class PTransform(WithTypeHints, HasDisplayData):
       :class:`PTransform` object. This allows chaining type-hinting related
       methods.
     """
+    if len(input_type_hints) != 1:
+      raise TypeCheckError(
+          'PTransform %s expects a single input type hint. Got %d)' % (
+              self.__class__, len(input_type_hints)))
+    if unused_kwargs:
+      raise TypeCheckError(
+          'PTransform %s does not take any keyword type hints. Got %s)' % (
+              self.__class__, unused_kwargs))
     input_type_hint = native_type_compatibility.convert_to_beam_type(
-        input_type_hint)
+        input_type_hints[0])
     validate_composite_type_param(input_type_hint,
                                   'Type hints for a PTransform')
     return super(PTransform, self).with_input_types(input_type_hint)
@@ -409,6 +447,7 @@ class PTransform(WithTypeHints, HasDisplayData):
                 pvalue_.element_type))
 
   def _infer_output_coder(self, input_type=None, input_coder=None):
+    # type: (...) -> Optional[coders.Coder]
     """Returns the output coder to use for output of this transform.
 
     Note: this API is experimental and is subject to change; please do not rely
@@ -454,12 +493,14 @@ class PTransform(WithTypeHints, HasDisplayData):
         ' side_inputs=%s' % str(self.side_inputs) if self.side_inputs else '')
 
   def _check_pcollection(self, pcoll):
+    # type: (pvalue.PCollection) -> None
     if not isinstance(pcoll, pvalue.PCollection):
       raise error.TransformError('Expecting a PCollection argument.')
     if not pcoll.pipeline:
       raise error.TransformError('PCollection not part of a pipeline.')
 
   def get_windowing(self, inputs):
+    # type: (Any) -> Windowing
     """Returns the window function to be associated with transform's output.
 
     By default most transforms just return the windowing function associated
@@ -555,7 +596,26 @@ class PTransform(WithTypeHints, HasDisplayData):
     else:
       return input_dict
 
-  _known_urns = {}
+  _known_urns = {}  # type: Dict[str, Tuple[type, ConstructorFn]]
+
+  @classmethod
+  @typing.overload
+  def register_urn(cls,
+                   urn,  # type: str
+                   parameter_type,  # type: Optional[Type[T]]
+                  ):
+    # type: (...) -> Callable[[Callable[[T, PipelineContext], Any]], Callable[[T, PipelineContext], Any]]
+    pass
+
+  @classmethod
+  @typing.overload
+  def register_urn(cls,
+                   urn,  # type: str
+                   parameter_type,  # type: Optional[Type[T]]
+                   constructor  # type: Callable[[T, PipelineContext], Any]
+                  ):
+    # type: (...) -> None
+    pass
 
   @classmethod
   def register_urn(cls, urn, parameter_type, constructor=None):
@@ -588,6 +648,7 @@ class PTransform(WithTypeHints, HasDisplayData):
       return register
 
   def to_runner_api(self, context, has_parts=False):
+    # type: (PipelineContext, bool) -> beam_runner_api_pb2.FunctionSpec
     from apache_beam.portability.api import beam_runner_api_pb2
     urn, typed_param = self.to_runner_api_parameter(context)
     if urn == python_urns.GENERIC_COMPOSITE_TRANSFORM and not has_parts:
@@ -602,6 +663,7 @@ class PTransform(WithTypeHints, HasDisplayData):
 
   @classmethod
   def from_runner_api(cls, proto, context):
+    # type: (Optional[beam_runner_api_pb2.FunctionSpec], PipelineContext) -> Optional[PTransform]
     if proto is None or not proto.urn:
       return None
     parameter_type, constructor = cls._known_urns[proto.urn]
@@ -619,11 +681,13 @@ class PTransform(WithTypeHints, HasDisplayData):
       raise
 
   def to_runner_api_parameter(self, unused_context):
+    # type: (PipelineContext) -> Tuple[str, Optional[Union[message.Message, bytes, str]]]
     # The payload here is just to ease debugging.
     return (python_urns.GENERIC_COMPOSITE_TRANSFORM,
             getattr(self, '_fn_api_payload', str(self)))
 
   def to_runner_api_pickled(self, unused_context):
+    # type: (PipelineContext) -> Tuple[str, bytes]
     return (python_urns.PICKLED_TRANSFORM,
             pickler.dumps(self))
 
@@ -646,6 +710,7 @@ def _unpickle_transform(pickled_bytes, unused_context):
 class _ChainedPTransform(PTransform):
 
   def __init__(self, *parts):
+    # type: (*PTransform) -> None
     super(_ChainedPTransform, self).__init__(label=self._chain_label(parts))
     self._parts = parts
 
@@ -677,6 +742,7 @@ class PTransformWithSideInputs(PTransform):
   """
 
   def __init__(self, fn, *args, **kwargs):
+    # type: (WithTypeHints, *Any, **Any) -> None
     if isinstance(fn, type) and issubclass(fn, WithTypeHints):
       # Don't treat Fn class objects as callables.
       raise ValueError('Use %s() not %s.' % (fn.__name__, fn.__name__))

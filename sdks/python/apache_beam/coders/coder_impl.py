@@ -35,9 +35,13 @@ from __future__ import absolute_import
 from __future__ import division
 
 import json
+import typing
 from builtins import chr
 from builtins import object
 from io import BytesIO
+from typing import Callable
+from typing import Iterable
+from typing import Optional
 
 from fastavro import parse_schema
 from fastavro import schemaless_reader
@@ -74,6 +78,9 @@ except ImportError:
   else:
     is_compiled = False
     fits_in_64_bits = lambda x: -(1 << 63) <= x <= (1 << 63) - 1
+
+if typing.TYPE_CHECKING:
+  from apache_beam.coders import Coder
 # pylint: enable=wrong-import-order, wrong-import-position, ungrouped-imports
 
 
@@ -750,8 +757,12 @@ class SequenceCoderImpl(StreamCoderImpl):
   # Default buffer size of 64kB of handling iterables of unknown length.
   _DEFAULT_BUFFER_SIZE = 64 * 1024
 
-  def __init__(self, elem_coder,
-               read_state=None, write_state=None, write_state_threshold=0):
+  def __init__(self,
+               elem_coder,  # type: Coder
+               read_state=None,  # type: Optional[Callable[[bytes, Coder], Iterable]]
+               write_state=None,  # type: Optional[Callable[[Iterable, Coder], bytes]]
+               write_state_threshold=0  # type: int
+              ):
     self._elem_coder = elem_coder
     self._read_state = read_state
     self._write_state = write_state

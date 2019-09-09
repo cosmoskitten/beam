@@ -24,6 +24,7 @@ import sys
 import typing
 from builtins import next
 from builtins import range
+from typing import Dict
 
 from apache_beam.typehints import typehints
 
@@ -140,7 +141,7 @@ def _match_is_union(user_type):
 
 # Mapping from typing.TypeVar/typehints.TypeVariable ids to an object of the
 # other type. Bidirectional mapping preserves typing.TypeVar instances.
-_type_var_cache = {}
+_type_var_cache = {}  # type: Dict[int, typehints.TypeVariable]
 
 
 def convert_to_beam_type(typ):
