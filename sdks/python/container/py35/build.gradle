@@ -51,8 +51,13 @@ task copyLauncherDependencies(type: Copy) {
   }
 }
 
+def sdk_version = project.rootProject.file('version.txt').text.trim()
+
 docker {
-  name containerImageName(name: "python3.5_sdk")
+  name containerImageName(
+          name: "python3.5_sdk",
+          tag: project.rootProject.hasProperty(["docker-tag"]) ?
+                  project.rootProject["docker-tag"] : sdk_version)
   files "../Dockerfile", "./build"
   buildArgs(['py_version': "3.5"])
 }
