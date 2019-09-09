@@ -28,7 +28,6 @@ def testJobs = [
                 triggerPhrase: 'Run BigQueryIO Streaming Performance Test Java',
                 jobName      : 'beam_BiqQueryIO_Streaming_Performance_Test_Java',
                 itClass      : 'org.apache.beam.sdk.bigqueryioperftests.BigQueryIOIT',
-                runner       : CommonTestProperties.Runner.DATAFLOW,
                 jobProperties: [
                         project               : 'apache-beam-testing',
                         tempLocation          : 'gs://temp-storage-for-perf-tests/loadtests',
@@ -39,13 +38,13 @@ def testJobs = [
                         testBigQueryTable     : 'bqio_write_10GB_java',
                         metricsBigQueryDataset: 'beam_performance',
                         metricsBigQueryTable  : 'bqio_10GB_results_java_stream',
-                        sourceOptions         : [
-                                "num_records": 10485760,
-                                "key_size": 1,
-                                "value_size": 1024
-                        ],
-                        maxNumWorkers         : 5,
-                        numWorkers            : 5,
+                        sourceOptions         : '\'{' +
+                                '"num_records": 10485760,' +
+                                '"key_size": 1,' +
+                                '"value_size": 1024}\'',
+                        runner                : 'DataflowRunner',
+                        maxNumWorkers         : '5',
+                        numWorkers            : '5',
                         autoscalingAlgorithm  : 'NONE',  // Disable autoscale the worker pool.
                 ]
         ],
@@ -54,7 +53,6 @@ def testJobs = [
                 triggerPhrase: 'Run BigQueryIO Batch Performance Test Java',
                 jobName      : 'beam_BiqQueryIO_Batch_Performance_Test_Java',
                 itClass      : 'org.apache.beam.sdk.bigqueryioperftests.BigQueryIOIT',
-                runner       : CommonTestProperties.Runner.DATAFLOW,
                 jobProperties: [
                         project               : 'apache-beam-testing',
                         tempLocation          : 'gs://temp-storage-for-perf-tests/loadtests',
@@ -65,13 +63,13 @@ def testJobs = [
                         testBigQueryTable     : 'bqio_write_10GB_java',
                         metricsBigQueryDataset: 'beam_performance',
                         metricsBigQueryTable  : 'bqio_10GB_results_java_batch',
-                        sourceOptions         : [
-                                "num_records": 10485760,
-                                "key_size": 1,
-                                "value_size": 1024
-                        ],
-                        maxNumWorkers         : 5,
-                        numWorkers            : 5,
+                        sourceOptions         : '\'{' +
+                                '"num_records": 10485760,' +
+                                '"key_size": 1,' +
+                                '"value_size": 1024}\'',
+                        runner                : "DataflowRunner",
+                        maxNumWorkers         : '5',
+                        numWorkers            : '5',
                         autoscalingAlgorithm  : 'NONE',  // Disable autoscale the worker pool.
                 ]
         ]
@@ -86,11 +84,6 @@ private void createPostCommitJob(testJob) {
         common.enablePhraseTriggeringFromPullRequest(delegate, testJob.title, testJob.triggerPhrase)
         common.setAutoJob(delegate, 'H */6 * * *')
 
-        Map additionalOptions = [
-                runner           : 'DataflowRunner',
-        ]
-
-        Map allPipelineOptions = testJob.jobProperties << additionalOptions
         String runner = "dataflow"
         String testTask = ':sdks:java:io:bigquery-io-perf-tests:integrationTest'
 
@@ -99,7 +92,7 @@ private void createPostCommitJob(testJob) {
                 rootBuildScriptDir(common.checkoutDir)
                 common.setGradleSwitches(delegate)
                 switches("--info")
-                switches("-DintegrationTestPipelineOptions=\'${common.joinPipelineOptions(allPipelineOptions)}\'")
+                switches("-DintegrationTestPipelineOptions=\'${common.joinPipelineOptions(testJob.jobProperties)}\'")
                 switches("-DintegrationTestRunner=\'${runner}\'")
                 tasks("${testTask} --tests ${testJob.itClass}")
             }
