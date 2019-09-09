@@ -158,7 +158,7 @@ def loadTest = { scope, triggeringContext ->
   def numberOfWorkers = 5
   List<Map> testScenarios = scenarios(datasetName, pythonHarnessImageTag)
 
-  publisher.publish(":sdks:${sdkName}:container:docker", sdkName)
+  publisher.publish(":sdks:${sdkName}:container:py2:docker", sdkName)
   publisher.publish('runners:flink:1.7:job-server-container:docker', 'flink-job-server')
   def flink = new Flink(scope, 'beam_LoadTests_Python_CoGBK_Flink_Batch')
   flink.setUp([pythonHarnessImageTag], numberOfWorkers, publisher.getFullImageName('flink-job-server'))
