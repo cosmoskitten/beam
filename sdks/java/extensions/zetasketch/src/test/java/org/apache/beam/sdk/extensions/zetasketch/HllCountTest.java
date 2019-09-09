@@ -88,6 +88,13 @@ public class HllCountTest {
     LONGS_SKETCH = hll.serializeToByteArray();
   }
 
+  private static final byte[] LONGS_SKETCH_OF_EMPTY_SET;
+
+  static {
+    HyperLogLogPlusPlus<Long> hll = new HyperLogLogPlusPlus.Builder().buildForLongs();
+    LONGS_SKETCH_OF_EMPTY_SET = hll.serializeToByteArray();
+  }
+
   // String
   private static final List<String> STRINGS = Arrays.asList("s1", "s2", "s1", "s2");
   private static final byte[] STRINGS_SKETCH;
@@ -327,6 +334,28 @@ public class HllCountTest {
 
   @Test
   @Category(NeedsRunner.class)
+  public void testMergePartialGlobally_MergeWithSketchOfEmptySet() {
+    PCollection<byte[]> result =
+        p.apply(Create.of(LONGS_SKETCH, LONGS_SKETCH_OF_EMPTY_SET))
+            .apply(HllCount.MergePartial.globally());
+
+    PAssert.thatSingleton(result).isEqualTo(LONGS_SKETCH);
+    p.run();
+  }
+
+  @Test
+  @Category(NeedsRunner.class)
+  public void testMergePartialGlobally_MergeEmptySketchWithSketchOfEmptySet() {
+    PCollection<byte[]> result =
+        p.apply(Create.of(EMPTY_SKETCH, LONGS_SKETCH_OF_EMPTY_SET))
+            .apply(HllCount.MergePartial.globally());
+
+    PAssert.thatSingleton(result).isEqualTo(LONGS_SKETCH_OF_EMPTY_SET);
+    p.run();
+  }
+
+  @Test
+  @Category(NeedsRunner.class)
   public void testMergePartialGlobally_IncompatibleSketches() {
     p.apply(Create.of(INTS1_SKETCH, STRINGS_SKETCH)).apply(HllCount.MergePartial.globally());
 
@@ -409,6 +438,16 @@ public class HllCountTest {
   @Category(NeedsRunner.class)
   public void testExtractGlobally_EmptySketch() {
     PCollection<Long> result = p.apply(Create.of(EMPTY_SKETCH)).apply(HllCount.Extract.globally());
+
+    PAssert.thatSingleton(result).isEqualTo(0L);
+    p.run();
+  }
+
+  @Test
+  @Category(NeedsRunner.class)
+  public void testExtractGlobally_SketchOfEmptySet() {
+    PCollection<Long> result =
+        p.apply(Create.of(LONGS_SKETCH_OF_EMPTY_SET)).apply(HllCount.Extract.globally());
 
     PAssert.thatSingleton(result).isEqualTo(0L);
     p.run();

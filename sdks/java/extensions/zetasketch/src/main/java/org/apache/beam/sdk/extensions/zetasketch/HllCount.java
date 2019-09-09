@@ -349,7 +349,8 @@ public final class HllCount {
                   public void processElement(
                       @Element byte[] sketch, OutputReceiver<Long> receiver) {
                     if (sketch == null) {
-                      throw new NullPointerException("Null is not a valid sketch.");
+                      throw new NullPointerException(
+                          "Expected a valid sketch or an empty byte array (for empty sketches), but found null.");
                     } else if (sketch.length == 0) {
                       receiver.output(0L);
                     } else {
@@ -373,7 +374,8 @@ public final class HllCount {
                       @Element KV<K, byte[]> kv, OutputReceiver<KV<K, Long>> receiver) {
                     byte[] sketch = kv.getValue();
                     if (sketch == null) {
-                      throw new NullPointerException("Null is not a valid sketch.");
+                      throw new NullPointerException(
+                          "Expected a valid sketch or an empty byte array (for empty sketches), but found null.");
                     } else if (sketch.length == 0) {
                       receiver.output(KV.of(kv.getKey(), 0L));
                     } else {

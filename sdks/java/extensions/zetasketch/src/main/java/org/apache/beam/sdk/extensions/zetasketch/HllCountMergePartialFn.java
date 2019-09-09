@@ -59,7 +59,8 @@ class HllCountMergePartialFn<HllT>
   public HyperLogLogPlusPlus<HllT> addInput(
       @Nullable HyperLogLogPlusPlus<HllT> accumulator, byte[] input) {
     if (input == null) {
-      throw new NullPointerException("Null is not a valid sketch.");
+      throw new NullPointerException(
+          "Expected a valid sketch or an empty byte array (for empty sketches), but found null.");
     } else if (input.length == 0) {
       return accumulator;
     } else if (accumulator == null) {
