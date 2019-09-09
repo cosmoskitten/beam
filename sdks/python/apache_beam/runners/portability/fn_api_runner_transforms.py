@@ -546,15 +546,19 @@ def annotate_downstream_side_inputs(stages, pipeline_context):
 
   This representation is also amenable to simple recomputation on fusion.
   """
-  consumers = collections.defaultdict(list)
-  all_side_inputs = set()
-  for stage in stages:
-    for transform in stage.transforms:
-      for input in transform.inputs.values():
-        consumers[input].append(stage)
-    for si in stage.side_inputs():
-      all_side_inputs.add(si)
-  all_side_inputs = frozenset(all_side_inputs)
+  consumers = collections.defaultdict(list)  # type: DefaultDict[str, List[Stage]]
+  def get_all_side_inputs():
+    # type: () -> Set[str]
+    all_side_inputs = set()  # type: Set[str]
+    for stage in stages:
+      for transform in stage.transforms:
+        for input in transform.inputs.values():
+          consumers[input].append(stage)
+      for si in stage.side_inputs():
+        all_side_inputs.add(si)
+    return all_side_inputs
+
+  all_side_inputs = frozenset(get_all_side_inputs())
 
   downstream_side_inputs_by_stage = {}  # type: Dict[Stage, FrozenSet[str]]
 
