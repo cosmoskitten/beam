@@ -72,7 +72,7 @@ def bqioBatchTest = [
         ]
 ]
 
-def executeJob = { scope, testConfig ->
+private void executeJob(scope, testConfig) {
     job(testConfig.title) {
         commonJobProperties.setTopLevelMainJobProperties(scope, 'master', 240)
         def testTask = ':sdks:java:io:bigquery-io-perf-tests:integrationTest'
