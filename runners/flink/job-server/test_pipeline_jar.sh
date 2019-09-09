@@ -38,6 +38,11 @@ case $key in
         shift # past argument
         shift # past value
         ;;
+    --python_version)
+        PYTHON_VERSION="$2"
+        shift # past argument
+        shift # past value
+        ;;
     *)    # unknown option
         echo "Unknown option: $1"
         exit 1
@@ -52,13 +57,13 @@ cd $(git rev-parse --show-toplevel)
 command -v docker
 docker -v
 
-CONTAINER=$USER-docker-apache.bintray.io/beam/python
+CONTAINER=$USER-docker-apache.bintray.io/beam/python$PYTHON_VERSION
 TAG=latest
-# Verify container has been built
+# Verify container has already been built
 docker images $CONTAINER:$TAG | grep $TAG
 
 # Set up Python environment
-virtualenv $ENV_DIR
+virtualenv -p python$PYTHON_VERSION $ENV_DIR
 . $ENV_DIR/bin/activate
 pip install --retries 10 -e $PYTHON_ROOT_DIR
 
