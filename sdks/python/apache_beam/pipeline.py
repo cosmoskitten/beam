@@ -80,6 +80,7 @@ from apache_beam.pvalue import PCollection
 from apache_beam.pvalue import PDone
 from apache_beam.runners import PipelineRunner
 from apache_beam.runners import create_runner
+from apache_beam.transforms import ParDo
 from apache_beam.transforms import ptransform
 #from apache_beam.transforms import external
 from apache_beam.typehints import TypeCheckError
@@ -980,7 +981,7 @@ class AppliedPTransform(object):
         for tag, id in proto.outputs.items()}
     # This annotation is expected by some runners.
     if proto.spec.urn == common_urns.primitives.PAR_DO.urn:
-      assert isinstance(result.transform, ptransform.ParDo)
+      assert isinstance(result.transform, ParDo)
       result.transform.output_tags = set(proto.outputs.keys()).difference(
           {'None'})
     if not result.parts:
