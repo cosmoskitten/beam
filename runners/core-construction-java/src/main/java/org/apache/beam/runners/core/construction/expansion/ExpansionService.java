@@ -186,7 +186,8 @@ public class ExpansionService extends ExpansionServiceGrpc.ExpansionServiceImplB
                   coder.getEncodedTypeDescriptor().getType().getTypeName()),
               e);
         }
-        method.invoke(config, coder.decode(entry.getValue().getPayload().newInput()));
+        method.invoke(config,
+            coder.decode(entry.getValue().getPayload().newInput(), Coder.Context.NESTED));
       }
     }
 
