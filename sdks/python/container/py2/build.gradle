@@ -52,7 +52,7 @@ task copyLauncherDependencies(type: Copy) {
   }
 }
 
-def sdk_version = project.rootProject.file('version.txt').text.trim()
+def sdk_version = '2.16.0'
 
 docker {
   name containerImageName(
