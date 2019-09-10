@@ -27,11 +27,6 @@ PostcommitJobBuilder.postCommitJob('beam_PostCommit_PortableJar_Flink',
   // Set common parameters.
   commonJobProperties.setTopLevelMainJobProperties(delegate)
 
-  // Publish all test results to Jenkins
-  publishers {
-    archiveJunit('**/build/test-results/**/*.xml')
-  }
-
   // Gradle goals for this job.
   steps {
     gradle {
