@@ -21,7 +21,6 @@ import functools
 import itertools
 import json
 import logging
-import os
 import sys
 import threading
 import time

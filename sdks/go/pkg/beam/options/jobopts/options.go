@@ -21,7 +21,6 @@ import (
 	"context"
 	"flag"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"strings"
 	"time"
@@ -109,14 +108,7 @@ func GetEnvironmentUrn(ctx context.Context) string {
 // Convenience function.
 func GetEnvironmentConfig(ctx context.Context) string {
 	if *EnvironmentConfig == "" {
-		//TODO(hannahjiang): use project dir
-		version_file := "../../../../../../version.txt"
-		sdk_version, err := ioutil.ReadFile(version_file)
-		if err != nil {
-			log.Fatalf("Failed to read 'version.txt' file: %v", err)
-		}
-		*EnvironmentConfig = os.ExpandEnv(fmt.Sprintf("apachebeam/go_sdk:%s",
-			string(sdk_version)))
+		*EnvironmentConfig = os.ExpandEnv("apachebeam/go_sdk:latest")
 		log.Infof(ctx, "No environment config specified. Using default config: '%v'", *EnvironmentConfig)
 	}
 	return *EnvironmentConfig

@@ -19,7 +19,6 @@ package org.apache.beam.runners.core.construction;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.io.IOException;
-import java.nio.file.*;
 import java.util.Map;
 import java.util.Optional;
 import javax.annotation.Nullable;
@@ -89,20 +88,10 @@ public class Environments {
    * See https://beam.apache.org/contribute/docker-images/ for more information on how to build a
    * container.
    */
-  public static String getVersion(){
-    String version_file = System.getProperty("user.dir") + "/version.txt";
-    try {
-      String sdk_version = new String(Files.readAllBytes(Paths.get(version_file)),
-          java.nio.charset.StandardCharsets.UTF_8);
-      return sdk_version;
-    } catch (IOException e) {
-      throw new RuntimeException(e);
-    }
-  }
 
   private static final String JAVA_SDK_HARNESS_CONTAINER_URL = "apachebeam/java_sdk";
   public static final Environment JAVA_SDK_HARNESS_ENVIRONMENT =
-      createDockerEnvironment(JAVA_SDK_HARNESS_CONTAINER_URL + ':' + getVersion());
+      createDockerEnvironment(JAVA_SDK_HARNESS_CONTAINER_URL);
 
   private Environments() {}
 
