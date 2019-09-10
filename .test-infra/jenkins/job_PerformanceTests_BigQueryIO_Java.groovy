@@ -38,9 +38,9 @@ def testJobs = [
                         metricsBigQueryDataset: 'beam_performance',
                         metricsBigQueryTable  : 'bqio_10GB_results_java_stream',
                         sourceOptions         : '{' +
-                                '\\\"numRecords\\\": 10485760,' +
-                                '\\\"keySizeBytes\\\": 1,' +
-                                '\\\"valueSizeBytes\\\": 1024}',
+                                '"numRecords": 10485760,' +
+                                '"keySizeBytes": 1,' +
+                                '"valueSizeBytes": 1024}',
                         runner                : 'DataflowRunner',
                         maxNumWorkers         : '5',
                         numWorkers            : '5',
@@ -62,9 +62,9 @@ def testJobs = [
                         metricsBigQueryDataset: 'beam_performance',
                         metricsBigQueryTable  : 'bqio_10GB_results_java_batch',
                         sourceOptions         : '{' +
-                                '\\\"numRecords\\\": 10485760,' +
-                                '\\\"keySizeBytes\\\": 1,' +
-                                '\\\"valueSizeBytes\\\": 1024}',
+                                '"numRecords": 10485760,' +
+                                '"keySizeBytes": 1,' +
+                                '"valueSizeBytes": 1024}',
                         runner                : "DataflowRunner",
                         maxNumWorkers         : '5',
                         numWorkers            : '5',
