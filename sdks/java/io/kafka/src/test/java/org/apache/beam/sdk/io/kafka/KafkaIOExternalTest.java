@@ -76,7 +76,7 @@ public class KafkaIOExternalTest {
                 "topics",
                 ExternalTransforms.ConfigValue.newBuilder()
                     .addCoderUrn("beam:coder:iterable:v1")
-                    .addCoderUrn("beam:coder:bytes:v1")
+                    .addCoderUrn("beam:coder:string_utf8:v1")
                     .setPayload(ByteString.copyFrom(listAsBytes(topics)))
                     .build())
             .putConfiguration(
@@ -84,20 +84,20 @@ public class KafkaIOExternalTest {
                 ExternalTransforms.ConfigValue.newBuilder()
                     .addCoderUrn("beam:coder:iterable:v1")
                     .addCoderUrn("beam:coder:kv:v1")
-                    .addCoderUrn("beam:coder:bytes:v1")
-                    .addCoderUrn("beam:coder:bytes:v1")
+                    .addCoderUrn("beam:coder:string_utf8:v1")
+                    .addCoderUrn("beam:coder:string_utf8:v1")
                     .setPayload(ByteString.copyFrom(mapAsBytes(consumerConfig)))
                     .build())
             .putConfiguration(
                 "key_deserializer",
                 ExternalTransforms.ConfigValue.newBuilder()
-                    .addCoderUrn("beam:coder:bytes:v1")
+                    .addCoderUrn("beam:coder:string_utf8:v1")
                     .setPayload(ByteString.copyFrom(encodeString(keyDeserializer)))
                     .build())
             .putConfiguration(
                 "value_deserializer",
                 ExternalTransforms.ConfigValue.newBuilder()
-                    .addCoderUrn("beam:coder:bytes:v1")
+                    .addCoderUrn("beam:coder:string_utf8:v1")
                     .setPayload(ByteString.copyFrom(encodeString(valueDeserializer)))
                     .build())
             .build();
@@ -161,7 +161,7 @@ public class KafkaIOExternalTest {
             .putConfiguration(
                 "topic",
                 ExternalTransforms.ConfigValue.newBuilder()
-                    .addCoderUrn("beam:coder:bytes:v1")
+                    .addCoderUrn("beam:coder:string_utf8:v1")
                     .setPayload(ByteString.copyFrom(encodeString(topic)))
                     .build())
             .putConfiguration(
@@ -169,20 +169,20 @@ public class KafkaIOExternalTest {
                 ExternalTransforms.ConfigValue.newBuilder()
                     .addCoderUrn("beam:coder:iterable:v1")
                     .addCoderUrn("beam:coder:kv:v1")
-                    .addCoderUrn("beam:coder:bytes:v1")
-                    .addCoderUrn("beam:coder:bytes:v1")
+                    .addCoderUrn("beam:coder:string_utf8:v1")
+                    .addCoderUrn("beam:coder:string_utf8:v1")
                     .setPayload(ByteString.copyFrom(mapAsBytes(producerConfig)))
                     .build())
             .putConfiguration(
                 "key_serializer",
                 ExternalTransforms.ConfigValue.newBuilder()
-                    .addCoderUrn("beam:coder:bytes:v1")
+                    .addCoderUrn("beam:coder:string_utf8:v1")
                     .setPayload(ByteString.copyFrom(encodeString(keySerializer)))
                     .build())
             .putConfiguration(
                 "value_serializer",
                 ExternalTransforms.ConfigValue.newBuilder()
-                    .addCoderUrn("beam:coder:bytes:v1")
+                    .addCoderUrn("beam:coder:string_utf8:v1")
                     .setPayload(ByteString.copyFrom(encodeString(valueSerializer)))
                     .build())
             .build();
