@@ -45,7 +45,7 @@ $ pwd
 [...]/beam
 $ ./gradlew docker
 [...]
-> Task :sdks:python:container:docker 
+> Task :sdks:python:container:py2:docker
 a571bb44bc32: Verifying Checksum
 a571bb44bc32: Download complete
 aa6d783919f6: Verifying Checksum
@@ -75,7 +75,7 @@ Step 6/6 : ENTRYPOINT ["/opt/apache/beam/boot"]
 Removing intermediate container 30079dc4204b
  ---> 4ea515403a1a
 Successfully built 4ea515403a1a
-Successfully tagged herohde-docker-apache.bintray.io/beam/python:latest
+Successfully tagged herohde-docker-apache.bintray.io/beam/python2.7:latest
 [...]
 ```
 
@@ -85,18 +85,30 @@ the specific images needed can be a lot faster:
 
 ```
 $ ./gradlew -p sdks/java/container docker
-$ ./gradlew -p sdks/python/container docker
+$ ./gradlew -p sdks/python/container buildAll
 $ ./gradlew -p sdks/go/container docker
+```
+
+When building python container images, you can also specify the python versions:
+
+```
+$ ./gradlew -p sdks/python/container/py2 docker
+$ ./gradlew -p sdks/python/container/py35 docker
+$ ./gradlew -p sdks/python/container/py36 docker
+$ ./gradlew -p sdks/python/container/py37 docker
 ```
 
 **(Optional)** When built, you can see, inspect and run them locally:
 
 ```
 $ docker images
-REPOSITORY                                       TAG                    IMAGE ID            CREATED       SIZE
-herohde-docker-apache.bintray.io/beam/python     latest             4ea515403a1a      3 minutes ago     1.27GB
-herohde-docker-apache.bintray.io/beam/java       latest             0103512f1d8f     34 minutes ago      780MB
-herohde-docker-apache.bintray.io/beam/go         latest             ce055985808a     35 minutes ago      121MB
+REPOSITORY                                        TAG                    IMAGE ID            CREATED       SIZE
+herohde-docker-apache.bintray.io/beam/python3.7   latest             43b4ac17123b      3 minutes ago     1.86GB
+herohde-docker-apache.bintray.io/beam/python3.6   latest             c2d497de667f      3 minutes ago     1.86GB
+herohde-docker-apache.bintray.io/beam/python3.5   latest             68b0b5d284d1      3 minutes ago     1.86GB
+herohde-docker-apache.bintray.io/beam/python2.7   latest             502cf624db92      3 minutes ago     1.78GB
+herohde-docker-apache.bintray.io/beam/java        latest             0103512f1d8f     34 minutes ago      780MB
+herohde-docker-apache.bintray.io/beam/go          latest             ce055985808a     35 minutes ago      121MB
 [...]
 ```
 
@@ -122,19 +134,8 @@ version, you can do so by adding:
 
 Not all dependencies are like insurance on used Vespa, if you don't have them some job's just won't run at all and you can't sweet talk your way out of a tensorflow dependency. On the other hand, for Python users dependencies can be automatically installed at run time on each container, which is a great way to find out what your systems timeout limits are. Regardless as to if you have dependency which isn't being installed for you and you need, or you just don't want to install tensorflow 1.6.0 every time you start a new worker this can help.
 
-For Python we have a sample Dockerfile which will take the user specified requirements and install them on top of your base image. If your building from source follow the directions above, otherwise you can set the environment variable BASE_PYTHON_CONTAINER_IMAGE to the desired released version.
+For Python we can add our dependencies in the `base_image_requirements.txt` under `sdks/python/container` folder and then build the python container image.
 
-```
-USER_REQUIREMENTS=~/my_req.txt ./sdks/python/scripts/add_requirements.sh
-```
-
-Once your custom container is built, remember to upload it to the registry of your choice.
-
-If you build a custom container when you run your job you will need to specify instead of the default latest container, so for example Holden would specify:
-
-```
---worker_harness_container_image=holden-docker-apache.bintray.io/beam/python-with-requirements
-```
 
 ## How to push container images
 
@@ -145,8 +146,8 @@ to push must also be present in the local docker image repository.
 For the Python SDK harness container image, run:
 
 ```
-$ docker push $USER-docker-apache.bintray.io/beam/python:latest
-The push refers to repository [herohde-docker-apache.bintray.io/beam/python]
+$ docker push $USER-docker-apache.bintray.io/beam/python2.7:latest
+The push refers to repository [herohde-docker-apache.bintray.io/beam/python2.7]
 723b66d57e21: Pushed 
 12d5806e6806: Pushed 
 b394bd077c6e: Pushed 
@@ -167,8 +168,8 @@ to multiple registries, you can retag the image using `docker tag` and push.
 **(Optional)** On any machine, you can now pull the pushed container image:
 
 ```
-$ docker pull $USER-docker-apache.bintray.io/beam/python:latest
-latest: Pulling from beam/python
+$ docker pull $USER-docker-apache.bintray.io/beam/python2.7:latest
+latest: Pulling from beam/python2.7
 f2b6b4884fc8: Pull complete 
 4fb899b4df21: Pull complete 
 74eaa8be7221: Pull complete 
@@ -181,10 +182,10 @@ aa6d783919f6: Pull complete
 08274803455d: Pull complete 
 ef79fab5686a: Pull complete 
 Digest: sha256:86ad57055324457c3ea950f914721c596c7fa261c216efb881d0ca0bb8457535
-Status: Downloaded newer image for herohde-docker-apache.bintray.io/beam/python:latest
+Status: Downloaded newer image for herohde-docker-apache.bintray.io/beam/python2.7:latest
 $ docker images
-REPOSITORY                                     TAG                 IMAGE ID            CREATED          SIZE
-herohde-docker-apache.bintray.io/beam/python   latest          4ea515403a1a     35 minutes ago       1.27 GB
+REPOSITORY                                        TAG                 IMAGE ID            CREATED          SIZE
+herohde-docker-apache.bintray.io/beam/python2.7   latest          4ea515403a1a     35 minutes ago       1.27 GB
 [...]
 ```
 

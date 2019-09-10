@@ -250,7 +250,7 @@ download it on the [Downloads page]({{ site.baseurl
 available.
 </span>
 
-<span class="language-py">1. *Only required once:* Build the SDK harness container: `./gradlew :sdks:python:container:docker`
+<span class="language-py">1. *Only required once:* Build the SDK harness container: `./gradlew :sdks:python:container:buildAll`
 </span>
 
 <span class="language-py">2. Start the JobService endpoint: `./gradlew :runners:flink:1.5:job-server:runShadow`
