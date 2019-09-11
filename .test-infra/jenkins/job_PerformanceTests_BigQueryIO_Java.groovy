@@ -87,6 +87,9 @@ private void createPostCommitJob(testJob) {
         common.setTopLevelMainJobProperties(delegate)
         common.enablePhraseTriggeringFromPullRequest(delegate, testJob.title, testJob.triggerPhrase)
         common.setAutoJob(delegate, 'H */6 * * *')
+        publishers {
+            archiveJunit('**/build/test-results/**/*.xml')
+        }
 
         String runner = "dataflow"
         String testTask = ':sdks:java:io:bigquery-io-perf-tests:integrationTest'
