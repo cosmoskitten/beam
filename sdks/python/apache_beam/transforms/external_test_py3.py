@@ -24,6 +24,7 @@ import unittest
 
 import apache_beam as beam
 from apache_beam import typehints
+from apache_beam.portability.api.external_transforms_pb2 import ExternalConfigurationPayload
 from apache_beam.transforms.external import AnnotationBasedPayloadBuilder
 from apache_beam.transforms.external import DataclassBasedPayloadBuilder
 from apache_beam.transforms.external_test import PayloadBase
@@ -36,10 +37,16 @@ except ImportError:
 # pylint: enable=wrong-import-order, wrong-import-position
 
 
+def get_payload(cls):
+  payload = ExternalConfigurationPayload()
+  payload.ParseFromString(cls._payload)
+  return payload
+
+
 @unittest.skipIf(dataclasses is None, 'dataclasses library not available')
 class ExternalDataclassesPayloadTest(PayloadBase, unittest.TestCase):
 
-  def get_typing_payload(self, values):
+  def get_payload_from_typing_hints(self, values):
 
     @dataclasses.dataclass
     class DataclassTransform(beam.ExternalTransform):
@@ -52,9 +59,9 @@ class ExternalDataclassesPayloadTest(PayloadBase, unittest.TestCase):
       optional_integer: typing.Optional[int] = None
       expansion_service: dataclasses.InitVar[typing.Optional[str]] = None
 
-    return ExternalConfigurationPayloadDataclassTransform(**values)._payload
+    return get_payload(DataclassTransform(**values))
 
-  def get_typehints_payload(self, values):
+  def get_payload_from_beam_typehints(self, values):
 
     @dataclasses.dataclass
     class DataclassTransform(beam.ExternalTransform):
@@ -67,12 +74,12 @@ class ExternalDataclassesPayloadTest(PayloadBase, unittest.TestCase):
       optional_integer: typehints.Optional[int] = None
       expansion_service: dataclasses.InitVar[typehints.Optional[str]] = None
 
-    return DataclassTransform(**values)._payload
+    return get_payload(DataclassTransform(**values))
 
 
 class ExternalAnnotationPayloadTest(PayloadBase, unittest.TestCase):
 
-  def get_typing_payload(self, values):
+  def get_payload_from_typing_hints(self, values):
     class AnnotatedTransform(beam.ExternalTransform):
       URN = 'beam:external:fakeurn:v1'
 
@@ -96,9 +103,9 @@ class ExternalAnnotationPayloadTest(PayloadBase, unittest.TestCase):
             expansion_service
         )
 
-    return AnnotatedTransform(**values)._payload
+    return get_payload(AnnotatedTransform(**values))
 
-  def get_typehints_payload(self, values):
+  def get_payload_from_beam_typehints(self, values):
     class AnnotatedTransform(beam.ExternalTransform):
       URN = 'beam:external:fakeurn:v1'
 
@@ -122,7 +129,7 @@ class ExternalAnnotationPayloadTest(PayloadBase, unittest.TestCase):
             expansion_service
         )
 
-    return AnnotatedTransform(**values)._payload
+    return get_payload(AnnotatedTransform(**values))
 
 if __name__ == '__main__':
   unittest.main()

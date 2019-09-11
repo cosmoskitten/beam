@@ -60,7 +60,7 @@ except ImportError:
 
 
 def get_payload(args):
-  return ExternalConfigurationPayload(configuration=args).SerializeToString()
+  return ExternalConfigurationPayload(configuration=args)
 
 
 class PayloadBase(object):
@@ -83,31 +83,35 @@ class PayloadBase(object):
   args = {
       'integer_example': ConfigValue(
           coder_urn=['beam:coder:varint:v1'],
-          payload=VarIntCoder().encode(values['integer_example'])),
+          payload=VarIntCoder()
+            .get_impl().encode_nested(values['integer_example'])),
       'string_example': ConfigValue(
           coder_urn=['beam:coder:string_utf8:v1'],
-          payload=StrUtf8Coder().encode(values['string_example'])),
+          payload=StrUtf8Coder()
+            .get_impl().encode_nested(values['string_example'])),
       'list_of_strings': ConfigValue(
           coder_urn=['beam:coder:iterable:v1',
                      'beam:coder:string_utf8:v1'],
           payload=IterableCoder(StrUtf8Coder())
-            .encode(values['list_of_strings'])),
+            .get_impl().encode_nested(values['list_of_strings'])),
       'optional_kv': ConfigValue(
           coder_urn=['beam:coder:kv:v1',
                      'beam:coder:string_utf8:v1',
                      'beam:coder:double:v1'],
           payload=TupleCoder([StrUtf8Coder(), FloatCoder()])
-            .encode(values['optional_kv'])),
+            .get_impl().encode_nested(values['optional_kv'])),
   }
 
-  def get_typing_payload(self, values):
+  def get_payload_from_typing_hints(self, values):
+    """Return ExternalConfigurationPayload based on python typing hints"""
     raise NotImplementedError
 
-  def get_typehints_payload(self, values):
+  def get_payload_from_beam_typehints(self, values):
+    """Return ExternalConfigurationPayload based on beam typehints"""
     raise NotImplementedError
 
   def test_typing_payload_builder(self):
-    result = self.get_typing_payload(self.values)
+    result = self.get_payload_from_typing_hints(self.values)
     expected = get_payload(self.args)
     self.assertEqual(result, expected)
 
@@ -115,12 +119,12 @@ class PayloadBase(object):
     """
     string_utf8 coder will be used even if values are not unicode in python 2.x
     """
-    result = self.get_typing_payload(self.bytes_values)
+    result = self.get_payload_from_typing_hints(self.bytes_values)
     expected = get_payload(self.args)
     self.assertEqual(result, expected)
 
   def test_typehints_payload_builder(self):
-    result = self.get_typehints_payload(self.values)
+    result = self.get_payload_from_beam_typehints(self.values)
     expected = get_payload(self.args)
     self.assertEqual(result, expected)
 
@@ -128,7 +132,7 @@ class PayloadBase(object):
     """
     string_utf8 coder will be used even if values are not unicode in python 2.x
     """
-    result = self.get_typehints_payload(self.bytes_values)
+    result = self.get_payload_from_beam_typehints(self.bytes_values)
     expected = get_payload(self.args)
     self.assertEqual(result, expected)
 
@@ -137,12 +141,12 @@ class PayloadBase(object):
     value can only be None if typehint is Optional
     """
     with self.assertRaises(RuntimeError):
-      self.get_typing_payload({k: None for k in self.values})
+      self.get_payload_from_typing_hints({k: None for k in self.values})
 
 
 class ExternalTuplePayloadTest(PayloadBase, unittest.TestCase):
 
-  def get_typing_payload(self, values):
+  def get_payload_from_typing_hints(self, values):
     TestSchema = typing.NamedTuple(
         'TestSchema',
         [
@@ -155,9 +159,9 @@ class ExternalTuplePayloadTest(PayloadBase, unittest.TestCase):
     )
 
     builder = NamedTupleBasedPayloadBuilder(TestSchema(**values))
-    return builder.payload()
+    return builder.build()
 
-  def get_typehints_payload(self, values):
+  def get_payload_from_beam_typehints(self, values):
     raise unittest.SkipTest("Beam typehints cannot be used with "
                             "typing.NamedTuple")
 
@@ -169,34 +173,36 @@ class ExternalImplicitPayloadTest(unittest.TestCase):
   """
   def test_implicit_payload_builder(self):
     builder = ImplicitSchemaPayloadBuilder(PayloadBase.values)
-    result = builder.payload()
+    result = builder.build()
     expected = get_payload(PayloadBase.args)
     self.assertEqual(result, expected)
 
   def test_implicit_payload_builder_with_bytes(self):
     values = PayloadBase.bytes_values
     builder = ImplicitSchemaPayloadBuilder(values)
-    result = builder.payload()
+    result = builder.build()
     if sys.version_info[0] < 3:
       # in python 2.x bytes coder will be inferred
       args = {
           'integer_example': ConfigValue(
               coder_urn=['beam:coder:varint:v1'],
-              payload=VarIntCoder().encode(values['integer_example'])),
+              payload=VarIntCoder()
+                .get_impl().encode_nested(values['integer_example'])),
           'string_example': ConfigValue(
               coder_urn=['beam:coder:bytes:v1'],
-              payload=StrUtf8Coder().encode(values['string_example'])),
+              payload=StrUtf8Coder()
+                .get_impl().encode_nested(values['string_example'])),
           'list_of_strings': ConfigValue(
               coder_urn=['beam:coder:iterable:v1',
                          'beam:coder:bytes:v1'],
               payload=IterableCoder(StrUtf8Coder())
-                .encode(values['list_of_strings'])),
+                .get_impl().encode_nested(values['list_of_strings'])),
           'optional_kv': ConfigValue(
               coder_urn=['beam:coder:kv:v1',
                          'beam:coder:bytes:v1',
                          'beam:coder:double:v1'],
               payload=TupleCoder([StrUtf8Coder(), FloatCoder()])
-                .encode(values['optional_kv'])),
+                .get_impl().encode_nested(values['optional_kv'])),
       }
       expected = get_payload(args)
       self.assertEqual(result, expected)
