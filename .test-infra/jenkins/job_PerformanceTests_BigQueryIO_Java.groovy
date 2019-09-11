@@ -37,10 +37,13 @@ def testJobs = [
                         testBigQueryTable     : 'bqio_write_10GB_java',
                         metricsBigQueryDataset: 'beam_performance',
                         metricsBigQueryTable  : 'bqio_10GB_results_java_stream',
-                        sourceOptions         : '{' +
-                                '\\"numRecords\\": 10485760,' +
-                                '\\"keySizeBytes\\": 1,' +
-                                '\\"valueSizeBytes\\": 1024}',
+                        sourceOptions         : """
+                                            {
+                                              \\\\"numRecords\\\\": \\\\"10485760\\\\",
+                                              \\\\"keySizeBytes\\\\": \\\\"1\\\\",
+                                              \\\\"valueSizeBytes\\\\": \\\\"1024\\\\"
+                                            }
+                                       """.trim().replaceAll("\\s", ""),
                         runner                : 'DataflowRunner',
                         maxNumWorkers         : '5',
                         numWorkers            : '5',
@@ -61,10 +64,13 @@ def testJobs = [
                         testBigQueryTable     : 'bqio_write_10GB_java',
                         metricsBigQueryDataset: 'beam_performance',
                         metricsBigQueryTable  : 'bqio_10GB_results_java_batch',
-                        sourceOptions         : '{' +
-                                '\\"numRecords\\": 10485760,' +
-                                '\\"keySizeBytes\\": 1,' +
-                                '\\"valueSizeBytes\\": 1024}',
+                        sourceOptions         : """
+                                            {
+                                              \\\\"numRecords\\\\": \\\\"10485760\\\\",
+                                              \\\\"keySizeBytes\\\\": \\\\"1\\\\",
+                                              \\\\"valueSizeBytes\\\\": \\\\"1024\\\\"
+                                            }
+                                      """.trim().replaceAll("\\s", ""),
                         runner                : "DataflowRunner",
                         maxNumWorkers         : '5',
                         numWorkers            : '5',
