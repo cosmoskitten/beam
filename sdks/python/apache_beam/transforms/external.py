@@ -25,13 +25,8 @@ from __future__ import print_function
 import contextlib
 import copy
 import threading
-import typing
 
 from apache_beam import pvalue
-from apache_beam.typehints.typehints import Union
-from apache_beam.typehints.typehints import UnionConstraint
-from apache_beam.typehints.trivial_inference import instance_to_type
-from apache_beam.typehints.native_type_compatibility import convert_to_beam_type
 from apache_beam.coders import registry
 from apache_beam.portability import common_urns
 from apache_beam.portability.api import beam_expansion_api_pb2
@@ -40,6 +35,10 @@ from apache_beam.portability.api.external_transforms_pb2 import ConfigValue
 from apache_beam.portability.api.external_transforms_pb2 import ExternalConfigurationPayload
 from apache_beam.runners import pipeline_context
 from apache_beam.transforms import ptransform
+from apache_beam.typehints.native_type_compatibility import convert_to_beam_type
+from apache_beam.typehints.trivial_inference import instance_to_type
+from apache_beam.typehints.typehints import Union
+from apache_beam.typehints.typehints import UnionConstraint
 
 # Protect against environments where grpc is not available.
 # pylint: disable=wrong-import-order, wrong-import-position, ungrouped-imports
@@ -54,8 +53,8 @@ DEFAULT_EXPANSION_SERVICE = 'localhost:8097'
 
 
 def _is_optional_or_none(typehint):
-  return (isinstance(typehint, UnionConstraint) and
-          type(None) in typehint.union_types) or typehint is type(None)
+  return (type(None) in typehint.union_types
+          if isinstance(typehint, UnionConstraint) else typehint is type(None))
 
 
 def _strip_optional(typehint):

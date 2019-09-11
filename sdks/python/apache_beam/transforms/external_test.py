@@ -32,10 +32,9 @@ from nose.plugins.attrib import attr
 from past.builtins import unicode
 
 import apache_beam as beam
-from apache_beam import typehints
 from apache_beam import Pipeline
-from apache_beam.coders import IterableCoder
 from apache_beam.coders import FloatCoder
+from apache_beam.coders import IterableCoder
 from apache_beam.coders import StrUtf8Coder
 from apache_beam.coders import TupleCoder
 from apache_beam.coders import VarIntCoder
@@ -45,10 +44,10 @@ from apache_beam.portability.api.external_transforms_pb2 import ExternalConfigur
 from apache_beam.runners.portability import expansion_service
 from apache_beam.runners.portability.expansion_service_test import FibTransform
 from apache_beam.testing.test_pipeline import TestPipeline
-from apache_beam.transforms.external import ImplicitSchemaPayloadBuilder
-from apache_beam.transforms.external import NamedTupleBasedPayloadBuilder
 from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
+from apache_beam.transforms.external import ImplicitSchemaPayloadBuilder
+from apache_beam.transforms.external import NamedTupleBasedPayloadBuilder
 
 # Protect against environments where apitools library is not available.
 # pylint: disable=wrong-import-order, wrong-import-position
@@ -84,22 +83,22 @@ class PayloadBase(object):
       'integer_example': ConfigValue(
           coder_urn=['beam:coder:varint:v1'],
           payload=VarIntCoder()
-            .get_impl().encode_nested(values['integer_example'])),
+          .get_impl().encode_nested(values['integer_example'])),
       'string_example': ConfigValue(
           coder_urn=['beam:coder:string_utf8:v1'],
           payload=StrUtf8Coder()
-            .get_impl().encode_nested(values['string_example'])),
+          .get_impl().encode_nested(values['string_example'])),
       'list_of_strings': ConfigValue(
           coder_urn=['beam:coder:iterable:v1',
                      'beam:coder:string_utf8:v1'],
           payload=IterableCoder(StrUtf8Coder())
-            .get_impl().encode_nested(values['list_of_strings'])),
+          .get_impl().encode_nested(values['list_of_strings'])),
       'optional_kv': ConfigValue(
           coder_urn=['beam:coder:kv:v1',
                      'beam:coder:string_utf8:v1',
                      'beam:coder:double:v1'],
           payload=TupleCoder([StrUtf8Coder(), FloatCoder()])
-            .get_impl().encode_nested(values['optional_kv'])),
+          .get_impl().encode_nested(values['optional_kv'])),
   }
 
   def get_payload_from_typing_hints(self, values):
@@ -187,22 +186,22 @@ class ExternalImplicitPayloadTest(unittest.TestCase):
           'integer_example': ConfigValue(
               coder_urn=['beam:coder:varint:v1'],
               payload=VarIntCoder()
-                .get_impl().encode_nested(values['integer_example'])),
+              .get_impl().encode_nested(values['integer_example'])),
           'string_example': ConfigValue(
               coder_urn=['beam:coder:bytes:v1'],
               payload=StrUtf8Coder()
-                .get_impl().encode_nested(values['string_example'])),
+              .get_impl().encode_nested(values['string_example'])),
           'list_of_strings': ConfigValue(
               coder_urn=['beam:coder:iterable:v1',
                          'beam:coder:bytes:v1'],
               payload=IterableCoder(StrUtf8Coder())
-                .get_impl().encode_nested(values['list_of_strings'])),
+              .get_impl().encode_nested(values['list_of_strings'])),
           'optional_kv': ConfigValue(
               coder_urn=['beam:coder:kv:v1',
                          'beam:coder:bytes:v1',
                          'beam:coder:double:v1'],
               payload=TupleCoder([StrUtf8Coder(), FloatCoder()])
-                .get_impl().encode_nested(values['optional_kv'])),
+              .get_impl().encode_nested(values['optional_kv'])),
       }
       expected = get_payload(args)
       self.assertEqual(result, expected)
