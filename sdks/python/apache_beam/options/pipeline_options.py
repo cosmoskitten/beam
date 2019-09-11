@@ -22,6 +22,7 @@ from __future__ import absolute_import
 import argparse
 import json
 import logging
+import warnings
 from builtins import list
 from builtins import object
 
@@ -29,6 +30,8 @@ from apache_beam.options.value_provider import RuntimeValueProvider
 from apache_beam.options.value_provider import StaticValueProvider
 from apache_beam.options.value_provider import ValueProvider
 from apache_beam.transforms.display import HasDisplayData
+from apache_beam.utils.annotations import BeamDeprecationWarning
+from apache_beam.utils.annotations import deprecated
 
 __all__ = [
     'PipelineOptions',
@@ -505,20 +508,49 @@ class GoogleCloudOptions(PipelineOptions):
                         choices=['COST_OPTIMIZED', 'SPEED_OPTIMIZED'],
                         help='Set the Flexible Resource Scheduling mode')
 
+  def __getattr__(self, name):
+    if name in ["gcp_temp_location"]:
+      return self._get_gcp_temp_location()
+    else:
+      return super(GoogleCloudOptions, self).__getattr__(name)
+
+  def __setattr__(self, name, value):
+    if name in ["gcp_temp_location"]:
+      self._set_gcp_temp_location(value)
+    else:
+      super(GoogleCloudOptions, self).__setattr__(name, value)
+
+  @deprecated(
+      since='2.16.0',
+      custom_message=(
+          'GoogleCloudOptions.gcp_temp_location is deprecated since %since%. '
+          'Use StandardOptions.temp_location instead.'))
+  def _get_gcp_temp_location(self):
+    if self._all_options.get("gcp_temp_location", None) is not None:
+      return self._all_options["gcp_temp_location"]
+    else:
+      return self.view_as(StandardOptions).temp_location
+
+  @deprecated(
+      since='2.16.0',
+      custom_message=(
+          'GoogleCloudOptions.gcp_temp_location is deprecated since %since%. '
+          'Use StandardOptions.temp_location instead.'))
+  def _set_gcp_temp_location(self, temp_location):
+    self._all_options["gcp_temp_location"] = temp_location
+
   def validate(self, validator):
     errors = []
     if validator.is_service_runner():
       errors.extend(validator.validate_cloud_options(self))
-      if getattr(self, 'gcp_temp_location', None) is not None:
-        errors.extend(validator.validate_gcs_path(self, 'gcp_temp_location'))
-      else:
+      with warnings.catch_warnings():
+        warnings.simplefilter("ignore", BeamDeprecationWarning)
         errors.extend(
             validator.validate_gcs_path(
-                self.view_as(StandardOptions), 'temp_location'))
-      if (getattr(self, 'staging_location', None) or
-          (not getattr(self, 'gcp_temp_location', None) and
-           not getattr(self.view_as(StandardOptions), 'temp_location', None))):
-        errors.extend(validator.validate_gcs_path(self, 'staging_location'))
+                self.view_as(GoogleCloudOptions), "gcp_temp_location"))
+        if (getattr(self, 'staging_location', None) or
+            not getattr(self, 'gcp_temp_location', None)):
+          errors.extend(validator.validate_gcs_path(self, 'staging_location'))
 
     if self.view_as(DebugOptions).dataflow_job_file:
       if self.view_as(GoogleCloudOptions).template_location:
