@@ -99,6 +99,13 @@ T = typing.TypeVar('T')
 K = typing.TypeVar('K')
 V = typing.TypeVar('V')
 
+# Fall back on funcsigs if inspect module doesn't have 'signature'; prefer
+# inspect.signature over funcsigs.signature if both are available.
+if hasattr(inspect, 'signature'):
+  inspect_ = inspect
+else:
+  inspect_ = funcsigs
+
 
 class DoFnContext(object):
   """A context available to all methods of DoFn instance."""
@@ -319,6 +326,7 @@ def get_function_args_defaults(f):
   signature = get_signature(f)
   # Fall back on funcsigs if inspect module doesn't have 'Parameter'; prefer
   # inspect.Parameter over funcsigs.Parameter if both are available.
+  # TODO: use inspect_ above, test
   try:
     parameter = inspect.Parameter
   except AttributeError:
@@ -618,7 +626,9 @@ def _fn_takes_side_inputs(fn):
     # We can't tell; maybe it does.
     return True
 
-  return len(signature.parameters) > 1
+  return (len(signature.parameters) > 1 or
+          any(p.kind == p.VAR_POSITIONAL or p.kind == p.VAR_KEYWORD
+              for p in signature.parameters.values()))
 
 
 class CallableWrapperDoFn(DoFn):
