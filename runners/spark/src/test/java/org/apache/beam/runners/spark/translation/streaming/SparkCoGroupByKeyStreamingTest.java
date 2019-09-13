@@ -19,6 +19,7 @@ package org.apache.beam.runners.spark.translation.streaming;
 
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.fail;
 
@@ -28,8 +29,10 @@ import org.apache.beam.runners.spark.StreamingTest;
 import org.apache.beam.runners.spark.io.CreateStream;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.VarIntCoder;
+import org.apache.beam.sdk.coders.VarLongCoder;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
+import org.apache.beam.sdk.transforms.Count;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.join.CoGbkResult;
 import org.apache.beam.sdk.transforms.join.CoGroupByKey;
@@ -160,6 +163,49 @@ public class SparkCoGroupByKeyStreamingTest {
                           "Elements of PCollection input2 for key \"2\" are not present in the output PCollection",
                           input2Elements,
                           containsInAnyOrder(14, 15, 16));
+                    } else {
+                      fail("Unknown key in the output PCollection");
+                    }
+                  }
+                  return null;
+                });
+    pipeline.run();
+  }
+
+  @Category(StreamingTest.class)
+  @Test
+  public void testInStreamingModeCountByKey() throws Exception {
+    Instant instant = new Instant(0);
+
+    CreateStream<KV<Integer, Long>> kvSource =
+        CreateStream.of(KvCoder.of(VarIntCoder.of(), VarLongCoder.of()), batchDuration())
+            .emptyBatch()
+            .advanceWatermarkForNextBatch(instant)
+            .nextBatch(
+                TimestampedValue.of(KV.of(1, 100L), instant.plus(Duration.standardSeconds(3L))),
+                TimestampedValue.of(KV.of(1, 300L), instant.plus(Duration.standardSeconds(4L))))
+            .advanceWatermarkForNextBatch(instant.plus(Duration.standardSeconds(7L)))
+            .nextBatch(
+                TimestampedValue.of(KV.of(1, 400L), instant.plus(Duration.standardSeconds(8L))))
+            .advanceNextBatchWatermarkToInfinity();
+
+    PCollection<KV<Integer, Long>> output =
+        pipeline
+            .apply("create kv Source", kvSource)
+            .apply(
+                "window input",
+                Window.<KV<Integer, Long>>into(FixedWindows.of(Duration.standardSeconds(3L)))
+                    .withAllowedLateness(Duration.ZERO))
+            .apply(Count.perKey());
+
+    PAssert.that("Wrong count value ", output)
+        .satisfies(
+            (SerializableFunction<Iterable<KV<Integer, Long>>, Void>)
+                input -> {
+                  for (KV<Integer, Long> element : input) {
+                    if (element.getKey() == 1) {
+                      Long countValue = element.getValue();
+                      assertNotEquals("Count Value is 0 !!!", 0L, countValue.longValue());
                     } else {
                       fail("Unknown key in the output PCollection");
                     }
