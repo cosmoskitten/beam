@@ -454,7 +454,7 @@ public class RegisterAndProcessBundleOperation extends Operation {
         String pcollection =
             mi.getLabelsOrDefault(MonitoringInfoConstants.Labels.PCOLLECTION, null);
         if ((pcollection != null)
-            && (!pcollection.equals(grpcReadTransformOutputPCollectionName))) {
+            && (pcollection.equals(grpcReadTransformOutputPCollectionName))) {
           return mi.getMetric().getCounterData().getInt64Value();
         }
       }
