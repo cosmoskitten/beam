@@ -16,10 +16,10 @@
 #
 
 """Tests for apache_beam.runners.interactive.interactive_environment."""
+from __future__ import absolute_import
 
 import importlib
 import unittest
-
 from apache_beam.runners.interactive import interactive_environment as ie
 
 # The module name is also a variable in module.

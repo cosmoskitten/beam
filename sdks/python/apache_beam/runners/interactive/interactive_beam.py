@@ -28,6 +28,7 @@ about how hidden states in the interactive session are managed.
 Note: If you want backward-compatibility, only invoke interfaces provided by
 this module in your notebook or application code.
 """
+from __future__ import absolute_import
 
 from apache_beam.runners.interactive import interactive_environment as ie
 

@@ -22,6 +22,7 @@ Provides interfaces to interact with existing Interactive Beam environment.
 External Interactive Beam users please use interactive_beam module in
 application code or notebook.
 """
+from __future__ import absolute_import
 
 import importlib
 
