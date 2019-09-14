@@ -197,7 +197,7 @@ class WriteTables<DestinationT>
       CreateDisposition createDisposition = firstPaneCreateDisposition;
       if (c.pane().getIndex() > 0 && !tempTable) {
          // We must append data to the table after the first pane since the table may not have
-        // and we should change the disposition for subsequent writes.
+         // existed.
         writeDisposition = WriteDisposition.WRITE_APPEND;
       } else if (tempTable) {
         // In this case, we are writing to a temp table and always need to create it.
