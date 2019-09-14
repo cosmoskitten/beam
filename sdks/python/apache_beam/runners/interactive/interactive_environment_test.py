@@ -43,11 +43,11 @@ class InteractiveEnvironmentTest(unittest.TestCase):
                 ie.current_env().watching()])
 
   def _a_function_with_local_watched(self):
-    local_var_watched = 123
+    local_var_watched = 123  # pylint: disable=unused-variable
     ie.current_env().watch(locals())
 
   def _a_function_not_watching_local(self):
-    local_var_not_watched = 456
+    local_var_not_watched = 456  # pylint: disable=unused-variable
 
   def test_watch_main_by_default(self):
     self.assertTrue('__main__' in ie.current_env()._watching_set)

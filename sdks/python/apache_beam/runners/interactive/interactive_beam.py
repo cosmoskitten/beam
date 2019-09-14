@@ -33,8 +33,10 @@ from apache_beam.runners.interactive import interactive_environment as ie
 
 
 def watch(watchable):
-  """Monitors a watchable so that Interactive Beam has information on where your
-  pipelines are defined.
+  """Monitors a watchable.
+
+  This allows Interactive Beam to implicitly pass on the information about the
+  location of your pipeline definition.
 
   Current implementation mainly watches for PCollection variables defined in
   user code. A watchable can be a dictionary of variable metadata such as
@@ -42,35 +44,35 @@ def watch(watchable):
   The variable can come from any scope even local variables in a method of a
   class defined in a module.
 
-    Below are all valid:
+    Below are all valid::
 
-    watch(__main__)  # if import __main__ is already invoked
-    watch('__main__')  # does not require invoking import __main__ beforehand
-    watch(self)  # inside a class
-    watch(SomeInstance())  # an instance of a class
-    watch(locals())  # inside a function, watching local variables within
+      watch(__main__)  # if import __main__ is already invoked
+      watch('__main__')  # does not require invoking import __main__ beforehand
+      watch(self)  # inside a class
+      watch(SomeInstance())  # an instance of a class
+      watch(locals())  # inside a function, watching local variables within
 
   If you write a Beam pipeline in the __main__ module directly, since the
   __main__ module is always watched, you don't have to instruct Interactive
   Beam. If your Beam pipeline is defined in some module other than __main__,
   such as inside a class function or a unit test, you can watch() the scope.
-  This allows Interactive Beam to implicitly pass on the information about the
-  location of your pipeline definition.
 
-    For example:
+    For example::
 
-    class Foo(object)
-      def run_pipeline(self):
-        p = beam.Pipeline()
-        init_pcoll = p |  'Init Create' >> beam.Create(range(10))
-        watch(locals())
-        p.run()
-        return init_pcoll
-    init_pcoll = Foo().run_pipeline()
+      class Foo(object)
+        def run_pipeline(self):
+          p = beam.Pipeline()
+          init_pcoll = p |  'Init Create' >> beam.Create(range(10))
+          watch(locals())
+          p.run()
+          return init_pcoll
+      init_pcoll = Foo().run_pipeline()
 
-    Interactive Beam caches init_pcoll for the first run. You can use:
+    Interactive Beam caches init_pcoll for the first run.
 
-    visualize(init_pcoll)
+    Then you can use::
+
+      visualize(init_pcoll)
 
     To visualize data from init_pcoll once the pipeline is executed.
   """
