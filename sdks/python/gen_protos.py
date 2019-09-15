@@ -67,6 +67,14 @@ def generate_proto_files(force=False, log=None):
   out_dir = os.path.join(py_sdk_root, PYTHON_OUTPUT_PATH)
   out_files = [path for path in glob.glob(os.path.join(out_dir, '*_pb2.py'))]
 
+  if len(out_files) > len(proto_files):
+    log.info('Orphaned proto outputs. Cleaning up.')
+    # too many output files: probably due to switching between git branches.
+    # remove them so they don't trigger constant regeneration.
+    for out_file in out_files:
+      os.remove(out_file)
+    out_files = []
+
   if out_files and not proto_files and not force:
     # We have out_files but no protos; assume they're up to date.
     # This is actually the common case (e.g. installation from an sdist).
