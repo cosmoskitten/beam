@@ -176,6 +176,19 @@ class DataflowRunnerTest(unittest.TestCase):
         isinstance(create_runner('TestDataflowRunner'),
                    TestDataflowRunner))
 
+  def test_environment_override_translation(self):
+    self.default_properties.append("--experiments=beam_fn_api")
+    self.default_properties.append("--worker_harness_container_image=FOO")
+    remote_runner = DataflowRunner()
+    p = Pipeline(remote_runner,
+                 options=PipelineOptions(self.default_properties))
+    (p | ptransform.Create([1, 2, 3])  # pylint: disable=expression-not-assigned
+     | 'Do' >> ptransform.FlatMap(lambda x: [(x, x)])
+     | ptransform.GroupByKey())
+    p.run()
+    pipeline_proto = remote_runner.pipeline_proto
+    self.assertEqual(pipeline_proto.components.envirnoments.values(), ["FOO"])
+
   def test_remote_runner_translation(self):
     remote_runner = DataflowRunner()
     p = Pipeline(remote_runner,
