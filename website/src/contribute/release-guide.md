@@ -281,6 +281,7 @@ There are 2 ways to cut a release branch: either running automation script(recom
   
      [version.py](https://github.com/apache/beam/blob/release-2.6.0/sdks/python/apache_beam/version.py#L21), 
      [build.gradle](https://github.com/apache/beam/blob/release-2.6.0/runners/google-cloud-dataflow-java/build.gradle#L39)
+     [gradle.properties](https://github.com/apache/beam/blob/release-2.16.0/gradle.properties#L27)
      
 #### (Alternative) Run all steps manually
 * Checkout working branch
@@ -649,6 +650,7 @@ Verify that files are [present](https://dist.apache.org/repos/dist/dev/beam).
 
 #### Stage SDK images on hub.docker.com
 * Build Python images and push to DockerHub.
+
 ```
 ./gradlew :sdks:python:container:buildAll -Pdocker-tag=${RELEASE}_rc{RC_NUM}
 
