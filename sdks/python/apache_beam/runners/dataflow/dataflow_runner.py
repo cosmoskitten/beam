@@ -383,7 +383,7 @@ class DataflowRunner(PipelineRunner):
     use_fnapi = apiclient._use_fnapi(options)
     from apache_beam.portability.api import beam_runner_api_pb2
     default_container_image = (
-        apiclient.get_default_container_image_for_current_sdk(use_fnapi))
+        apiclient.get_container_image_from_options(options))
     default_environment = beam_runner_api_pb2.Environment(
         urn=common_urns.environments.DOCKER.urn,
         payload=beam_runner_api_pb2.DockerPayload(
