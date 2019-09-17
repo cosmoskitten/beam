@@ -130,7 +130,7 @@ class FileBasedSource(iobase.BoundedSource):
 
   @check_accessible(['_pattern'])
   def _get_concat_source(self):
-    # type: () -> concat_source.ConcatSource[str]
+    # type: () -> concat_source.ConcatSource
     if self._concat_source is None:
       pattern = self._pattern.get()
 

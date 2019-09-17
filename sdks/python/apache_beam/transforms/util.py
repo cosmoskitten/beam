@@ -665,7 +665,7 @@ class Reshuffle(PTransform):
   """
 
   def expand(self, pcoll):
-    # type: (pvalue.PValue[T]) -> pvalue.PCollection[T]
+    # type: (pvalue.PValue) -> pvalue.PCollection
     # FIXME: mypy plugin causing mypy to crash here:
     return (pcoll
             | 'AddRandomKeys' >> Map(lambda t: (random.getrandbits(32), t))
