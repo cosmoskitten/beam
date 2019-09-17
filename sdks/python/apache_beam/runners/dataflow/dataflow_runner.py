@@ -858,13 +858,24 @@ class DataflowRunner(PipelineRunner):
     outputs = []
     step.encoding = self._get_encoded_output_coder(transform_node)
 
+    all_output_tags = transform_proto.outputs.keys()
+
+    from apache_beam.transforms.core import RunnerAPIPTransformHolder
+    external_transform = isinstance(transform, RunnerAPIPTransformHolder)
+    main_output_tag = (
+        all_output_tags[0] if external_transform else PropertyNames.OUT)
+    side_output_tags = set(all_output_tags).difference({main_output_tag})
+
+    # Some SDKs do not work correctly if output tags are modified. So for
+    # external transforms, we leave tags unmodified.
+
     # Add the main output to the description.
     outputs.append(
         {PropertyNames.USER_NAME: (
             '%s.%s' % (transform_node.full_label, PropertyNames.OUT)),
          PropertyNames.ENCODING: step.encoding,
-         PropertyNames.OUTPUT_NAME: PropertyNames.OUT})
-    for side_tag in transform.output_tags:
+         PropertyNames.OUTPUT_NAME: main_output_tag})
+    for side_tag in side_output_tags:
       # The assumption here is that all outputs will have the same typehint
       # and coder as the main output. This is certainly the case right now
       # but conceivably it could change in the future.
@@ -873,7 +884,8 @@ class DataflowRunner(PipelineRunner):
               '%s.%s' % (transform_node.full_label, side_tag)),
            PropertyNames.ENCODING: step.encoding,
            PropertyNames.OUTPUT_NAME: (
-               '%s_%s' % (PropertyNames.OUT, side_tag))})
+               side_tag if external_transform
+               else '%s_%s' % (PropertyNames.OUT, side_tag))})
 
     step.add_property(PropertyNames.OUTPUT_INFO, outputs)
 
