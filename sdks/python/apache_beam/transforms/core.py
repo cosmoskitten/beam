@@ -31,14 +31,12 @@ from builtins import object
 from builtins import range
 from typing import Any
 from typing import Callable
-from typing import Generic
 from typing import Iterable
 from typing import Iterator
 from typing import List
 from typing import Optional
 from typing import Set
 from typing import Tuple
-from typing import TypeVar
 from typing import Union
 
 from past.builtins import unicode
@@ -669,13 +667,12 @@ class CallableWrapperDoFn(DoFn):
     self._fullargspec = fullargspec
     if isinstance(fn, (
         types.BuiltinFunctionType, types.MethodType, types.FunctionType)):
-      self.process = fn  # type: ignore  # cannot assign to method
+      self.process = fn
     else:
       # For cases such as set / list where fn is callable but not a function
       def process(element):
-        # type: (InT) -> Iterable[OutT]
         return fn(element)
-      self.process = process  # type: ignore  # cannot assign to method
+      self.process = process
 
     super(CallableWrapperDoFn, self).__init__()
 
@@ -2189,8 +2186,8 @@ class Partition(PTransformWithSideInputs):
     """A DoFn that applies a PartitionFn."""
 
     def process(self, element, *args, **kwargs):
-      # type: (T, *Any, **Any) -> Iterator[pvalue.TaggedOutput[T]]
-      partitionfn = args[0]  # type: PartitionFn[T]
+      # type: (T, *Any, **Any) -> Iterator[pvalue.TaggedOutput]
+      partitionfn = args[0]  # type: PartitionFn
       n = args[1]  # type: int
       partition = partitionfn.partition_for(element, n, *args[2:], **kwargs)
       if not 0 <= partition < n:
