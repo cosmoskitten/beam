@@ -97,8 +97,16 @@ URNS_NEEDING_PCOLLECTIONS = set([monitoring_infos.ELEMENT_COUNT_URN,
 class RunnerIOOperation(operations.Operation):
   """Common baseclass for runner harness IO operations."""
 
-  def __init__(self, name_context, step_name, consumers, counter_factory,
-               state_sampler, windowed_coder, transform_id, data_channel):
+  def __init__(self,
+               name_context,
+               step_name,
+               consumers,
+               counter_factory,
+               state_sampler,
+               windowed_coder,
+               transform_id,  # type: str
+               data_channel  # type: data_plane.GrpcClientDataChannel
+              ):
     super(RunnerIOOperation, self).__init__(
         name_context, None, counter_factory, state_sampler)
     self.windowed_coder = windowed_coder
@@ -684,7 +692,7 @@ class BundleProcessor(object):
         op.start()
 
       # Inject inputs from data plane.
-      data_channels = collections.defaultdict(list)
+      data_channels = collections.defaultdict(list)  # type: DefaultDict[data_plane.GrpcClientDataChannel, List[str]]
       input_op_by_transform_id = {}
       for input_op in expected_inputs:
         data_channels[input_op.data_channel].append(input_op.transform_id)
@@ -757,7 +765,7 @@ class BundleProcessor(object):
     if watermark:
       proto_watermark = timestamp_pb2.Timestamp()
       proto_watermark.FromMicroseconds(watermark.micros)
-      output_watermarks = {output: proto_watermark for output in outputs}
+      output_watermarks = {output: proto_watermark for output in outputs}  # type: Optional[Dict[str, timestamp_pb2.Timestamp]]
     else:
       output_watermarks = None
     return beam_fn_api_pb2.DelayedBundleApplication(
@@ -870,7 +878,7 @@ class BeamTransformFactory(object):
   """Factory for turning transform_protos into executable operations."""
   def __init__(self,
                descriptor,  # type: beam_fn_api_pb2.ProcessBundleDescriptor
-               data_channel_factory,
+               data_channel_factory,  # type: data_plane.DataChannelFactory
                counter_factory,
                state_sampler,
                state_handler
@@ -896,7 +904,7 @@ class BeamTransformFactory(object):
                    urn,  # type: str
                    parameter_type  # type: Optional[Type[T]]
                   ):
-    # type: (...) -> Callable[[Callable[[BeamTransformFactory, T, beam_runner_api_pb2.PTransform, PipelineContext, Dict[str, operations.Operation]], operations.Operation]], Callable[[BeamTransformFactory, T, beam_runner_api_pb2.PTransform, PipelineContext, Dict[str, operations.Operation]], operations.Operation]]
+    # type: (...) -> Callable[[Callable[[BeamTransformFactory, str, beam_runner_api_pb2.PTransform, T, Dict[str, operations.Operation]], operations.Operation]], Callable[[BeamTransformFactory, str, beam_runner_api_pb2.PTransform, T, Dict[str, operations.Operation]], operations.Operation]]
     def wrapper(func):
       cls._known_urns[urn] = func, parameter_type
       return func
@@ -971,10 +979,15 @@ class TimerConsumer(operations.Operation):
     # type: (windowed_value.WindowedValue) -> None
     self._do_op.process_timer(self._timer_tag, windowed_value)
 
-
 @BeamTransformFactory.register_urn(
     DATA_INPUT_URN, beam_fn_api_pb2.RemoteGrpcPort)
-def create_source_runner(factory, transform_id, transform_proto, grpc_port, consumers):
+def create_source_runner(factory,  # type: BeamTransformFactory
+                         transform_id,  # type: str
+                         transform_proto,  # type: beam_runner_api_pb2.PTransform
+                         grpc_port,  # type: beam_fn_api_pb2.RemoteGrpcPort
+                         consumers  # type: Dict[str, operations.Operation]
+                        ):
+  # type: (...) -> DataInputOperation
   # Timers are the one special case where we don't want to call the
   # (unlabeled) operation.process() method, which we detect here.
   # TODO(robertwb): Consider generalizing if there are any more cases.
@@ -1009,7 +1022,13 @@ def create_source_runner(factory, transform_id, transform_proto, grpc_port, cons
 
 @BeamTransformFactory.register_urn(
     DATA_OUTPUT_URN, beam_fn_api_pb2.RemoteGrpcPort)
-def create_sink_runner(factory, transform_id, transform_proto, grpc_port, consumers):
+def create_sink_runner(factory,  # type: BeamTransformFactory
+                       transform_id,  # type: str
+                       transform_proto,  # type: beam_runner_api_pb2.PTransform
+                       grpc_port,  # type: beam_fn_api_pb2.RemoteGrpcPort
+                       consumers  # type: Dict[str, operations.Operation]
+                      ):
+  # type: (...) -> DataOutputOperation
   if grpc_port.coder_id:
     output_coder = factory.get_coder(grpc_port.coder_id)
   else:
