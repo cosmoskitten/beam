@@ -26,6 +26,7 @@ from apache_beam.typehints import Any
 from apache_beam.typehints import List
 from apache_beam.typehints import WithTypeHints
 from apache_beam.typehints import decorators
+from apache_beam.typehints import typehints
 
 
 class IOTypeHintsTest(unittest.TestCase):
@@ -69,6 +70,40 @@ class IOTypeHintsTest(unittest.TestCase):
                        ((str, decorators._ANY_VAR_POSITIONAL),
                         {'__unknown__keywords': decorators._ANY_VAR_KEYWORD}))
     self.assertEqual(th.output_types, ((Any,), {}))
+
+  def test_strip_iterable_not_simple_output_noop(self):
+    th = decorators.IOTypeHints(output_types=((int, str), {}))
+    th.strip_iterable()
+    self.assertEqual(((int, str), {}), th.output_types)
+
+  def _test_strip_iterable(self, before, after):
+    th = decorators.IOTypeHints()
+    th.set_output_types(before)
+    th.strip_iterable()
+    self.assertEqual(((after, ), {}), th.output_types)
+
+  def _test_strip_iterable_fail(self, before):
+    with self.assertRaisesRegexp(ValueError, r'not iterable'):
+      self._test_strip_iterable(before, None)
+
+  def test_strip_iterable_beam_types(self):
+    self._test_strip_iterable(typehints.Any, typehints.Any)
+    self._test_strip_iterable(typehints.Iterable[str], str)
+    self._test_strip_iterable(typehints.List[str], str)
+    self._test_strip_iterable(typehints.Iterator[str], str)
+    self._test_strip_iterable(typehints.Generator[str], str)
+    self._test_strip_iterable(typehints.Tuple[str], str)
+    self._test_strip_iterable(typehints.Tuple[str, int],
+                              typehints.Union[str, int])
+    self._test_strip_iterable(typehints.Tuple[str, ...], str)
+    self._test_strip_iterable(typehints.KV[str, int],
+                              typehints.Union[str, int])
+    self._test_strip_iterable(typehints.Dict[str, int], str)
+    self._test_strip_iterable(typehints.Set[str], str)
+
+    self._test_strip_iterable_fail(typehints.Union[str, int])
+    self._test_strip_iterable_fail(typehints.Optional[str])
+    self._test_strip_iterable_fail(typehints.WindowedValue[str])
 
 
 class WithTypeHintsTest(unittest.TestCase):

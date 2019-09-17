@@ -19,6 +19,7 @@
 
 from __future__ import absolute_import
 
+import typing
 import unittest
 
 from apache_beam.typehints import Any
@@ -29,6 +30,8 @@ from apache_beam.typehints import TypeVariable
 from apache_beam.typehints import decorators
 
 T = TypeVariable('T')
+# Name is 'T' so it converts to a beam type with the same name.
+T_typing = typing.TypeVar('T')
 
 
 class IOTypeHintsTest(unittest.TestCase):
@@ -72,6 +75,19 @@ class IOTypeHintsTest(unittest.TestCase):
     th = decorators.IOTypeHints.from_callable(Class().method)
     self.assertEqual(th.input_types, ((T,), {}))
     self.assertEqual(th.output_types, ((None,), {}))
+
+  def test_from_callable_convert_to_beam_types(self):
+    def fn(a: typing.List[int],
+           b: str = None,
+           *args: typing.Tuple[T_typing],
+           foo: typing.List[int],
+           **kwargs: typing.Dict[str, str]) -> typing.Tuple:
+      return a, b, args, foo, kwargs
+    th = decorators.IOTypeHints.from_callable(fn)
+    self.assertEqual(th.input_types, (
+        (List[int], str, Tuple[T]),
+        {'foo': List[int], 'kwargs': Dict[str, str]}))
+    self.assertEqual(th.output_types, ((Tuple,), {}))
 
   def test_getcallargs_forhints(self):
     def fn(a: int, b: str = None, *args: Tuple[T], foo: List[int],
