@@ -173,7 +173,7 @@ class Pipeline(object):
     # then the transform will have to be cloned with a new label.
     self.applied_labels = set()
 
-  @property
+  @property  # type: ignore  # decorated property not supported
   @deprecated(since='First stable release',
               extra_message='References to <pipeline>.options'
               ' will not be supported')
