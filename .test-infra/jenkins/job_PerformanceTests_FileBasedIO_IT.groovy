@@ -28,7 +28,9 @@ def jobs = [
                 pipelineOptions    : [
                         bigQueryDataset: 'beam_performance',
                         bigQueryTable  : 'textioit_results',
-                        numberOfRecords: '1000000'
+                        numberOfRecords: '1000000',
+                        maxNumWorkers  : '5',
+                        numWorkers     : '5'
                 ]
 
         ],
@@ -42,7 +44,9 @@ def jobs = [
                         bigQueryDataset: 'beam_performance',
                         bigQueryTable  : 'compressed_textioit_results',
                         numberOfRecords: '1000000',
-                        compressionType: 'GZIP'
+                        compressionType: 'GZIP',
+                        maxNumWorkers  : '5',
+                        numWorkers     : '5'
                 ]
         ],
         [
@@ -57,7 +61,9 @@ def jobs = [
                         reportGcsPerformanceMetrics: 'true',
                         gcsPerformanceMetrics      : 'true',
                         numberOfRecords            : '1000000',
-                        numberOfShards             : '1000'
+                        numberOfShards             : '1000',
+                        maxNumWorkers              : '5',
+                        numWorkers                 : '5'
                 ]
 
         ],
@@ -71,6 +77,8 @@ def jobs = [
                         numberOfRecords: '1000000',
                         bigQueryDataset: 'beam_performance',
                         bigQueryTable  : 'avroioit_results',
+                        maxNumWorkers  : '5',
+                        numWorkers     : '5'
                 ]
         ],
         [
@@ -82,7 +90,9 @@ def jobs = [
                 pipelineOptions    : [
                         bigQueryDataset: 'beam_performance',
                         bigQueryTable  : 'tfrecordioit_results',
-                        numberOfRecords: '1000000'
+                        numberOfRecords: '1000000',
+                        maxNumWorkers  : '5',
+                        numWorkers     : '5'
                 ]
         ],
         [
@@ -95,7 +105,9 @@ def jobs = [
                         bigQueryDataset: 'beam_performance',
                         bigQueryTable  : 'xmlioit_results',
                         numberOfRecords: '100000000',
-                        charset        : 'UTF-8'
+                        charset        : 'UTF-8',
+                        maxNumWorkers  : '5',
+                        numWorkers     : '5'
                 ]
         ],
         [
@@ -107,7 +119,9 @@ def jobs = [
                 pipelineOptions    : [
                         bigQueryDataset: 'beam_performance',
                         bigQueryTable  : 'parquetioit_results',
-                        numberOfRecords: '100000000'
+                        numberOfRecords: '100000000',
+                        maxNumWorkers  : '5',
+                        numWorkers     : '5'
                 ]
         ],
         [
@@ -119,7 +133,9 @@ def jobs = [
                 pipelineOptions    : [
                         bigQueryDataset: 'beam_performance',
                         bigQueryTable  : 'textioit_hdfs_results',
-                        numberOfRecords: '1000000'
+                        numberOfRecords: '1000000',
+                        maxNumWorkers  : '5',
+                        numWorkers     : '5'
                 ]
 
         ],
@@ -133,7 +149,9 @@ def jobs = [
                         bigQueryDataset: 'beam_performance',
                         bigQueryTable  : 'compressed_textioit_hdfs_results',
                         numberOfRecords: '1000000',
-                        compressionType: 'GZIP'
+                        compressionType: 'GZIP',
+                        maxNumWorkers  : '5',
+                        numWorkers     : '5'
                 ]
         ],
         [
@@ -148,7 +166,9 @@ def jobs = [
                         reportGcsPerformanceMetrics: 'true',
                         gcsPerformanceMetrics      : 'true',
                         numberOfRecords            : '1000000',
-                        numberOfShards             : '1000'
+                        numberOfShards             : '1000',
+                        maxNumWorkers              : '5',
+                        numWorkers                 : '5'
                 ]
 
         ],
@@ -161,7 +181,9 @@ def jobs = [
                 pipelineOptions    : [
                         bigQueryDataset: 'beam_performance',
                         bigQueryTable  : 'avroioit_hdfs_results',
-                        numberOfRecords: '1000000'
+                        numberOfRecords: '1000000',
+                        maxNumWorkers  : '5',
+                        numWorkers     : '5'
                 ]
         ],
         [
@@ -171,7 +193,9 @@ def jobs = [
                 githubTitle        : 'Java TFRecordIO Performance Test on HDFS',
                 githubTriggerPhrase: 'Run Java TFRecordIO Performance Test HDFS',
                 pipelineOptions    : [
-                        numberOfRecords: '1000000'
+                        numberOfRecords: '1000000',
+                        maxNumWorkers  : '5',
+                        numWorkers     : '5'
                 ]
         ],
         [
@@ -184,7 +208,9 @@ def jobs = [
                         bigQueryDataset: 'beam_performance',
                         bigQueryTable  : 'xmlioit_hdfs_results',
                         numberOfRecords: '100000',
-                        charset        : 'UTF-8'
+                        charset        : 'UTF-8',
+                        maxNumWorkers  : '5',
+                        numWorkers     : '5'
                 ]
         ],
         [
@@ -196,7 +222,9 @@ def jobs = [
                 pipelineOptions    : [
                         bigQueryDataset: 'beam_performance',
                         bigQueryTable  : 'parquetioit_hdfs_results',
-                        numberOfRecords: '1000000'
+                        numberOfRecords: '1000000',
+                        maxNumWorkers  : '5',
+                        numWorkers     : '5'
                 ]
         ]
 ]
