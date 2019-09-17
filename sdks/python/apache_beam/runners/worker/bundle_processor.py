@@ -610,8 +610,10 @@ class BundleProcessor(object):
       op.setup()
     self.splitting_lock = threading.Lock()
 
-  def create_execution_tree(self, descriptor):
-    # type: (beam_fn_api_pb2.ProcessBundleDescriptor) -> collections.OrderedDict[str, operations.Operation]
+  def create_execution_tree(self,
+                            descriptor  # type: beam_fn_api_pb2.ProcessBundleDescriptor
+                           ):
+    # type: (...) -> collections.OrderedDict[str, operations.Operation]
     transform_factory = BeamTransformFactory(
         descriptor, self.data_channel_factory, self.counter_factory,
         self.state_sampler, self.state_handler)
@@ -660,6 +662,7 @@ class BundleProcessor(object):
       op.reset()
 
   def process_bundle(self, instruction_id):
+    # type: (str) -> Tuple[List[beam_fn_api_pb2.DelayedBundleApplication], bool]
     expected_inputs = []
     for op in self.ops.values():
       if isinstance(op, DataOutputOperation):
@@ -709,11 +712,13 @@ class BundleProcessor(object):
       self.state_sampler.stop_if_still_running()
 
   def finalize_bundle(self):
+    # type: () -> beam_fn_api_pb2.FinalizeBundleResponse
     for op in self.ops.values():
       op.finalize_bundle()
     return beam_fn_api_pb2.FinalizeBundleResponse()
 
   def requires_finalization(self):
+    # type: () -> bool
     return any(op.needs_finalization() for op in self.ops.values())
 
   def try_split(self, bundle_split_request):
@@ -745,6 +750,7 @@ class BundleProcessor(object):
     return split_response
 
   def delayed_bundle_application(self, op, deferred_remainder):
+    # type: (...) -> beam_fn_api_pb2.DelayedBundleApplication
     ptransform_id, main_input_tag, main_input_coder, outputs = op.input_info
     # TODO(SDF): For non-root nodes, need main_input_coder + residual_coder.
     element_and_restriction, watermark = deferred_remainder

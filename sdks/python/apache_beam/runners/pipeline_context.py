@@ -27,9 +27,7 @@ from builtins import object
 from typing import Any
 from typing import Dict
 from typing import Mapping
-from typing import MutableMapping
 from typing import Optional
-from typing import Type
 from typing import Union
 
 from apache_beam import coders
@@ -79,12 +77,13 @@ class _PipelineContextMap(object):
     self._pipeline_context = context
     self._obj_type = obj_type
     self._namespace = namespace
-    self._obj_to_id = {}
-    self._id_to_obj = {}
+    self._obj_to_id = {}  # type: Dict[Any, str]
+    self._id_to_obj = {}  # type: Dict[str, Any]
     self._id_to_proto = dict(proto_map) if proto_map else {}
     self._counter = 0
 
   def _unique_ref(self, obj=None, label=None):
+    # type: (Optional[Any], Optional[str]) -> str
     self._counter += 1
     return "%s_%s_%s_%d" % (
         self._namespace,
@@ -93,11 +92,12 @@ class _PipelineContextMap(object):
         self._counter)
 
   def populate_map(self, proto_map):
-    # type: (MutableMapping[str, message.Message]) -> None
+    # type: (Mapping[str, message.Message]) -> None
     for id, proto in self._id_to_proto.items():
       proto_map[id].CopyFrom(proto)
 
   def get_id(self, obj, label=None):
+    # type: (Any, Optional[str]) -> str
     if obj not in self._obj_to_id:
       id = self._unique_ref(obj, label)
       self._id_to_obj[id] = obj
@@ -106,9 +106,11 @@ class _PipelineContextMap(object):
     return self._obj_to_id[obj]
 
   def get_proto(self, obj, label=None):
+    # type: (Any, Optional[str]) -> message.Message
     return self._id_to_proto[self.get_id(obj, label)]
 
   def get_by_id(self, id):
+    # type: (str) -> Any
     if id not in self._id_to_obj:
       self._id_to_obj[id] = self._obj_type.from_runner_api(
           self._id_to_proto[id], self._pipeline_context)
@@ -134,6 +136,7 @@ class _PipelineContextMap(object):
     return id
 
   def __getitem__(self, id):
+    # type: (str) -> Any
     return self.get_by_id(id)
 
   def __contains__(self, id):

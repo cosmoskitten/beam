@@ -131,6 +131,7 @@ class SdkHarness(object):
                     profiler_factory=self._profiler_factory))
 
     def get_responses():
+      # type: () -> Iterator[beam_fn_api_pb2.InstructionResponse]
       while True:
         response = self._responses.get()
         if response is no_more_work:

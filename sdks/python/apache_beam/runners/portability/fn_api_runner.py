@@ -215,6 +215,7 @@ class BeamFnControlServicer(beam_fn_api_pb2_grpc.BeamFnControlServicer):
 class _ListBuffer(list):
   """Used to support parititioning of a list."""
   def partition(self, n):
+    # type: (int) -> list
     return [self[k::n] for k in range(n)]
 
 
@@ -582,14 +583,14 @@ class FnApiRunner(runner.PipelineRunner):
 
   def _add_residuals_and_channel_splits_to_deferred_inputs(
       self,
-      splits,
+      splits,  # type: List[beam_fn_api_pb2.ProcessBundleSplitResponse]
       get_input_coder_callable,
       input_for_callable,
       last_sent,
       deferred_inputs  # type: DefaultDict[str, _ListBuffer]
     ):
 
-    prev_stops = {}
+    prev_stops = {}  # type: Dict[str, int]
     for split in splits:
       for delayed_application in split.residual_roots:
         deferred_inputs[
@@ -1056,8 +1057,9 @@ class WorkerHandler(object):
   _worker_id_counter = -1
   _lock = threading.Lock()
 
-  control_conn = None
-  data_conn = None
+  # FIXME: add a Protocol for these
+  control_conn = None  # type: ControlConnection
+  data_conn = None  # type: data_plane._GrpcDataChannel
 
   def __init__(self,
                control_handler,
@@ -1092,12 +1094,15 @@ class WorkerHandler(object):
     raise NotImplementedError
 
   def data_api_service_descriptor(self):
+    # type: () -> endpoints_pb2.ApiServiceDescriptor
     raise NotImplementedError
 
   def state_api_service_descriptor(self):
+    # type: () -> endpoints_pb2.ApiServiceDescriptor
     raise NotImplementedError
 
   def logging_api_service_descriptor(self):
+    # type: () -> endpoints_pb2.ApiServiceDescriptor
     raise NotImplementedError
 
   @classmethod
@@ -1315,14 +1320,17 @@ class GrpcWorkerHandler(WorkerHandler):
         self.worker_id)
 
   def data_api_service_descriptor(self):
+    # type: () -> endpoints_pb2.ApiServiceDescriptor
     return endpoints_pb2.ApiServiceDescriptor(
         url=self.port_from_worker(self._grpc_server.data_port))
 
   def state_api_service_descriptor(self):
+    # type: () -> endpoints_pb2.ApiServiceDescriptor
     return endpoints_pb2.ApiServiceDescriptor(
         url=self.port_from_worker(self._grpc_server.state_port))
 
   def logging_api_service_descriptor(self):
+    # type: () -> endpoints_pb2.ApiServiceDescriptor
     return endpoints_pb2.ApiServiceDescriptor(
         url=self.port_from_worker(self._grpc_server.logging_port))
 
@@ -1604,9 +1612,10 @@ class BundleManager(object):
     self._worker_handler = None  # type: Optional[WorkerHandler]
 
   def _send_input_to_worker(self,
-                            process_bundle_id,
-                            read_transform_id,
+                            process_bundle_id,  # type: str
+                            read_transform_id,  # type: str
                             byte_streams):
+    assert self._worker_handler is not None
     data_out = self._worker_handler.data_conn.output_stream(
         process_bundle_id, read_transform_id)
     for byte_stream in byte_streams:
@@ -1642,7 +1651,7 @@ class BundleManager(object):
 
   def _generate_splits_for_testing(self,
                                    split_manager,
-                                   inputs,
+                                   inputs,  # type: Mapping[str, _ListBuffer]
                                    process_bundle_id):
     # type: (...) -> List[beam_fn_api_pb2.ProcessBundleSplitResponse]
     split_results = []  # type: List[beam_fn_api_pb2.ProcessBundleSplitResponse]
@@ -1703,7 +1712,10 @@ class BundleManager(object):
         break
     return split_results
 
-  def process_bundle(self, inputs, expected_outputs):
+  def process_bundle(self,
+                     inputs,  # type: Mapping[str, _ListBuffer]
+                     expected_outputs
+                    ):
     # type: (...) -> Tuple[beam_fn_api_pb2.InstructionResponse, List[beam_fn_api_pb2.ProcessBundleSplitResponse]]
     # Unique id for the instruction processing this bundle.
     with BundleManager._lock:
@@ -1784,14 +1796,17 @@ class ParallelBundleManager(BundleManager):
         bundle_descriptor, progress_frequency, skip_registration)
     self._num_workers = kwargs.pop('num_workers', 1)
 
-  def process_bundle(self, inputs, expected_outputs):
+  def process_bundle(self,
+                     inputs,  # type: Mapping[str, _ListBuffer]
+                     expected_outputs
+                     ):
     # type: (...) -> Tuple[beam_fn_api_pb2.InstructionResponse, List[beam_fn_api_pb2.ProcessBundleSplitResponse]]
-    part_inputs = [{} for _ in range(self._num_workers)]
+    part_inputs = [{} for _ in range(self._num_workers)]  # type: List[Dict[str, List]]
     for name, input in inputs.items():
       for ix, part in enumerate(input.partition(self._num_workers)):
         part_inputs[ix][name] = part
 
-    merged_result = None
+    merged_result = None  # type: Optional[beam_fn_api_pb2.InstructionResponse]
     split_result_list = []  # type: List[beam_fn_api_pb2.ProcessBundleSplitResponse]
     with futures.ThreadPoolExecutor(max_workers=self._num_workers) as executor:
       for result, split_result in executor.map(lambda part: BundleManager(

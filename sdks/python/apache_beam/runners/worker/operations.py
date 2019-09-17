@@ -30,9 +30,12 @@ import typing
 from builtins import filter
 from builtins import object
 from builtins import zip
+from typing import Any
 from typing import DefaultDict
+from typing import Hashable
 from typing import List
 from typing import Optional
+from typing import Tuple
 
 from apache_beam import pvalue
 from apache_beam.internal import pickler
@@ -890,7 +893,7 @@ class PGBKCVOperation(Operation):
       # pylint: disable=unidiomatic-typecheck
       # Optimization for the global window case.
       if len(wkv.windows) == 1 and type(wkv.windows[0]) is _global_window_type:
-        wkey = 0, key
+        wkey = 0, key  # type: Tuple[Hashable, Any]
       else:
         wkey = tuple(wkv.windows), key
       entry = self.table.get(wkey, None)
