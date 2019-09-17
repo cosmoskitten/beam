@@ -224,7 +224,7 @@ class Top(object):
     if sys.version_info[0] < 3:
       __init__ = _py2__init__
     else:
-      __init__ = _py3__init__
+      __init__ = _py3__init__  # type: ignore
 
     def default_label(self):
       return 'Top(%d)' % self._n
