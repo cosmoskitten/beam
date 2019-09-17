@@ -275,7 +275,7 @@ class Stage(object):
           stage_components.transforms[side.transform_id].inputs[side.local_name]
           for side in side_inputs
       }, main_input=main_input_id)
-      payload = beam_runner_api_pb2.ExecutableStagePayload(
+      exec_payload = beam_runner_api_pb2.ExecutableStagePayload(
           environment=components.environments[self.environment],
           input=main_input_id,
           outputs=external_outputs,
@@ -289,7 +289,7 @@ class Stage(object):
           unique_name=unique_name(None, self.name),
           spec=beam_runner_api_pb2.FunctionSpec(
               urn='beam:runner:executable_stage:v1',
-              payload=payload.SerializeToString()),
+              payload=exec_payload.SerializeToString()),
           inputs=named_inputs,
           outputs={'output_%d' % ix: pcoll
                    for ix, pcoll in enumerate(external_outputs)})
