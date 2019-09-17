@@ -954,7 +954,7 @@ class AppliedPTransform(object):
       # type: (str) -> int
       match = re.match('side([0-9]+)(-.*)?$', tag)
       if match:
-        return int(match.group(1))  # type: ignore
+        return int(match.group(1))
       else:
         raise RuntimeError("Invalid tag %r" % tag)
 
