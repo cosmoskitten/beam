@@ -36,6 +36,7 @@ from concurrent import futures
 from typing import Callable
 from typing import DefaultDict
 from typing import Dict
+from typing import Iterator
 from typing import List
 from typing import Optional
 from typing import Tuple
@@ -52,6 +53,7 @@ from apache_beam.runners.worker.channel_factory import GRPCChannelFactory
 from apache_beam.runners.worker.worker_id_interceptor import WorkerIdInterceptor
 
 if typing.TYPE_CHECKING:
+  from apache_beam.portability.api import endpoints_pb2
   from apache_beam.utils.profiler import Profile
 
 
@@ -64,7 +66,7 @@ class SdkHarness(object):
                worker_count,  # type: int
                credentials=None,
                worker_id=None,  # type: Optional[str]
-               profiler_factory=None  # type: Optional[Profile]
+               profiler_factory=None  # type: Optional[Callable[..., Profile]]
               ):
     self._alive = True
     self._worker_count = worker_count
@@ -131,6 +133,7 @@ class SdkHarness(object):
                     profiler_factory=self._profiler_factory))
 
     def get_responses():
+      # type: () -> Iterator[beam_fn_api_pb2.InstructionResponse]
       while True:
         response = self._responses.get()
         if response is no_more_work:
@@ -367,7 +370,7 @@ class SdkWorker(object):
 
   def __init__(self,
                bundle_processor_cache,  # type: BundleProcessorCache
-               profiler_factory=None
+               profiler_factory=None  # type: Optional[Callable[..., Profile]]
               ):
     self.bundle_processor_cache = bundle_processor_cache
     self.profiler_factory = profiler_factory
@@ -383,7 +386,7 @@ class SdkWorker(object):
 
   def register(self,
                request,  # type: beam_fn_api_pb2.RegisterRequest
-               instruction_id
+               instruction_id  # type: str
               ):
     # type: (...) -> beam_fn_api_pb2.InstructionResponse
     """Registers a set of ``beam_fn_api_pb2.ProcessBundleDescriptor``s.
@@ -401,7 +404,7 @@ class SdkWorker(object):
 
   def process_bundle(self,
                      request,  # type: beam_fn_api_pb2.ProcessBundleRequest
-                     instruction_id
+                     instruction_id  # type: str
                     ):
     # type: (...) -> beam_fn_api_pb2.InstructionResponse
     bundle_processor = self.bundle_processor_cache.get(
@@ -430,7 +433,7 @@ class SdkWorker(object):
 
   def process_bundle_split(self,
                            request,  # type: beam_fn_api_pb2.ProcessBundleSplitRequest
-                           instruction_id
+                           instruction_id  # type: str
                           ):
     # type: (...) -> beam_fn_api_pb2.InstructionResponse
     processor = self.bundle_processor_cache.lookup(
@@ -446,7 +449,7 @@ class SdkWorker(object):
 
   def process_bundle_progress(self,
                               request,  # type: beam_fn_api_pb2.ProcessBundleProgressRequest
-                              instruction_id
+                              instruction_id  # type: str
                              ):
     # type: (...) -> beam_fn_api_pb2.InstructionResponse
     # It is an error to get progress for a not-in-flight bundle.
@@ -460,7 +463,7 @@ class SdkWorker(object):
 
   def finalize_bundle(self,
                       request,  # type: beam_fn_api_pb2.FinalizeBundleRequest
-                      instruction_id
+                      instruction_id  # type: str
                      ):
     # type: (...) -> beam_fn_api_pb2.InstructionResponse
     processor = self.bundle_processor_cache.lookup(
@@ -517,7 +520,7 @@ class GrpcStateHandlerFactory(StateHandlerFactory):
   """
 
   def __init__(self, credentials=None):
-    self._state_handler_cache = {}
+    self._state_handler_cache = {}  # type: Dict[str, GrpcStateHandler]
     self._lock = threading.Lock()
     self._throwing_state_handler = ThrowingStateHandler()
     self._credentials = credentials
@@ -636,7 +639,7 @@ class GrpcStateHandler(object):
     self._requests.put(self._DONE)
 
   def blocking_get(self,
-                   state_key,  # type: Optional[beam_fn_api_pb2.StateKey]
+                   state_key,  # type: beam_fn_api_pb2.StateKey
                    continuation_token=None  # type: Optional[bytes]
                   ):
     # type: (...) -> Tuple[bytes, Optional[bytes]]

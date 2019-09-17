@@ -215,6 +215,7 @@ class BeamFnControlServicer(beam_fn_api_pb2_grpc.BeamFnControlServicer):
 class _ListBuffer(list):
   """Used to support parititioning of a list."""
   def partition(self, n):
+    # type: (int) -> list
     return [self[k::n] for k in range(n)]
 
 
@@ -352,7 +353,7 @@ class FnApiRunner(runner.PipelineRunner):
     self._bundle_repeat = bundle_repeat
     self._num_workers = 1
     self._progress_frequency = None
-    self._profiler_factory = None
+    self._profiler_factory = None  # type: Optional[Callable[..., profiler.Profile]]
     self._use_state_iterables = use_state_iterables
     self._provision_info = provision_info or ExtendedProvisionInfo(
         beam_provision_api_pb2.ProvisionInfo(
@@ -582,14 +583,14 @@ class FnApiRunner(runner.PipelineRunner):
 
   def _add_residuals_and_channel_splits_to_deferred_inputs(
       self,
-      splits,
+      splits,  # type: List[beam_fn_api_pb2.ProcessBundleSplitResponse]
       get_input_coder_callable,
       input_for_callable,
       last_sent,
       deferred_inputs  # type: DefaultDict[str, _ListBuffer]
     ):
 
-    prev_stops = {}
+    prev_stops = {}  # type: Dict[str, int]
     for split in splits:
       for delayed_application in split.residual_roots:
         deferred_inputs[
@@ -944,7 +945,7 @@ class FnApiRunner(runner.PipelineRunner):
 
     def __init__(self):
       self._lock = threading.Lock()
-      self._state = collections.defaultdict(list)
+      self._state = collections.defaultdict(list)  # type: DefaultDict[bytes, List[bytes]]
       self._checkpoint = None
       self._use_continuation_tokens = False
       self._continuations = {}
@@ -967,7 +968,11 @@ class FnApiRunner(runner.PipelineRunner):
     def process_instruction_id(self, unused_instruction_id):
       yield
 
-    def blocking_get(self, state_key, continuation_token=None):
+    def blocking_get(self,
+                     state_key,  # type: beam_fn_api_pb2.StateKey
+                     continuation_token=None  # type: Optional[bytes]
+                    ):
+      # type: (...) -> Tuple[bytes, Optional[bytes]]
       with self._lock:
         full_state = self._state[self._to_key(state_key)]
         if self._use_continuation_tokens:
@@ -988,23 +993,31 @@ class FnApiRunner(runner.PipelineRunner):
           assert not continuation_token
           return b''.join(full_state), None
 
-    def blocking_append(self, state_key, data):
+    def blocking_append(self,
+                        state_key,  # type: beam_fn_api_pb2.StateKey
+                        data  # type: bytes
+                      ):
+      # type: (...) -> None
       with self._lock:
         self._state[self._to_key(state_key)].append(data)
 
     def blocking_clear(self, state_key):
+      # type: (beam_fn_api_pb2.StateKey) -> None
       with self._lock:
         del self._state[self._to_key(state_key)]
 
     @staticmethod
     def _to_key(state_key):
+      # type: (beam_fn_api_pb2.StateKey) -> bytes
       return state_key.SerializeToString()
 
   class GrpcStateServicer(beam_fn_api_pb2_grpc.BeamFnStateServicer):
     def __init__(self, state):
+      # type: (FnApiRunner.StateServicer) -> None
       self._state = state
 
     def State(self, request_stream, context=None):
+      # type: (...) -> Iterator[beam_fn_api_pb2.StateResponse]
       # Note that this eagerly mutates state, assuming any failures are fatal.
       # Thus it is safe to ignore instruction_reference.
       for request in request_stream:
@@ -1033,9 +1046,11 @@ class FnApiRunner(runner.PipelineRunner):
     """A singleton cache for a StateServicer."""
 
     def __init__(self, state_handler):
+      # type: (sdk_worker.StateHandler) -> None
       self._state_handler = state_handler
 
     def create_state_handler(self, api_service_descriptor):
+      # type: (endpoints_pb2.ApiServiceDescriptor) -> sdk_worker.StateHandler
       """Returns the singleton state handler."""
       return self._state_handler
 
@@ -1056,8 +1071,9 @@ class WorkerHandler(object):
   _worker_id_counter = -1
   _lock = threading.Lock()
 
-  control_conn = None
-  data_conn = None
+  # FIXME: add a Protocol for these
+  control_conn = None  # type: ControlConnection
+  data_conn = None  # type: data_plane._GrpcDataChannel
 
   def __init__(self,
                control_handler,
@@ -1092,12 +1108,15 @@ class WorkerHandler(object):
     raise NotImplementedError
 
   def data_api_service_descriptor(self):
+    # type: () -> endpoints_pb2.ApiServiceDescriptor
     raise NotImplementedError
 
   def state_api_service_descriptor(self):
+    # type: () -> endpoints_pb2.ApiServiceDescriptor
     raise NotImplementedError
 
   def logging_api_service_descriptor(self):
+    # type: () -> endpoints_pb2.ApiServiceDescriptor
     raise NotImplementedError
 
   @classmethod
@@ -1126,7 +1145,7 @@ class EmbeddedWorkerHandler(WorkerHandler):
                unused_grpc_server=None):
     super(EmbeddedWorkerHandler, self).__init__(
         self, data_plane.InMemoryDataChannel(), state, provision_info)
-    self.control_conn = self
+    self.control_conn = self  # type: ignore  # need Protocol to describe this
     self.data_conn = self.data_plane_handler
 
     self.worker = sdk_worker.SdkWorker(
@@ -1315,14 +1334,17 @@ class GrpcWorkerHandler(WorkerHandler):
         self.worker_id)
 
   def data_api_service_descriptor(self):
+    # type: () -> endpoints_pb2.ApiServiceDescriptor
     return endpoints_pb2.ApiServiceDescriptor(
         url=self.port_from_worker(self._grpc_server.data_port))
 
   def state_api_service_descriptor(self):
+    # type: () -> endpoints_pb2.ApiServiceDescriptor
     return endpoints_pb2.ApiServiceDescriptor(
         url=self.port_from_worker(self._grpc_server.state_port))
 
   def logging_api_service_descriptor(self):
+    # type: () -> endpoints_pb2.ApiServiceDescriptor
     return endpoints_pb2.ApiServiceDescriptor(
         url=self.port_from_worker(self._grpc_server.logging_port))
 
@@ -1604,9 +1626,10 @@ class BundleManager(object):
     self._worker_handler = None  # type: Optional[WorkerHandler]
 
   def _send_input_to_worker(self,
-                            process_bundle_id,
-                            read_transform_id,
+                            process_bundle_id,  # type: str
+                            read_transform_id,  # type: str
                             byte_streams):
+    assert self._worker_handler is not None
     data_out = self._worker_handler.data_conn.output_stream(
         process_bundle_id, read_transform_id)
     for byte_stream in byte_streams:
@@ -1642,7 +1665,7 @@ class BundleManager(object):
 
   def _generate_splits_for_testing(self,
                                    split_manager,
-                                   inputs,
+                                   inputs,  # type: Mapping[str, _ListBuffer]
                                    process_bundle_id):
     # type: (...) -> List[beam_fn_api_pb2.ProcessBundleSplitResponse]
     split_results = []  # type: List[beam_fn_api_pb2.ProcessBundleSplitResponse]
@@ -1703,7 +1726,10 @@ class BundleManager(object):
         break
     return split_results
 
-  def process_bundle(self, inputs, expected_outputs):
+  def process_bundle(self,
+                     inputs,  # type: Mapping[str, _ListBuffer]
+                     expected_outputs
+                    ):
     # type: (...) -> Tuple[beam_fn_api_pb2.InstructionResponse, List[beam_fn_api_pb2.ProcessBundleSplitResponse]]
     # Unique id for the instruction processing this bundle.
     with BundleManager._lock:
@@ -1784,14 +1810,17 @@ class ParallelBundleManager(BundleManager):
         bundle_descriptor, progress_frequency, skip_registration)
     self._num_workers = kwargs.pop('num_workers', 1)
 
-  def process_bundle(self, inputs, expected_outputs):
+  def process_bundle(self,
+                     inputs,  # type: Mapping[str, _ListBuffer]
+                     expected_outputs
+                     ):
     # type: (...) -> Tuple[beam_fn_api_pb2.InstructionResponse, List[beam_fn_api_pb2.ProcessBundleSplitResponse]]
-    part_inputs = [{} for _ in range(self._num_workers)]
+    part_inputs = [{} for _ in range(self._num_workers)]  # type: List[Dict[str, List]]
     for name, input in inputs.items():
       for ix, part in enumerate(input.partition(self._num_workers)):
         part_inputs[ix][name] = part
 
-    merged_result = None
+    merged_result = None  # type: Optional[beam_fn_api_pb2.InstructionResponse]
     split_result_list = []  # type: List[beam_fn_api_pb2.ProcessBundleSplitResponse]
     with futures.ThreadPoolExecutor(max_workers=self._num_workers) as executor:
       for result, split_result in executor.map(lambda part: BundleManager(

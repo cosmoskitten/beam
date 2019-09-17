@@ -35,7 +35,6 @@ from typing import Sequence
 from typing import Tuple
 from typing import Type
 from typing import TypeVar
-from typing import Union
 
 import google.protobuf.wrappers_pb2
 from future.moves import pickle
@@ -91,6 +90,8 @@ ConstructorFn = Callable[
      List['Coder'],
      'PipelineContext'],
     Any]
+IterableStateReader = Callable[[bytes, 'Coder'], Iterable]
+IterableStateWriter = Callable[[Iterable, 'Coder'], bytes]
 
 
 def serialize_coder(coder):
@@ -171,6 +172,7 @@ class Coder(object):
   # ===========================================================================
 
   def _create_impl(self):
+    # type: () -> coder_impl.CoderImpl
     """Creates a CoderImpl to do the actual encoding and decoding.
     """
     return coder_impl.CallbackCoderImpl(self.encode, self.decode,
@@ -1144,6 +1146,7 @@ class WindowedValueCoder(FastCoder):
   """Coder for windowed values."""
 
   def __init__(self, wrapped_value_coder, window_coder=None):
+    # type: (Coder, Optional[Coder]) -> None
     if not window_coder:
       window_coder = PickleCoder()
     self.wrapped_value_coder = wrapped_value_coder
@@ -1261,8 +1264,8 @@ class StateBackedIterableCoder(FastCoder):
   def __init__(
       self,
       element_coder,
-      read_state=None,
-      write_state=None,
+      read_state=None,  # type: Optional[IterableStateReader]
+      write_state=None,  # type: Optional[IterableStateWriter]
       write_state_threshold=1):
     self._element_coder = element_coder
     self._read_state = read_state

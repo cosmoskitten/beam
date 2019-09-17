@@ -30,6 +30,7 @@ import threading
 from builtins import object
 from builtins import range
 from typing import DefaultDict
+from typing import Dict
 
 import grpc
 from future.utils import raise_
@@ -324,6 +325,7 @@ class DataChannelFactory(with_metaclass(abc.ABCMeta, object)):
 
   @abc.abstractmethod
   def create_data_channel(self, remote_grpc_port):
+    # type: (...) -> GrpcClientDataChannel
     """Returns a ``DataChannel`` from the given RemoteGrpcPort."""
     raise NotImplementedError(type(self))
 
@@ -340,7 +342,7 @@ class GrpcClientDataChannelFactory(DataChannelFactory):
   """
 
   def __init__(self, credentials=None, worker_id=None):
-    self._data_channel_cache = {}
+    self._data_channel_cache = {}  # type: Dict[str, GrpcClientDataChannel]
     self._lock = threading.Lock()
     self._credentials = None
     self._worker_id = worker_id
@@ -349,6 +351,7 @@ class GrpcClientDataChannelFactory(DataChannelFactory):
       self._credentials = credentials
 
   def create_data_channel(self, remote_grpc_port):
+    # type: (...) -> GrpcClientDataChannel
     url = remote_grpc_port.api_service_descriptor.url
     if url not in self._data_channel_cache:
       with self._lock:
@@ -385,9 +388,11 @@ class InMemoryDataChannelFactory(DataChannelFactory):
   """A singleton factory for ``InMemoryDataChannel``."""
 
   def __init__(self, in_memory_data_channel):
+    # type: (GrpcClientDataChannel) -> None
     self._in_memory_data_channel = in_memory_data_channel
 
   def create_data_channel(self, unused_remote_grpc_port):
+    # type: (...) -> GrpcClientDataChannel
     return self._in_memory_data_channel
 
   def close(self):

@@ -39,7 +39,6 @@ import typing
 from builtins import chr
 from builtins import object
 from io import BytesIO
-from typing import Callable
 from typing import Iterable
 from typing import Optional
 
@@ -80,7 +79,10 @@ except ImportError:
     fits_in_64_bits = lambda x: -(1 << 63) <= x <= (1 << 63) - 1
 
 if typing.TYPE_CHECKING:
-  from apache_beam.coders import Coder
+  from apache_beam.coders.coders import Coder
+  from apache_beam.coders.coders import IterableStateReader
+  from apache_beam.coders.coders import IterableStateWriter
+
 # pylint: enable=wrong-import-order, wrong-import-position, ungrouped-imports
 
 
@@ -759,8 +761,8 @@ class SequenceCoderImpl(StreamCoderImpl):
 
   def __init__(self,
                elem_coder,  # type: Coder
-               read_state=None,  # type: Optional[Callable[[bytes, Coder], Iterable]]
-               write_state=None,  # type: Optional[Callable[[Iterable, Coder], bytes]]
+               read_state=None,  # type: Optional[IterableStateReader]
+               write_state=None,  # type: Optional[IterableStateWriter]
                write_state_threshold=0  # type: int
               ):
     self._elem_coder = elem_coder
