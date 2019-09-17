@@ -49,7 +49,9 @@ job(jobName) {
           postgresDatabaseName: 'postgres',
           postgresServerName  : "\$${postgresHostName}",
           postgresSsl         : false,
-          postgresPort        : '5432'
+          postgresPort        : '5432',
+          maxNumWorkers: '5',
+          numWorkers: '5'
   ]
 
   steps {

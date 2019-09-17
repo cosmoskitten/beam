@@ -45,7 +45,9 @@ job(jobName) {
           mongoDBDatabaseName: 'beam',
           mongoDBHostName: "\$${mongoHostName}",
           mongoDBPort: 27017,
-          runner: 'DataflowRunner'
+          runner: 'DataflowRunner',
+          maxNumWorkers: '5',
+          numWorkers: '5'
   ]
 
   steps {
