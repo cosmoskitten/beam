@@ -30,8 +30,8 @@ from future.utils import with_metaclass
 
 from apache_beam import coders
 from apache_beam import pvalue
-from apache_beam.transforms import core
 from apache_beam.transforms import PTransform
+from apache_beam.transforms import core
 from apache_beam.transforms import window
 from apache_beam.transforms.window import TimestampedValue
 from apache_beam.utils import timestamp

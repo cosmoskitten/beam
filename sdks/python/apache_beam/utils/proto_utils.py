@@ -25,8 +25,8 @@ from typing import TypeVar
 from typing import Union
 
 from google.protobuf import any_pb2
-from google.protobuf import struct_pb2
 from google.protobuf import message
+from google.protobuf import struct_pb2
 
 MessageT = TypeVar('MessageT', bound=message.Message)
 

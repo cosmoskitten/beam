@@ -19,8 +19,8 @@
 
 from __future__ import absolute_import
 
-from builtins import object
 import typing
+from builtins import object
 from typing import Iterable
 from typing import Iterator
 from typing import List

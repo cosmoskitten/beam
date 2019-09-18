@@ -24,11 +24,11 @@ import inspect
 import typing
 from builtins import object
 from typing import Any
-from typing import Dict
 from typing import Callable
+from typing import Dict
 from typing import Optional
-from typing import Type
 from typing import Tuple
+from typing import Type
 from typing import Union
 
 from google.protobuf import message

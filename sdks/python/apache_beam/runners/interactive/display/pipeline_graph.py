@@ -32,6 +32,7 @@ from typing import Iterator
 from typing import List
 from typing import Tuple
 from typing import Union
+
 import pydot
 
 import apache_beam as beam

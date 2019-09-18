@@ -28,13 +28,13 @@ import traceback
 import typing
 from builtins import object
 from builtins import range
-from weakref import WeakValueDictionary
 from typing import Any
 from typing import Dict
 from typing import FrozenSet
 from typing import Optional
 from typing import Set
 from typing import Type
+from weakref import WeakValueDictionary
 
 from future.moves import queue
 from future.utils import raise_
