@@ -48,4 +48,10 @@ public interface FileBasedIOTestPipelineOptions extends IOTestPipelineOptions {
   boolean getReportGcsPerformanceMetrics();
 
   void setReportGcsPerformanceMetrics(boolean performanceMetrics);
+
+  @Description("Test configuration name")
+  @Validation.Required
+  String getTestConfigName();
+
+  void setTestConfigName(String testConfig);
 }
