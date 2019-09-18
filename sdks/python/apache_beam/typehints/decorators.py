@@ -299,7 +299,10 @@ class IOTypeHints(object):
     """
     if not self.has_simple_output_type():
       return
-    yielded_type = typehints.get_yielded_type(self.output_types[0][0])
+    simple_output_type = self.output_types[0][0]
+    if simple_output_type is None:
+      return
+    yielded_type = typehints.get_yielded_type(simple_output_type)
     self.output_types = ((yielded_type,), {})
 
   def copy(self):

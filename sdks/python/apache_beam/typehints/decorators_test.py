@@ -87,6 +87,7 @@ class IOTypeHintsTest(unittest.TestCase):
       self._test_strip_iterable(before, None)
 
   def test_strip_iterable_beam_types(self):
+    self._test_strip_iterable(None, None)
     self._test_strip_iterable(typehints.Any, typehints.Any)
     self._test_strip_iterable(typehints.Iterable[str], str)
     self._test_strip_iterable(typehints.List[str], str)

@@ -215,8 +215,8 @@ def convert_to_beam_type(typ):
   # Find the first matching entry.
   matched_entry = next((entry for entry in type_map if entry.match(typ)), None)
   if not matched_entry:
-    # No match: return original type.
-    return typ
+    # No match: return Any since typing types are not pickleable.
+    return typehints.Any
 
   if matched_entry.arity == -1:
     arity = _len_arg(typ)
