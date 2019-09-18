@@ -158,6 +158,7 @@ GCP_REQUIREMENTS = [
     'google-cloud-bigquery>=1.6.0,<1.18.0',
     'google-cloud-core>=0.28.1,<2',
     'google-cloud-bigtable>=0.31.1,<1.1.0',
+    'google-cloud-spanner>=1.7.1<1.8.0'
 ]
 
 
