@@ -78,7 +78,7 @@ configurations {
 
 def calcite_version = "1.20.0"
 def avatica_version = "1.15.0"
-def zetasql_version = "2019.07.1"
+def zetasql_version = "2019.09.1"
 
 dependencies {
   javacc "net.java.dev.javacc:javacc:4.0"
