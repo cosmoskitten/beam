@@ -74,7 +74,6 @@ from google.cloud.spanner import Client
 from google.cloud.spanner import KeySet
 from google.cloud.spanner_v1.database import BatchSnapshot
 
-
 import apache_beam as beam
 from apache_beam.transforms import PTransform
 from apache_beam.utils.annotations import experimental
@@ -117,7 +116,7 @@ class ReadFromSpanner(object):
 
   def __init__(self, project_id, instance_id, database_id, pool=None,
                read_timestamp=None, exact_staleness=None):
-    warnings.warn("ReadFromSpanner is experimental.",FutureWarning,
+    warnings.warn("ReadFromSpanner is experimental.", FutureWarning,
                   stacklevel=2)
     self._transaction = None
 
