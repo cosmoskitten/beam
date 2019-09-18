@@ -552,7 +552,7 @@ class FnApiRunner(runner.PipelineRunner):
       stage,
       get_buffer_callable,
       deferred_inputs  # type: DefaultDict[str, _ListBuffer]
-    ):
+      ):
 
     for transform_id, timer_writes in stage.timer_pcollections:
 
@@ -588,7 +588,7 @@ class FnApiRunner(runner.PipelineRunner):
       input_for_callable,
       last_sent,
       deferred_inputs  # type: DefaultDict[str, _ListBuffer]
-    ):
+     ):
 
     prev_stops = {}  # type: Dict[str, int]
     for split in splits:
@@ -1079,7 +1079,7 @@ class WorkerHandler(object):
                control_handler,
                data_plane_handler,
                state,  # type: FnApiRunner.StateServicer
-               provision_info  # type: fn_api_runner.ExtendedProvisionInfo
+               provision_info  # type: Optional[fn_api_runner.ExtendedProvisionInfo]
               ):
     """Initialize a WorkerHandler.
 
@@ -1120,14 +1120,23 @@ class WorkerHandler(object):
     raise NotImplementedError
 
   @classmethod
-  def register_environment(cls, urn, payload_type):
+  def register_environment(cls,
+                           urn,  # type: str
+                           payload_type  # type: Optional[Type[T]]
+                          ):
+    # type: (...) -> Callable[[Callable[[T, FnApiRunner.StateServicer, Optional[fn_api_runner.ExtendedProvisionInfo], GrpcServer], WorkerHandler]], Callable[[T, FnApiRunner.StateServicer, Optional[fn_api_runner.ExtendedProvisionInfo], GrpcServer], WorkerHandler]]
     def wrapper(constructor):
       cls._registered_environments[urn] = constructor, payload_type
       return constructor
     return wrapper
 
   @classmethod
-  def create(cls, environment, state, provision_info, grpc_server):
+  def create(cls,
+             environment,  # type: beam_runner_api_pb2.Environment
+             state,  # type: FnApiRunner.StateServicer
+             provision_info,  # type: Optional[fn_api_runner.ExtendedProvisionInfo]
+             grpc_server  # type: GrpcServer
+            ):
     # type: (...) -> WorkerHandler
     constructor, payload_type = cls._registered_environments[environment.urn]
     return constructor(
@@ -1141,8 +1150,12 @@ class WorkerHandler(object):
 class EmbeddedWorkerHandler(WorkerHandler):
   """An in-memory worker_handler for fn API control, state and data planes."""
 
-  def __init__(self, unused_payload, state, provision_info,
-               unused_grpc_server=None):
+  def __init__(self,
+               unused_payload,  # type: None
+               state,  # type: sdk_worker.StateHandler
+               provision_info,  # type: Optional[fn_api_runner.ExtendedProvisionInfo]
+               unused_grpc_server=None
+              ):
     super(EmbeddedWorkerHandler, self).__init__(
         self, data_plane.InMemoryDataChannel(), state, provision_info)
     self.control_conn = self  # type: ignore  # need Protocol to describe this
@@ -1228,7 +1241,11 @@ class GrpcServer(object):
 
   _DEFAULT_SHUTDOWN_TIMEOUT_SECS = 5
 
-  def __init__(self, state, provision_info, max_workers):
+  def __init__(self,
+               state,
+               provision_info,  # type: Optional[fn_api_runner.ExtendedProvisionInfo]
+               max_workers  # type: int
+              ):
     self.state = state
     self.provision_info = provision_info
     self.max_workers = max_workers
@@ -1269,7 +1286,7 @@ class GrpcServer(object):
 
       if self.provision_info.artifact_staging_dir:
         service = artifact_service.BeamFilesystemArtifactService(
-            self.provision_info.artifact_staging_dir)
+            self.provision_info.artifact_staging_dir)  # type: beam_artifact_api_pb2_grpc.ArtifactRetrievalServiceServicer
       else:
         service = EmptyArtifactRetrievalService()
       beam_artifact_api_pb2_grpc.add_ArtifactRetrievalServiceServicer_to_server(
@@ -1316,8 +1333,8 @@ class GrpcWorkerHandler(WorkerHandler):
   """An grpc based worker_handler for fn API control, state and data planes."""
 
   def __init__(self,
-               state,
-               provision_info,
+               state,  # type: FnApiRunner.StateServicer
+               provision_info,  # type: Optional[fn_api_runner.ExtendedProvisionInfo]
                grpc_server  # type: GrpcServer
               ):
     self._grpc_server = grpc_server
@@ -1363,7 +1380,12 @@ class GrpcWorkerHandler(WorkerHandler):
 @WorkerHandler.register_environment(
     common_urns.environments.EXTERNAL.urn, beam_runner_api_pb2.ExternalPayload)
 class ExternalWorkerHandler(GrpcWorkerHandler):
-  def __init__(self, external_payload, state, provision_info, grpc_server):
+  def __init__(self,
+               external_payload,  # type: beam_runner_api_pb2.ExternalPayload
+               state,  # type: FnApiRunner.StateServicer
+               provision_info,  # type: Optional[fn_api_runner.ExtendedProvisionInfo]
+               grpc_server  # type: GrpcServer
+              ):
     super(ExternalWorkerHandler, self).__init__(state, provision_info,
                                                 grpc_server)
     self._external_payload = external_payload
@@ -1388,7 +1410,12 @@ class ExternalWorkerHandler(GrpcWorkerHandler):
 
 @WorkerHandler.register_environment(python_urns.EMBEDDED_PYTHON_GRPC, bytes)
 class EmbeddedGrpcWorkerHandler(GrpcWorkerHandler):
-  def __init__(self, num_workers_payload, state, provision_info, grpc_server):
+  def __init__(self,
+               num_workers_payload,
+               state,  # type: FnApiRunner.StateServicer
+               provision_info,  # type: Optional[fn_api_runner.ExtendedProvisionInfo]
+               grpc_server  # type: GrpcServer
+              ):
     super(EmbeddedGrpcWorkerHandler, self).__init__(state, provision_info,
                                                     grpc_server)
     self._num_threads = int(num_workers_payload) if num_workers_payload else 1
@@ -1413,7 +1440,12 @@ SUBPROCESS_LOCK = threading.Lock()
 
 @WorkerHandler.register_environment(python_urns.SUBPROCESS_SDK, bytes)
 class SubprocessSdkWorkerHandler(GrpcWorkerHandler):
-  def __init__(self, worker_command_line, state, provision_info, grpc_server):
+  def __init__(self,
+               worker_command_line,  # type: bytes
+               state,  # type: FnApiRunner.StateServicer
+               provision_info,  # type: Optional[fn_api_runner.ExtendedProvisionInfo]
+               grpc_server  # type: GrpcServer
+              ):
     super(SubprocessSdkWorkerHandler, self).__init__(state, provision_info,
                                                      grpc_server)
     self._worker_command_line = worker_command_line
@@ -1433,7 +1465,12 @@ class SubprocessSdkWorkerHandler(GrpcWorkerHandler):
 @WorkerHandler.register_environment(common_urns.environments.DOCKER.urn,
                                     beam_runner_api_pb2.DockerPayload)
 class DockerSdkWorkerHandler(GrpcWorkerHandler):
-  def __init__(self, payload, state, provision_info, grpc_server):
+  def __init__(self,
+               payload,  # type: beam_runner_api_pb2.DockerPayload
+               state,  # type: FnApiRunner.StateServicer
+               provision_info,  # type: Optional[fn_api_runner.ExtendedProvisionInfo]
+               grpc_server  # type: GrpcServer
+              ):
     super(DockerSdkWorkerHandler, self).__init__(state, provision_info,
                                                  grpc_server)
     self._container_image = payload.container_image
@@ -1557,7 +1594,10 @@ class WorkerHandlerManager(object):
 
 
 class ExtendedProvisionInfo(object):
-  def __init__(self, provision_info=None, artifact_staging_dir=None):
+  def __init__(self,
+               provision_info=None,  # type: Optional[beam_provision_api_pb2.ProvisionInfo]
+               artifact_staging_dir=None
+              ):
     self.provision_info = (
         provision_info or beam_provision_api_pb2.ProvisionInfo())
     self.artifact_staging_dir = artifact_staging_dir
@@ -1813,7 +1853,7 @@ class ParallelBundleManager(BundleManager):
   def process_bundle(self,
                      inputs,  # type: Mapping[str, _ListBuffer]
                      expected_outputs
-                     ):
+                    ):
     # type: (...) -> Tuple[beam_fn_api_pb2.InstructionResponse, List[beam_fn_api_pb2.ProcessBundleSplitResponse]]
     part_inputs = [{} for _ in range(self._num_workers)]  # type: List[Dict[str, List]]
     for name, input in inputs.items():

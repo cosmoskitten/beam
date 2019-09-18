@@ -30,6 +30,7 @@ import typing
 from builtins import hex
 from builtins import object
 from collections import namedtuple
+from typing import Dict
 
 from apache_beam.transforms import cy_combiners
 

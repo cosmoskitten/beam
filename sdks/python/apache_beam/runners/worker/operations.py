@@ -61,6 +61,7 @@ from apache_beam.utils.windowed_value import WindowedValue
 
 if typing.TYPE_CHECKING:
   from apache_beam.runners.worker.bundle_processor import ExecutionContext
+  from apache_beam.runners.worker.statesampler import StateSampler
 
 # Allow some "pure mode" declarations.
 try:
@@ -185,7 +186,7 @@ class Operation(object):
                name_context,  # type: common.NameContext
                spec,
                counter_factory,
-               state_sampler
+               state_sampler  # type: StateSampler
               ):
     """Initializes a worker operation instance.
 

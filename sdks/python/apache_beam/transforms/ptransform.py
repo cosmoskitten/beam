@@ -79,7 +79,6 @@ from apache_beam.typehints.typehints import validate_composite_type_param
 from apache_beam.utils import proto_utils
 
 if typing.TYPE_CHECKING:
-  from google.protobuf import message
   from apache_beam import coders
   from apache_beam.pipeline import Pipeline
   from apache_beam.runners.pipeline_context import PipelineContext

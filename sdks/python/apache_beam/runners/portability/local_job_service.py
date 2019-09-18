@@ -191,7 +191,11 @@ class SubprocessSdkWorker(object):
   """Manages a SDK worker implemented as a subprocess communicating over grpc.
     """
 
-  def __init__(self, worker_command_line, control_address, worker_id=None):
+  def __init__(self,
+               worker_command_line,  # type: bytes
+               control_address,
+               worker_id=None
+              ):
     self._worker_command_line = worker_command_line
     self._control_address = control_address
     self._worker_id = worker_id

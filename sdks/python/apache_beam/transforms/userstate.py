@@ -25,7 +25,9 @@ from __future__ import absolute_import
 import types
 import typing
 from builtins import object
+from typing import Any
 from typing import Callable
+from typing import Optional
 from typing import Set
 from typing import Tuple
 from typing import TypeVar
@@ -37,6 +39,7 @@ from apache_beam.transforms.timeutil import TimeDomain
 
 if typing.TYPE_CHECKING:
   from apache_beam.runners.pipeline_context import PipelineContext
+  from apache_beam.transforms.core import CombineFn
 
 CallableT = TypeVar('CallableT', bound=Callable)
 
@@ -58,6 +61,7 @@ class BagStateSpec(StateSpec):
   """Specification for a user DoFn bag state cell."""
 
   def __init__(self, name, coder):
+    # type: (str, Coder) -> None
     assert isinstance(name, str)
     assert isinstance(coder, Coder)
     self.name = name
@@ -74,6 +78,7 @@ class SetStateSpec(StateSpec):
   """Specification for a user DoFn Set State cell"""
 
   def __init__(self, name, coder):
+    # type: (str, Coder) -> None
     if not isinstance(name, str):
       raise TypeError("SetState name is not a string")
     if not isinstance(coder, Coder):
@@ -91,6 +96,7 @@ class CombiningValueStateSpec(StateSpec):
   """Specification for a user DoFn combining value state cell."""
 
   def __init__(self, name, coder=None, combine_fn=None):
+    # type: (str, Optional[Coder], Any) -> None
     """Initialize the specification for CombiningValue state.
 
     CombiningValueStateSpec(name, combine_fn) -> Coder-inferred combining value

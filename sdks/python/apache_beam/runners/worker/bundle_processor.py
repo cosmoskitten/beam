@@ -31,13 +31,16 @@ import threading
 import typing
 from builtins import next
 from builtins import object
+from typing import cast
 from typing import Any
 from typing import Callable
 from typing import DefaultDict
 from typing import Dict
+from typing import Iterable
 from typing import Iterator
 from typing import List
 from typing import Optional
+from typing import Set
 from typing import Tuple
 from typing import Type
 from typing import TypeVar
@@ -82,7 +85,7 @@ ConstructorFn = Callable[
      Any,
      beam_runner_api_pb2.PTransform,
      Union[message.Message, bytes],
-     Dict[str, operations.Operation]],
+     Dict[str, List[operations.Operation]]],
     operations.Operation]
 
 DATA_INPUT_URN = 'beam:source:runner:0.1'
@@ -126,6 +129,7 @@ class DataOutputOperation(RunnerIOOperation):
   """
 
   def set_output_stream(self, output_stream):
+    # type: (data_plane.ClosableOutputStream) -> None
     self.output_stream = output_stream
 
   def process(self, windowed_value):
@@ -167,6 +171,7 @@ class DataInputOperation(RunnerIOOperation):
     self.output(windowed_value)
 
   def process_encoded(self, encoded_windowed_values):
+    # type: (bytes) -> None
     input_stream = coder_impl.create_InputStream(encoded_windowed_values)
     while input_stream.size() > 0:
       with self.splitting_lock:
@@ -371,10 +376,12 @@ class _ConcatIterable(object):
   Unlike itertools.chain, this allows reiteration.
   """
   def __init__(self, first, second):
+    # type: (Iterable[Any], Iterable[Any]) -> None
     self.first = first
     self.second = second
 
   def __iter__(self):
+    # type: () -> Iterator[Any]
     for elem in self.first:
       yield elem
     for elem in self.second:
@@ -391,9 +398,10 @@ class SynchronousBagRuntimeState(userstate.BagRuntimeState):
     self._state_key = state_key
     self._value_coder = value_coder
     self._cleared = False
-    self._added_elements = []
+    self._added_elements = []  # type: List[Any]
 
   def read(self):
+    # type: () -> Iterable[Any]
     return _ConcatIterable(
         [] if self._cleared else _StateBackedIterable(
             self._state_handler, self._state_key, self._value_coder),
@@ -425,7 +433,7 @@ class SynchronousSetRuntimeState(userstate.SetRuntimeState):
     self._state_key = state_key
     self._value_coder = value_coder
     self._cleared = False
-    self._added_elements = set()
+    self._added_elements = set()  # type: Set[Any]
 
   def _compact_data(self, rewrite=True):
     accumulator = set(_ConcatIterable(
@@ -449,6 +457,7 @@ class SynchronousSetRuntimeState(userstate.SetRuntimeState):
     return accumulator
 
   def read(self):
+    # type: () -> Set[Any]
     return self._compact_data(rewrite=False)
 
   def add(self, value):
@@ -642,6 +651,7 @@ class BundleProcessor(object):
 
     @memoize
     def get_operation(transform_id):
+      # type: (str) -> operations.Operation
       transform_consumers = {
           tag: [get_operation(op) for op in pcoll_consumers[pcoll_id]]
           for tag, pcoll_id
@@ -653,6 +663,7 @@ class BundleProcessor(object):
     # Operations must be started (hence returned) in order.
     @memoize
     def topological_height(transform_id):
+      # type: (str) -> int
       return 1 + max(
           [0] +
           [topological_height(consumer)
@@ -770,7 +781,9 @@ class BundleProcessor(object):
     if watermark:
       proto_watermark = timestamp_pb2.Timestamp()
       proto_watermark.FromMicroseconds(watermark.micros)
-      output_watermarks = {output: proto_watermark for output in outputs}  # type: Optional[Dict[str, timestamp_pb2.Timestamp]]
+      output_watermarks = {
+          output: proto_watermark for output in outputs
+      }  # type: Optional[Dict[str, timestamp_pb2.Timestamp]]
     else:
       output_watermarks = None
     return beam_fn_api_pb2.DelayedBundleApplication(
@@ -909,7 +922,7 @@ class BeamTransformFactory(object):
                    urn,  # type: str
                    parameter_type  # type: Optional[Type[T]]
                   ):
-    # type: (...) -> Callable[[Callable[[BeamTransformFactory, str, beam_runner_api_pb2.PTransform, T, Dict[str, operations.Operation]], operations.Operation]], Callable[[BeamTransformFactory, str, beam_runner_api_pb2.PTransform, T, Dict[str, operations.Operation]], operations.Operation]]
+    # type: (...) -> Callable[[Callable[[BeamTransformFactory, str, beam_runner_api_pb2.PTransform, T, Dict[str, List[operations.Operation]]], operations.Operation]], Callable[[BeamTransformFactory, str, beam_runner_api_pb2.PTransform, T, Dict[str, List[operations.Operation]]], operations.Operation]]
     def wrapper(func):
       cls._known_urns[urn] = func, parameter_type
       return func
@@ -917,7 +930,7 @@ class BeamTransformFactory(object):
 
   def create_operation(self,
                        transform_id,  # type: str
-                       consumers  # type: Dict[str, operations.Operation]
+                       consumers  # type: Dict[str, List[operations.Operation]]
                       ):
     # type: (...) -> operations.Operation
     transform_proto = self.descriptor.transforms[transform_id]
@@ -1000,7 +1013,7 @@ def create_source_runner(factory,  # type: BeamTransformFactory
                          transform_id,  # type: str
                          transform_proto,  # type: beam_runner_api_pb2.PTransform
                          grpc_port,  # type: beam_fn_api_pb2.RemoteGrpcPort
-                         consumers  # type: Dict[str, operations.Operation]
+                         consumers  # type: Dict[str, List[operations.Operation]]
                         ):
   # type: (...) -> DataInputOperation
   # Timers are the one special case where we don't want to call the
@@ -1041,7 +1054,7 @@ def create_sink_runner(factory,  # type: BeamTransformFactory
                        transform_id,  # type: str
                        transform_proto,  # type: beam_runner_api_pb2.PTransform
                        grpc_port,  # type: beam_fn_api_pb2.RemoteGrpcPort
-                       consumers  # type: Dict[str, operations.Operation]
+                       consumers  # type: Dict[str, List[operations.Operation]]
                       ):
   # type: (...) -> DataOutputOperation
   if grpc_port.coder_id:

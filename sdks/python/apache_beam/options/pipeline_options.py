@@ -28,6 +28,8 @@ from typing import Any
 from typing import Dict
 from typing import List
 from typing import Optional
+from typing import Type
+from typing import TypeVar
 
 from apache_beam.options.value_provider import RuntimeValueProvider
 from apache_beam.options.value_provider import StaticValueProvider
@@ -47,6 +49,8 @@ __all__ = [
     'SetupOptions',
     'TestOptions',
     ]
+
+PipelineOptionsT = TypeVar('PipelineOptionsT', bound='PipelineOptions')
 
 
 def _static_value_provider_of(value_type):
@@ -287,6 +291,7 @@ class PipelineOptions(HasDisplayData):
     return self.get_all_options(True)
 
   def view_as(self, cls):
+    # type: (Type[PipelineOptionsT]) -> PipelineOptionsT
     """Returns a view of current object as provided PipelineOption subclass.
 
     Example Usage::

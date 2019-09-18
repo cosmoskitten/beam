@@ -35,6 +35,7 @@ from apache_beam.utils.counters import CounterName
 
 if typing.TYPE_CHECKING:
   from apache_beam.utils import windowed_value
+  from apache_beam.runners.worker.statesampler import StateSampler
 
 # This module is experimental. No backwards-compatibility guarantees.
 
@@ -126,8 +127,12 @@ class SideInputReadCounter(TransformIOCounter):
   not be the only step that spends time reading from this side input.
   """
 
-  def __init__(self, counter_factory, state_sampler, declaring_step,
-               input_index):
+  def __init__(self,
+               counter_factory,
+               state_sampler,  # type: StateSampler
+               declaring_step,
+               input_index
+              ):
     """Create a side input read counter.
 
     Args:
