@@ -149,13 +149,10 @@ class SpannerReadTest(unittest.TestCase):
     mock_transaction.__enter__.return_value = mock_transaction_ctx
     mock_transaction_ctx.execute_sql.return_value = FAKE_ROWS
 
-    snapshot_options = {
-        "exact_staleness": datetime.timedelta(seconds=10)
-    }
     transaction = ReadFromSpanner.create_transaction(
         project_id=TEST_PROJECT_ID, instance_id=TEST_INSTANCE_ID,
         database_id=_generate_database_name(),
-        snapshot_options=snapshot_options)
+        exact_staleness=datetime.timedelta(seconds=10))
 
     pipeline = TestPipeline()
 
