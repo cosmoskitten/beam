@@ -151,13 +151,33 @@ for details.
 
 ### Running Python wordcount on Flink {#python-on-flink}
 
+<<<<<<< HEAD
 The Beam Flink runner can run Python pipelines in batch and streaming modes.
+=======
+To run a basic Python wordcount (in batch mode) with embedded Flink:
+
+1. Start the Flink portable JobService endpoint: `./gradlew :runners:flink:1.5:job-server:runShadow`
+2. In a new terminal, submit the wordcount pipeline to above endpoint: `./gradlew portableWordCount -PjobEndpoint=localhost:8099 -PenvironmentType=LOOPBACK`
+
+To run the pipeline in streaming mode: `./gradlew portableWordCount -PjobEndpoint=localhost:8099 -Pstreaming -PenvironmentType=LOOPBACK`
+
+>>>>>>> fix up
 Please see the [Flink Runner page]({{ site.baseurl }}/documentation/runners/flink/) for more information on
 how to run portable pipelines on top of Flink.
 
 ### Running Python wordcount on Spark {#python-on-spark}
 
+<<<<<<< HEAD
 The Beam Spark runner can run Python pipelines in batch mode.
+=======
+To run a basic Python wordcount (in batch mode) with embedded Spark:
+
+1. Start the Spark portable JobService endpoint: `./gradlew :runners:spark:job-server:runShadow`
+2. In a new terminal, submit the wordcount pipeline to above endpoint: `./gradlew portableWordCount -PjobEndpoint=localhost:8099 -PenvironmentType=LOOPBACK`
+
+Python streaming mode is not yet supported on Spark.
+
+>>>>>>> fix up
 Please see the [Spark Runner page]({{ site.baseurl }}/documentation/runners/spark/) for more information on
 how to run portable pipelines on top of Spark.
 

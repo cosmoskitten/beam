@@ -45,7 +45,7 @@ $ pwd
 [...]/beam
 $ ./gradlew docker
 [...]
-> Task :sdks:python:container:py2:docker
+> Task :sdks:python:container:py35:docker
 a571bb44bc32: Verifying Checksum
 a571bb44bc32: Download complete
 aa6d783919f6: Verifying Checksum
@@ -60,7 +60,7 @@ bb0bcc8d7f6a: Pull complete
 a571bb44bc32: Pull complete
 aa6d783919f6: Pull complete
 Digest: sha256:d9455be2cc68ded908084ec5b63a5cbb87f12ec0915c2f146751bd50b9aef01a
-Status: Downloaded newer image for python:2
+Status: Downloaded newer image for python:3
  ---> 2863c80c418c
 Step 2/6 : MAINTAINER "Apache Beam <dev@beam.apache.org>"
  ---> Running in c787617f4af1
@@ -75,7 +75,7 @@ Step 6/6 : ENTRYPOINT ["/opt/apache/beam/boot"]
 Removing intermediate container 30079dc4204b
  ---> 4ea515403a1a
 Successfully built 4ea515403a1a
-Successfully tagged herohde-docker-apache.bintray.io/beam/python2.7:latest
+Successfully tagged herohde-docker-apache.bintray.io/beam/python3.5:latest
 [...]
 ```
 
@@ -146,8 +146,8 @@ to push must also be present in the local docker image repository.
 For the Python SDK harness container image, run:
 
 ```
-$ docker push $USER-docker-apache.bintray.io/beam/python2.7:latest
-The push refers to repository [herohde-docker-apache.bintray.io/beam/python2.7]
+$ docker push $USER-docker-apache.bintray.io/beam/python3.5:latest
+The push refers to repository [herohde-docker-apache.bintray.io/beam/python3.5]
 723b66d57e21: Pushed 
 12d5806e6806: Pushed 
 b394bd077c6e: Pushed 
@@ -168,8 +168,8 @@ to multiple registries, you can retag the image using `docker tag` and push.
 **(Optional)** On any machine, you can now pull the pushed container image:
 
 ```
-$ docker pull $USER-docker-apache.bintray.io/beam/python2.7:latest
-latest: Pulling from beam/python2.7
+$ docker pull $USER-docker-apache.bintray.io/beam/python3.5:latest
+latest: Pulling from beam/python3.5
 f2b6b4884fc8: Pull complete 
 4fb899b4df21: Pull complete 
 74eaa8be7221: Pull complete 
@@ -182,10 +182,10 @@ aa6d783919f6: Pull complete
 08274803455d: Pull complete 
 ef79fab5686a: Pull complete 
 Digest: sha256:86ad57055324457c3ea950f914721c596c7fa261c216efb881d0ca0bb8457535
-Status: Downloaded newer image for herohde-docker-apache.bintray.io/beam/python2.7:latest
+Status: Downloaded newer image for herohde-docker-apache.bintray.io/beam/python3.5:latest
 $ docker images
 REPOSITORY                                        TAG                 IMAGE ID            CREATED          SIZE
-herohde-docker-apache.bintray.io/beam/python2.7   latest          4ea515403a1a     35 minutes ago       1.27 GB
+herohde-docker-apache.bintray.io/beam/python3.5   latest          4ea515403a1a     35 minutes ago       1.27 GB
 [...]
 ```
 
