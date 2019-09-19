@@ -238,7 +238,7 @@ public class ExecutableStageDoFnOperator<InputT, OutputT> extends DoFnOperator<I
           StateRequestHandlers.forBagUserStateHandlerFactory(
               stageBundleFactory.getProcessBundleDescriptor(),
               new BagUserStateFactory(
-                  keyedStateInternals, getKeyedStateBackend(), stateBackendLock));
+                  keyCoder, keyedStateInternals, getKeyedStateBackend(), stateBackendLock));
     } else {
       userStateRequestHandler = StateRequestHandler.unsupported();
     }
@@ -253,15 +253,17 @@ public class ExecutableStageDoFnOperator<InputT, OutputT> extends DoFnOperator<I
   private static class BagUserStateFactory<K extends ByteString, V, W extends BoundedWindow>
       implements StateRequestHandlers.BagUserStateHandlerFactory<K, V, W> {
 
+    private final Coder actualKeyCoder;
     private final StateInternals stateInternals;
     private final KeyedStateBackend<ByteBuffer> keyedStateBackend;
     private final Lock stateBackendLock;
 
     private BagUserStateFactory(
+        Coder keyCoder,
         StateInternals stateInternals,
         KeyedStateBackend<ByteBuffer> keyedStateBackend,
         Lock stateBackendLock) {
-
+      this.actualKeyCoder = keyCoder;
       this.stateInternals = stateInternals;
       this.keyedStateBackend = keyedStateBackend;
       this.stateBackendLock = stateBackendLock;
@@ -344,11 +346,8 @@ public class ExecutableStageDoFnOperator<InputT, OutputT> extends DoFnOperator<I
         }
 
         private void prepareStateBackend(K key) {
-          // Key for state request is shipped already encoded as ByteString,
-          // this is mostly a wrapping with ByteBuffer. We still follow the
-          // usual key encoding procedure.
-          // final ByteBuffer encodedKey = FlinkKeyUtils.encodeKey(key, keyCoder);
-          final ByteBuffer encodedKey = ByteBuffer.wrap(key.toByteArray());
+          // Key for state request is shipped encoded with NESTED context.
+          ByteBuffer encodedKey = FlinkKeyUtils.fromEncodedKey(key);
           keyedStateBackend.setCurrentKey(encodedKey);
         }
       };
