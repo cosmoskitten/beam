@@ -2,7 +2,7 @@
 layout: section
 title: "Custom window patterns"
 section_menu: section-menu/documentation.html
-permalink: /documentation/patterns/custom-window/
+permalink: /documentation/patterns/custom-windows/
 ---
 <!--
 Licensed under the Apache License, Version 2.0 (the "License");
