@@ -224,7 +224,7 @@ You can choose to run Interactive Beam on Flink with the following settings.
 *   Build the SDK container and start the local FlinkService.
 
     ```bash
-    $ ./gradlew -p sdks/python/container docker
+    $ ./gradlew -p sdks/python/container buildAll
     $ ./gradlew beam-runners-flink_2.11-job-server:runShadow  # Blocking
     ```
 
