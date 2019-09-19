@@ -136,33 +136,16 @@ class ReadFromSpanner(object):
     """
     Read from Google Spanner.
 
-    :type project_id: :class:`str`
-    :param project_id: The ID of the project which owns the instances, tables
-      and data.
-
-    :type instance_id: :class:`str`
-    :param instance_id: The ID of the instance.
-
-    :type database_id: :class:`str`
-    :param database_id: The ID of the database instance.
-
-    :param credentials: (Optional) The OAuth2 Credentials to use for this
-      client. If not provided, defaults to the Google Application Default
-      Credentials.
-
-    :type user_agent: str
-    :param user_agent: (Optional) The user agent to be used with API request.
-
-    :type pool: concrete subclass of
-        :class:`~google.cloud.spanner_v1.pool.AbstractSessionPool`.
-    :param pool: (Optional) session pool to be used by database.
-
-    :type read_timestamp: :class:`datetime.datetime`
-    :param read_timestamp: (Optional) Execute all reads at the given timestamp.
-
-    :type exact_staleness: :class:`datetime.timedelta`
-    :param exact_staleness: (Optional) Execute all reads at a timestamp that is
-      ``exact_staleness`` old.
+    Args:
+      project_id: The ID of the project which owns the instances, tables
+        and data.
+      instance_id: The ID of the instance.
+      database_id: The ID of the database instance.
+      user_agent: (Optional) The user agent to be used with API request.
+      pool: (Optional) session pool to be used by database.
+      read_timestamp: (Optional) Execute all reads at the given timestamp.
+      exact_staleness: (Optional) Execute all reads at a timestamp that is
+        ``exact_staleness`` old.
     """
     warnings.warn("ReadFromSpanner is experimental.", FutureWarning,
                   stacklevel=2)
@@ -201,37 +184,18 @@ class ReadFromSpanner(object):
     """
     Return the snapshot state for reuse in transaction.
 
-    :type project_id: :class:`str`
-    :param project_id: The ID of the project which owns the instances, tables
-      and data.
-
-    :type instance_id: :class:`str`
-    :param instance_id: The ID of the instance.
-
-    :type database_id: :class:`str`
-    :param database_id: The ID of the database instance.
-
-    :param credentials: (Optional) The OAuth2 Credentials to use for this
-      client. If not provided, defaults to the Google Application Default
-      Credentials.
-
-    :type user_agent: str
-    :param user_agent: (Optional) The user agent to be used with API request.
-
-    :type pool: concrete subclass of
-        :class:`~google.cloud.spanner_v1.pool.AbstractSessionPool`.
-    :param pool: (Optional) session pool to be used by database.
-
-    :type read_timestamp: :class:`datetime.datetime`
-    :param read_timestamp: (Optional) Execute all reads at the given timestamp.
-
-    :type exact_staleness: :class:`datetime.timedelta`
-    :param exact_staleness: (Optional) Execute all reads at a timestamp that is
-      ``exact_staleness`` old.
-
-    :rtype: :class:`dict`
-    :return: returns the state.
-    """
+    Args:
+      project_id: The ID of the project which owns the instances, tables
+        and data.
+      instance_id: The ID of the instance.
+      database_id: The ID of the database instance.
+      credentials: (Optional) The OAuth2 Credentials to use for this client.
+      user_agent: (Optional) The user agent to be used with API request.
+      pool: (Optional) session pool to be used by database.
+      read_timestamp: (Optional) Execute all reads at the given timestamp.
+      exact_staleness: (Optional) Execute all reads at a timestamp that is
+        ``exact_staleness`` old.
+      """
     _snapshot_options = {}
     if read_timestamp:
       _snapshot_options['read_timestamp'] = read_timestamp

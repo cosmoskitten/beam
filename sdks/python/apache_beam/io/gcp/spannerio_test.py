@@ -30,13 +30,13 @@ from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
 
 # Protect against environments where spanner library is not available.
-# pylint: disable=wrong-import-order, wrong-import-position
+# pylint: disable=wrong-import-order, wrong-import-position, ungrouped-imports
 try:
   from google.cloud import spanner
-  from apache_beam.io.gcp.spannerio import *
+  from apache_beam.io.gcp.spannerio import ReadOperation, ReadFromSpanner
 except ImportError:
   spanner = None
-# pylint: enable=wrong-import-order, wrong-import-position
+# pylint: enable=wrong-import-order, wrong-import-position, ungrouped-imports
 
 
 MAX_DB_NAME_LENGTH = 30
