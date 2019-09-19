@@ -908,7 +908,8 @@ class FnApiRunner(runner.PipelineRunner):
 
   # These classes are used to interact with the worker.
 
-  class StateServicer(beam_fn_api_pb2_grpc.BeamFnStateServicer):
+  class StateServicer(beam_fn_api_pb2_grpc.BeamFnStateServicer,
+                      sdk_worker.StateHandler):
 
     class CopyOnWriteState(object):
       def __init__(self, underlying):
@@ -1155,7 +1156,7 @@ class EmbeddedWorkerHandler(WorkerHandler):
 
   def __init__(self,
                unused_payload,  # type: None
-               state,
+               state,  # type: sdk_worker.StateHandler
                provision_info,  # type: Optional[ExtendedProvisionInfo]
                unused_grpc_server=None
               ):

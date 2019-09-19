@@ -75,7 +75,7 @@ if TYPE_CHECKING:
   from google.protobuf import message  # pylint: disable=ungrouped-imports
   from apache_beam.runners.portability.fn_api_runner import FnApiRunner
   from apache_beam.runners.worker import data_plane
-  from apache_beam.runners.worker.sdk_worker import GrpcStateHandler
+  from apache_beam.runners.worker import sdk_worker
 
 # This module is experimental. No backwards-compatibility guarantees.
 T = TypeVar('T')
@@ -240,7 +240,7 @@ class DataInputOperation(RunnerIOOperation):
 
 class _StateBackedIterable(object):
   def __init__(self,
-               state_handler,
+               state_handler,  # type: sdk_worker.StateHandler
                state_key,  # type: beam_fn_api_pb2.StateKey
                coder_or_impl  # type: Union[coders.Coder, coder_impl.CoderImpl]
               ):
@@ -397,7 +397,7 @@ coder_impl.FastPrimitivesCoderImpl.register_iterable_like_type(_ConcatIterable)
 # TODO(BEAM-5428): Implement cross-bundle state caching.
 class SynchronousBagRuntimeState(userstate.BagRuntimeState):
   def __init__(self,
-               state_handler,
+               state_handler,  # type: sdk_worker.StateHandler
                state_key,  # type: beam_fn_api_pb2.StateKey
                value_coder  # type: coders.Coder
               ):
@@ -437,7 +437,7 @@ class SynchronousBagRuntimeState(userstate.BagRuntimeState):
 class SynchronousSetRuntimeState(userstate.SetRuntimeState):
 
   def __init__(self,
-               state_handler,
+               state_handler,  # type: sdk_worker.StateHandler
                state_key,  # type: beam_fn_api_pb2.StateKey
                value_coder  # type: coders.Coder
               ):
@@ -631,7 +631,7 @@ class BundleProcessor(object):
 
   def __init__(self,
                process_bundle_descriptor,  # type: beam_fn_api_pb2.ProcessBundleDescriptor
-               state_handler,  # type: Union[FnApiRunner.StateServicer, GrpcStateHandler]
+               state_handler,  # type: sdk_worker.StateHandler
                data_channel_factory  # type: data_plane.DataChannelFactory
               ):
     """Initialize a bundle processor.
@@ -929,7 +929,7 @@ class BeamTransformFactory(object):
                data_channel_factory,  # type: data_plane.DataChannelFactory
                counter_factory,
                state_sampler,  # type: statesampler.StateSampler
-               state_handler
+               state_handler  # type: sdk_worker.StateHandler
               ):
     self.descriptor = descriptor
     self.data_channel_factory = data_channel_factory
