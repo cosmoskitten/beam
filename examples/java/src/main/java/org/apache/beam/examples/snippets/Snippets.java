@@ -724,7 +724,6 @@ public class Snippets {
     public static DynamicSessions withDefaultGapDuration(Duration gapDuration) {
       return new DynamicSessions(gapDuration);
     }
-
     // [END CustomSessionWindow4]
 
     @Override
