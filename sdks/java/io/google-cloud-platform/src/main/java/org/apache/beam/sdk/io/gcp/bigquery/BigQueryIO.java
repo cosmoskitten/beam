@@ -1455,8 +1455,8 @@ public class BigQueryIO {
      * href="https://cloud.google.com/bigquery/docs/reference/rest/v2/jobs">job</a> will be
      * executed. If not specified, Beam tries to determine the location by examining the tables
      * referenced by the query. Location must be specified for queries not executed in US or EU, or
-     * when you are reading from an authorized view. See
-     * <a href="https://cloud.google.com/bigquery/docs/reference/rest/v2/jobs/query">BigQuery Jobs:
+     * when you are reading from an authorized view. See <a
+     * href="https://cloud.google.com/bigquery/docs/reference/rest/v2/jobs/query">BigQuery Jobs:
      * query</a>.
      */
     public TypedRead<T> withQueryLocation(String location) {
