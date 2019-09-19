@@ -239,7 +239,11 @@ class DataInputOperation(RunnerIOOperation):
 
 
 class _StateBackedIterable(object):
-  def __init__(self, state_handler, state_key, coder_or_impl):
+  def __init__(self,
+               state_handler,
+               state_key,  # type: beam_fn_api_pb2.StateKey
+               coder_or_impl  # type: Union[coders.Coder, coder_impl.CoderImpl]
+              ):
     self._state_handler = state_handler
     self._state_key = state_key
     if isinstance(coder_or_impl, coders.Coder):
@@ -392,7 +396,12 @@ coder_impl.FastPrimitivesCoderImpl.register_iterable_like_type(_ConcatIterable)
 
 # TODO(BEAM-5428): Implement cross-bundle state caching.
 class SynchronousBagRuntimeState(userstate.BagRuntimeState):
-  def __init__(self, state_handler, state_key, value_coder):
+  def __init__(self,
+               state_handler,
+               state_key,  # type: beam_fn_api_pb2.StateKey
+               value_coder  # type: coders.Coder
+              ):
+    # type: (...) -> None
     self._state_handler = state_handler
     self._state_key = state_key
     self._value_coder = value_coder
@@ -427,7 +436,12 @@ class SynchronousBagRuntimeState(userstate.BagRuntimeState):
 # TODO(BEAM-5428): Implement cross-bundle state caching.
 class SynchronousSetRuntimeState(userstate.SetRuntimeState):
 
-  def __init__(self, state_handler, state_key, value_coder):
+  def __init__(self,
+               state_handler,
+               state_key,  # type: beam_fn_api_pb2.StateKey
+               value_coder  # type: coders.Coder
+              ):
+    # type: (...) -> None
     self._state_handler = state_handler
     self._state_key = state_key
     self._value_coder = value_coder
@@ -507,8 +521,13 @@ class OutputTimer(object):
 class FnApiUserStateContext(userstate.UserStateContext):
   """Interface for state and timers from SDK to Fn API servicer of state.."""
 
-  def __init__(
-      self, state_handler, transform_id, key_coder, window_coder, timer_specs):
+  def __init__(self,
+               state_handler,
+               transform_id,  # type: str
+               key_coder,
+               window_coder,
+               timer_specs  # type: List[userstate.TimerSpec]
+              ):
     """Initialize a ``FnApiUserStateContext``.
 
     Args:
@@ -524,16 +543,19 @@ class FnApiUserStateContext(userstate.UserStateContext):
     self._key_coder = key_coder
     self._window_coder = window_coder
     self._timer_specs = timer_specs
-    self._timer_receivers = None
-    self._all_states = {}
+    self._timer_receivers = None  # type: Optional[Dict[str, operations.ConsumerSet]]
+    self._all_states = {}  # type: Dict[tuple, Union[SynchronousBagRuntimeState, SynchronousSetRuntimeState, CombiningValueRuntimeState]]
 
   def update_timer_receivers(self, receivers):
+    # type: (operations._TaggedReceivers) -> None
     """TODO"""
     self._timer_receivers = {}
     for tag in self._timer_specs:
       self._timer_receivers[tag] = receivers.pop(tag)
 
   def get_timer(self, timer_spec, key, window):
+    # type: (...) -> OutputTimer
+    assert self._timer_receivers is not None
     return OutputTimer(
         key, window, self._timer_receivers[timer_spec.name])
 
@@ -543,7 +565,11 @@ class FnApiUserStateContext(userstate.UserStateContext):
       state_handle = self._all_states[args] = self._create_state(*args)
     return state_handle
 
-  def _create_state(self, state_spec, key, window):
+  def _create_state(self,
+                    state_spec,  # type: userstate.StateSpec
+                    key,
+                    window
+                  ):
     if isinstance(state_spec,
                   (userstate.BagStateSpec, userstate.CombiningValueStateSpec)):
       bag_state = SynchronousBagRuntimeState(
@@ -573,10 +599,12 @@ class FnApiUserStateContext(userstate.UserStateContext):
       raise NotImplementedError(state_spec)
 
   def commit(self):
+    # type: () -> None
     for state in self._all_states.values():
       state._commit()
 
   def reset(self):
+    # type: () -> None
     # TODO(BEAM-5428): Implement cross-bundle state caching.
     self._all_states = {}
 
@@ -675,6 +703,7 @@ class BundleProcessor(object):
             descriptor.transforms, key=topological_height, reverse=True)])
 
   def reset(self):
+    # type: () -> None
     self.counter_factory.reset()
     self.state_sampler.reset()
     # Side input caches.
@@ -794,6 +823,7 @@ class BundleProcessor(object):
                 element_and_restriction)))
 
   def metrics(self):
+    # type: () -> beam_fn_api_pb2.Metrics
     # DEPRECATED
     return beam_fn_api_pb2.Metrics(
         # TODO(robertwb): Rename to progress?
@@ -882,6 +912,7 @@ class BundleProcessor(object):
     return monitoring_info
 
   def shutdown(self):
+    # type: () -> None
     for op in self.ops.values():
       op.teardown()
 
@@ -897,7 +928,7 @@ class BeamTransformFactory(object):
                descriptor,  # type: beam_fn_api_pb2.ProcessBundleDescriptor
                data_channel_factory,  # type: data_plane.DataChannelFactory
                counter_factory,
-               state_sampler,
+               state_sampler,  # type: statesampler.StateSampler
                state_handler
               ):
     self.descriptor = descriptor

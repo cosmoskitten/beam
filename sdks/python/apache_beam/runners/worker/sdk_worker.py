@@ -329,6 +329,11 @@ class BundleProcessorCache(object):
 
   def get(self, instruction_id, bundle_descriptor_id):
     # type: (str, str) -> bundle_processor.BundleProcessor
+    """
+    Return the requested ``BundleProcessor``, creating it if necessary.
+
+    Moves the ``BundleProcessor`` from the inactive to the active cache.
+    """
     try:
       # pop() is threadsafe
       processor = self.cached_bundle_processors[bundle_descriptor_id].pop()
@@ -344,20 +349,35 @@ class BundleProcessorCache(object):
 
   def lookup(self, instruction_id):
     # type: (str) -> Optional[bundle_processor.BundleProcessor]
+    """
+    Return the requested ``BundleProcessor`` from the cache.
+    """
     return self.active_bundle_processors.get(instruction_id, (None, None))[-1]
 
   def discard(self, instruction_id):
     # type: (str) -> None
+    """
+    Remove the ``BundleProcessor`` from the cache.
+    """
     self.active_bundle_processors[instruction_id][1].shutdown()
     del self.active_bundle_processors[instruction_id]
 
   def release(self, instruction_id):
     # type: (str) -> None
+    """
+    Release the requested ``BundleProcessor``.
+
+    Resets the ``BundleProcessor`` and moves it from the active to the
+    inactive cache.
+    """
     descriptor_id, processor = self.active_bundle_processors.pop(instruction_id)
     processor.reset()
     self.cached_bundle_processors[descriptor_id].append(processor)
 
   def shutdown(self):
+    """
+    Shutdown all ``BundleProcessor``s in the cache.
+    """
     for instruction_id in self.active_bundle_processors:
       self.active_bundle_processors[instruction_id][1].shutdown()
       del self.active_bundle_processors[instruction_id]
@@ -526,6 +546,7 @@ class GrpcStateHandlerFactory(StateHandlerFactory):
     self._credentials = credentials
 
   def create_state_handler(self, api_service_descriptor):
+    # type: (endpoints_pb2.ApiServiceDescriptor) -> GrpcStateHandler
     if not api_service_descriptor:
       return self._throwing_state_handler
     url = api_service_descriptor.url

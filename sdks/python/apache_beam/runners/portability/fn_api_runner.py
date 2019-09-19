@@ -1155,7 +1155,7 @@ class EmbeddedWorkerHandler(WorkerHandler):
 
   def __init__(self,
                unused_payload,  # type: None
-               state,  # type: sdk_worker.StateHandler
+               state,
                provision_info,  # type: Optional[ExtendedProvisionInfo]
                unused_grpc_server=None
               ):
