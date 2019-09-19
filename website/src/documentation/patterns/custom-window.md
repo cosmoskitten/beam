@@ -69,7 +69,7 @@ After creating data-driven gaps, you can window Pub/Sub messages into the new, c
 ```
 
 ### Example data and windows
-The following test data has some messages with and without the `gap` attribute.
+The following test data has messages from two users with and without the `gap` attribute.
 
 ```
 .apply("Create data", Create.timestamped(
