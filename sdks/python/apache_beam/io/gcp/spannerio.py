@@ -83,7 +83,7 @@ __all__ = ['ReadFromSpanner', 'ReadOperation',]
 
 class ReadOperation(collections.namedtuple("ReadOperation",
                                            ["read_operation", "batch_action",
-                                           "transaction_action", "kwargs"])):
+                                            "transaction_action", "kwargs"])):
   """
   Encapsulates a spanner read operation.
   """
@@ -112,13 +112,6 @@ class ReadOperation(collections.namedtuple("ReadOperation",
     )
 
 
-_BeamSpannerConfiguration = collections.namedtuple(
-    "_BeamSpannerConfiguration", ["project", "instance", "database",
-                                  "credentials", "user_agent", "pool",
-                                  "snapshot_read_timestamp",
-                                  "snapshot_exact_staleness"])
-
-
 class _BeamSpannerConfiguration(collections.namedtuple(
     "_BeamSpannerConfiguration", ["project", "instance", "database",
                                   "credentials", "user_agent", "pool",
@@ -133,8 +126,6 @@ class _BeamSpannerConfiguration(collections.namedtuple(
     if self.snapshot_read_timestamp:
       snapshot_options['read_timestamp'] = self.snapshot_read_timestamp
     return snapshot_options
-
-
 
 
 class ReadFromSpanner(object):
@@ -261,7 +252,7 @@ class ReadFromSpanner(object):
 
 class _NaiveSpannerReadDoFn(beam.DoFn):
 
-  def __init__(self,snapshot_dict, spanner_configuration):
+  def __init__(self, snapshot_dict, spanner_configuration):
     self._snapshot_dict = snapshot_dict
     self._spanner_configuration = spanner_configuration
     self._snapshot = None

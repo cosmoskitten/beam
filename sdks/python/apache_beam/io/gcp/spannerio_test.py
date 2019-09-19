@@ -25,10 +25,19 @@ import unittest
 
 import mock
 
-from apache_beam.io.gcp.spannerio import *
 from apache_beam.testing.test_pipeline import TestPipeline
 from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
+
+# Protect against environments where spanner library is not available.
+# pylint: disable=wrong-import-order, wrong-import-position
+try:
+  from google.cloud import spanner
+  from apache_beam.io.gcp.spannerio import *
+except ImportError:
+  spanner = None
+# pylint: enable=wrong-import-order, wrong-import-position
+
 
 MAX_DB_NAME_LENGTH = 30
 TEST_PROJECT_ID = 'apache-beam-testing'
@@ -54,6 +63,7 @@ def _generate_test_data():
       random.choice(mask) for _ in range(length))) for x in range(1, 5)])]
 
 
+@unittest.skipIf(spanner is None, 'GCP dependencies are not installed.')
 class SpannerReadTest(unittest.TestCase):
 
   @mock.patch('apache_beam.io.gcp.spannerio.Client')
