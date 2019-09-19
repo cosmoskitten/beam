@@ -204,7 +204,7 @@ class BoundedWindow(object):
   @property
   def end(self):
     # type: () -> Timestamp
-    return self.end
+    return self._end
 
   def max_timestamp(self):
     return self.end.predecessor()
