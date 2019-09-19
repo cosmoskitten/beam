@@ -36,10 +36,10 @@ Access the `assignWindows` function through `WindowFn.AssignContext.element()`. 
 
 ### Creating data-driven gaps
 To use data-driven gaps, add the following snippets to the `assignWindows` function:
-- A default value for cases where the custom gap is not present in the data 
-- A way to set the attribute from the main pipeline as a method of the custom windows.
+- A default value for when the custom gap is not present in the data 
+- A way to set the attribute from the main pipeline as a method of the custom windows
 
-For example, the following function assigns each element to a window between the timestamp and the gapDuration:
+For example, the following function assigns each element to a window between the timestamp and `gapDuration`:
 
 ```java
 {% github_sample /apache/beam/blob/master/examples/java/src/main/java/org/apache/beam/examples/snippets/Snippets.java tag:CustomSessionWindow3
@@ -69,7 +69,7 @@ After creating data-driven gaps, you can window Pub/Sub messages into the new, c
 ```
 
 ### Example data and windows
-The following test data has messages from two users with and without the `gap` attribute.
+The following test data tallies two users' scores with and without the `gap` attribute:
 
 ```
 .apply("Create data", Create.timestamped(
@@ -109,4 +109,4 @@ user=user-1, score=9, window=[2019-05-26T14:30:33.276Z..2019-05-26T14:30:41.849Z
 user=user-2, score=10, window=[2019-05-26T14:30:37.357Z..2019-05-26T14:30:47.357Z)
 ```
 
-Now, User #2 gets different scores. The third messages arrives seven seconds after the second message, so it's grouped into a different session. The large, 18-point session is split into two 9-point sessions.
+With dynamic sessions, User #2 gets different scores. The third messages arrives seven seconds after the second message, so it's grouped into a different session. The large, 18-point session is split into two 9-point sessions.
