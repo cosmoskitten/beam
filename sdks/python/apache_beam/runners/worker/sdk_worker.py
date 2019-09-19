@@ -520,11 +520,37 @@ class SdkWorker(object):
       yield
 
 
+class StateHandler(with_metaclass(abc.ABCMeta, object)):
+  """An abstract object representing a ``DataChannel``."""
+
+  @abc.abstractmethod
+  def blocking_get(self,
+                   state_key,  # type: beam_fn_api_pb2.StateKey
+                   continuation_token=None  # type: Optional[bytes]
+                  ):
+    # type: (...) -> Tuple[bytes, Optional[bytes]]
+    raise NotImplementedError(type(self))
+
+  @abc.abstractmethod
+  def blocking_append(self,
+                      state_key,  # type: beam_fn_api_pb2.StateKey
+                      data  # type: bytes
+                     ):
+    # type: (...) -> None
+    raise NotImplementedError(type(self))
+
+  @abc.abstractmethod
+  def blocking_clear(self, state_key):
+    # type: (beam_fn_api_pb2.StateKey) -> None
+    raise NotImplementedError(type(self))
+
+
 class StateHandlerFactory(with_metaclass(abc.ABCMeta, object)):
   """An abstract factory for creating ``DataChannel``."""
 
   @abc.abstractmethod
   def create_state_handler(self, api_service_descriptor):
+    # type: (endpoints_pb2.ApiServiceDescriptor) -> StateHandler
     """Returns a ``StateHandler`` from the given ApiServiceDescriptor."""
     raise NotImplementedError(type(self))
 
@@ -582,29 +608,30 @@ class GrpcStateHandlerFactory(StateHandlerFactory):
     self._state_handler_cache.clear()
 
 
-class ThrowingStateHandler(object):
+class ThrowingStateHandler(StateHandler):
   """A state handler that errors on any requests."""
 
-  def blocking_get(self, state_key, instruction_reference):
+  def blocking_get(self, state_key, continuation_token=None):
     raise RuntimeError(
         'Unable to handle state requests for ProcessBundleDescriptor without '
-        'out state ApiServiceDescriptor for instruction %s and state key %s.'
-        % (state_key, instruction_reference))
+        'out state ApiServiceDescriptor for continuation_token %s '
+        'and state key %s.'
+        % (state_key, continuation_token))
 
-  def blocking_append(self, state_key, data, instruction_reference):
+  def blocking_append(self, state_key, data):
     raise RuntimeError(
         'Unable to handle state requests for ProcessBundleDescriptor without '
-        'out state ApiServiceDescriptor for instruction %s and state key %s.'
-        % (state_key, instruction_reference))
+        'out state ApiServiceDescriptor for state key %s.'
+        % (state_key,))
 
-  def blocking_clear(self, state_key, instruction_reference):
+  def blocking_clear(self, state_key):
     raise RuntimeError(
         'Unable to handle state requests for ProcessBundleDescriptor without '
-        'out state ApiServiceDescriptor for instruction %s and state key %s.'
-        % (state_key, instruction_reference))
+        'out state ApiServiceDescriptor for state key %s.'
+        % (state_key,))
 
 
-class GrpcStateHandler(object):
+class GrpcStateHandler(StateHandler):
 
   _DONE = object()
 
