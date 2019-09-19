@@ -22,13 +22,13 @@ import PhraseTriggeringPostCommitBuilder
 
 def now = new Date().format("MMddHHmmss", TimeZone.getTimeZone('UTC'))
 
-def testJobs = [
+def jobConfigs = [
         [
                 title        : 'BigQueryIO Streaming Performance Test Java 10 GB',
                 triggerPhrase: 'Run BigQueryIO Streaming Performance Test Java',
-                jobName      : 'beam_BiqQueryIO_Streaming_Performance_Test_Java',
+                name      : 'beam_BiqQueryIO_Streaming_Performance_Test_Java',
                 itClass      : 'org.apache.beam.sdk.bigqueryioperftests.BigQueryIOIT',
-                jobProperties: [
+                properties: [
                         project               : 'apache-beam-testing',
                         tempLocation          : 'gs://temp-storage-for-perf-tests/loadtests',
                         tempRoot              : 'gs://temp-storage-for-perf-tests/loadtests',
@@ -47,15 +47,15 @@ def testJobs = [
                         runner                : 'DataflowRunner',
                         maxNumWorkers         : '5',
                         numWorkers            : '5',
-                        autoscalingAlgorithm  : 'NONE',  // Disable autoscale the worker pool.
+                        autoscalingAlgorithm  : 'NONE',
                 ]
         ],
         [
                 title        : 'BigQueryIO Batch Performance Test Java 10 GB',
                 triggerPhrase: 'Run BigQueryIO Batch Performance Test Java',
-                jobName      : 'beam_BiqQueryIO_Batch_Performance_Test_Java',
+                name      : 'beam_BiqQueryIO_Batch_Performance_Test_Java',
                 itClass      : 'org.apache.beam.sdk.bigqueryioperftests.BigQueryIOIT',
-                jobProperties: [
+                properties: [
                         project               : 'apache-beam-testing',
                         tempLocation          : 'gs://temp-storage-for-perf-tests/loadtests',
                         tempRoot              : 'gs://temp-storage-for-perf-tests/loadtests',
@@ -74,34 +74,31 @@ def testJobs = [
                         runner                : "DataflowRunner",
                         maxNumWorkers         : '5',
                         numWorkers            : '5',
-                        autoscalingAlgorithm  : 'NONE',  // Disable autoscale the worker pool.
+                        autoscalingAlgorithm  : 'NONE',
                 ]
         ]
 ]
 
-testJobs.forEach { jobConfig -> createPostCommitJob(jobConfig)}
+jobConfigs.forEach { jobConfig -> createPostCommitJob(jobConfig)}
 
-private void createPostCommitJob(testJob) {
-    job(testJob.jobName) {
-        description(testJob.description)
+private void createPostCommitJob(jobConfig) {
+    job(jobConfig.name) {
+        description(jobConfig.description)
         common.setTopLevelMainJobProperties(delegate)
-        common.enablePhraseTriggeringFromPullRequest(delegate, testJob.title, testJob.triggerPhrase)
+        common.enablePhraseTriggeringFromPullRequest(delegate, jobConfig.title, jobConfig.triggerPhrase)
         common.setAutoJob(delegate, 'H */6 * * *')
         publishers {
             archiveJunit('**/build/test-results/**/*.xml')
         }
-
-        String runner = "dataflow"
-        String testTask = ':sdks:java:io:bigquery-io-perf-tests:integrationTest'
-
+        
         steps {
             gradle {
                 rootBuildScriptDir(common.checkoutDir)
                 common.setGradleSwitches(delegate)
                 switches("--info")
-                switches("-DintegrationTestPipelineOptions=\'${common.joinPipelineOptions(testJob.jobProperties)}\'")
-                switches("-DintegrationTestRunner=\'${runner}\'")
-                tasks("${testTask} --tests ${testJob.itClass}")
+                switches("-DintegrationTestPipelineOptions=\'${common.joinPipelineOptions(jobConfig.pipelineOptions)}\'")
+                switches("-DintegrationTestRunner=dataflow")
+                tasks(":sdks:java:io:bigquery-io-perf-tests:integrationTest --tests ${jobConfig.itClass}")
             }
         }
     }
