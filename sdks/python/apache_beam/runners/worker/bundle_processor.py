@@ -83,7 +83,7 @@ ConstructorFn = Callable[
     ['BeamTransformFactory',
      Any,
      beam_runner_api_pb2.PTransform,
-     Union[message.Message, bytes],
+     Union['message.Message', bytes],
      Dict[str, List[operations.Operation]]],
     operations.Operation]
 
