@@ -112,21 +112,24 @@ public class ProcessEnvironmentFactory implements EnvironmentFactory {
     String controlEndpoint = controlServiceServer.getApiServiceDescriptor().getUrl();
 
     String semiPersistDir = pipelineOptions.as(RemoteEnvironmentOptions.class).getSemiPersistDir();
-    ImmutableList<String> args =
-        ImmutableList.of(
-            String.format("--id=%s", workerId),
-            String.format("--logging_endpoint=%s", loggingEndpoint),
-            String.format("--artifact_endpoint=%s", artifactEndpoint),
-            String.format("--provision_endpoint=%s", provisionEndpoint),
-            String.format("--control_endpoint=%s", controlEndpoint),
-            String.format("--semi_persist_dir=%s", semiPersistDir));
+    ImmutableList.Builder<String> argsBuilder =
+        ImmutableList.<String>builder()
+            .add(String.format("--id=%s", workerId))
+            .add(String.format("--logging_endpoint=%s", loggingEndpoint))
+            .add(String.format("--artifact_endpoint=%s", artifactEndpoint))
+            .add(String.format("--provision_endpoint=%s", provisionEndpoint))
+            .add(String.format("--control_endpoint=%s", controlEndpoint));
+    if (semiPersistDir != null) {
+      argsBuilder.add(String.format("--semi_persist_dir=%s", semiPersistDir));
+    }
 
     LOG.debug("Creating Process for worker ID {}", workerId);
     // Wrap the blocking call to clientSource.get in case an exception is thrown.
     InstructionRequestHandler instructionHandler = null;
     try {
       ProcessManager.RunningProcess process =
-          processManager.startProcess(workerId, executable, args, processPayload.getEnvMap());
+          processManager.startProcess(
+              workerId, executable, argsBuilder.build(), processPayload.getEnvMap());
       // Wait on a client from the gRPC server.
       while (instructionHandler == null) {
         try {

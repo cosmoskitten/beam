@@ -124,7 +124,7 @@ public class DockerEnvironmentFactory implements EnvironmentFactory {
     String provisionEndpoint = provisioningServiceServer.getApiServiceDescriptor().getUrl();
     String controlEndpoint = controlServiceServer.getApiServiceDescriptor().getUrl();
 
-    ImmutableList.Builder<String> dockerArgsBuilder =
+    ImmutableList.Builder<String> dockerOptsBuilder =
         ImmutableList.<String>builder()
             .addAll(gcsCredentialArgs())
             // NOTE: Host networking does not work on Mac, but the command line flag is accepted.
@@ -136,25 +136,27 @@ public class DockerEnvironmentFactory implements EnvironmentFactory {
     Boolean retainDockerContainer =
         pipelineOptions.as(ManualDockerEnvironmentOptions.class).getRetainDockerContainers();
     if (!retainDockerContainer) {
-      dockerArgsBuilder.add("--rm");
+      dockerOptsBuilder.add("--rm");
     }
 
     String semiPersistDir = pipelineOptions.as(RemoteEnvironmentOptions.class).getSemiPersistDir();
-    List<String> args =
-        ImmutableList.of(
-            String.format("--id=%s", workerId),
-            String.format("--logging_endpoint=%s", loggingEndpoint),
-            String.format("--artifact_endpoint=%s", artifactEndpoint),
-            String.format("--provision_endpoint=%s", provisionEndpoint),
-            String.format("--control_endpoint=%s", controlEndpoint),
-            String.format("--semi_persist_dir=%s", semiPersistDir));
+    ImmutableList.Builder<String> argsBuilder =
+        ImmutableList.<String>builder()
+            .add(String.format("--id=%s", workerId))
+            .add(String.format("--logging_endpoint=%s", loggingEndpoint))
+            .add(String.format("--artifact_endpoint=%s", artifactEndpoint))
+            .add(String.format("--provision_endpoint=%s", provisionEndpoint))
+            .add(String.format("--control_endpoint=%s", controlEndpoint));
+    if (semiPersistDir != null) {
+      argsBuilder.add(String.format("--semi_persist_dir=%s", semiPersistDir));
+    }
 
     LOG.debug("Creating Docker Container with ID {}", workerId);
     // Wrap the blocking call to clientSource.get in case an exception is thrown.
     String containerId = null;
     InstructionRequestHandler instructionHandler = null;
     try {
-      containerId = docker.runImage(containerImage, dockerArgsBuilder.build(), args);
+      containerId = docker.runImage(containerImage, dockerOptsBuilder.build(), argsBuilder.build());
       LOG.debug("Created Docker Container with Container ID {}", containerId);
       // Wait on a client from the gRPC server.
       try {

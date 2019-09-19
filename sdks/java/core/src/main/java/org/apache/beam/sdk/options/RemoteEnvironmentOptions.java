@@ -26,8 +26,9 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Immutabl
 @Hidden
 public interface RemoteEnvironmentOptions extends PipelineOptions {
 
+  // The default should be null (no default), so that the environment can pick its suitable tmp
+  // directory when nothing is specified by the user
   @Description("Local semi-persistent directory")
-  @Default.String("/tmp")
   String getSemiPersistDir();
 
   void setSemiPersistDir(String value);
