@@ -25,7 +25,7 @@ The samples on this page demonstrate common custom window patterns. You can crea
 
 ## Using data to dynamically set session window gaps
 
-You can modify the [`assignWindows`](https://beam.apache.org/releases/javadoc/current/index.html?org/apache/beam/sdk/transforms/windowing/SlidingWindows.html) function to use data-driven gaps instead of fixed windows.
+You can modify the [`assignWindows`](https://beam.apache.org/releases/javadoc/current/index.html?org/apache/beam/sdk/transforms/windowing/SlidingWindows.html) function to use data-driven gaps, then window incoming data into sessions.
 
 Access the `assignWindows` function through `WindowFn.AssignContext.element()`. The original, fixed-duration `assignWindows` function is:
 
@@ -35,7 +35,7 @@ Access the `assignWindows` function through `WindowFn.AssignContext.element()`. 
 ```
 
 ### Creating data-driven gaps
-To use data-driven gaps, add the following snippets to the `assignWindows` function:
+To create data-driven gaps, add the following snippets to the `assignWindows` function:
 - A default value for when the custom gap is not present in the data 
 - A way to set the attribute from the main pipeline as a method of the custom windows
 
@@ -46,14 +46,7 @@ For example, the following function assigns each element to a window between the
 %}
 ```
 
-In this example, the `withDefaultGapDuration` and `withGapAttribute` methods are defined via the following function:
-
-```java
-{% github_sample /apache/beam/blob/master/examples/java/src/main/java/org/apache/beam/examples/snippets/Snippets.java tag:CustomSessionWindow4
-%}
-```
-
-Then, the new `gapAttribute` field and constructor dynamically create session windows with the calculated gap duration:
+Then, set the `gapDuration` field in a windowing function:
 
 ```java
 {% github_sample /apache/beam/blob/master/examples/java/src/main/java/org/apache/beam/examples/snippets/Snippets.java tag:CustomSessionWindow2
@@ -61,7 +54,16 @@ Then, the new `gapAttribute` field and constructor dynamically create session wi
 ```
 
 ### Windowing messages into sessions
-After creating data-driven gaps, you can window incoming data into the new, custom sessions:
+After creating data-driven gaps, you can window incoming data into the new, custom sessions.
+
+First, set the session length to the gap duration:
+
+```java
+{% github_sample /apache/beam/blob/master/examples/java/src/main/java/org/apache/beam/examples/snippets/Snippets.java tag:CustomSessionWindow4
+%}
+```
+
+Lastly, window data into sessions in your pipeline:
 
 ```java
 {% github_sample /apache/beam/blob/master/examples/java/src/main/java/org/apache/beam/examples/snippets/Snippets.java tag:CustomSessionWindow6
