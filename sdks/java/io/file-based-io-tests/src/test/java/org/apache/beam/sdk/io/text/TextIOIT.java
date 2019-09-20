@@ -19,7 +19,7 @@ package org.apache.beam.sdk.io.text;
 
 import static org.apache.beam.sdk.io.FileIO.ReadMatches.DirectoryTreatment;
 import static org.apache.beam.sdk.io.common.FileBasedIOITHelper.appendTimestampSuffix;
-import static org.apache.beam.sdk.io.common.FileBasedIOITHelper.getExpectedHashForLineCount;
+import static org.apache.beam.sdk.io.common.FileBasedIOITHelper.getTestConfigurationForConfigName;
 import static org.apache.beam.sdk.io.common.FileBasedIOITHelper.readFileBasedIOITPipelineOptions;
 
 import com.google.cloud.Timestamp;
@@ -28,14 +28,15 @@ import java.util.Set;
 import java.util.UUID;
 import java.util.function.Function;
 import org.apache.beam.sdk.PipelineResult;
-import org.apache.beam.sdk.io.Compression;
 import org.apache.beam.sdk.io.FileIO;
 import org.apache.beam.sdk.io.GenerateSequence;
 import org.apache.beam.sdk.io.TextIO;
+import org.apache.beam.sdk.io.common.ConfigName;
 import org.apache.beam.sdk.io.common.FileBasedIOITHelper;
 import org.apache.beam.sdk.io.common.FileBasedIOITHelper.DeleteFileFn;
 import org.apache.beam.sdk.io.common.FileBasedIOTestPipelineOptions;
 import org.apache.beam.sdk.io.common.HashingFn;
+import org.apache.beam.sdk.io.common.IOTestConfig;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.testutils.NamedTestResult;
@@ -77,15 +78,13 @@ import org.slf4j.LoggerFactory;
 @RunWith(JUnit4.class)
 public class TextIOIT {
   private static final Logger LOG = LoggerFactory.getLogger(TextIOIT.class);
-
+  private static final String FILEIOIT_NAMESPACE = TextIOIT.class.getName();
   private static String filenamePrefix;
-  private static Integer numberOfTextLines;
-  private static Compression compressionType;
   private static Integer numShards;
   private static String bigQueryDataset;
   private static String bigQueryTable;
   private static boolean gatherGcsPerformanceMetrics;
-  private static final String FILEIOIT_NAMESPACE = TextIOIT.class.getName();
+  private static IOTestConfig testConfig;
 
   @Rule public TestPipeline pipeline = TestPipeline.create();
 
@@ -93,26 +92,30 @@ public class TextIOIT {
   public static void setup() {
     FileBasedIOTestPipelineOptions options = readFileBasedIOITPipelineOptions();
 
-    numberOfTextLines = options.getNumberOfRecords();
     filenamePrefix = appendTimestampSuffix(options.getFilenamePrefix());
-    compressionType = Compression.valueOf(options.getCompressionType());
+    ConfigName configName = ConfigName.valueOf(options.getTestConfigName());
     numShards = options.getNumberOfShards();
     bigQueryDataset = options.getBigQueryDataset();
     bigQueryTable = options.getBigQueryTable();
     gatherGcsPerformanceMetrics = options.getReportGcsPerformanceMetrics();
+    testConfig = getTestConfigurationForConfigName(configName);
   }
 
   @Test
   public void writeThenReadAll() {
     TextIO.TypedWrite<String, Object> write =
-        TextIO.write().to(filenamePrefix).withOutputFilenames().withCompression(compressionType);
+        TextIO.write()
+            .to(filenamePrefix)
+            .withOutputFilenames()
+            .withCompression(testConfig.getCompression());
     if (numShards != null) {
       write = write.withNumShards(numShards);
     }
 
     PCollection<String> testFilenames =
         pipeline
-            .apply("Generate sequence", GenerateSequence.from(0).to(numberOfTextLines))
+            .apply(
+                "Generate sequence", GenerateSequence.from(0).to(testConfig.getNumberOfRecords()))
             .apply(
                 "Produce text lines",
                 ParDo.of(new FileBasedIOITHelper.DeterministicallyConstructTestTextLineFn()))
@@ -137,8 +140,7 @@ public class TextIOIT {
                 "Collect read end time", ParDo.of(new TimeMonitor<>(FILEIOIT_NAMESPACE, "endTime")))
             .apply("Calculate hashcode", Combine.globally(new HashingFn()));
 
-    String expectedHash = getExpectedHashForLineCount(numberOfTextLines);
-    PAssert.thatSingleton(consolidatedHashcode).isEqualTo(expectedHash);
+    PAssert.thatSingleton(consolidatedHashcode).isEqualTo(testConfig.getExpectedHash());
 
     testFilenames.apply(
         "Delete test files",
@@ -189,6 +191,10 @@ public class TextIOIT {
           double runTime = (readEndTime - writeStartTime) / 1e3;
           return NamedTestResult.create(uuid, timestamp, "run_time", runTime);
         });
+
+    metricSuppliers.add(
+        (ignored) ->
+            NamedTestResult.create(uuid, timestamp, "dataset_size", testConfig.getDatasetSize()));
 
     if (gatherGcsPerformanceMetrics) {
       metricSuppliers.add(
