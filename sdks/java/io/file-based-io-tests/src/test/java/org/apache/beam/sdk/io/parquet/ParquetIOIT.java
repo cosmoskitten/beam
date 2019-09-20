@@ -18,7 +18,7 @@
 package org.apache.beam.sdk.io.parquet;
 
 import static org.apache.beam.sdk.io.common.FileBasedIOITHelper.appendTimestampSuffix;
-import static org.apache.beam.sdk.io.common.FileBasedIOITHelper.getExpectedHashForLineCount;
+import static org.apache.beam.sdk.io.common.FileBasedIOITHelper.getTestConfigurationForConfigName;
 import static org.apache.beam.sdk.io.common.FileBasedIOITHelper.readFileBasedIOITPipelineOptions;
 import static org.apache.beam.sdk.values.TypeDescriptors.strings;
 
@@ -34,9 +34,11 @@ import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.coders.AvroCoder;
 import org.apache.beam.sdk.io.FileIO;
 import org.apache.beam.sdk.io.GenerateSequence;
+import org.apache.beam.sdk.io.common.ConfigName;
 import org.apache.beam.sdk.io.common.FileBasedIOITHelper;
 import org.apache.beam.sdk.io.common.FileBasedIOTestPipelineOptions;
 import org.apache.beam.sdk.io.common.HashingFn;
+import org.apache.beam.sdk.io.common.IOTestConfig;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.testutils.NamedTestResult;
@@ -91,7 +93,7 @@ public class ParquetIOIT {
                   + "}");
 
   private static String filenamePrefix;
-  private static Integer numberOfRecords;
+  private static IOTestConfig testConfig;
   private static String bigQueryDataset;
   private static String bigQueryTable;
 
@@ -101,8 +103,7 @@ public class ParquetIOIT {
   @BeforeClass
   public static void setup() {
     FileBasedIOTestPipelineOptions options = readFileBasedIOITPipelineOptions();
-
-    numberOfRecords = options.getNumberOfRecords();
+    testConfig = getTestConfigurationForConfigName(ConfigName.valueOf(options.getTestConfigName()));
     filenamePrefix = appendTimestampSuffix(options.getFilenamePrefix());
     bigQueryDataset = options.getBigQueryDataset();
     bigQueryTable = options.getBigQueryTable();
@@ -112,7 +113,8 @@ public class ParquetIOIT {
   public void writeThenReadAll() {
     PCollection<String> testFiles =
         pipeline
-            .apply("Generate sequence", GenerateSequence.from(0).to(numberOfRecords))
+            .apply(
+                "Generate sequence", GenerateSequence.from(0).to(testConfig.getNumberOfRecords()))
             .apply(
                 "Produce text lines",
                 ParDo.of(new FileBasedIOITHelper.DeterministicallyConstructTestTextLineFn()))
@@ -148,8 +150,7 @@ public class ParquetIOIT {
                             record -> String.valueOf(record.get("row"))))
             .apply("Calculate hashcode", Combine.globally(new HashingFn()));
 
-    String expectedHash = getExpectedHashForLineCount(numberOfRecords);
-    PAssert.thatSingleton(consolidatedHashcode).isEqualTo(expectedHash);
+    PAssert.thatSingleton(consolidatedHashcode).isEqualTo(testConfig.getExpectedHash());
 
     testFiles.apply(
         "Delete test files",
@@ -196,6 +197,10 @@ public class ParquetIOIT {
           double runTime = (readEnd - writeStart) / 1e3;
           return NamedTestResult.create(uuid, timestamp, "run_time", runTime);
         });
+
+    metricSuppliers.add(
+        (ignored) ->
+            NamedTestResult.create(uuid, timestamp, "dataset_size", testConfig.getDatasetSize()));
 
     return metricSuppliers;
   }
