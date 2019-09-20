@@ -81,6 +81,9 @@ import java.util.Map;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.regex.Pattern;
 import javax.annotation.Nullable;
+import org.apache.beam.model.pipeline.v1.RunnerApi;
+import org.apache.beam.model.pipeline.v1.RunnerApi.DockerPayload;
+import org.apache.beam.model.pipeline.v1.RunnerApi.Environment;
 import org.apache.beam.runners.dataflow.DataflowRunner.BatchGroupIntoBatches;
 import org.apache.beam.runners.dataflow.DataflowRunner.StreamingShardedWriteFactory;
 import org.apache.beam.runners.dataflow.options.DataflowPipelineDebugOptions;
@@ -1317,6 +1320,60 @@ public class DataflowRunnerTest implements Serializable {
 
     p.run();
     expectedLogs.verifyInfo("Template successfully created");
+  }
+
+  /**
+   * Tests that when {@link DataflowPipelineOptions#setWorkerHarnessContainerImage(String)} pipeline
+   * option is set, {@link DataflowRunner} sets that value as the {@link
+   * DockerPayload#getContainerImage()} of the default {@link Environment} used when generating the
+   * model pipeline proto.
+   */
+  @Test
+  public void testSetWorkerHarnessContainerImageInPipelineProto() throws Exception {
+    File existingFile = tmpFolder.newFile();
+    DataflowPipelineOptions options = PipelineOptionsFactory.as(DataflowPipelineOptions.class);
+
+    String containerImage = "gcr.io/IMAGE/foo";
+    options.as(DataflowPipelineOptions.class).setWorkerHarnessContainerImage(containerImage);
+    options.setJobName("TestJobName");
+    options.setGcpCredential(new TestCredential());
+    options.setPathValidatorClass(NoopPathValidator.class);
+    options.setProject("test-project");
+    options.setRunner(DataflowRunner.class);
+
+    // Setting a template location so that pipeline does not actually try to execute on Dataflow
+    // service.
+    options.setTemplateLocation(existingFile.getPath());
+
+    options.setTempLocation(tmpFolder.getRoot().getPath());
+    Pipeline p = Pipeline.create(options);
+
+    p.run();
+
+    File stagingDirectory =
+        new File(options.as(DataflowPipelineOptions.class).getStagingLocation());
+    assertTrue(stagingDirectory.isDirectory());
+    File[] files = stagingDirectory.listFiles();
+
+    File protoFile = null;
+    for (File file : files) {
+      String filePath = file.getAbsolutePath();
+      if (filePath.contains("pipeline") && filePath.endsWith("pb")) {
+        assertTrue("Cannot uniquely identify the proto pipeline.", (protoFile == null));
+        protoFile = file;
+      }
+    }
+
+    byte[] protoBytes = Files.readAllBytes(protoFile.toPath());
+    RunnerApi.Pipeline pipeline = RunnerApi.Pipeline.parseFrom(protoBytes);
+
+    assertEquals(1, pipeline.getComponents().getEnvironmentsCount());
+    assertEquals(1, pipeline.getComponents().getEnvironmentsCount());
+    Environment defaultEnvironment =
+        pipeline.getComponents().getEnvironmentsMap().values().iterator().next();
+
+    DockerPayload payload = DockerPayload.parseFrom(defaultEnvironment.getPayload());
+    assertEquals(DataflowRunner.getContainerImageForJob(options), payload.getContainerImage());
   }
 
   /**
