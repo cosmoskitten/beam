@@ -19,7 +19,6 @@ package org.apache.beam.sdk.io.avro;
 
 import static org.apache.beam.sdk.io.FileIO.ReadMatches.DirectoryTreatment;
 import static org.apache.beam.sdk.io.common.FileBasedIOITHelper.appendTimestampSuffix;
-import static org.apache.beam.sdk.io.common.FileBasedIOITHelper.getExpectedHashForLineCount;
 import static org.apache.beam.sdk.io.common.FileBasedIOITHelper.readFileBasedIOITPipelineOptions;
 
 import com.google.cloud.Timestamp;
@@ -35,10 +34,12 @@ import org.apache.beam.sdk.coders.AvroCoder;
 import org.apache.beam.sdk.io.AvroIO;
 import org.apache.beam.sdk.io.FileIO;
 import org.apache.beam.sdk.io.GenerateSequence;
+import org.apache.beam.sdk.io.common.ConfigName;
 import org.apache.beam.sdk.io.common.FileBasedIOITHelper;
 import org.apache.beam.sdk.io.common.FileBasedIOITHelper.DeleteFileFn;
 import org.apache.beam.sdk.io.common.FileBasedIOTestPipelineOptions;
 import org.apache.beam.sdk.io.common.HashingFn;
+import org.apache.beam.sdk.io.common.IOTestConfig;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.testutils.NamedTestResult;
@@ -91,10 +92,10 @@ public class AvroIOIT {
                   + "}");
 
   private static String filenamePrefix;
-  private static Integer numberOfTextLines;
   private static String bigQueryDataset;
   private static String bigQueryTable;
   private static final String AVRO_NAMESPACE = AvroIOIT.class.getName();
+  private static IOTestConfig testConfig;
 
   @Rule public TestPipeline pipeline = TestPipeline.create();
 
@@ -102,10 +103,12 @@ public class AvroIOIT {
   public static void setup() {
     FileBasedIOTestPipelineOptions options = readFileBasedIOITPipelineOptions();
 
-    numberOfTextLines = options.getNumberOfRecords();
     filenamePrefix = appendTimestampSuffix(options.getFilenamePrefix());
     bigQueryDataset = options.getBigQueryDataset();
     bigQueryTable = options.getBigQueryTable();
+    testConfig =
+        FileBasedIOITHelper.getTestConfigurationForConfigName(
+            ConfigName.valueOf(options.getTestConfigName()));
   }
 
   @Test
@@ -113,7 +116,8 @@ public class AvroIOIT {
 
     PCollection<String> testFilenames =
         pipeline
-            .apply("Generate sequence", GenerateSequence.from(0).to(numberOfTextLines))
+            .apply(
+                "Generate sequence", GenerateSequence.from(0).to(testConfig.getNumberOfRecords()))
             .apply(
                 "Produce text lines",
                 ParDo.of(new FileBasedIOITHelper.DeterministicallyConstructTestTextLineFn()))
@@ -141,8 +145,7 @@ public class AvroIOIT {
             .apply("Collect end time", ParDo.of(new TimeMonitor<>(AVRO_NAMESPACE, "endPoint")))
             .apply("Parse Avro records to Strings", ParDo.of(new ParseAvroRecordsFn()))
             .apply("Calculate hashcode", Combine.globally(new HashingFn()));
-    String expectedHash = getExpectedHashForLineCount(numberOfTextLines);
-    PAssert.thatSingleton(consolidatedHashcode).isEqualTo(expectedHash);
+    PAssert.thatSingleton(consolidatedHashcode).isEqualTo(testConfig.getExpectedHash());
 
     testFilenames.apply(
         "Delete test files",
@@ -191,6 +194,10 @@ public class AvroIOIT {
           double runTime = (readEnd - writeStart) / 1e3;
           return NamedTestResult.create(uuid, timestamp, "run_time", runTime);
         });
+
+    suppliers.add(
+        (reader) ->
+            NamedTestResult.create(uuid, timestamp, "dataset_size", testConfig.getDatasetSize()));
 
     return suppliers;
   }
