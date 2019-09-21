@@ -336,7 +336,7 @@ class DoFnInvoker(object):
     self.output_processor = output_processor
     self.signature = signature
     self.user_state_context = None  # type: Optional[userstate.UserStateContext]
-    self.bundle_finalizer_param = None  # type: Optional[DoFn.BundleFinalizerParam]
+    self.bundle_finalizer_param = None  # type: Optional[core._BundleFinalizerParam]
 
   @staticmethod
   def create_invoker(
@@ -345,7 +345,7 @@ class DoFnInvoker(object):
       context=None, side_inputs=None, input_args=None, input_kwargs=None,
       process_invocation=True,
       user_state_context=None,  # type: Optional[userstate.UserStateContext]
-      bundle_finalizer_param=None  # type: Optional[DoFn.BundleFinalizerParam]
+      bundle_finalizer_param=None  # type: Optional[core._BundleFinalizerParam]
   ):
     # type: (...) -> DoFnInvoker
     """ Creates a new DoFnInvoker based on given arguments.
@@ -478,7 +478,7 @@ class PerWindowInvoker(DoFnInvoker):
                input_args,
                input_kwargs,
                user_state_context,  # type: Optional[userstate.UserStateContext]
-               bundle_finalizer_param  # type: Optional[DoFn.BundleFinalizerParam]
+               bundle_finalizer_param  # type: Optional[core._BundleFinalizerParam]
               ):
     super(PerWindowInvoker, self).__init__(output_processor, signature)
     self.side_inputs = side_inputs
