@@ -2,7 +2,9 @@
 layout: section
 title: "Runtime environments"
 section_menu: section-menu/documentation.html
-permalink: /documentation/runtime/environments
+permalink: /documentation/runtime/environments/
+redirect_from:
+  - /documentation/execution-model/
 ---
 <!--
 Licensed under the Apache License, Version 2.0 (the "License");
@@ -47,7 +49,7 @@ To build Beam SDK container images:
 > ./gradlew -p sdks/go/container docker
 > ```
 
-To examine the SDK runtime environments, run the `docker images` command. For example, if you successfully built the container images, the command prompt displays a response like:
+Run `docker images` to examine the containers. For example, if you successfully built the container images, the command prompt displays a response like:
 
 ```
 REPOSITORY                                       TAG                    IMAGE ID            CREATED       SIZE
@@ -66,15 +68,15 @@ The default SDK version is `latest` and the default Docker repository is the fol
 $USER-docker-apache.bintray.io/beam
 ```
 
-When you [build Beam SDK container images](#building-container-images), you can override the default version and location.
+When you [build SDK container images](#building-container-images), you can override the default version and location.
 
-To specify an older SDK version, like 2.3.0, use the `docker-tag` flag:
+To specify an older Python SDK version, like 2.3.0, build the container with the `docker-tag` option:
 
 ```
 ./gradlew docker -Pdocker-tag=2.3.0
 ```
 
-To change the `docker` target, use the `docker-repository-root` flag:
+To change the `docker` target, build the container with the `docker-repository-root` option:
 
 ```
 ./gradlew docker -Pdocker-repository-root=$LOCATION
@@ -94,25 +96,25 @@ It's often easier to write a new Dockerfile, but you can customize anything, inc
 
 <ol>
     <li>
-        Pull a <a href="gcr.io/apache-beam-testing/beam/sdks/release">prebuilt SDK container image</a> for your target language and version.
+        Pull a <a href="https://console.cloud.google.com/gcr/images/apache-beam-testing/GLOBAL/beam/sdks/release">prebuilt SDK container image</a> for your target language and version.
     </li>
     <li>
         <a href="https://docs.docker.com/develop/develop-images/dockerfile_best-practices/">Write a new Dockerfile</a> that <a href="https://docs.docker.com/engine/reference/builder/#from">designates</a> the original as its <a href="https://docs.docker.com/glossary/?term=parent%20image">parent</a>
     </li>
     <li>
-        Build the child image: <pre>docker build -f /path/to/new/Dockerfile</pre>
+        Build a child image: <pre>docker build -f /path/to/new/Dockerfile</pre>
     </li>
 </ol>
 
 ### Modifying the original Dockerfile {#modifying-dockerfiles}
 
-1. Pull the [prebuilt SDK container image](gcr.io/apache-beam-testing/beam/sdks/release) for your target language and version.
+1. Pull the [prebuilt SDK container image](https://console.cloud.google.com/gcr/images/apache-beam-testing/GLOBAL/beam/sdks/release) for your target language and version
 2. Customize the [Dockerfile](https://github.com/apache/beam/blob/master/sdks/python/container/Dockerfile). If you're adding dependencies from [PyPI](https://pypi.org/), use `base_image_requirements.txt` instead of the Dockerfile.
-3. [Reimage](#building-container-images) the container.
+3. [Reimage](#building-container-images) the container
 
 ### Testing customized images
 
-Test customized images with PortableRunner. PortableRunner targets the default Docker images, like `${USER}-docker-apache.bintray.io/beam/python${version}:latest` for the Python SDK. You can specify a different container with the `--environment_config` flag.
+Test customized images with PortableRunner. PortableRunner targets the default Docker images, like `${USER}-docker-apache.bintray.io/beam/python${version}:latest`. You can specify a different container with the `--environment_config` flag.
 
 #### Testing on local machines
 
@@ -166,11 +168,11 @@ python -m apache_beam.examples.wordcount --input --input /path/to/inputfile --ou
 
 ## Pushing container images
 
-Before pushing container images to your Docker registry:
-* [Build](#building-container-images) the container images on your workstation
-* Log in to your Bintray account with the `apache` Docker repository: ```docker login```
+After locally [building a container image](#building-container-images), push it to a remote Docker repository.
 
-Run `docker push` to store the container images on Bintray. For instance, the following command pushes the Python SDK image to the `apache` Docker repository:
+Before pushing container images to your Docker registry, log in to your Bintray account with the `apache` Docker repository: ```docker login```
+
+Then, run `docker push` to store the container images on Bintray. The following command pushes the Python SDK image to the `apache` Docker repository:
 
 ```
 docker push $USER-docker-apache.bintray.io/beam/python:latest
