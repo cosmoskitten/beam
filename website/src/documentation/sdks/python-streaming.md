@@ -190,11 +190,6 @@ These unsupported Beam features apply to all runners.
 Additionally, `DataflowRunner` does not currently support the following Cloud
 Dataflow specific features with Python streaming execution.
 
-- Streaming autoscaling
-- Updating existing pipelines
 - Cloud Dataflow Templates
-- Some monitoring features, such as msec counters, display data, metrics, and
-  element counts for transforms. However, logging, watermarks, and element
-  counts for sources are supported.
 
 
