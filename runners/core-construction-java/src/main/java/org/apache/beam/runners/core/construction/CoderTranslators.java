@@ -133,7 +133,7 @@ class CoderTranslators {
 
       @Override
       public byte[] getPayload(PortableSchemaCoder from) {
-        return SchemaTranslation.toProto(from.getSchema()).toByteArray();
+        return SchemaTranslation.schemaToProto(from.getSchema()).toByteArray();
       }
 
       @Override
