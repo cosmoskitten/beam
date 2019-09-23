@@ -66,6 +66,23 @@ task portableWordCount {
 
 /*************************************************************************************************/
 
+task crossLanguagePythonJavaDirect {
+  dependsOn 'setupVirtualenv'
+  dependsOn ':sdks:java:container:docker'
+  dependsOn ':sdks:java:testing:expansion-service:buildTestExpansionServiceJar'
+
+  doLast {
+    def options = [
+        "--expansion_service_target=sdks:java:testing:expansion-service:buildTestExpansionServiceJar",
+        "--expansion_service_target_appendix=testExpansionService",
+    ]
+    exec {
+      executable 'sh'
+      args '-c', ". ${envdir}/bin/activate && cd ${pythonRootDir} && pip install -e .[test] && python -m apache_beam.transforms.external_test ${options.join(' ')}"
+    }
+  }
+}
+
 task crossLanguagePythonJavaFlink {
   dependsOn 'setupVirtualenv'
   dependsOn ':runners:flink:1.5:job-server-container:docker'
@@ -200,7 +217,6 @@ def flinkCompatibilityMatrix = {
   tasks.create(name: name) {
     dependsOn 'setupVirtualenv'
     dependsOn ':runners:flink:1.5:job-server:shadowJar'
-    dependsOn ':sdks:java:container:docker'
     if (workerType.toLowerCase() == 'docker')
       dependsOn ':sdks:python:container:py2:docker'
     else if (workerType.toLowerCase() == 'process')
