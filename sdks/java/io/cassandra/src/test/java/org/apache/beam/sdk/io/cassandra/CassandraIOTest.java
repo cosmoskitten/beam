@@ -32,6 +32,7 @@ import com.datastax.driver.core.Cluster;
 import com.datastax.driver.core.ResultSet;
 import com.datastax.driver.core.Row;
 import com.datastax.driver.core.Session;
+import com.datastax.driver.core.exceptions.NoHostAvailableException;
 import com.datastax.driver.core.querybuilder.QueryBuilder;
 import com.datastax.driver.mapping.annotations.Column;
 import com.datastax.driver.mapping.annotations.Computed;
@@ -118,7 +119,7 @@ public class CassandraIOTest implements Serializable {
     String cdcRaw = TEMPORARY_FOLDER.newFolder("embedded-cassandra", "cdc-raw").getPath();
     String hints = TEMPORARY_FOLDER.newFolder("embedded-cassandra", "hints").getPath();
     String savedCache = TEMPORARY_FOLDER.newFolder("embedded-cassandra", "saved-cache").getPath();
-    cluster =
+    CassandraEmbeddedServerBuilder builder =
         CassandraEmbeddedServerBuilder.builder()
             .withKeyspaceName(CASSANDRA_KEYSPACE)
             .withDataFolder(data)
@@ -128,13 +129,32 @@ public class CassandraIOTest implements Serializable {
             .withSavedCachesFolder(savedCache)
             .withShutdownHook(shutdownHook)
             .withJMXPort(jmxPort)
-            .cleanDataFilesAtStartup(false)
-            .buildNativeCluster();
+            .cleanDataFilesAtStartup(false);
+
+    // under load we get a NoHostAvailable exception at cluster creation,
+    // so retry to create it every 1 sec up to 3 times.
+    cluster = buildCluster(builder);
 
     cassandraPort = cluster.getConfiguration().getProtocolOptions().getPort();
     session = CassandraIOTest.cluster.newSession();
 
     insertData();
+  }
+
+  private static Cluster buildCluster(CassandraEmbeddedServerBuilder builder) {
+    int tried = 0;
+    while (tried < 3) {
+      try {
+        return builder.buildNativeCluster();
+      } catch (NoHostAvailableException e) {
+        tried++;
+        try {
+          Thread.sleep(1000L);
+        } catch (InterruptedException e1) {
+        }
+      }
+    }
+    throw new RuntimeException("Unable to create embedded Cassandra cluster");
   }
 
   @AfterClass
