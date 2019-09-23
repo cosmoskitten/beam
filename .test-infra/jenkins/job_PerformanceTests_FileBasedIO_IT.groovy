@@ -28,7 +28,7 @@ def jobs = [
                 pipelineOptions    : [
                         bigQueryDataset: 'beam_performance',
                         bigQueryTable  : 'textioit_results',
-                        numberOfRecords: '1000000'
+                        testConfigName : 'TEXT_1G_UNCOMPRESSED'
                 ]
 
         ],
@@ -41,8 +41,7 @@ def jobs = [
                 pipelineOptions    : [
                         bigQueryDataset: 'beam_performance',
                         bigQueryTable  : 'compressed_textioit_results',
-                        numberOfRecords: '1000000',
-                        compressionType: 'GZIP'
+                        testConfigName : 'TEXT_1G_GZIP'
                 ]
         ],
         [
@@ -56,7 +55,7 @@ def jobs = [
                         bigQueryTable              : 'many_files_textioit_results',
                         reportGcsPerformanceMetrics: 'true',
                         gcsPerformanceMetrics      : 'true',
-                        numberOfRecords            : '1000000',
+                        testConfigName             : 'TEXT_1G_UNCOMPRESSED',
                         numberOfShards             : '1000'
                 ]
 
@@ -68,7 +67,7 @@ def jobs = [
                 githubTitle        : 'Java AvroIO Performance Test',
                 githubTriggerPhrase: 'Run Java AvroIO Performance Test',
                 pipelineOptions    : [
-                        numberOfRecords: '1000000',
+                        testConfigName : 'AVRO_1G',
                         bigQueryDataset: 'beam_performance',
                         bigQueryTable  : 'avroioit_results',
                 ]
@@ -94,7 +93,7 @@ def jobs = [
                 pipelineOptions    : [
                         bigQueryDataset: 'beam_performance',
                         bigQueryTable  : 'xmlioit_results',
-                        numberOfRecords: '100000000',
+                        testConfigName : 'XML_1G',
                         charset        : 'UTF-8'
                 ]
         ],
@@ -119,7 +118,7 @@ def jobs = [
                 pipelineOptions    : [
                         bigQueryDataset: 'beam_performance',
                         bigQueryTable  : 'textioit_hdfs_results',
-                        numberOfRecords: '1000000'
+                        testConfigName: 'TEXT_1G_UNCOMPRESSED'
                 ]
 
         ],
@@ -132,8 +131,7 @@ def jobs = [
                 pipelineOptions    : [
                         bigQueryDataset: 'beam_performance',
                         bigQueryTable  : 'compressed_textioit_hdfs_results',
-                        numberOfRecords: '1000000',
-                        compressionType: 'GZIP'
+                        testConfigName : 'TEXT_1G_GZIP'
                 ]
         ],
         [
@@ -147,7 +145,7 @@ def jobs = [
                         bigQueryTable              : 'many_files_textioit_hdfs_results',
                         reportGcsPerformanceMetrics: 'true',
                         gcsPerformanceMetrics      : 'true',
-                        numberOfRecords            : '1000000',
+                        testConfigName             : 'TEXT_1G_UNCOMPRESSED',
                         numberOfShards             : '1000'
                 ]
 
@@ -161,7 +159,7 @@ def jobs = [
                 pipelineOptions    : [
                         bigQueryDataset: 'beam_performance',
                         bigQueryTable  : 'avroioit_hdfs_results',
-                        numberOfRecords: '1000000'
+                        testConfigName : 'AVRO_1G'
                 ]
         ],
         [
@@ -171,7 +169,7 @@ def jobs = [
                 githubTitle        : 'Java TFRecordIO Performance Test on HDFS',
                 githubTriggerPhrase: 'Run Java TFRecordIO Performance Test HDFS',
                 pipelineOptions    : [
-                        numberOfRecords: '1000000'
+                        testConfigName : 'TFRECORD_1G',
                 ]
         ],
         [
@@ -183,7 +181,7 @@ def jobs = [
                 pipelineOptions    : [
                         bigQueryDataset: 'beam_performance',
                         bigQueryTable  : 'xmlioit_hdfs_results',
-                        numberOfRecords: '100000',
+                        testConfigName : 'XML_1G',
                         charset        : 'UTF-8'
                 ]
         ],
@@ -196,7 +194,7 @@ def jobs = [
                 pipelineOptions    : [
                         bigQueryDataset: 'beam_performance',
                         bigQueryTable  : 'parquetioit_hdfs_results',
-                        numberOfRecords: '1000000'
+                        testConfigName : 'PARQUET_1G'
                 ]
         ]
 ]
