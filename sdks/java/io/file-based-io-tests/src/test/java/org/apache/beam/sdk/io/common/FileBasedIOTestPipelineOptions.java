@@ -31,12 +31,6 @@ public interface FileBasedIOTestPipelineOptions extends IOTestPipelineOptions {
 
   void setFilenamePrefix(String prefix);
 
-  @Description("File compression type for writing and reading test files")
-  @Default.String("UNCOMPRESSED")
-  String getCompressionType();
-
-  void setCompressionType(String compressionType);
-
   @Description("Number of files this test will create during the write phase.")
   @Nullable
   Integer getNumberOfShards();
