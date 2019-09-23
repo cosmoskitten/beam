@@ -18,7 +18,7 @@
 package org.apache.beam.sdk.io.xml;
 
 import static org.apache.beam.sdk.io.common.FileBasedIOITHelper.appendTimestampSuffix;
-import static org.apache.beam.sdk.io.common.IOITHelper.getHashForRecordCount;
+import static org.apache.beam.sdk.io.common.FileBasedIOITHelper.getTestConfigurationForConfigName;
 import static org.apache.beam.sdk.io.common.IOITHelper.readIOTestPipelineOptions;
 
 import com.google.cloud.Timestamp;
@@ -34,9 +34,11 @@ import javax.xml.bind.annotation.XmlType;
 import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.io.FileIO;
 import org.apache.beam.sdk.io.GenerateSequence;
+import org.apache.beam.sdk.io.common.ConfigName;
 import org.apache.beam.sdk.io.common.FileBasedIOITHelper;
 import org.apache.beam.sdk.io.common.FileBasedIOTestPipelineOptions;
 import org.apache.beam.sdk.io.common.HashingFn;
+import org.apache.beam.sdk.io.common.IOTestConfig;
 import org.apache.beam.sdk.options.Default;
 import org.apache.beam.sdk.options.Description;
 import org.apache.beam.sdk.testing.PAssert;
@@ -52,7 +54,6 @@ import org.apache.beam.sdk.transforms.SimpleFunction;
 import org.apache.beam.sdk.transforms.Values;
 import org.apache.beam.sdk.transforms.View;
 import org.apache.beam.sdk.values.PCollection;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 import org.junit.BeforeClass;
 import org.junit.Rule;
 import org.junit.Test;
@@ -90,13 +91,7 @@ public class XmlIOIT {
     void setCharset(String charset);
   }
 
-  private static final ImmutableMap<Integer, String> EXPECTED_HASHES =
-      ImmutableMap.of(
-          1000, "7f51adaf701441ee83459a3f705c1b86",
-          100_000, "af7775de90d0b0c8bbc36273fbca26fe",
-          100_000_000, "bfee52b33aa1552b9c1bfa8bcc41ae80");
-
-  private static Integer numberOfRecords;
+  private static IOTestConfig testConfig;
 
   private static String filenamePrefix;
   private static String bigQueryDataset;
@@ -111,9 +106,9 @@ public class XmlIOIT {
   @BeforeClass
   public static void setup() {
     XmlIOITPipelineOptions options = readIOTestPipelineOptions(XmlIOITPipelineOptions.class);
-
+    ConfigName configName = ConfigName.valueOf(options.getTestConfigName());
+    testConfig = getTestConfigurationForConfigName(configName);
     filenamePrefix = appendTimestampSuffix(options.getFilenamePrefix());
-    numberOfRecords = options.getNumberOfRecords();
     charset = Charset.forName(options.getCharset());
     bigQueryDataset = options.getBigQueryDataset();
     bigQueryTable = options.getBigQueryTable();
@@ -123,7 +118,8 @@ public class XmlIOIT {
   public void writeThenReadAll() {
     PCollection<String> testFileNames =
         pipeline
-            .apply("Generate sequence", GenerateSequence.from(0).to(numberOfRecords))
+            .apply(
+                "Generate sequence", GenerateSequence.from(0).to(testConfig.getNumberOfRecords()))
             .apply("Create xml records", MapElements.via(new LongToBird()))
             .apply(
                 "Gather write start time",
@@ -162,13 +158,12 @@ public class XmlIOIT {
             .apply("Map xml records to strings", MapElements.via(new BirdToString()))
             .apply("Calculate hashcode", Combine.globally(new HashingFn()));
 
-    String expectedHash = getHashForRecordCount(numberOfRecords, EXPECTED_HASHES);
-    PAssert.thatSingleton(consolidatedHashcode).isEqualTo(expectedHash);
+    PAssert.thatSingleton(consolidatedHashcode).isEqualTo(testConfig.getExpectedHash());
 
-    testFileNames.apply(
-        "Delete test files",
-        ParDo.of(new FileBasedIOITHelper.DeleteFileFn())
-            .withSideInputs(consolidatedHashcode.apply(View.asSingleton())));
+        testFileNames.apply(
+            "Delete test files",
+            ParDo.of(new FileBasedIOITHelper.DeleteFileFn())
+                .withSideInputs(consolidatedHashcode.apply(View.asSingleton())));
 
     PipelineResult result = pipeline.run();
     result.waitUntilFinish();
@@ -211,6 +206,10 @@ public class XmlIOIT {
           double runTime = (readEnd - writeStart) / 1e3;
           return NamedTestResult.create(uuid, timestamp, "run_time", runTime);
         });
+
+    suppliers.add(
+        (ignored) ->
+            NamedTestResult.create(uuid, timestamp, "dataset_size", testConfig.getDatasetSize()));
     return suppliers;
   }
 

@@ -69,6 +69,9 @@ public class FileBasedIOITHelper {
     configMap.put(
         ConfigName.PARQUET_1G,
         new IOTestConfig("2f9f5ca33ea464b25109c0297eb6aecb", 1_087_370_000L, 225_000_000));
+    configMap.put(
+        ConfigName.XML_1G,
+        new IOTestConfig("b3b717e7df8f4878301b20f314512fb3", 1_076_590_000L, 12_000_000));
 
     IOTestConfig config = configMap.get(name);
     if (config == null) {

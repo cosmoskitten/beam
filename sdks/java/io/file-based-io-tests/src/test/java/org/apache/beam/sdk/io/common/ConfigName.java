@@ -22,5 +22,6 @@ public enum ConfigName {
   TEXT_1G_UNCOMPRESSED,
   TFRECORD_1G,
   AVRO_1G,
-  PARQUET_1G
+  PARQUET_1G,
+  XML_1G
 }
