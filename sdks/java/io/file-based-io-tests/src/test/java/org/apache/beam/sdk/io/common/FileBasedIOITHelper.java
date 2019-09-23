@@ -50,27 +50,27 @@ public class FileBasedIOITHelper {
   public static IOTestConfig getTestConfigurationForConfigName(ConfigName name) {
     EnumMap<ConfigName, IOTestConfig> configMap = new EnumMap<>(ConfigName.class);
     configMap.put(
-        ConfigName.TEXT_1G_GZIP,
+        ConfigName.TEXT_1GB_GZIP,
         new IOTestConfig(
             "8a3de973354abc6fba621c6797cc0f06", 1_097_840_000L, 450_000_000, Compression.GZIP));
     configMap.put(
-        ConfigName.TEXT_1G_UNCOMPRESSED,
+        ConfigName.TEXT_1GB_UNCOMPRESSED,
         new IOTestConfig(
             "f8453256ccf861e8a312c125dfe0e436",
             1_062_290_000L,
             25_000_000,
             Compression.UNCOMPRESSED));
     configMap.put(
-        ConfigName.TFRECORD_1G,
+        ConfigName.TFRECORD_1GB,
         new IOTestConfig("543104423f8b6eb097acb9f111c19fe4", 1_019_380_000L, 18_000_000));
     configMap.put(
-        ConfigName.AVRO_1G,
+        ConfigName.AVRO_1GB,
         new IOTestConfig("2f9f5ca33ea464b25109c0297eb6aecb", 1_089_730_000L, 225_000_000));
     configMap.put(
-        ConfigName.PARQUET_1G,
+        ConfigName.PARQUET_1GB,
         new IOTestConfig("2f9f5ca33ea464b25109c0297eb6aecb", 1_087_370_000L, 225_000_000));
     configMap.put(
-        ConfigName.XML_1G,
+        ConfigName.XML_1GB,
         new IOTestConfig("b3b717e7df8f4878301b20f314512fb3", 1_076_590_000L, 12_000_000));
 
     IOTestConfig config = configMap.get(name);

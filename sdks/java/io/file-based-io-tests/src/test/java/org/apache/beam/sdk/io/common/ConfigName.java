@@ -18,10 +18,10 @@
 package org.apache.beam.sdk.io.common;
 
 public enum ConfigName {
-  TEXT_1G_GZIP,
-  TEXT_1G_UNCOMPRESSED,
-  TFRECORD_1G,
-  AVRO_1G,
-  PARQUET_1G,
-  XML_1G
+  TEXT_1GB_GZIP,
+  TEXT_1GB_UNCOMPRESSED,
+  TFRECORD_1GB,
+  AVRO_1GB,
+  PARQUET_1GB,
+  XML_1GB
 }
