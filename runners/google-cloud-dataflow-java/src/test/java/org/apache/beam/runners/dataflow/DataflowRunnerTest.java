@@ -1369,7 +1369,7 @@ public class DataflowRunnerTest implements Serializable {
 
     assertEquals(1, pipeline.getComponents().getEnvironmentsCount());
     Environment defaultEnvironment =
-        pipeline.getComponents().getEnvironmentsMap().values().iterator().next();
+        Iterables.getOnlyElement(pipeline.getComponents().getEnvironmentsMap().values());
 
     DockerPayload payload = DockerPayload.parseFrom(defaultEnvironment.getPayload());
     assertEquals(DataflowRunner.getContainerImageForJob(options), payload.getContainerImage());
