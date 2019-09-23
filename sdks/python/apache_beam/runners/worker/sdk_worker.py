@@ -113,7 +113,7 @@ class SdkHarness(object):
     for _ in range(self._worker_count):
       # SdkHarness manage function registration and share self._fns with all
       # the workers. This is needed because function registration (register)
-      # and exceution(process_bundle) are send over different request and we
+      # and execution (process_bundle) are send over different request and we
       # do not really know which worker is going to process bundle
       # for a function till we get process_bundle request. Moreover
       # same function is reused by different process bundle calls and

@@ -31,7 +31,7 @@ class StateCache(object):
            if the currently stored cache_token matches the provided
     a) write to the cache,
            storing the new value alongside with a cache token
-    c) append to the cache cache,
+    c) append to the cache,
            if the currently stored cache_token matches the provided
 
   The operations on the cache are thread-safe for use by multiple workers.
