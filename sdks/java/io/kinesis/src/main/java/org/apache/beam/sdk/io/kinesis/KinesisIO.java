@@ -31,6 +31,7 @@ import com.amazonaws.services.kinesis.producer.UserRecordResult;
 import com.google.auto.value.AutoValue;
 import com.google.common.util.concurrent.ListenableFuture;
 import java.io.IOException;
+import java.io.ObjectInputStream;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -631,6 +632,13 @@ public final class KinesisIO {
 
         // Init Kinesis producer
         producer = spec.getAWSClientsProvider().createKinesisProducer(config);
+      }
+
+      private void readObject(ObjectInputStream is) throws IOException, ClassNotFoundException {
+        is.defaultReadObject();
+        if (producer == null) {
+          initKinesisProducer();
+        }
       }
 
       /**
