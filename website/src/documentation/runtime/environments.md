@@ -20,7 +20,7 @@ limitations under the License.
 
 # Runtime environments
 
-Any execution engine can run the Beam SDK beacuse the SDK runtime environment is [containerized](https://s.apache.org/beam-fn-api-container-contract) with [Docker](https://www.docker.com/) and isolated from other runtime systems. This page describes how to build, customize, and push container images of Beam programs.
+Any execution engine can run the Beam SDK beacuse the SDK runtime environment is [containerized](https://s.apache.org/beam-fn-api-container-contract) with [Docker](https://www.docker.com/) and isolated from other runtime systems. This page describes how to build, customize, and push Beam SDK container images.
 
 ## Building container images
 
@@ -35,19 +35,19 @@ To build Beam SDK container images:
         Navigate to your local copy of the <a href="https://github.com/apache/beam"><code>beam</code></a>
     </li>
     <li>
-        Run Gradle with the `docker` target: <pre>./gradlew docker</pre>
+        Run Gradle with the <code>docker</code> target: <pre>./gradlew docker</pre>
     </li>
 </ol>
 
-**Note**: It may take a long time build all of the container images. You can instead build the images for specific SDKs:
+> **Note**: It may take a long time to build all of the container images. You can instead build the images for specific SDKs:
+>
+> ```
+> ./gradlew -p sdks/java/container docker
+> ./gradlew -p sdks/python/container docker
+> ./gradlew -p sdks/go/container docker
+> ```
 
-```
-./gradlew -p sdks/java/container docker
-./gradlew -p sdks/python/container docker
-./gradlew -p sdks/go/container docker
-```
-
-You can run `docker images` to examine the SDK runtime environments. For example, if you successfully built the container images, the command prompt displays a response like:
+To examine the SDK runtime environments, run the `docker images` command. For example, if you successfully built the container images, the command prompt displays a response like:
 
 ```
 REPOSITORY                                       TAG                    IMAGE ID            CREATED       SIZE
@@ -60,22 +60,24 @@ $USER-docker-apache.bintray.io/beam/go         latest             ce055985808a  
 
 ### Overriding default Docker targets
 
-The default Docker repository is the following Bintray location:
+The default SDK version is `latest` and the default Docker repository is the following Bintray location:
 
 ```
 $USER-docker-apache.bintray.io/beam
 ```
 
-You can customize with with the `docker-repository-root` option:
+When you [build Beam SDK container images](#building-container-images), you can override the default version and location.
 
-```
-./gradlew docker -Pdocker-repository-root=$LOCATION
-```
-
-You can also specify an older SDK version, like 2.3.0:
+To specify an older SDK version, like 2.3.0, use the `docker-tag` flag:
 
 ```
 ./gradlew docker -Pdocker-tag=2.3.0
+```
+
+To change the `docker` target, use the `docker-repository-root` flag:
+
+```
+./gradlew docker -Pdocker-repository-root=$LOCATION
 ```
 
 ## Customizing container images
@@ -95,7 +97,7 @@ It's often easier to write a new Dockerfile, but you can customize anything, inc
         Pull a <a href="gcr.io/apache-beam-testing/beam/sdks/release">prebuilt SDK container image</a> for your target language and version.
     </li>
     <li>
-        <a href="https://docs.docker.com/develop/develop-images/dockerfile_best-practices/">Write a new Dockerfile that <a href="https://docs.docker.com/engine/reference/builder/#from">designates</a> the original as its <a href="https://docs.docker.com/glossary/?term=parent%20image">parent</a>
+        <a href="https://docs.docker.com/develop/develop-images/dockerfile_best-practices/">Write a new Dockerfile</a> that <a href="https://docs.docker.com/engine/reference/builder/#from">designates</a> the original as its <a href="https://docs.docker.com/glossary/?term=parent%20image">parent</a>
     </li>
     <li>
         Build the child image: <pre>docker build -f /path/to/new/Dockerfile</pre>
@@ -110,54 +112,54 @@ It's often easier to write a new Dockerfile, but you can customize anything, inc
 
 ### Testing customized images
 
-Use PortableRunner to test customized images. PortableRunner targets the default Docker images, like `${USER}-docker-apache.bintray.io/beam/python${version}:latest` for the Python SDK. You can specify a different container with the `--environment_config` flag.
+Test customized images with PortableRunner. PortableRunner targets the default Docker images, like `${USER}-docker-apache.bintray.io/beam/python${version}:latest` for the Python SDK. You can specify a different container with the `--environment_config` flag.
 
-#### Local machine
+#### Testing on local machines
 
 ```
-python -m apache_beam.examples.wordcount --input $INPUT --output $OUTPUT \
+python -m apache_beam.examples.wordcount --input /path/to/inputfile --output /path/to/write/counts \
 --runner=PortableRunner \
 --job_endpoint=embed \
-[--environment_config $DOCKER_IMAGE_NAME]
+[--environment_config={docker_image_name}]
 ```
 
-#### Local Flink cluster
+#### Testing on local Flink clusters
 
 <ol>
     <li> Start a Flink job server on localhost:8099:
         <pre>./gradlew :runners:flink:1.5:job-server:runShadow</pre>
     </li>
     <li> Run a pipeline on the Flink job server:
-<pre>python -m apache_beam.examples.wordcount --input $INPUT --output $OUTPUT \
+<pre>python -m apache_beam.examples.wordcount --input /path/to/inputfile --output /path/to/write/counts \
 --runner PortableRunner \
 --job_endpoint localhost:8099 \
-[--environment_config $DOCKER_IMAGE_NAME]</pre>
+[--environment_config {docker_image_name}]</pre>
     </li>
 </ol>
 
-#### Local Spark cluster
+#### Testing on local Spark clusters
 
 <ol>
     <li> Start a Spark job server on localhost:8099:
         <pre>./gradlew :runners:spark:job-server:runShadow</pre>
     </li>
     <li> Run a pipeline on the Spark job server:
-<pre>python -m apache_beam.examples.wordcount --input $INPUT --output $OUTPUT \
---runner PortableRunner \
---job_endpoint localhost:8099 \
-[--environment_config $DOCKER_IMAGE_NAME]</pre>
+<pre>python -m apache_beam.examples.wordcount --input /path/to/inputfile --output /path/to/write/counts \
+--runner=PortableRunner \
+--job_endpoint=localhost:8099 \
+[--environment_config={docker_image_name}]</pre>
     </li>
 </ol>
 
-#### Google Cloud Dataflow
+#### Testing on Google Cloud Dataflow
 
 ```
-python -m apache_beam.examples.wordcount --input $INPUT --output $OUTPUT \
---runner DataflowRunner \
---project $GCP_PROJECT_ID \
---temp_location $GCS_LOCATION \
---worker_harness_container_image $DOCKER_IMAGE_NAME \
---experiment beam_fn_api \
+python -m apache_beam.examples.wordcount --input --input /path/to/inputfile --output /path/to/write/counts \
+--runner=DataflowRunner \
+--project={gcp_project_id} \
+--temp_location={gcs_location} \
+--worker_harness_container_image={docker_image_name} \
+--experiment=beam_fn_api \
 --sdk_location \ […]/beam/sdks/python/container/py{version}/build/target/apache-beam.tar.gz
 * version={2,35,36,37}
 ```
@@ -165,7 +167,7 @@ python -m apache_beam.examples.wordcount --input $INPUT --output $OUTPUT \
 ## Pushing container images
 
 Before pushing container images to your Docker registry:
-* [Build](#building-container-images) the container images on your workstation.
+* [Build](#building-container-images) the container images on your workstation
 * Log in to your Bintray account with the `apache` Docker repository: ```docker login```
 
 Run `docker push` to store the container images on Bintray. For instance, the following command pushes the Python SDK image to the `apache` Docker repository:
@@ -180,4 +182,4 @@ You can run `docker pull` to download the image again:
 docker push $USER-docker-apache.bintray.io/beam/python:latest
 ```
 
-**Note**: The image IDs and digests match their local counterparts.
+> **Note**: After pushing a container image, the remote image ID and digest match the local image ID and digest.
