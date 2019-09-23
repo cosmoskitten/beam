@@ -19,7 +19,7 @@ package org.apache.beam.sdk.io.tfrecord;
 
 import static org.apache.beam.sdk.io.Compression.AUTO;
 import static org.apache.beam.sdk.io.common.FileBasedIOITHelper.appendTimestampSuffix;
-import static org.apache.beam.sdk.io.common.FileBasedIOITHelper.getExpectedHashForLineCount;
+import static org.apache.beam.sdk.io.common.FileBasedIOITHelper.getTestConfigurationForConfigName;
 import static org.apache.beam.sdk.io.common.FileBasedIOITHelper.readFileBasedIOITPipelineOptions;
 
 import com.google.cloud.Timestamp;
@@ -29,13 +29,14 @@ import java.util.Set;
 import java.util.UUID;
 import java.util.function.Function;
 import org.apache.beam.sdk.PipelineResult;
-import org.apache.beam.sdk.io.Compression;
 import org.apache.beam.sdk.io.GenerateSequence;
 import org.apache.beam.sdk.io.TFRecordIO;
+import org.apache.beam.sdk.io.common.ConfigName;
 import org.apache.beam.sdk.io.common.FileBasedIOITHelper;
 import org.apache.beam.sdk.io.common.FileBasedIOITHelper.DeleteFileFn;
 import org.apache.beam.sdk.io.common.FileBasedIOTestPipelineOptions;
 import org.apache.beam.sdk.io.common.HashingFn;
+import org.apache.beam.sdk.io.common.IOTestConfig;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.testutils.NamedTestResult;
@@ -80,10 +81,9 @@ public class TFRecordIOIT {
   private static final String TFRECORD_NAMESPACE = TFRecordIOIT.class.getName();
 
   private static String filenamePrefix;
-  private static Integer numberOfTextLines;
-  private static Compression compressionType;
   private static String bigQueryDataset;
   private static String bigQueryTable;
+  private static IOTestConfig testConfig;
 
   @Rule public TestPipeline writePipeline = TestPipeline.create();
 
@@ -92,10 +92,9 @@ public class TFRecordIOIT {
   @BeforeClass
   public static void setup() {
     FileBasedIOTestPipelineOptions options = readFileBasedIOITPipelineOptions();
-
-    numberOfTextLines = options.getNumberOfRecords();
+    ConfigName configName = ConfigName.valueOf(options.getTestConfigName());
+    testConfig = getTestConfigurationForConfigName(configName);
     filenamePrefix = appendTimestampSuffix(options.getFilenamePrefix());
-    compressionType = Compression.valueOf(options.getCompressionType());
     bigQueryDataset = options.getBigQueryDataset();
     bigQueryTable = options.getBigQueryTable();
   }
@@ -110,11 +109,11 @@ public class TFRecordIOIT {
     TFRecordIO.Write writeTransform =
         TFRecordIO.write()
             .to(filenamePrefix)
-            .withCompression(compressionType)
+            .withCompression(testConfig.getCompression())
             .withSuffix(".tfrecord");
 
     writePipeline
-        .apply("Generate sequence", GenerateSequence.from(0).to(numberOfTextLines))
+        .apply("Generate sequence", GenerateSequence.from(0).to(testConfig.getNumberOfRecords()))
         .apply(
             "Produce text lines",
             ParDo.of(new FileBasedIOITHelper.DeterministicallyConstructTestTextLineFn()))
@@ -137,8 +136,7 @@ public class TFRecordIOIT {
             .apply("Calculate hashcode", Combine.globally(new HashingFn()))
             .apply(Reshuffle.viaRandomKey());
 
-    String expectedHash = getExpectedHashForLineCount(numberOfTextLines);
-    PAssert.thatSingleton(consolidatedHashcode).isEqualTo(expectedHash);
+    PAssert.thatSingleton(consolidatedHashcode).isEqualTo(testConfig.getExpectedHash());
 
     readPipeline
         .apply(Create.of(filenamePattern))
@@ -187,6 +185,10 @@ public class TFRecordIOIT {
           double runTime = (readEnd - writeStart) / 1e3;
           return NamedTestResult.create(uuid, timestamp, "run_time", runTime);
         });
+
+    suppliers.add(
+        (ignored) ->
+            NamedTestResult.create(uuid, timestamp, "dataset_size", testConfig.getDatasetSize()));
 
     return suppliers;
   }
