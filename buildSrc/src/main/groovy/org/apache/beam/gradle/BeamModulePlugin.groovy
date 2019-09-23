@@ -171,72 +171,16 @@ class BeamModulePlugin implements Plugin<Project> {
 
   // Reads and contains all necessary performance test parameters
   class JavaPerformanceTestConfiguration {
-
-    /* Optional properties (set only if needed in your case): */
-
-    // Path to PerfKitBenchmarker application (pkb.py).
-    // It is only required when running Performance Tests with PerfKitBenchmarker
-    String pkbLocation = System.getProperty('pkbLocation')
-
-    // Data Processing Backend's log level.
-    String logLevel = System.getProperty('logLevel', 'INFO')
-
-    // Path to gradle binary.
-    String gradleBinary = System.getProperty('gradleBinary', './gradlew')
-
-    // If benchmark is official or not.
-    // Official benchmark results are meant to be displayed on PerfKitExplorer dashboards.
-    String isOfficial = System.getProperty('official', 'false')
-
-    // Specifies names of benchmarks to be run by PerfKitBenchmarker.
-    String benchmarks = System.getProperty('benchmarks', 'beam_integration_benchmark')
-
-    // If beam is not "prebuilt" then PerfKitBenchmarker runs the build task before running the tests.
-    String beamPrebuilt = System.getProperty('beamPrebuilt', 'true')
-
-    // Beam's sdk to be used by PerfKitBenchmarker.
-    String beamSdk = System.getProperty('beamSdk', 'java')
-
-    // Timeout (in seconds) after which PerfKitBenchmarker will stop executing the benchmark (and will fail).
-    String timeout = System.getProperty('itTimeout', '1200')
-
-    // Path to kubernetes configuration file.
-    String kubeconfig = System.getProperty('kubeconfig', System.getProperty('user.home') + '/.kube/config')
-
-    // Path to kubernetes executable.
-    String kubectl = System.getProperty('kubectl', 'kubectl')
-
-    // Paths to files with kubernetes infrastructure to setup before the test runs.
-    // PerfKitBenchmarker will have trouble reading 'null' path. It expects empty string if no scripts are expected.
-    String kubernetesScripts = System.getProperty('kubernetesScripts', '')
-
-    // Path to file with 'dynamic' and 'static' pipeline options.
-    // that will be appended by PerfKitBenchmarker to the test running command.
-    // PerfKitBenchmarker will have trouble reading 'null' path. It expects empty string if no config file is expected.
-    String optionsConfigFile = System.getProperty('beamITOptions', '')
-
-    // Any additional properties to be appended to benchmark execution command.
-    String extraProperties = System.getProperty('beamExtraProperties', '')
-
-    // Runner which will be used for running the tests. Possible values: dataflow/direct.
+    // Optional. Runner which will be used for running the tests. Possible values: dataflow/direct.
     // PerfKitBenchmarker will have trouble reading 'null' value. It expects empty string if no config file is expected.
     String runner = System.getProperty('integrationTestRunner', '')
 
-    // Filesystem which will be used for running the tests. Possible values: hdfs.
+    // Optional. Filesystem which will be used for running the tests. Possible values: hdfs.
     // if not specified runner's local filesystem will be used.
     String filesystem = System.getProperty('filesystem')
 
-    /* Always required properties: */
-
-    // Pipeline options to be used by the tested pipeline.
+    // Required. Pipeline options to be used by the tested pipeline.
     String integrationTestPipelineOptions = System.getProperty('integrationTestPipelineOptions')
-
-    // Fully qualified name of the test to be run, eg:
-    // 'org.apache.beam.sdks.java.io.jdbc.JdbcIOIT'.
-    String integrationTest = System.getProperty('integrationTest')
-
-    // Relative path to module where the test is, eg. 'sdks/java/io/jdbc.
-    String itModule = System.getProperty('itModule')
   }
 
   // Reads and contains all necessary performance test parameters
@@ -337,7 +281,7 @@ class BeamModulePlugin implements Plugin<Project> {
 
     // Automatically use the official release version if we are performing a release
     // otherwise append '-SNAPSHOT'
-    project.version = '2.16.0'
+    project.version = '2.17.0'
     if (!isRelease(project)) {
       project.version += '-SNAPSHOT'
     }
@@ -415,7 +359,7 @@ class BeamModulePlugin implements Plugin<Project> {
     def guava_version = "20.0"
     def hadoop_version = "2.7.3"
     def hamcrest_version = "2.1"
-    def jackson_version = "2.9.9"
+    def jackson_version = "2.9.10"
     def jaxb_api_version = "2.2.12"
     def kafka_version = "1.0.0"
     def nemo_version = "0.1"
@@ -425,7 +369,7 @@ class BeamModulePlugin implements Plugin<Project> {
     def proto_google_common_protos_version = "1.12.0"
     def protobuf_version = "3.6.0"
     def quickcheck_version = "0.8"
-    def spark_version = "2.4.3"
+    def spark_version = "2.4.4"
 
     // A map of maps containing common libraries used per language. To use:
     // dependencies {
@@ -461,19 +405,15 @@ class BeamModulePlugin implements Plugin<Project> {
         aws_java_sdk2_sdk_core                      : "software.amazon.awssdk:sdk-core:$aws_java_sdk2_version",
         bigdataoss_gcsio                            : "com.google.cloud.bigdataoss:gcsio:$google_cloud_bigdataoss_version",
         bigdataoss_util                             : "com.google.cloud.bigdataoss:util:$google_cloud_bigdataoss_version",
-        bigtable_client_core                        : "com.google.cloud.bigtable:bigtable-client-core:1.8.0",
-        bigtable_protos                             : "com.google.api.grpc:grpc-google-cloud-bigtable-v2:$generated_grpc_beta_version",
         cassandra_driver_core                       : "com.datastax.cassandra:cassandra-driver-core:$cassandra_driver_version",
         cassandra_driver_mapping                    : "com.datastax.cassandra:cassandra-driver-mapping:$cassandra_driver_version",
         commons_codec                               : "commons-codec:commons-codec:1.10",
-        commons_compress                            : "org.apache.commons:commons-compress:1.18",
+        commons_compress                            : "org.apache.commons:commons-compress:1.19",
         commons_csv                                 : "org.apache.commons:commons-csv:1.4",
         commons_io_1x                               : "commons-io:commons-io:1.3.2",
         commons_io_2x                               : "commons-io:commons-io:2.5",
         commons_lang3                               : "org.apache.commons:commons-lang3:3.6",
         commons_math3                               : "org.apache.commons:commons-math3:3.6.1",
-        datastore_v1_proto_client                   : "com.google.cloud.datastore:datastore-v1-proto-client:1.6.0",
-        datastore_v1_protos                         : "com.google.api.grpc:proto-google-cloud-datastore-v1:$generated_grpc_beta_version",
         error_prone_annotations                     : "com.google.errorprone:error_prone_annotations:2.0.15",
         gax_grpc                                    : "com.google.api:gax-grpc:1.38.0",
         google_api_client                           : "com.google.api-client:google-api-client:$google_clients_version",
@@ -490,10 +430,11 @@ class BeamModulePlugin implements Plugin<Project> {
         google_auth_library_oauth2_http             : "com.google.auth:google-auth-library-oauth2-http:$google_auth_version",
         google_cloud_bigquery                       : "com.google.cloud:google-cloud-bigquery:$google_clients_version",
         google_cloud_bigquery_storage               : "com.google.cloud:google-cloud-bigquerystorage:0.79.0-alpha",
-        google_cloud_bigquery_storage_proto         : "com.google.api.grpc:proto-google-cloud-bigquerystorage-v1beta1:$generated_grpc_beta_version",
+        google_cloud_bigtable_client_core           : "com.google.cloud.bigtable:bigtable-client-core:1.8.0",
         google_cloud_core                           : "com.google.cloud:google-cloud-core:$google_cloud_core_version",
         google_cloud_core_grpc                      : "com.google.cloud:google-cloud-core-grpc:$google_cloud_core_version",
         google_cloud_dataflow_java_proto_library_all: "com.google.cloud.dataflow:google-cloud-dataflow-java-proto-library-all:0.5.160304",
+        google_cloud_datastore_v1_proto_client      : "com.google.cloud.datastore:datastore-v1-proto-client:1.6.0",
         google_cloud_spanner                        : "com.google.cloud:google-cloud-spanner:$google_cloud_spanner_version",
         google_http_client                          : "com.google.http-client:google-http-client:$google_clients_version",
         google_http_client_jackson                  : "com.google.http-client:google-http-client-jackson:$google_clients_version",
@@ -523,14 +464,14 @@ class BeamModulePlugin implements Plugin<Project> {
         jackson_annotations                         : "com.fasterxml.jackson.core:jackson-annotations:$jackson_version",
         jackson_jaxb_annotations                    : "com.fasterxml.jackson.module:jackson-module-jaxb-annotations:$jackson_version",
         jackson_core                                : "com.fasterxml.jackson.core:jackson-core:$jackson_version",
-        jackson_databind                            : "com.fasterxml.jackson.core:jackson-databind:2.9.9.3",
+        jackson_databind                            : "com.fasterxml.jackson.core:jackson-databind:$jackson_version",
         jackson_dataformat_cbor                     : "com.fasterxml.jackson.dataformat:jackson-dataformat-cbor:$jackson_version",
         jackson_dataformat_yaml                     : "com.fasterxml.jackson.dataformat:jackson-dataformat-yaml:$jackson_version",
         jackson_datatype_joda                       : "com.fasterxml.jackson.datatype:jackson-datatype-joda:$jackson_version",
         jackson_module_scala                        : "com.fasterxml.jackson.module:jackson-module-scala_2.11:$jackson_version",
         jaxb_api                                    : "javax.xml.bind:jaxb-api:$jaxb_api_version",
-        joda_time                                   : "joda-time:joda-time:2.10.1",
-        junit                                       : "junit:junit:4.13-beta-1",
+        joda_time                                   : "joda-time:joda-time:2.10.3",
+        junit                                       : "junit:junit:4.13-beta-3",
         kafka                                       : "org.apache.kafka:kafka_2.11:$kafka_version",
         kafka_clients                               : "org.apache.kafka:kafka-clients:$kafka_version",
         malhar_library                              : "org.apache.apex:malhar-library:$apex_malhar_version",
@@ -544,7 +485,10 @@ class BeamModulePlugin implements Plugin<Project> {
         powermock_mockito                           : "org.powermock:powermock-api-mockito2:$powermock_version",
         protobuf_java                               : "com.google.protobuf:protobuf-java:$protobuf_version",
         protobuf_java_util                          : "com.google.protobuf:protobuf-java-util:$protobuf_version",
+        proto_google_cloud_bigquery_storage_v1beta1 : "com.google.api.grpc:proto-google-cloud-bigquerystorage-v1beta1:$generated_grpc_beta_version",
+        proto_google_cloud_bigtable_v2              : "com.google.api.grpc:proto-google-cloud-bigtable-v2:$generated_grpc_beta_version",
         proto_google_cloud_datacatalog_v1beta1      : "com.google.api.grpc:proto-google-cloud-datacatalog-v1beta1:$generated_grpc_dc_beta_version",
+        proto_google_cloud_datastore_v1             : "com.google.api.grpc:proto-google-cloud-datastore-v1:$generated_grpc_beta_version",
         proto_google_cloud_pubsub_v1                : "com.google.api.grpc:proto-google-cloud-pubsub-v1:$generated_grpc_ga_version",
         proto_google_cloud_spanner_admin_database_v1: "com.google.api.grpc:proto-google-cloud-spanner-admin-database-v1:$google_cloud_spanner_version",
         proto_google_common_protos                  : "com.google.api.grpc:proto-google-common-protos:$proto_google_common_protos_version",
@@ -1278,7 +1222,7 @@ class BeamModulePlugin implements Plugin<Project> {
     }
 
     // When applied in a module's build.gradle file, this closure provides task for running
-    // IO integration tests (manually, without PerfKitBenchmarker).
+    // IO integration tests.
     project.ext.enableJavaPerformanceTesting = {
 
       // Use the implicit it parameter of the closure to handle zero argument or one argument map calls.
@@ -1361,60 +1305,7 @@ class BeamModulePlugin implements Plugin<Project> {
           testRuntime it.project(path: ":sdks:java:io:amazon-web-services", configuration: 'testRuntime')
         }
       }
-
       project.task('packageIntegrationTests', type: Jar)
-    }
-
-    // When applied in a module's build gradle file, this closure provides a task
-    // that will involve PerfKitBenchmarker for running integrationTests.
-    project.ext.createPerformanceTestHarness = {
-
-      // Use the implicit it parameter of the closure to handle zero argument or one argument map calls.
-      // See: http://groovy-lang.org/closures.html#implicit-it
-      JavaPerformanceTestConfiguration configuration = it ? it as JavaPerformanceTestConfiguration : new JavaPerformanceTestConfiguration()
-
-      // This task runs PerfKitBenchmarker, which does benchmarking of the IO ITs.
-      // The arguments passed to it allows it to invoke gradle again with the desired benchmark.
-      //
-      // To invoke this, run:
-      //
-      // ./gradlew performanceTest \
-      //  -DpkbLocation="<path to pkb.py>"
-      //  -DintegrationTestPipelineOptions='["--numberOfRecords=1000", "<more options>"]' \
-      //  -DintegrationTest=<io test, eg. org.apache.beam.sdk.io.text.TextIOIT> \
-      //  -DitModule=<directory containing desired test, eg. sdks/java/io/file-based-io-tests> \
-      //  -DintegrationTestRunner=<runner to be used for testing, eg. dataflow>
-      //
-      // There are more options with default values that can be tweaked if needed (see below).
-      project.task('performanceTest', type: Exec) {
-
-        // PerfKitBenchmarker needs to work in the Beam's root directory,
-        // otherwise it requires absolute paths ./gradlew, kubernetes scripts etc.
-        commandLine "${configuration.pkbLocation}",
-                "--dpb_log_level=${configuration.logLevel}",
-                "--gradle_binary=${configuration.gradleBinary}",
-                "--official=${configuration.isOfficial}",
-                "--benchmarks=${configuration.benchmarks}",
-                "--beam_location=${project.rootProject.projectDir}",
-
-                "--beam_prebuilt=${configuration.beamPrebuilt}",
-                "--beam_sdk=${configuration.beamSdk}",
-
-                "--beam_it_timeout=${configuration.timeout}",
-
-                "--kubeconfig=${configuration.kubeconfig}",
-                "--kubectl=${configuration.kubectl}",
-                "--beam_kubernetes_scripts=${configuration.kubernetesScripts}",
-
-                "--beam_it_options=${configuration.integrationTestPipelineOptions}",
-                "--beam_options_config_file=${configuration.optionsConfigFile}",
-
-                "--beam_it_class=${configuration.integrationTest}",
-                "--beam_it_module=${configuration.itModule}",
-
-                "--beam_extra_properties=${configuration.extraProperties}",
-                "--beam_runner=${configuration.runner}"
-      }
     }
 
     /** ***********************************************************************************************/
@@ -1478,9 +1369,10 @@ class BeamModulePlugin implements Plugin<Project> {
     }
 
     // containerImageName returns a configurable container image name, by default a
-    // development image at bintray.io (see sdks/CONTAINERS.md):
+    // development image at docker.io (see sdks/CONTAINERS.md):
     //
-    //     $USER-docker-apache.bintray.io/beam/$NAME:latest
+    //     format: apachebeam/$NAME_sdk:latest
+    //     ie: apachebeam/python2.7_sdk:latest apachebeam/java_sdk:latest apachebeam/go_sdk:latest
     //
     // Both the root and tag can be defined using properties or explicitly provided.
     project.ext.containerImageName = {
@@ -1735,7 +1627,7 @@ class BeamModulePlugin implements Plugin<Project> {
       def serviceArgs = project.project(':sdks:python').mapToArgString(expansionServiceOpts)
       def setupTask = project.tasks.create(name: config.name+"Setup", type: Exec) {
         dependsOn ':sdks:java:container:docker'
-        dependsOn ':sdks:python:container:docker'
+        dependsOn ':sdks:python:container:buildAll'
         dependsOn ':sdks:java:testing:expansion-service:buildTestExpansionServiceJar'
         dependsOn ":sdks:python:installGcpTest"
         // setup test env
@@ -1990,8 +1882,10 @@ class BeamModulePlugin implements Plugin<Project> {
           dependsOn = ['installGcpTest']
           mustRunAfter = [
             ':runners:flink:1.5:job-server-container:docker',
-            ':sdks:python:container:docker',
-            ':sdks:python:container:py3:docker'
+            ':sdks:python:container:py2:docker',
+            ':sdks:python:container:py35:docker',
+            ':sdks:python:container:py36:docker',
+            ':sdks:python:container:py37:docker'
           ]
           doLast {
             // TODO: Figure out GCS credentials and use real GCS input and output.
@@ -2002,6 +1896,7 @@ class BeamModulePlugin implements Plugin<Project> {
               "--experiments=worker_threads=100",
               "--parallelism=2",
               "--shutdown_sources_on_final_watermark",
+              "--sdk_worker_parallelism=1",
             ]
             if (isStreaming)
               options += [
