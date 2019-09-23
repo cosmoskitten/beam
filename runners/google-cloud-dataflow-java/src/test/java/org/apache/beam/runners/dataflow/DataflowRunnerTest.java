@@ -1368,7 +1368,6 @@ public class DataflowRunnerTest implements Serializable {
     RunnerApi.Pipeline pipeline = RunnerApi.Pipeline.parseFrom(protoBytes);
 
     assertEquals(1, pipeline.getComponents().getEnvironmentsCount());
-    assertEquals(1, pipeline.getComponents().getEnvironmentsCount());
     Environment defaultEnvironment =
         pipeline.getComponents().getEnvironmentsMap().values().iterator().next();
 
