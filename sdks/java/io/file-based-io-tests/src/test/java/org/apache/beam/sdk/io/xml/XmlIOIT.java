@@ -68,7 +68,7 @@ import org.junit.runners.JUnit4;
  * <pre>
  *  ./gradlew integrationTest -p sdks/java/io/file-based-io-tests
  *  -DintegrationTestPipelineOptions='[
- *  "--numberOfRecords=100000",
+ *  "--testConfigName=XML_1G",
  *  "--filenamePrefix=output_file_path",
  *  "--charset=UTF-8",
  *  ]'
@@ -160,10 +160,10 @@ public class XmlIOIT {
 
     PAssert.thatSingleton(consolidatedHashcode).isEqualTo(testConfig.getExpectedHash());
 
-        testFileNames.apply(
-            "Delete test files",
-            ParDo.of(new FileBasedIOITHelper.DeleteFileFn())
-                .withSideInputs(consolidatedHashcode.apply(View.asSingleton())));
+    testFileNames.apply(
+        "Delete test files",
+        ParDo.of(new FileBasedIOITHelper.DeleteFileFn())
+            .withSideInputs(consolidatedHashcode.apply(View.asSingleton())));
 
     PipelineResult result = pipeline.run();
     result.waitUntilFinish();
