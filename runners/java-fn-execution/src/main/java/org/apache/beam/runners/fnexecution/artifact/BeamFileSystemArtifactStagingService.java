@@ -27,6 +27,7 @@ import java.nio.channels.WritableByteChannel;
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 import java.util.Collections;
+import java.util.concurrent.Semaphore;
 import org.apache.beam.model.jobmanagement.v1.ArtifactApi.ArtifactMetadata;
 import org.apache.beam.model.jobmanagement.v1.ArtifactApi.CommitManifestRequest;
 import org.apache.beam.model.jobmanagement.v1.ArtifactApi.CommitManifestResponse;
@@ -76,6 +77,13 @@ public class BeamFileSystemArtifactStagingService extends ArtifactStagingService
   private static final Charset CHARSET = StandardCharsets.UTF_8;
   public static final String MANIFEST = "MANIFEST";
   public static final String ARTIFACTS = "artifacts";
+
+  private final Semaphore permittedConcurrentWrite;
+
+  public BeamFileSystemArtifactStagingService() {
+    super();
+    permittedConcurrentWrite = new Semaphore(8);
+  }
 
   @Override
   public StreamObserver<PutArtifactRequest> putArtifact(
@@ -227,9 +235,11 @@ public class BeamFileSystemArtifactStagingService extends ArtifactStagingService
                   encodedFileName(metadata.getMetadata()), StandardResolveOptions.RESOLVE_FILE);
           LOG.debug(
               "Going to stage artifact {} to {}.", metadata.getMetadata().getName(), artifactId);
-          artifactWritableByteChannel = FileSystems.create(artifactId, MimeTypes.BINARY);
           hasher = Hashing.sha256().newHasher();
+          permittedConcurrentWrite.acquire();
+          artifactWritableByteChannel = FileSystems.create(artifactId, MimeTypes.BINARY);
         } catch (Exception e) {
+          permittedConcurrentWrite.release();
           String message =
               String.format(
                   "Failed to begin staging artifact %s", metadata.getMetadata().getName());
@@ -260,13 +270,16 @@ public class BeamFileSystemArtifactStagingService extends ArtifactStagingService
       LOG.error("Staging artifact failed for " + artifactId, throwable);
       try {
         if (artifactWritableByteChannel != null) {
-          artifactWritableByteChannel.close();
+          try {
+            artifactWritableByteChannel.close();
+          } finally {
+            permittedConcurrentWrite.release();
+          }
         }
         if (artifactId != null) {
           FileSystems.delete(
               Collections.singletonList(artifactId), StandardMoveOptions.IGNORE_MISSING_FILES);
         }
-
       } catch (IOException e) {
         outboundObserver.onError(
             new StatusRuntimeException(
@@ -291,6 +304,8 @@ public class BeamFileSystemArtifactStagingService extends ArtifactStagingService
         } catch (IOException e) {
           onError(e);
           return;
+        } finally {
+          permittedConcurrentWrite.release();
         }
       }
       String expectedSha256 = metadata.getMetadata().getSha256();
