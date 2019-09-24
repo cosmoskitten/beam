@@ -37,20 +37,20 @@ job(jobName) {
   k8s.loadBalancerIP("postgres-for-dev", postgresHostName)
 
   Map pipelineOptions = [
-          tempRoot            : 'gs://temp-storage-for-perf-tests',
-          project             : 'apache-beam-testing',
-          runner              : 'DataflowRunner',
-          numberOfRecords     : '600000',
-          bigQueryDataset     : 'beam_performance',
-          bigQueryTable       : 'hadoopformatioit_results',
-          postgresUsername    : 'postgres',
-          postgresPassword    : 'uuinkks',
-          postgresDatabaseName: 'postgres',
-          postgresServerName  : "\$${postgresHostName}",
-          postgresSsl         : false,
-          postgresPort        : '5432',
-          maxNumWorkers: '5',
-          numWorkers: '5'
+          tempRoot             : 'gs://temp-storage-for-perf-tests',
+          project              : 'apache-beam-testing',
+          runner               : 'DataflowRunner',
+          numberOfRecords      : '600000',
+          bigQueryDataset      : 'beam_performance',
+          bigQueryTable        : 'hadoopformatioit_results',
+          postgresUsername     : 'postgres',
+          postgresPassword     : 'uuinkks',
+          postgresDatabaseName : 'postgres',
+          postgresServerName   : "\$${postgresHostName}",
+          postgresSsl          : false,
+          postgresPort         : '5432',
+          numWorkers           : '5',
+          autoscalingAlgorithm : 'NONE'
   ]
 
   steps {
