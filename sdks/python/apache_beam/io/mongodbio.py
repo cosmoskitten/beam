@@ -203,8 +203,7 @@ class _BoundedMongoSource(iobase.BoundedSource):
     res['uri'] = self.uri
     res['database'] = self.db
     res['collection'] = self.coll
-    res['filter'] = self.filter
-    res['project'] = self.projection
+    res['filter'] = json.dumps(self.filter)
     res['mongo_client_spec'] = json.dumps(self.spec)
     return res
 
