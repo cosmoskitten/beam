@@ -616,6 +616,7 @@ public final class KinesisIO {
         putFutures = Collections.synchronizedList(new ArrayList<>());
         /** Keep only the first {@link MAX_NUM_FAILURES} occurred exceptions */
         failures = new LinkedBlockingDeque<>(MAX_NUM_FAILURES);
+        initKinesisProducer();
       }
 
       private synchronized void initKinesisProducer() {
@@ -631,14 +632,14 @@ public final class KinesisIO {
         config.setCredentialsRefreshDelay(100);
 
         // Init Kinesis producer
-        producer = spec.getAWSClientsProvider().createKinesisProducer(config);
+        if (producer == null) {
+          producer = spec.getAWSClientsProvider().createKinesisProducer(config);
+        }
       }
 
       private void readObject(ObjectInputStream is) throws IOException, ClassNotFoundException {
         is.defaultReadObject();
-        if (producer == null) {
-          initKinesisProducer();
-        }
+        initKinesisProducer();
       }
 
       /**
