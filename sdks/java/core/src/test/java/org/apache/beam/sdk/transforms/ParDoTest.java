@@ -3155,7 +3155,7 @@ public class ParDoTest implements Serializable {
     }
 
     /** A test makes sure that an event time timers are correctly ordered. */
-    @Test(timeout = 20000)
+    @Test
     @Category({
       ValidatesRunner.class,
       UsesTimersInParDo.class,
@@ -3179,7 +3179,7 @@ public class ParDoTest implements Serializable {
     }
 
     /** A test makes sure that an event time timers are correctly ordered using Create transform. */
-    @Test(timeout = 20000)
+    @Test
     @Category({ValidatesRunner.class, UsesTimersInParDo.class, UsesStatefulParDo.class})
     public void testEventTimeTimerOrderingWithCreate() throws Exception {
       final int numTestElements = 100;
