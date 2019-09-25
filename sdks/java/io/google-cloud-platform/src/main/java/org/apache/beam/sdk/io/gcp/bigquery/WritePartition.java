@@ -22,6 +22,7 @@ import java.util.Map;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.io.gcp.bigquery.WriteBundlesToFiles.Result;
 import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.SerializableFunctions;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.ShardedKey;
@@ -146,9 +147,10 @@ class WritePartition<DestinationT>
     // generate an empty table of that name.
     if (results.isEmpty() && singletonTable) {
       String tempFilePrefix = c.sideInput(this.tempFilePrefix);
-      TableRowWriter writer = new TableRowWriter(tempFilePrefix);
+      TableRowWriter<?> writer =
+          new TableRowWriter<>(tempFilePrefix, SerializableFunctions.identity());
       writer.close();
-      TableRowWriter.Result writerResult = writer.getResult();
+      AbstractRowWriter.Result writerResult = writer.getResult();
       // Return a null destination in this case - the constant DynamicDestinations class will
       // resolve it to the singleton output table.
       results.add(

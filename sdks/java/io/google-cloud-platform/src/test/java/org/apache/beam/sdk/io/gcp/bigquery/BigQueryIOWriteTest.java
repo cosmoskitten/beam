@@ -82,6 +82,7 @@ import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFnTester;
 import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.transforms.SerializableFunction;
+import org.apache.beam.sdk.transforms.SerializableFunctions;
 import org.apache.beam.sdk.transforms.SimpleFunction;
 import org.apache.beam.sdk.transforms.View;
 import org.apache.beam.sdk.transforms.display.DisplayData;
@@ -1393,7 +1394,8 @@ public class BigQueryIOWriteTest implements Serializable {
                       testFolder.getRoot().getAbsolutePath(),
                       String.format("files0x%08x_%05d", tempTableId.hashCode(), k))
                   .toString();
-          TableRowWriter writer = new TableRowWriter(filename);
+          TableRowWriter<TableRow> writer =
+              new TableRowWriter<>(filename, SerializableFunctions.identity());
           try (TableRowWriter ignored = writer) {
             TableRow tableRow = new TableRow().set("name", tableName);
             writer.write(tableRow);
@@ -1429,7 +1431,8 @@ public class BigQueryIOWriteTest implements Serializable {
             null,
             4,
             false,
-            null);
+            null,
+            "NEWLINE_DELIMITED_JSON");
 
     PCollection<KV<TableDestination, String>> writeTablesOutput =
         writeTablesInput.apply(writeTables);
@@ -1455,7 +1458,8 @@ public class BigQueryIOWriteTest implements Serializable {
     List<String> fileNames = Lists.newArrayList();
     String tempFilePrefix = options.getTempLocation() + "/";
     for (int i = 0; i < numFiles; ++i) {
-      TableRowWriter writer = new TableRowWriter(tempFilePrefix);
+      TableRowWriter<TableRow> writer =
+          new TableRowWriter<>(tempFilePrefix, SerializableFunctions.identity());
       writer.close();
       fileNames.add(writer.getResult().resourceId.toString());
     }
