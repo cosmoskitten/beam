@@ -27,7 +27,7 @@ from apache_beam.testing.test_pipeline import TestPipeline
 from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
 
-from . import with_timestamps
+from . import withtimestamps
 
 
 def check_plant_timestamps(actual):
@@ -78,24 +78,24 @@ def check_plant_processing_times(actual):
 
 @mock.patch('apache_beam.Pipeline', TestPipeline)
 # pylint: disable=line-too-long
-@mock.patch('apache_beam.examples.snippets.transforms.element_wise.with_timestamps.print', lambda elem: elem)
+@mock.patch('apache_beam.examples.snippets.transforms.element_wise.withtimestamps.print', lambda elem: elem)
 # pylint: enable=line-too-long
 class WithTimestampsTest(unittest.TestCase):
   def test_event_time(self):
-    with_timestamps.event_time(check_plant_timestamps)
+    withtimestamps.withtimestamps_event_time(check_plant_timestamps)
 
   def test_logical_clock(self):
-    with_timestamps.logical_clock(check_plant_events)
+    withtimestamps.withtimestamps_logical_clock(check_plant_events)
 
   def test_processing_time(self):
-    with_timestamps.processing_time(check_plant_processing_times)
+    withtimestamps.withtimestamps_processing_time(check_plant_processing_times)
 
   def test_time_tuple2unix_time(self):
-    unix_time = with_timestamps.time_tuple2unix_time()
+    unix_time = withtimestamps.time_tuple2unix_time()
     self.assertIsInstance(unix_time, float)
 
   def test_datetime2unix_time(self):
-    unix_time = with_timestamps.datetime2unix_time()
+    unix_time = withtimestamps.datetime2unix_time()
     self.assertIsInstance(unix_time, float)
 
 

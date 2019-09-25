@@ -20,8 +20,8 @@ from __future__ import absolute_import
 from __future__ import print_function
 
 
-def event_time(test=None):
-  # [START event_time]
+def withtimestamps_event_time(test=None):
+  # [START withtimestamps_event_time]
   import apache_beam as beam
 
   class GetTimestamp(beam.DoFn):
@@ -48,8 +48,8 @@ def event_time(test=None):
       test(plant_timestamps)
 
 
-def logical_clock(test=None):
-  # [START logical_clock]
+def withtimestamps_logical_clock(test=None):
+  # [START withtimestamps_logical_clock]
   import apache_beam as beam
 
   class GetTimestamp(beam.DoFn):
@@ -77,8 +77,8 @@ def logical_clock(test=None):
       test(plant_events)
 
 
-def processing_time(test=None):
-  # [START processing_time]
+def withtimestamps_processing_time(test=None):
+  # [START withtimestamps_processing_time]
   import apache_beam as beam
   import time
 

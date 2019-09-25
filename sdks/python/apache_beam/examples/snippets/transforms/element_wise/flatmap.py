@@ -20,8 +20,8 @@ from __future__ import absolute_import
 from __future__ import print_function
 
 
-def flat_map_simple(test=None):
-  # [START flat_map_simple]
+def flatmap_simple(test=None):
+  # [START flatmap_simple]
   import apache_beam as beam
 
   with beam.Pipeline() as pipeline:
@@ -34,13 +34,13 @@ def flat_map_simple(test=None):
         | 'Split words' >> beam.FlatMap(str.split)
         | beam.Map(print)
     )
-    # [END flat_map_simple]
+    # [END flatmap_simple]
     if test:
       test(plants)
 
 
-def flat_map_function(test=None):
-  # [START flat_map_function]
+def flatmap_function(test=None):
+  # [START flatmap_function]
   import apache_beam as beam
 
   def split_words(text):
@@ -56,13 +56,13 @@ def flat_map_function(test=None):
         | 'Split words' >> beam.FlatMap(split_words)
         | beam.Map(print)
     )
-    # [END flat_map_function]
+    # [END flatmap_function]
     if test:
       test(plants)
 
 
-def flat_map_lambda(test=None):
-  # [START flat_map_lambda]
+def flatmap_lambda(test=None):
+  # [START flatmap_lambda]
   import apache_beam as beam
 
   with beam.Pipeline() as pipeline:
@@ -75,13 +75,13 @@ def flat_map_lambda(test=None):
         | 'Flatten lists' >> beam.FlatMap(lambda elements: elements)
         | beam.Map(print)
     )
-    # [END flat_map_lambda]
+    # [END flatmap_lambda]
     if test:
       test(plants)
 
 
-def flat_map_generator(test=None):
-  # [START flat_map_generator]
+def flatmap_generator(test=None):
+  # [START flatmap_generator]
   import apache_beam as beam
 
   def generate_elements(elements):
@@ -98,13 +98,13 @@ def flat_map_generator(test=None):
         | 'Flatten lists' >> beam.FlatMap(generate_elements)
         | beam.Map(print)
     )
-    # [END flat_map_generator]
+    # [END flatmap_generator]
     if test:
       test(plants)
 
 
-def flat_map_multiple_arguments(test=None):
-  # [START flat_map_multiple_arguments]
+def flatmap_multiple_arguments(test=None):
+  # [START flatmap_multiple_arguments]
   import apache_beam as beam
 
   def split_words(text, delimiter=None):
@@ -120,13 +120,13 @@ def flat_map_multiple_arguments(test=None):
         | 'Split words' >> beam.FlatMap(split_words, delimiter=',')
         | beam.Map(print)
     )
-    # [END flat_map_multiple_arguments]
+    # [END flatmap_multiple_arguments]
     if test:
       test(plants)
 
 
-def flat_map_tuple(test=None):
-  # [START flat_map_tuple]
+def flatmap_tuple(test=None):
+  # [START flatmap_tuple]
   import apache_beam as beam
 
   def format_plant(icon, plant):
@@ -147,13 +147,13 @@ def flat_map_tuple(test=None):
         | 'Format' >> beam.FlatMapTuple(format_plant)
         | beam.Map(print)
     )
-    # [END flat_map_tuple]
+    # [END flatmap_tuple]
     if test:
       test(plants)
 
 
-def flat_map_side_inputs_singleton(test=None):
-  # [START flat_map_side_inputs_singleton]
+def flatmap_side_inputs_singleton(test=None):
+  # [START flatmap_side_inputs_singleton]
   import apache_beam as beam
 
   with beam.Pipeline() as pipeline:
@@ -171,13 +171,13 @@ def flat_map_side_inputs_singleton(test=None):
         )
         | beam.Map(print)
     )
-    # [END flat_map_side_inputs_singleton]
+    # [END flatmap_side_inputs_singleton]
     if test:
       test(plants)
 
 
-def flat_map_side_inputs_iter(test=None):
-  # [START flat_map_side_inputs_iter]
+def flatmap_side_inputs_iter(test=None):
+  # [START flatmap_side_inputs_iter]
   import apache_beam as beam
 
   def normalize_and_validate_durations(plant, valid_durations):
@@ -207,13 +207,13 @@ def flat_map_side_inputs_iter(test=None):
         )
         | beam.Map(print)
     )
-    # [END flat_map_side_inputs_iter]
+    # [END flatmap_side_inputs_iter]
     if test:
       test(valid_plants)
 
 
-def flat_map_side_inputs_dict(test=None):
-  # [START flat_map_side_inputs_dict]
+def flatmap_side_inputs_dict(test=None):
+  # [START flatmap_side_inputs_dict]
   import apache_beam as beam
 
   def replace_duration_if_valid(plant, durations):
@@ -243,6 +243,6 @@ def flat_map_side_inputs_dict(test=None):
         )
         | beam.Map(print)
     )
-    # [END flat_map_side_inputs_dict]
+    # [END flatmap_side_inputs_dict]
     if test:
       test(valid_plants)

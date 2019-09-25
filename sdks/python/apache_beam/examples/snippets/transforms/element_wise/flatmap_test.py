@@ -27,7 +27,7 @@ from apache_beam.testing.test_pipeline import TestPipeline
 from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
 
-from . import flat_map
+from . import flatmap
 
 
 def check_plants(actual):
@@ -57,35 +57,35 @@ def check_valid_plants(actual):
 
 @mock.patch('apache_beam.Pipeline', TestPipeline)
 # pylint: disable=line-too-long
-@mock.patch('apache_beam.examples.snippets.transforms.element_wise.flat_map.print', lambda elem: elem)
+@mock.patch('apache_beam.examples.snippets.transforms.element_wise.flatmap.print', lambda elem: elem)
 # pylint: enable=line-too-long
 class FlatMapTest(unittest.TestCase):
-  def test_flat_map_simple(self):
-    flat_map.flat_map_simple(check_plants)
+  def test_flatmap_simple(self):
+    flatmap.flatmap_simple(check_plants)
 
-  def test_flat_map_function(self):
-    flat_map.flat_map_function(check_plants)
+  def test_flatmap_function(self):
+    flatmap.flatmap_function(check_plants)
 
-  def test_flat_map_lambda(self):
-    flat_map.flat_map_lambda(check_plants)
+  def test_flatmap_lambda(self):
+    flatmap.flatmap_lambda(check_plants)
 
-  def test_flat_map_generator(self):
-    flat_map.flat_map_generator(check_plants)
+  def test_flatmap_generator(self):
+    flatmap.flatmap_generator(check_plants)
 
-  def test_flat_map_multiple_arguments(self):
-    flat_map.flat_map_multiple_arguments(check_plants)
+  def test_flatmap_multiple_arguments(self):
+    flatmap.flatmap_multiple_arguments(check_plants)
 
-  def test_flat_map_tuple(self):
-    flat_map.flat_map_tuple(check_plants)
+  def test_flatmap_tuple(self):
+    flatmap.flatmap_tuple(check_plants)
 
-  def test_flat_map_side_inputs_singleton(self):
-    flat_map.flat_map_side_inputs_singleton(check_plants)
+  def test_flatmap_side_inputs_singleton(self):
+    flatmap.flatmap_side_inputs_singleton(check_plants)
 
-  def test_flat_map_side_inputs_iter(self):
-    flat_map.flat_map_side_inputs_iter(check_valid_plants)
+  def test_flatmap_side_inputs_iter(self):
+    flatmap.flatmap_side_inputs_iter(check_valid_plants)
 
-  def test_flat_map_side_inputs_dict(self):
-    flat_map.flat_map_side_inputs_dict(check_valid_plants)
+  def test_flatmap_side_inputs_dict(self):
+    flatmap.flatmap_side_inputs_dict(check_valid_plants)
 
 
 if __name__ == '__main__':

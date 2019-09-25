@@ -28,7 +28,7 @@ from apache_beam.testing.test_pipeline import TestPipeline
 from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
 
-from . import to_string
+from . import tostring
 
 
 def check_plants(actual):
@@ -88,17 +88,17 @@ def check_plants_csv(actual):
 
 @mock.patch('apache_beam.Pipeline', TestPipeline)
 # pylint: disable=line-too-long
-@mock.patch('apache_beam.examples.snippets.transforms.element_wise.to_string.print', lambda elem: elem)
+@mock.patch('apache_beam.examples.snippets.transforms.element_wise.tostring.print', lambda elem: elem)
 # pylint: enable=line-too-long
 class ToStringTest(unittest.TestCase):
-  def test_to_string_kvs(self):
-    to_string.to_string_kvs(check_plants)
+  def test_tostring_kvs(self):
+    tostring.tostring_kvs(check_plants)
 
-  def test_to_string_element(self):
-    to_string.to_string_element(check_plant_lists)
+  def test_tostring_element(self):
+    tostring.tostring_element(check_plant_lists)
 
-  def test_to_string_iterables(self):
-    to_string.to_string_iterables(check_plants_csv)
+  def test_tostring_iterables(self):
+    tostring.tostring_iterables(check_plants_csv)
 
 
 if __name__ == '__main__':

@@ -53,14 +53,14 @@ We use the function `str.split` which takes a single `str` element and outputs a
 This pipeline splits the input element using whitespaces, creating a list of zero or more elements.
 
 ```py
-{% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/element_wise/flat_map.py tag:flat_map_simple %}```
+{% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/element_wise/flatmap.py tag:flatmap_simple %}```
 
 {:.notebook-skip}
 Output `PCollection` after `FlatMap`:
 
 {:.notebook-skip}
 ```
-{% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/element_wise/flat_map_test.py tag:plants %}```
+{% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/element_wise/flatmap_test.py tag:plants %}```
 
 {:.notebook-skip}
 <table align="left" style="margin-right:1em">
@@ -77,7 +77,7 @@ Output `PCollection` after `FlatMap`:
 <table align="left" style="margin-right:1em">
   <td>
     <a class="button" target="_blank"
-        href="https://github.com/{{ site.branch_repo }}/sdks/python/apache_beam/examples/snippets/transforms/element_wise/flat_map.py">
+        href="https://github.com/{{ site.branch_repo }}/sdks/python/apache_beam/examples/snippets/transforms/element_wise/flatmap.py">
       <img src="https://www.tensorflow.org/images/GitHub-Mark-32px.png"
         width="32px" height="32px" alt="View source code" />
       View source code
@@ -91,14 +91,14 @@ Output `PCollection` after `FlatMap`:
 We define a function `split_words` which splits an input `str` element using the delimiter `','` and outputs a `list` of `str`s.
 
 ```py
-{% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/element_wise/flat_map.py tag:flat_map_function %}```
+{% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/element_wise/flatmap.py tag:flatmap_function %}```
 
 {:.notebook-skip}
 Output `PCollection` after `FlatMap`:
 
 {:.notebook-skip}
 ```
-{% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/element_wise/flat_map_test.py tag:plants %}```
+{% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/element_wise/flatmap_test.py tag:plants %}```
 
 {:.notebook-skip}
 <table align="left" style="margin-right:1em">
@@ -115,7 +115,7 @@ Output `PCollection` after `FlatMap`:
 <table align="left" style="margin-right:1em">
   <td>
     <a class="button" target="_blank"
-        href="https://github.com/{{ site.branch_repo }}/sdks/python/apache_beam/examples/snippets/transforms/element_wise/flat_map.py">
+        href="https://github.com/{{ site.branch_repo }}/sdks/python/apache_beam/examples/snippets/transforms/element_wise/flatmap.py">
       <img src="https://www.tensorflow.org/images/GitHub-Mark-32px.png"
         width="32px" height="32px" alt="View source code" />
       View source code
@@ -131,14 +131,14 @@ Each input element is already an `iterable`, where each element is what we want 
 We use a lambda function that returns the same input element it received.
 
 ```py
-{% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/element_wise/flat_map.py tag:flat_map_lambda %}```
+{% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/element_wise/flatmap.py tag:flatmap_lambda %}```
 
 {:.notebook-skip}
 Output `PCollection` after `FlatMap`:
 
 {:.notebook-skip}
 ```
-{% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/element_wise/flat_map_test.py tag:plants %}```
+{% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/element_wise/flatmap_test.py tag:plants %}```
 
 {:.notebook-skip}
 <table align="left" style="margin-right:1em">
@@ -155,7 +155,7 @@ Output `PCollection` after `FlatMap`:
 <table align="left" style="margin-right:1em">
   <td>
     <a class="button" target="_blank"
-        href="https://github.com/{{ site.branch_repo }}/sdks/python/apache_beam/examples/snippets/transforms/element_wise/flat_map.py">
+        href="https://github.com/{{ site.branch_repo }}/sdks/python/apache_beam/examples/snippets/transforms/element_wise/flatmap.py">
       <img src="https://www.tensorflow.org/images/GitHub-Mark-32px.png"
         width="32px" height="32px" alt="View source code" />
       View source code
@@ -171,14 +171,14 @@ We use a generator to iterate over the input list and yield each of the elements
 Each yielded result in the generator is an element in the resulting `PCollection`.
 
 ```py
-{% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/element_wise/flat_map.py tag:flat_map_generator %}```
+{% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/element_wise/flatmap.py tag:flatmap_generator %}```
 
 {:.notebook-skip}
 Output `PCollection` after `FlatMap`:
 
 {:.notebook-skip}
 ```
-{% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/element_wise/flat_map_test.py tag:plants %}```
+{% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/element_wise/flatmap_test.py tag:plants %}```
 
 {:.notebook-skip}
 <table align="left" style="margin-right:1em">
@@ -195,7 +195,7 @@ Output `PCollection` after `FlatMap`:
 <table align="left" style="margin-right:1em">
   <td>
     <a class="button" target="_blank"
-        href="https://github.com/{{ site.branch_repo }}/sdks/python/apache_beam/examples/snippets/transforms/element_wise/flat_map.py">
+        href="https://github.com/{{ site.branch_repo }}/sdks/python/apache_beam/examples/snippets/transforms/element_wise/flatmap.py">
       <img src="https://www.tensorflow.org/images/GitHub-Mark-32px.png"
         width="32px" height="32px" alt="View source code" />
       View source code
@@ -210,14 +210,14 @@ If your `PCollection` consists of `(key, value)` pairs,
 you can use `FlatMapTuple` to unpack them into different function arguments.
 
 ```py
-{% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/element_wise/flat_map.py tag:flat_map_tuple %}```
+{% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/element_wise/flatmap.py tag:flatmap_tuple %}```
 
 {:.notebook-skip}
 Output `PCollection` after `FlatMapTuple`:
 
 {:.notebook-skip}
 ```
-{% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/element_wise/flat_map_test.py tag:plants %}```
+{% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/element_wise/flatmap_test.py tag:plants %}```
 
 {:.notebook-skip}
 <table align="left" style="margin-right:1em">
@@ -234,7 +234,7 @@ Output `PCollection` after `FlatMapTuple`:
 <table align="left" style="margin-right:1em">
   <td>
     <a class="button" target="_blank"
-        href="https://github.com/{{ site.branch_repo }}/sdks/python/apache_beam/examples/snippets/transforms/element_wise/flat_map.py">
+        href="https://github.com/{{ site.branch_repo }}/sdks/python/apache_beam/examples/snippets/transforms/element_wise/flatmap.py">
       <img src="https://www.tensorflow.org/images/GitHub-Mark-32px.png"
         width="32px" height="32px" alt="View source code" />
       View source code
@@ -251,14 +251,14 @@ They are passed as additional positional arguments or keyword arguments to the f
 In this example, `split_words` takes `text` and `delimiter` as arguments.
 
 ```py
-{% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/element_wise/flat_map.py tag:flat_map_multiple_arguments %}```
+{% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/element_wise/flatmap.py tag:flatmap_multiple_arguments %}```
 
 {:.notebook-skip}
 Output `PCollection` after `FlatMap`:
 
 {:.notebook-skip}
 ```
-{% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/element_wise/flat_map_test.py tag:plants %}```
+{% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/element_wise/flatmap_test.py tag:plants %}```
 
 {:.notebook-skip}
 <table align="left" style="margin-right:1em">
@@ -275,7 +275,7 @@ Output `PCollection` after `FlatMap`:
 <table align="left" style="margin-right:1em">
   <td>
     <a class="button" target="_blank"
-        href="https://github.com/{{ site.branch_repo }}/sdks/python/apache_beam/examples/snippets/transforms/element_wise/flat_map.py">
+        href="https://github.com/{{ site.branch_repo }}/sdks/python/apache_beam/examples/snippets/transforms/element_wise/flatmap.py">
       <img src="https://www.tensorflow.org/images/GitHub-Mark-32px.png"
         width="32px" height="32px" alt="View source code" />
       View source code
@@ -293,14 +293,14 @@ In this example, we pass a `PCollection` the value `','` as a singleton.
 We then use that value as the delimiter for the `str.split` method.
 
 ```py
-{% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/element_wise/flat_map.py tag:flat_map_side_inputs_singleton %}```
+{% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/element_wise/flatmap.py tag:flatmap_side_inputs_singleton %}```
 
 {:.notebook-skip}
 Output `PCollection` after `FlatMap`:
 
 {:.notebook-skip}
 ```
-{% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/element_wise/flat_map_test.py tag:plants %}```
+{% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/element_wise/flatmap_test.py tag:plants %}```
 
 {:.notebook-skip}
 <table align="left" style="margin-right:1em">
@@ -317,7 +317,7 @@ Output `PCollection` after `FlatMap`:
 <table align="left" style="margin-right:1em">
   <td>
     <a class="button" target="_blank"
-        href="https://github.com/{{ site.branch_repo }}/sdks/python/apache_beam/examples/snippets/transforms/element_wise/flat_map.py">
+        href="https://github.com/{{ site.branch_repo }}/sdks/python/apache_beam/examples/snippets/transforms/element_wise/flatmap.py">
       <img src="https://www.tensorflow.org/images/GitHub-Mark-32px.png"
         width="32px" height="32px" alt="View source code" />
       View source code
@@ -333,14 +333,14 @@ This accesses elements lazily as they are needed,
 so it is possible to iterate over large `PCollection`s that won't fit into memory.
 
 ```py
-{% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/element_wise/flat_map.py tag:flat_map_side_inputs_iter %}```
+{% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/element_wise/flatmap.py tag:flatmap_side_inputs_iter %}```
 
 {:.notebook-skip}
 Output `PCollection` after `FlatMap`:
 
 {:.notebook-skip}
 ```
-{% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/element_wise/flat_map_test.py tag:valid_plants %}```
+{% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/element_wise/flatmap_test.py tag:valid_plants %}```
 
 {:.notebook-skip}
 <table align="left" style="margin-right:1em">
@@ -357,7 +357,7 @@ Output `PCollection` after `FlatMap`:
 <table align="left" style="margin-right:1em">
   <td>
     <a class="button" target="_blank"
-        href="https://github.com/{{ site.branch_repo }}/sdks/python/apache_beam/examples/snippets/transforms/element_wise/flat_map.py">
+        href="https://github.com/{{ site.branch_repo }}/sdks/python/apache_beam/examples/snippets/transforms/element_wise/flatmap.py">
       <img src="https://www.tensorflow.org/images/GitHub-Mark-32px.png"
         width="32px" height="32px" alt="View source code" />
       View source code
@@ -377,14 +377,14 @@ Note that all the elements of the `PCollection` must fit into memory for this.
 If the `PCollection` won't fit into memory, use `beam.pvalue.AsIter(pcollection)` instead.
 
 ```py
-{% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/element_wise/flat_map.py tag:flat_map_side_inputs_dict %}```
+{% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/element_wise/flatmap.py tag:flatmap_side_inputs_dict %}```
 
 {:.notebook-skip}
 Output `PCollection` after `FlatMap`:
 
 {:.notebook-skip}
 ```
-{% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/element_wise/flat_map_test.py tag:valid_plants %}```
+{% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/element_wise/flatmap_test.py tag:valid_plants %}```
 
 {:.notebook-skip}
 <table align="left" style="margin-right:1em">
@@ -401,7 +401,7 @@ Output `PCollection` after `FlatMap`:
 <table align="left" style="margin-right:1em">
   <td>
     <a class="button" target="_blank"
-        href="https://github.com/{{ site.branch_repo }}/sdks/python/apache_beam/examples/snippets/transforms/element_wise/flat_map.py">
+        href="https://github.com/{{ site.branch_repo }}/sdks/python/apache_beam/examples/snippets/transforms/element_wise/flatmap.py">
       <img src="https://www.tensorflow.org/images/GitHub-Mark-32px.png"
         width="32px" height="32px" alt="View source code" />
       View source code

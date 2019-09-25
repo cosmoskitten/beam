@@ -20,8 +20,8 @@ from __future__ import absolute_import
 from __future__ import print_function
 
 
-def to_string_kvs(test=None):
-  # [START to_string_kvs]
+def tostring_kvs(test=None):
+  # [START tostring_kvs]
   import apache_beam as beam
 
   with beam.Pipeline() as pipeline:
@@ -37,13 +37,13 @@ def to_string_kvs(test=None):
         | 'To string' >> beam.ToString.Kvs()
         | beam.Map(print)
     )
-    # [END to_string_kvs]
+    # [END tostring_kvs]
     if test:
       test(plants)
 
 
-def to_string_element(test=None):
-  # [START to_string_element]
+def tostring_element(test=None):
+  # [START tostring_element]
   import apache_beam as beam
 
   with beam.Pipeline() as pipeline:
@@ -59,13 +59,13 @@ def to_string_element(test=None):
         | 'To string' >> beam.ToString.Element()
         | beam.Map(print)
     )
-    # [END to_string_element]
+    # [END tostring_element]
     if test:
       test(plant_lists)
 
 
-def to_string_iterables(test=None):
-  # [START to_string_iterables]
+def tostring_iterables(test=None):
+  # [START tostring_iterables]
   import apache_beam as beam
 
   with beam.Pipeline() as pipeline:
@@ -81,6 +81,6 @@ def to_string_iterables(test=None):
         | 'To string' >> beam.ToString.Iterables()
         | beam.Map(print)
     )
-    # [END to_string_iterables]
+    # [END tostring_iterables]
     if test:
       test(plants_csv)
