@@ -82,7 +82,7 @@ public class BeamFnLoggingServiceTest {
 
       Collection<Callable<Void>> tasks = new ArrayList<>();
       for (int i = 1; i <= 3; ++i) {
-        int instructionReference = i;
+        int instructionId = i;
         tasks.add(
             () -> {
               CountDownLatch waitForServerHangup = new CountDownLatch(1);
@@ -96,7 +96,7 @@ public class BeamFnLoggingServiceTest {
                               .withOnCompleted(waitForServerHangup::countDown)
                               .build());
               outboundObserver.onNext(
-                  createLogsWithIds(instructionReference, -instructionReference));
+                  createLogsWithIds(instructionId, -instructionId));
               outboundObserver.onCompleted();
               waitForServerHangup.await();
               return null;
@@ -128,7 +128,7 @@ public class BeamFnLoggingServiceTest {
             GrpcContextHeaderAccessorProvider.getHeaderAccessor())) {
       server = createServer(service, service.getApiServiceDescriptor());
       for (int i = 1; i <= 3; ++i) {
-        int instructionReference = i;
+        int instructionId = i;
         tasks.add(
             () -> {
               CountDownLatch waitForTermination = new CountDownLatch(1);
@@ -142,8 +142,8 @@ public class BeamFnLoggingServiceTest {
                               .withOnError(waitForTermination::countDown)
                               .build());
               outboundObserver.onNext(
-                  createLogsWithIds(instructionReference, -instructionReference));
-              outboundObserver.onError(new RuntimeException("Client " + instructionReference));
+                  createLogsWithIds(instructionId, -instructionId));
+              outboundObserver.onError(new RuntimeException("Client " + instructionId));
               waitForTermination.await();
               return null;
             });
@@ -167,7 +167,7 @@ public class BeamFnLoggingServiceTest {
       server = createServer(service, service.getApiServiceDescriptor());
 
       for (int i = 1; i <= 3; ++i) {
-        long instructionReference = i;
+        long instructionId = i;
         futures.add(
             executorService.submit(
                 () -> {
@@ -181,7 +181,7 @@ public class BeamFnLoggingServiceTest {
                               TestStreams.withOnNext(BeamFnLoggingServiceTest::discardMessage)
                                   .withOnCompleted(waitForServerHangup::countDown)
                                   .build());
-                  outboundObserver.onNext(createLogsWithIds(instructionReference));
+                  outboundObserver.onNext(createLogsWithIds(instructionId));
                   waitForServerHangup.await();
                   return null;
                 }));
@@ -210,7 +210,7 @@ public class BeamFnLoggingServiceTest {
   }
 
   private BeamFnApi.LogEntry createLogWithId(long id) {
-    return BeamFnApi.LogEntry.newBuilder().setInstructionReference(Long.toString(id)).build();
+    return BeamFnApi.LogEntry.newBuilder().setInstructionId(Long.toString(id)).build();
   }
 
   private Server createServer(

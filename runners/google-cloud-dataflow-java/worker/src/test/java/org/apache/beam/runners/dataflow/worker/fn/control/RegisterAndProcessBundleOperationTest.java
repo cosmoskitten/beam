@@ -234,7 +234,7 @@ public class RegisterAndProcessBundleOperationTest {
             .setInstructionId("778")
             .setProcessBundle(
                 BeamFnApi.ProcessBundleRequest.newBuilder()
-                    .setProcessBundleDescriptorReference("555"))
+                    .setProcessBundleDescriptorId("555"))
             .build());
     operation.finish();
 
@@ -246,7 +246,7 @@ public class RegisterAndProcessBundleOperationTest {
             .setInstructionId("779")
             .setProcessBundle(
                 BeamFnApi.ProcessBundleRequest.newBuilder()
-                    .setProcessBundleDescriptorReference("555"))
+                    .setProcessBundleDescriptorId("555"))
             .build());
     operation.finish();
   }
@@ -517,7 +517,7 @@ public class RegisterAndProcessBundleOperationTest {
             .setInstructionId("778")
             .setProcessBundle(
                 BeamFnApi.ProcessBundleRequest.newBuilder()
-                    .setProcessBundleDescriptorReference("555"))
+                    .setProcessBundleDescriptorId("555"))
             .build());
   }
 
@@ -549,7 +549,7 @@ public class RegisterAndProcessBundleOperationTest {
                                   StateKey.newBuilder()
                                       .setBagUserState(
                                           StateKey.BagUserState.newBuilder()
-                                              .setPtransformId("testPTransformId")
+                                              .setTransformId("testPTransformId")
                                               .setWindow(ByteString.EMPTY)
                                               .setUserStateId("testUserStateId")))
                               .buildPartial();
@@ -657,7 +657,7 @@ public class RegisterAndProcessBundleOperationTest {
                           StateKey.newBuilder()
                               .setMultimapSideInput(
                                   StateKey.MultimapSideInput.newBuilder()
-                                      .setPtransformId("testPTransformId")
+                                      .setTransformId("testPTransformId")
                                       .setSideInputId("testSideInputId")
                                       .setWindow(
                                           ByteString.copyFrom(

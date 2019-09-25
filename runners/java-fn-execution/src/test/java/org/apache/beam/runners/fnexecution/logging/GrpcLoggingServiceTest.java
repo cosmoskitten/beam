@@ -62,7 +62,7 @@ public class GrpcLoggingServiceTest {
 
       Collection<Callable<Void>> tasks = new ArrayList<>();
       for (int i = 1; i <= 3; ++i) {
-        final int instructionReference = i;
+        final int instructionId = i;
         tasks.add(
             () -> {
               CountDownLatch waitForServerHangup = new CountDownLatch(1);
@@ -75,7 +75,7 @@ public class GrpcLoggingServiceTest {
                               .withOnCompleted(new CountDown(waitForServerHangup))
                               .build());
               outboundObserver.onNext(
-                  createLogsWithIds(instructionReference, -instructionReference));
+                  createLogsWithIds(instructionId, -instructionId));
               outboundObserver.onCompleted();
               waitForServerHangup.await();
               return null;
@@ -105,7 +105,7 @@ public class GrpcLoggingServiceTest {
 
       Collection<Callable<Void>> tasks = new ArrayList<>();
       for (int i = 1; i <= 3; ++i) {
-        final int instructionReference = i;
+        final int instructionId = i;
         tasks.add(
             () -> {
               CountDownLatch waitForTermination = new CountDownLatch(1);
@@ -119,8 +119,8 @@ public class GrpcLoggingServiceTest {
                               .withOnError(new CountDown(waitForTermination))
                               .build());
               outboundObserver.onNext(
-                  createLogsWithIds(instructionReference, -instructionReference));
-              outboundObserver.onError(new RuntimeException("Client " + instructionReference));
+                  createLogsWithIds(instructionId, -instructionId));
+              outboundObserver.onError(new RuntimeException("Client " + instructionId));
               waitForTermination.await();
               return null;
             });
@@ -141,7 +141,7 @@ public class GrpcLoggingServiceTest {
         GrpcFnServer.allocatePortAndCreateFor(service, InProcessServerFactory.create())) {
 
       for (int i = 1; i <= 3; ++i) {
-        final long instructionReference = i;
+        final long instructionId = i;
         futures.add(
             executorService.submit(
                 () -> {
@@ -156,7 +156,7 @@ public class GrpcLoggingServiceTest {
                                 TestStreams.withOnNext(messageDiscarder)
                                     .withOnCompleted(new CountDown(waitForServerHangup))
                                     .build());
-                    outboundObserver.onNext(createLogsWithIds(instructionReference));
+                    outboundObserver.onNext(createLogsWithIds(instructionId));
                     waitForServerHangup.await();
                     return null;
                   }
@@ -181,7 +181,7 @@ public class GrpcLoggingServiceTest {
   }
 
   private BeamFnApi.LogEntry createLogWithId(long id) {
-    return BeamFnApi.LogEntry.newBuilder().setInstructionReference(Long.toString(id)).build();
+    return BeamFnApi.LogEntry.newBuilder().setInstructionId(Long.toString(id)).build();
   }
 
   private static class CollectionAppendingLogWriter implements LogWriter {
