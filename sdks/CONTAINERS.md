@@ -75,7 +75,7 @@ Step 6/6 : ENTRYPOINT ["/opt/apache/beam/boot"]
 Removing intermediate container 30079dc4204b
  ---> 4ea515403a1a
 Successfully built 4ea515403a1a
-Successfully tagged herohde-docker-apache.bintray.io/beam/python3.5:latest
+Successfully tagged apachebeam/python3.5_sdk:2.17.0.dev
 [...]
 ```
 
@@ -102,13 +102,13 @@ $ ./gradlew -p sdks/python/container/py37 docker
 
 ```
 $ docker images
-REPOSITORY                                        TAG                    IMAGE ID            CREATED       SIZE
-herohde-docker-apache.bintray.io/beam/python3.7   latest             43b4ac17123b      3 minutes ago     1.86GB
-herohde-docker-apache.bintray.io/beam/python3.6   latest             c2d497de667f      3 minutes ago     1.86GB
-herohde-docker-apache.bintray.io/beam/python3.5   latest             68b0b5d284d1      3 minutes ago     1.86GB
-herohde-docker-apache.bintray.io/beam/python2.7   latest             502cf624db92      3 minutes ago     1.78GB
-herohde-docker-apache.bintray.io/beam/java        latest             0103512f1d8f     34 minutes ago      780MB
-herohde-docker-apache.bintray.io/beam/go          latest             ce055985808a     35 minutes ago      121MB
+REPOSITORY                 TAG                    IMAGE ID          CREATED           SIZE
+apachebeam/python3.7_sdk   2.17.0.dev             43b4ac17123b      3 minutes ago     1.86GB
+apachebeam/python3.6_sdk   2.17.0.dev             c2d497de667f      3 minutes ago     1.86GB
+apachebeam/python3.5_sdk   2.17.0.dev             68b0b5d284d1      3 minutes ago     1.86GB
+apachebeam/python2.7_sdk   2.17.0.dev             502cf624db92      3 minutes ago     1.78GB
+apachebeam/java_sdk        latest                 0103512f1d8f     34 minutes ago      780MB
+apachebeam/go_sdk          latest                 ce055985808a     35 minutes ago      121MB
 [...]
 ```
 
@@ -146,8 +146,8 @@ to push must also be present in the local docker image repository.
 For the Python SDK harness container image, run:
 
 ```
-$ docker push $USER-docker-apache.bintray.io/beam/python3.5:latest
-The push refers to repository [herohde-docker-apache.bintray.io/beam/python3.5]
+$ docker push apachebeam/python3.5_sdk:2.17.0.dev
+The push refers to repository [apachebeam/python3.5_sdk]
 723b66d57e21: Pushed 
 12d5806e6806: Pushed 
 b394bd077c6e: Pushed 
@@ -168,8 +168,8 @@ to multiple registries, you can retag the image using `docker tag` and push.
 **(Optional)** On any machine, you can now pull the pushed container image:
 
 ```
-$ docker pull $USER-docker-apache.bintray.io/beam/python3.5:latest
-latest: Pulling from beam/python3.5
+$ docker pull apachebeam/python3.5_sdk:2.17.0.dev
+latest: Pulling from apachebeam/python3.5_sdk
 f2b6b4884fc8: Pull complete 
 4fb899b4df21: Pull complete 
 74eaa8be7221: Pull complete 
@@ -182,10 +182,10 @@ aa6d783919f6: Pull complete
 08274803455d: Pull complete 
 ef79fab5686a: Pull complete 
 Digest: sha256:86ad57055324457c3ea950f914721c596c7fa261c216efb881d0ca0bb8457535
-Status: Downloaded newer image for herohde-docker-apache.bintray.io/beam/python3.5:latest
+Status: Downloaded newer image for apachebeam/python3.5_sdk:2.17.0.dev
 $ docker images
-REPOSITORY                                        TAG                 IMAGE ID            CREATED          SIZE
-herohde-docker-apache.bintray.io/beam/python3.5   latest          4ea515403a1a     35 minutes ago       1.27 GB
+REPOSITORY                 TAG                 IMAGE ID            CREATED           SIZE
+apachebeam/python3.5_sdk   2.17.0.dev          4ea515403a1a     35 minutes ago       1.27 GB
 [...]
 ```
 
