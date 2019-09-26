@@ -64,7 +64,7 @@ import org.slf4j.LoggerFactory;
  * <pre>
  *  ./gradlew integrationTest -p sdks/java/io/file-based-io-tests
  *  -DintegrationTestPipelineOptions='[
- *  "--testConfigName=TEXT_1G_UNCOMPRESSED",
+ *  "--testConfigName=TEXT_1GB_UNCOMPRESSED",
  *  "--filenamePrefix=output_file_path"
  *  ]'
  *  --tests org.apache.beam.sdk.io.text.TextIOIT

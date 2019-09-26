@@ -28,7 +28,7 @@ def jobs = [
                 pipelineOptions    : [
                         bigQueryDataset     : 'beam_performance',
                         bigQueryTable       : 'textioit_results',
-                        testConfigName      : 'TEXT_1G_UNCOMPRESSED',
+                        testConfigName      : 'TEXT_1GB_UNCOMPRESSED',
                         numWorkers          : '5',
                         autoscalingAlgorithm: 'NONE'
                 ]
@@ -43,7 +43,7 @@ def jobs = [
                 pipelineOptions    : [
                         bigQueryDataset     : 'beam_performance',
                         bigQueryTable       : 'compressed_textioit_results',
-                        testConfigName      : 'TEXT_1G_GZIP',
+                        testConfigName      : 'TEXT_1GB_GZIP',
                         numWorkers          : '5',
                         autoscalingAlgorithm: 'NONE'
                 ]
@@ -59,7 +59,7 @@ def jobs = [
                         bigQueryTable              : 'many_files_textioit_results',
                         reportGcsPerformanceMetrics: 'true',
                         gcsPerformanceMetrics      : 'true',
-                        testConfigName             : 'TEXT_1G_UNCOMPRESSED',
+                        testConfigName             : 'TEXT_1GB_UNCOMPRESSED',
                         numberOfShards             : '1000',
                         numWorkers                 : '5',
                         autoscalingAlgorithm       : 'NONE'
@@ -73,7 +73,7 @@ def jobs = [
                 githubTitle        : 'Java AvroIO Performance Test',
                 githubTriggerPhrase: 'Run Java AvroIO Performance Test',
                 pipelineOptions    : [
-                        testConfigName      : 'AVRO_1G',
+                        testConfigName      : 'AVRO_1GB',
                         bigQueryDataset     : 'beam_performance',
                         bigQueryTable       : 'avroioit_results',
                         numWorkers          : '5',
@@ -89,7 +89,7 @@ def jobs = [
                 pipelineOptions    : [
                         bigQueryDataset     : 'beam_performance',
                         bigQueryTable       : 'tfrecordioit_results',
-                        numberOfRecords     : '1000000',
+                        testConfigName      : 'TFRECORD_1GB',
                         numWorkers          : '5',
                         autoscalingAlgorithm: 'NONE'
                 ]
@@ -103,7 +103,7 @@ def jobs = [
                 pipelineOptions    : [
                         bigQueryDataset     : 'beam_performance',
                         bigQueryTable       : 'xmlioit_results',
-                        testConfigName      : 'XML_1G',
+                        testConfigName      : 'XML_1GB',
                         charset             : 'UTF-8',
                         numWorkers          : '5',
                         autoscalingAlgorithm: 'NONE'
@@ -118,7 +118,7 @@ def jobs = [
                 pipelineOptions    : [
                         bigQueryDataset     : 'beam_performance',
                         bigQueryTable       : 'parquetioit_results',
-                        numberOfRecords     : '100000000',
+                        testConfigName      : 'PARQUET_1GB',
                         numWorkers          : '5',
                         autoscalingAlgorithm: 'NONE'
                 ]
@@ -145,9 +145,9 @@ def jobs = [
                 githubTitle        : 'Java CompressedTextIO Performance Test on HDFS',
                 githubTriggerPhrase: 'Run Java CompressedTextIO Performance Test HDFS',
                 pipelineOptions    : [
-                        bigQueryDataset: 'beam_performance',
-                        bigQueryTable  : 'compressed_textioit_hdfs_results',
-                        testConfigName : 'TEXT_1G_GZIP',
+                        bigQueryDataset     : 'beam_performance',
+                        bigQueryTable       : 'compressed_textioit_hdfs_results',
+                        testConfigName      : 'TEXT_1G_GZIP',
                         numWorkers          : '5',
                         autoscalingAlgorithm: 'NONE'
                 ]
@@ -191,7 +191,7 @@ def jobs = [
                 githubTitle        : 'Java TFRecordIO Performance Test on HDFS',
                 githubTriggerPhrase: 'Run Java TFRecordIO Performance Test HDFS',
                 pipelineOptions    : [
-                        testConfigName : 'TFRECORD_1G',
+                        testConfigName      : 'TFRECORD_1G',
                         numWorkers          : '5',
                         autoscalingAlgorithm: 'NONE'
                 ]

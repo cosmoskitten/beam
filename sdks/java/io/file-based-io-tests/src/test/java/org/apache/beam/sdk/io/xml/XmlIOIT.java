@@ -68,7 +68,7 @@ import org.junit.runners.JUnit4;
  * <pre>
  *  ./gradlew integrationTest -p sdks/java/io/file-based-io-tests
  *  -DintegrationTestPipelineOptions='[
- *  "--testConfigName=XML_1G",
+ *  "--testConfigName=XML_1GB",
  *  "--filenamePrefix=output_file_path",
  *  "--charset=UTF-8",
  *  ]'

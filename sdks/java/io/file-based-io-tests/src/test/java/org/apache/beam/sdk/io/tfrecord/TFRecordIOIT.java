@@ -65,7 +65,7 @@ import org.junit.runners.JUnit4;
  * <pre>
  *  ./gradlew integrationTest -p sdks/java/io/file-based-io-tests
  *  -DintegrationTestPipelineOptions='[
- *  "--testConfigName=TFRECORD_1G",
+ *  "--testConfigName=TFRECORD_1GB",
  *  "--filenamePrefix=output_file_path"
  *  ]'
  *  --tests org.apache.beam.sdk.io.tfrecord.TFRecordIOIT
