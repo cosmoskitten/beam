@@ -66,6 +66,7 @@ def get_payload(args):
 class PayloadBase(object):
   values = {
       'integer_example': 1,
+      'boolean': True,
       'string_example': u'thing',
       'list_of_strings': [u'foo', u'bar'],
       'optional_kv': (u'key', 1.1),
@@ -74,6 +75,7 @@ class PayloadBase(object):
 
   bytes_values = {
       'integer_example': 1,
+      'boolean': True,
       'string_example': 'thing',
       'list_of_strings': ['foo', 'bar'],
       'optional_kv': ('key', 1.1),
@@ -85,6 +87,10 @@ class PayloadBase(object):
           coder_urn=['beam:coder:varint:v1'],
           payload=VarIntCoder()
           .get_impl().encode_nested(values['integer_example'])),
+      'boolean': ConfigValue(
+          coder_urn=['beam:coder:varint:v1'],
+          payload=VarIntCoder()
+            .get_impl().encode_nested(values['boolean'])),
       'string_example': ConfigValue(
           coder_urn=['beam:coder:string_utf8:v1'],
           payload=StrUtf8Coder()
@@ -151,6 +157,7 @@ class ExternalTuplePayloadTest(PayloadBase, unittest.TestCase):
         'TestSchema',
         [
             ('integer_example', int),
+            ('boolean', bool),
             ('string_example', unicode),
             ('list_of_strings', typing.List[unicode]),
             ('optional_kv', typing.Optional[typing.Tuple[unicode, float]]),
@@ -188,6 +195,10 @@ class ExternalImplicitPayloadTest(unittest.TestCase):
               coder_urn=['beam:coder:varint:v1'],
               payload=VarIntCoder()
               .get_impl().encode_nested(values['integer_example'])),
+          'boolean': ConfigValue(
+              coder_urn=['beam:coder:varint:v1'],
+              payload=VarIntCoder()
+                .get_impl().encode_nested(values['boolean'])),
           'string_example': ConfigValue(
               coder_urn=['beam:coder:bytes:v1'],
               payload=StrUtf8Coder()

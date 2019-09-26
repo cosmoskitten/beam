@@ -84,6 +84,10 @@ class PayloadBuilder(object):
     """
     Helper to create a ConfigValue with an encoded value.
     """
+    # FIXME: this is a simple hack around the lack of a boolean coder, but
+    #  it does not work for nested types
+    if typehint is bool:
+      typehint = int
     coder = registry.get_coder(typehint)
     urns = list(iter_urns(coder))
     if 'beam:coder:pickled_python:v1' in urns:
