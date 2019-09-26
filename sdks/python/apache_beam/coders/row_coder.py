@@ -71,9 +71,6 @@ class RowCoder(FastCoder):
   def __eq__(self, other):
     return type(self) == type(other) and self.schema == other.schema
 
-  def __hash__(self):
-    return hash((type(self), self.schema.SerializePartialToString()))
-
   def to_runner_api_parameter(self, unused_context):
     return (common_urns.coders.ROW.urn, self.schema, [])
 
