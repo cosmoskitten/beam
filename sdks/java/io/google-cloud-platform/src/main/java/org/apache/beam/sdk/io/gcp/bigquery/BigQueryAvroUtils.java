@@ -367,7 +367,13 @@ class BigQueryAvroUtils {
   }
 
   private static Field convertField(TableFieldSchema bigQueryField) {
-    Type avroType = BIG_QUERY_TO_AVRO_TYPES.get(bigQueryField.getType()).iterator().next();
+    ImmutableCollection<Type> avroTypes = BIG_QUERY_TO_AVRO_TYPES.get(bigQueryField.getType());
+    if (avroTypes.isEmpty()) {
+      throw new IllegalArgumentException(
+          "Unable to map BigQuery field type " + bigQueryField.getType() + " to avro type.");
+    }
+
+    Type avroType = avroTypes.iterator().next();
     Schema elementSchema;
     if (avroType == Type.RECORD) {
       elementSchema = toGenericAvroSchema(bigQueryField.getName(), bigQueryField.getFields());
