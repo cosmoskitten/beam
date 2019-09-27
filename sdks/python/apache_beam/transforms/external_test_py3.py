@@ -89,5 +89,8 @@ class ExternalAnnotationPayloadTest(PayloadBase, unittest.TestCase):
 
     return get_payload(AnnotatedTransform(**values))
 
+  def test_fake(self):
+    self.assertTrue(False)
+
 if __name__ == '__main__':
   unittest.main()
