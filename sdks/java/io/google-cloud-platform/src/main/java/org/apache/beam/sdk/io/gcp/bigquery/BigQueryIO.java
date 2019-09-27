@@ -2467,7 +2467,7 @@ public class BigQueryIO {
           rowWriterFactory = RowWriterFactory.tableRows(formatFunction);
         } else {
           throw new IllegalArgumentException(
-              "A function must be provided to convert type into a TableRow or "
+              "A function must be provided to convert the input type into a TableRow or "
                   + "GenericRecord. Use BigQueryIO.Write.withFormatFunction or "
                   + "BigQueryIO.Write.withAvroFormatFunction to provide a formatting function. "
                   + "A format function is not required if Beam schemas are used.");
@@ -2488,6 +2488,12 @@ public class BigQueryIO {
             method);
       } else {
         checkArgument(avroFormatFunction == null);
+        checkArgument(
+            formatFunction != null,
+            "A function must be provided to convert the input type into a TableRow or "
+                + "GenericRecord. Use BigQueryIO.Write.withFormatFunction or "
+                + "BigQueryIO.Write.withAvroFormatFunction to provide a formatting function. "
+                + "A format function is not required if Beam schemas are used.");
 
         PCollection<KV<DestinationT, TableRow>> rowsWithDestination =
             input
