@@ -252,6 +252,8 @@ class Environment(object):
       pool.subnetwork = self.worker_options.subnetwork
     pool.workerHarnessContainerImage = (
         get_container_image_from_options(options))
+    if self.debug_options.number_of_worker_threads:
+      pool.numThreadsPerWorker = self.debug_options.number_of_worker_threads
     if self.worker_options.use_public_ips is not None:
       if self.worker_options.use_public_ips:
         pool.ipConfiguration = (
