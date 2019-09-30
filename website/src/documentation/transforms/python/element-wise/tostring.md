@@ -50,17 +50,17 @@ The following example converts a `(key, value)` pair into a string delimited by 
 You can specify a different delimiter using the `delimiter` argument.
 
 ```py
-{% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/element_wise/to_string.py tag:to_string_kvs %}```
+{% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/element_wise/tostring.py tag:tostring_kvs %}```
 
 Output `PCollection` after `ToString`:
 
 ```
-{% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/element_wise/to_string_test.py tag:plants %}```
+{% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/element_wise/tostring_test.py tag:plants %}```
 
 <table>
   <td>
     <a class="button" target="_blank"
-        href="https://github.com/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/element_wise/to_string.py">
+        href="https://github.com/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/element_wise/tostring.py">
       <img src="https://www.tensorflow.org/images/GitHub-Mark-32px.png"
         width="20px" height="20px" alt="View on GitHub" />
       View on GitHub
@@ -75,17 +75,17 @@ The following example converts a dictionary into a string.
 The string output will be equivalent to `str(element)`.
 
 ```py
-{% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/element_wise/to_string.py tag:to_string_element %}```
+{% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/element_wise/tostring.py tag:tostring_element %}```
 
 Output `PCollection` after `ToString`:
 
 ```
-{% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/element_wise/to_string_test.py tag:plant_lists %}```
+{% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/element_wise/tostring_test.py tag:plant_lists %}```
 
 <table>
   <td>
     <a class="button" target="_blank"
-        href="https://github.com/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/element_wise/to_string.py">
+        href="https://github.com/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/element_wise/tostring.py">
       <img src="https://www.tensorflow.org/images/GitHub-Mark-32px.png"
         width="20px" height="20px" alt="View on GitHub" />
       View on GitHub
@@ -102,17 +102,17 @@ You can specify a different delimiter using the `delimiter` argument.
 The string output will be equivalent to `iterable.join(delimiter)`.
 
 ```py
-{% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/element_wise/to_string.py tag:to_string_iterables %}```
+{% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/element_wise/tostring.py tag:tostring_iterables %}```
 
 Output `PCollection` after `ToString`:
 
 ```
-{% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/element_wise/to_string_test.py tag:plants_csv %}```
+{% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/element_wise/tostring_test.py tag:plants_csv %}```
 
 <table>
   <td>
     <a class="button" target="_blank"
-        href="https://github.com/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/element_wise/to_string.py">
+        href="https://github.com/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/element_wise/tostring.py">
       <img src="https://www.tensorflow.org/images/GitHub-Mark-32px.png"
         width="20px" height="20px" alt="View on GitHub" />
       View on GitHub
