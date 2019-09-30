@@ -24,17 +24,7 @@ limitations under the License.
 localStorage.setItem('language', 'language-py')
 </script>
 
-<table>
-  <td>
-    <a class="button" target="_blank"
-        href="https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.core.html#apache_beam.transforms.core.Map">
-      <img src="https://beam.apache.org/images/logos/sdks/python.png"
-          width="20px" height="20px" alt="Pydoc" />
-      Pydoc
-    </a>
-  </td>
-</table>
-<br>
+{% include button-pydoc.md path="apache_beam.transforms.core" class="Map" %}
 
 Applies a simple 1-to-1 mapping function over each element in the collection.
 
@@ -51,17 +41,17 @@ We use the function `str.strip` which takes a single `str` element and outputs a
 It strips the input element's whitespaces, including newlines and tabs.
 
 ```py
-{% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/element_wise/map.py tag:map_simple %}```
+{% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/elementwise/map.py tag:map_simple %}```
 
 Output `PCollection` after `Map`:
 
 ```
-{% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/element_wise/map_test.py tag:plants %}```
+{% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/elementwise/map_test.py tag:plants %}```
 
 <table>
   <td>
     <a class="button" target="_blank"
-        href="https://github.com/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/element_wise/map.py">
+        href="https://github.com/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/elementwise/map.py">
       <img src="https://www.tensorflow.org/images/GitHub-Mark-32px.png"
         width="20px" height="20px" alt="View on GitHub" />
       View on GitHub
@@ -75,17 +65,17 @@ Output `PCollection` after `Map`:
 We define a function `strip_header_and_newline` which strips any `'#'`, `' '`, and `'\n'` characters from each element.
 
 ```py
-{% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/element_wise/map.py tag:map_function %}```
+{% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/elementwise/map.py tag:map_function %}```
 
 Output `PCollection` after `Map`:
 
 ```
-{% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/element_wise/map_test.py tag:plants %}```
+{% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/elementwise/map_test.py tag:plants %}```
 
 <table>
   <td>
     <a class="button" target="_blank"
-        href="https://github.com/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/element_wise/map.py">
+        href="https://github.com/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/elementwise/map.py">
       <img src="https://www.tensorflow.org/images/GitHub-Mark-32px.png"
         width="20px" height="20px" alt="View on GitHub" />
       View on GitHub
@@ -99,17 +89,17 @@ Output `PCollection` after `Map`:
 We can also use lambda functions to simplify **Example 2**.
 
 ```py
-{% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/element_wise/map.py tag:map_lambda %}```
+{% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/elementwise/map.py tag:map_lambda %}```
 
 Output `PCollection` after `Map`:
 
 ```
-{% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/element_wise/map_test.py tag:plants %}```
+{% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/elementwise/map_test.py tag:plants %}```
 
 <table>
   <td>
     <a class="button" target="_blank"
-        href="https://github.com/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/element_wise/map.py">
+        href="https://github.com/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/elementwise/map.py">
       <img src="https://www.tensorflow.org/images/GitHub-Mark-32px.png"
         width="20px" height="20px" alt="View on GitHub" />
       View on GitHub
@@ -126,17 +116,17 @@ They are passed as additional positional arguments or keyword arguments to the f
 In this example, `strip` takes `text` and `chars` as arguments.
 
 ```py
-{% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/element_wise/map.py tag:map_multiple_arguments %}```
+{% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/elementwise/map.py tag:map_multiple_arguments %}```
 
 Output `PCollection` after `Map`:
 
 ```
-{% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/element_wise/map_test.py tag:plants %}```
+{% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/elementwise/map_test.py tag:plants %}```
 
 <table>
   <td>
     <a class="button" target="_blank"
-        href="https://github.com/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/element_wise/map.py">
+        href="https://github.com/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/elementwise/map.py">
       <img src="https://www.tensorflow.org/images/GitHub-Mark-32px.png"
         width="20px" height="20px" alt="View on GitHub" />
       View on GitHub
@@ -151,17 +141,17 @@ If your `PCollection` consists of `(key, value)` pairs,
 you can use `MapTuple` to unpack them into different function arguments.
 
 ```py
-{% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/element_wise/map.py tag:map_tuple %}```
+{% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/elementwise/map.py tag:map_tuple %}```
 
 Output `PCollection` after `MapTuple`:
 
 ```
-{% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/element_wise/map_test.py tag:plants %}```
+{% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/elementwise/map_test.py tag:plants %}```
 
 <table>
   <td>
     <a class="button" target="_blank"
-        href="https://github.com/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/element_wise/map.py">
+        href="https://github.com/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/elementwise/map.py">
       <img src="https://www.tensorflow.org/images/GitHub-Mark-32px.png"
         width="20px" height="20px" alt="View on GitHub" />
       View on GitHub
@@ -179,17 +169,17 @@ In this example, we pass a `PCollection` the value `'# \n'` as a singleton.
 We then use that value as the characters for the `str.strip` method.
 
 ```py
-{% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/element_wise/map.py tag:map_side_inputs_singleton %}```
+{% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/elementwise/map.py tag:map_side_inputs_singleton %}```
 
 Output `PCollection` after `Map`:
 
 ```
-{% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/element_wise/map_test.py tag:plants %}```
+{% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/elementwise/map_test.py tag:plants %}```
 
 <table>
   <td>
     <a class="button" target="_blank"
-        href="https://github.com/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/element_wise/map.py">
+        href="https://github.com/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/elementwise/map.py">
       <img src="https://www.tensorflow.org/images/GitHub-Mark-32px.png"
         width="20px" height="20px" alt="View on GitHub" />
       View on GitHub
@@ -205,17 +195,17 @@ This accesses elements lazily as they are needed,
 so it is possible to iterate over large `PCollection`s that won't fit into memory.
 
 ```py
-{% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/element_wise/map.py tag:map_side_inputs_iter %}```
+{% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/elementwise/map.py tag:map_side_inputs_iter %}```
 
 Output `PCollection` after `Map`:
 
 ```
-{% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/element_wise/map_test.py tag:plants %}```
+{% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/elementwise/map_test.py tag:plants %}```
 
 <table>
   <td>
     <a class="button" target="_blank"
-        href="https://github.com/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/element_wise/map.py">
+        href="https://github.com/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/elementwise/map.py">
       <img src="https://www.tensorflow.org/images/GitHub-Mark-32px.png"
         width="20px" height="20px" alt="View on GitHub" />
       View on GitHub
@@ -235,17 +225,17 @@ Note that all the elements of the `PCollection` must fit into memory for this.
 If the `PCollection` won't fit into memory, use `beam.pvalue.AsIter(pcollection)` instead.
 
 ```py
-{% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/element_wise/map.py tag:map_side_inputs_dict %}```
+{% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/elementwise/map.py tag:map_side_inputs_dict %}```
 
 Output `PCollection` after `Map`:
 
 ```
-{% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/element_wise/map_test.py tag:plant_details %}```
+{% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/elementwise/map_test.py tag:plant_details %}```
 
 <table>
   <td>
     <a class="button" target="_blank"
-        href="https://github.com/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/element_wise/map.py">
+        href="https://github.com/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/elementwise/map.py">
       <img src="https://www.tensorflow.org/images/GitHub-Mark-32px.png"
         width="20px" height="20px" alt="View on GitHub" />
       View on GitHub
@@ -260,17 +250,7 @@ Output `PCollection` after `Map`:
   each input it may produce zero or more outputs.
 * [Filter]({{ site.baseurl }}/documentation/transforms/python/elementwise/filter) is useful if the function is just
   deciding whether to output an element or not.
-* [ParDo]({{ site.baseurl }}/documentation/transforms/python/elementwise/pardo) is the most general element-wise mapping
+* [ParDo]({{ site.baseurl }}/documentation/transforms/python/elementwise/pardo) is the most general elementwise mapping
   operation, and includes other abilities such as multiple output collections and side-inputs.
 
-<table>
-  <td>
-    <a class="button" target="_blank"
-        href="https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.core.html#apache_beam.transforms.core.Map">
-      <img src="https://beam.apache.org/images/logos/sdks/python.png"
-          width="20px" height="20px" alt="Pydoc" />
-      Pydoc
-    </a>
-  </td>
-</table>
-<br>
+{% include button-pydoc.md path="apache_beam.transforms.core" class="Map" %}

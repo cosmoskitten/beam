@@ -24,17 +24,7 @@ limitations under the License.
 localStorage.setItem('language', 'language-py')
 </script>
 
-<table>
-  <td>
-    <a class="button" target="_blank"
-        href="https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.util.html#apache_beam.transforms.util.Values">
-      <img src="https://beam.apache.org/images/logos/sdks/python.png"
-          width="20px" height="20px" alt="Pydoc" />
-      Pydoc
-    </a>
-  </td>
-</table>
-<br>
+{% include button-pydoc.md path="apache_beam.transforms.util" class="Values" %}
 
 Takes a collection of key-value pairs, and returns the value of each element.
 
@@ -44,17 +34,17 @@ In the following example, we create a pipeline with a `PCollection` of key-value
 Then, we apply `Values` to extract the values and discard the keys.
 
 ```py
-{% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/element_wise/values.py tag:values %}```
+{% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/elementwise/values.py tag:values %}```
 
 Output `PCollection` after `Values`:
 
 ```
-{% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/element_wise/values_test.py tag:plants %}```
+{% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/elementwise/values_test.py tag:plants %}```
 
 <table>
   <td>
     <a class="button" target="_blank"
-        href="https://github.com/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/element_wise/values.py">
+        href="https://github.com/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/elementwise/values.py">
       <img src="https://www.tensorflow.org/images/GitHub-Mark-32px.png"
         width="20px" height="20px" alt="View on GitHub" />
       View on GitHub
@@ -68,14 +58,4 @@ Output `PCollection` after `Values`:
 * [Keys]({{ site.baseurl }}/documentation/transforms/python/elementwise/keys) for extracting the key of each component.
 * [KvSwap]({{ site.baseurl }}/documentation/transforms/python/elementwise/kvswap) swaps the key and value of each element.
 
-<table>
-  <td>
-    <a class="button" target="_blank"
-        href="https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.util.html#apache_beam.transforms.util.Values">
-      <img src="https://beam.apache.org/images/logos/sdks/python.png"
-          width="20px" height="20px" alt="Pydoc" />
-      Pydoc
-    </a>
-  </td>
-</table>
-<br>
+{% include button-pydoc.md path="apache_beam.transforms.util" class="Values" %}
