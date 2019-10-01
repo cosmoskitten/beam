@@ -27,10 +27,10 @@ String now = new Date().format("MMddHHmmss", TimeZone.getTimeZone('UTC'))
 
 def scenarios = { datasetName, sdkHarnessImageTag -> [
         [
-                title        : 'Load test: 2GB of 10B records',
-                itClass      : 'apache_beam.testing.load_tests.group_by_key_test:GroupByKeyTest.testGroupByKey',
-                runner       : CommonTestProperties.Runner.PORTABLE,
-                jobProperties: [
+                title          : 'Load test: 2GB of 10B records',
+                test           : 'apache_beam.testing.load_tests.group_by_key_test:GroupByKeyTest.testGroupByKey',
+                runner         : CommonTestProperties.Runner.PORTABLE,
+                pipelineOptions: [
                         job_name            : "load_tests_Python_Flink_Batch_GBK_1_${now}",
                         publish_to_big_query: false,
                         project             : 'apache-beam-testing',
@@ -46,10 +46,10 @@ def scenarios = { datasetName, sdkHarnessImageTag -> [
                 ]
         ],
         [
-                title        : 'Load test: 2GB of 100B records',
-                itClass      : 'apache_beam.testing.load_tests.group_by_key_test:GroupByKeyTest.testGroupByKey',
-                runner       : CommonTestProperties.Runner.PORTABLE,
-                jobProperties: [
+                title          : 'Load test: 2GB of 100B records',
+                test           : 'apache_beam.testing.load_tests.group_by_key_test:GroupByKeyTest.testGroupByKey',
+                runner         : CommonTestProperties.Runner.PORTABLE,
+                pipelineOptions: [
                         job_name            : "load_tests_Python_Flink_Batch_GBK_2_${now}",
                         publish_to_big_query: false,
                         project             : 'apache-beam-testing',
@@ -65,10 +65,10 @@ def scenarios = { datasetName, sdkHarnessImageTag -> [
                 ]
         ],
         [
-                title        : 'Load test: 2GB of 100kB records',
-                itClass      : 'apache_beam.testing.load_tests.group_by_key_test:GroupByKeyTest.testGroupByKey',
-                runner       : CommonTestProperties.Runner.PORTABLE,
-                jobProperties: [
+                title          : 'Load test: 2GB of 100kB records',
+                test           : 'apache_beam.testing.load_tests.group_by_key_test:GroupByKeyTest.testGroupByKey',
+                runner         : CommonTestProperties.Runner.PORTABLE,
+                pipelineOptions: [
                         job_name            : "load_tests_Python_Flink_Batch_GBK_3_${now}",
                         publish_to_big_query: false,
                         project             : 'apache-beam-testing',
@@ -84,10 +84,10 @@ def scenarios = { datasetName, sdkHarnessImageTag -> [
                 ]
         ],
         [
-                title        : 'Load test: fanout 4 times with 2GB 10-byte records total',
-                itClass      : 'apache_beam.testing.load_tests.group_by_key_test:GroupByKeyTest.testGroupByKey',
-                runner       : CommonTestProperties.Runner.PORTABLE,
-                jobProperties: [
+                title          : 'Load test: fanout 4 times with 2GB 10-byte records total',
+                test           : 'apache_beam.testing.load_tests.group_by_key_test:GroupByKeyTest.testGroupByKey',
+                runner         : CommonTestProperties.Runner.PORTABLE,
+                pipelineOptions: [
                         job_name            : "load_tests_Python_Flink_Batch_GBK_4_${now}",
                         publish_to_big_query: false,
                         project             : 'apache-beam-testing',
@@ -103,10 +103,10 @@ def scenarios = { datasetName, sdkHarnessImageTag -> [
                 ]
         ],
         [
-                title        : 'Load test: fanout 8 times with 2GB 10-byte records total',
-                itClass      : 'apache_beam.testing.load_tests.group_by_key_test:GroupByKeyTest.testGroupByKey',
-                runner       : CommonTestProperties.Runner.PORTABLE,
-                jobProperties: [
+                title          : 'Load test: fanout 8 times with 2GB 10-byte records total',
+                test           : 'apache_beam.testing.load_tests.group_by_key_test:GroupByKeyTest.testGroupByKey',
+                runner         : CommonTestProperties.Runner.PORTABLE,
+                pipelineOptions: [
                         job_name            : "load_tests_Python_Flink_Batch_GBK_5_${now}",
                         publish_to_big_query: false,
                         project             : 'apache-beam-testing',
@@ -122,10 +122,10 @@ def scenarios = { datasetName, sdkHarnessImageTag -> [
                 ]
         ],
         [
-                title        : 'Load test: reiterate 4 times 10kB values',
-                itClass      : 'apache_beam.testing.load_tests.group_by_key_test:GroupByKeyTest.testGroupByKey',
-                runner       : CommonTestProperties.Runner.PORTABLE,
-                jobProperties: [
+                title          : 'Load test: reiterate 4 times 10kB values',
+                test           : 'apache_beam.testing.load_tests.group_by_key_test:GroupByKeyTest.testGroupByKey',
+                runner         : CommonTestProperties.Runner.PORTABLE,
+                pipelineOptions: [
                         job_name            : "load_tests_Python_Flink_Batch_GBK_6_${now}",
                         publish_to_big_query: false,
                         project             : 'apache-beam-testing',
@@ -141,10 +141,10 @@ def scenarios = { datasetName, sdkHarnessImageTag -> [
                 ]
         ],
         [
-                title        : 'Load test: reiterate 4 times 2MB values',
-                itClass      : 'apache_beam.testing.load_tests.group_by_key_test:GroupByKeyTest.testGroupByKey',
-                runner       : CommonTestProperties.Runner.PORTABLE,
-                jobProperties: [
+                title          : 'Load test: reiterate 4 times 2MB values',
+                test           : 'apache_beam.testing.load_tests.group_by_key_test:GroupByKeyTest.testGroupByKey',
+                runner         : CommonTestProperties.Runner.PORTABLE,
+                pipelineOptions: [
                         job_name            : "load_tests_Python_Flink_Batch_GBK_7_${now}",
                         publish_to_big_query: false,
                         project             : 'apache-beam-testing',
@@ -165,25 +165,24 @@ def scenarios = { datasetName, sdkHarnessImageTag -> [
 def loadTest = { scope, triggeringContext ->
   Docker publisher = new Docker(scope, loadTestsBuilder.DOCKER_CONTAINER_REGISTRY)
   def sdk = CommonTestProperties.SDK.PYTHON
-  String sdkName = sdk.name().toLowerCase()
-  String pythonHarnessImageTag = publisher.getFullImageName(sdkName)
+  String pythonHarnessImageTag = publisher.getFullImageName('python2.7_sdk')
 
   def datasetName = loadTestsBuilder.getBigQueryDataset('load_test', triggeringContext)
   def numberOfWorkers = 16
   List<Map> testScenarios = scenarios(datasetName, pythonHarnessImageTag)
 
-  publisher.publish(":sdks:${sdkName}:container:docker", sdkName)
+  publisher.publish(':sdks:python:container:py2:docker', 'python2.7_sdk')
   publisher.publish(':runners:flink:1.7:job-server-container:docker', 'flink-job-server')
   def flink = new Flink(scope, 'beam_LoadTests_Python_GBK_Flink_Batch')
   flink.setUp([pythonHarnessImageTag], numberOfWorkers, publisher.getFullImageName('flink-job-server'))
 
-  def configurations = testScenarios.findAll { it.jobProperties?.parallelism?.value == numberOfWorkers }
+  def configurations = testScenarios.findAll { it.pipelineOptions?.parallelism?.value == numberOfWorkers }
   loadTestsBuilder.loadTests(scope, sdk, configurations, "GBK", "batch")
 
   numberOfWorkers = 5
   flink.scaleCluster(numberOfWorkers)
 
-  configurations = testScenarios.findAll { it.jobProperties?.parallelism?.value == numberOfWorkers }
+  configurations = testScenarios.findAll { it.pipelineOptions?.parallelism?.value == numberOfWorkers }
   loadTestsBuilder.loadTests(scope, sdk, configurations, "GBK", "batch")
 }
 

@@ -27,10 +27,10 @@ String now = new Date().format("MMddHHmmss", TimeZone.getTimeZone('UTC'))
 
 def scenarios = { datasetName, sdkHarnessImageTag -> [
         [
-                title        : 'Combine Python Load test: 2GB 10 byte records',
-                itClass      : 'apache_beam.testing.load_tests.combine_test:CombineTest.testCombineGlobally',
-                runner       : CommonTestProperties.Runner.PORTABLE,
-                jobProperties: [
+                title          : 'Combine Python Load test: 2GB 10 byte records',
+                test           : 'apache_beam.testing.load_tests.combine_test:CombineTest.testCombineGlobally',
+                runner         : CommonTestProperties.Runner.PORTABLE,
+                pipelineOptions: [
                         job_name            : 'load-tests-python-flink-batch-combine-1-' + now,
                         project             : 'apache-beam-testing',
                         publish_to_big_query: false,
@@ -48,10 +48,10 @@ def scenarios = { datasetName, sdkHarnessImageTag -> [
                 ]
         ],
         [
-                title        : 'Combine Python Load test: 2GB Fanout 4',
-                itClass      : 'apache_beam.testing.load_tests.combine_test:CombineTest.testCombineGlobally',
-                runner       : CommonTestProperties.Runner.PORTABLE,
-                jobProperties: [
+                title          : 'Combine Python Load test: 2GB Fanout 4',
+                test           : 'apache_beam.testing.load_tests.combine_test:CombineTest.testCombineGlobally',
+                runner         : CommonTestProperties.Runner.PORTABLE,
+                pipelineOptions: [
                         job_name            : 'load-tests-python-flink-batch-combine-4-' + now,
                         project             : 'apache-beam-testing',
                         publish_to_big_query: false,
@@ -70,10 +70,10 @@ def scenarios = { datasetName, sdkHarnessImageTag -> [
                 ]
         ],
         [
-                title        : 'Combine Python Load test: 2GB Fanout 8',
-                itClass      : 'apache_beam.testing.load_tests.combine_test:CombineTest.testCombineGlobally',
-                runner       : CommonTestProperties.Runner.PORTABLE,
-                jobProperties: [
+                title          : 'Combine Python Load test: 2GB Fanout 8',
+                test           : 'apache_beam.testing.load_tests.combine_test:CombineTest.testCombineGlobally',
+                runner         : CommonTestProperties.Runner.PORTABLE,
+                pipelineOptions: [
                         job_name            : 'load-tests-python-flink-batch-combine-5-' + now,
                         project             : 'apache-beam-testing',
                         publish_to_big_query: false,
@@ -98,15 +98,13 @@ def batchLoadTestJob = { scope, triggeringContext ->
     commonJobProperties.setTopLevelMainJobProperties(scope, 'master', 240)
 
     Docker publisher = new Docker(scope, loadTestsBuilder.DOCKER_CONTAINER_REGISTRY)
-    def sdk = CommonTestProperties.SDK.PYTHON
-    String sdkName = sdk.name().toLowerCase()
-    String pythonHarnessImageTag = publisher.getFullImageName(sdkName)
+    String pythonHarnessImageTag = publisher.getFullImageName('python2.7_sdk')
 
     def datasetName = loadTestsBuilder.getBigQueryDataset('load_test', triggeringContext)
     def numberOfWorkers = 16
     List<Map> testScenarios = scenarios(datasetName, pythonHarnessImageTag)
 
-    publisher.publish(":sdks:${sdkName}:container:docker", sdkName)
+    publisher.publish(':sdks:python:container:py2:docker', 'python2.7_sdk')
     publisher.publish(':runners:flink:1.7:job-server-container:docker', 'flink-job-server')
     def flink = new Flink(scope, 'beam_LoadTests_Python_Combine_Flink_Batch')
     flink.setUp([pythonHarnessImageTag], numberOfWorkers, publisher.getFullImageName('flink-job-server'))
@@ -126,7 +124,7 @@ private List<Map> defineTestSteps(scope, List<Map> testScenarios, List<String> t
     return testScenarios
             .findAll { it.title in titles }
             .forEach {
-                loadTestsBuilder.loadTest(scope, it.title, it.runner, CommonTestProperties.SDK.PYTHON, it.jobProperties, it.itClass)
+                loadTestsBuilder.loadTest(scope, it.title, it.runner, CommonTestProperties.SDK.PYTHON, it.pipelineOptions, it.test)
             }
 }
 

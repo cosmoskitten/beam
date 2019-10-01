@@ -27,10 +27,10 @@ String now = new Date().format("MMddHHmmss", TimeZone.getTimeZone('UTC'))
 
 def scenarios = { datasetName, sdkHarnessImageTag -> [
         [
-                title        : 'CoGroupByKey Python Load test: 2GB of 100B records with a single key',
-                itClass      : 'apache_beam.testing.load_tests.co_group_by_key_test:CoGroupByKeyTest.testCoGroupByKey',
-                runner       : CommonTestProperties.Runner.PORTABLE,
-                jobProperties: [
+                title          : 'CoGroupByKey Python Load test: 2GB of 100B records with a single key',
+                test           : 'apache_beam.testing.load_tests.co_group_by_key_test:CoGroupByKeyTest.testCoGroupByKey',
+                runner         : CommonTestProperties.Runner.PORTABLE,
+                pipelineOptions: [
                         project              : 'apache-beam-testing',
                         job_name             : 'load-tests-python-flink-batch-cogbk-1-' + now,
                         temp_location        : 'gs://temp-storage-for-perf-tests/loadtests',
@@ -57,10 +57,10 @@ def scenarios = { datasetName, sdkHarnessImageTag -> [
                 ]
         ],
         [
-                title        : 'CoGroupByKey Python Load test: 2GB of 100B records with multiple keys',
-                itClass      : 'apache_beam.testing.load_tests.co_group_by_key_test:CoGroupByKeyTest.testCoGroupByKey',
-                runner       : CommonTestProperties.Runner.PORTABLE,
-                jobProperties: [
+                title          : 'CoGroupByKey Python Load test: 2GB of 100B records with multiple keys',
+                test           : 'apache_beam.testing.load_tests.co_group_by_key_test:CoGroupByKeyTest.testCoGroupByKey',
+                runner         : CommonTestProperties.Runner.PORTABLE,
+                pipelineOptions: [
                         project              : 'apache-beam-testing',
                         job_name             : 'load-tests-python-flink-batch-cogbk-2-' + now,
                         temp_location        : 'gs://temp-storage-for-perf-tests/loadtests',
@@ -87,10 +87,10 @@ def scenarios = { datasetName, sdkHarnessImageTag -> [
                 ]
         ],
         [
-                title        : 'CoGroupByKey Python Load test: reiterate 4 times 10kB values',
-                itClass      : 'apache_beam.testing.load_tests.co_group_by_key_test:CoGroupByKeyTest.testCoGroupByKey',
-                runner       : CommonTestProperties.Runner.PORTABLE,
-                jobProperties: [
+                title          : 'CoGroupByKey Python Load test: reiterate 4 times 10kB values',
+                test           : 'apache_beam.testing.load_tests.co_group_by_key_test:CoGroupByKeyTest.testCoGroupByKey',
+                runner         : CommonTestProperties.Runner.PORTABLE,
+                pipelineOptions: [
                         project              : 'apache-beam-testing',
                         job_name             : 'load-tests-python-flink-batch-cogbk-3-' + now,
                         temp_location        : 'gs://temp-storage-for-perf-tests/loadtests',
@@ -117,10 +117,10 @@ def scenarios = { datasetName, sdkHarnessImageTag -> [
                 ]
         ],
         [
-                title        : 'CoGroupByKey Python Load test: reiterate 4 times 2MB values',
-                itClass      : 'apache_beam.testing.load_tests.co_group_by_key_test:CoGroupByKeyTest.testCoGroupByKey',
-                runner       : CommonTestProperties.Runner.PORTABLE,
-                jobProperties: [
+                title          : 'CoGroupByKey Python Load test: reiterate 4 times 2MB values',
+                test           : 'apache_beam.testing.load_tests.co_group_by_key_test:CoGroupByKeyTest.testCoGroupByKey',
+                runner         : CommonTestProperties.Runner.PORTABLE,
+                pipelineOptions: [
                         project              : 'apache-beam-testing',
                         job_name             : 'load-tests-python-flink-batch-cogbk-4-' + now,
                         temp_location        : 'gs://temp-storage-for-perf-tests/loadtests',
@@ -150,20 +150,18 @@ def scenarios = { datasetName, sdkHarnessImageTag -> [
 
 def loadTest = { scope, triggeringContext ->
   Docker publisher = new Docker(scope, loadTestsBuilder.DOCKER_CONTAINER_REGISTRY)
-  def sdk = CommonTestProperties.SDK.PYTHON
-  String sdkName = sdk.name().toLowerCase()
-  String pythonHarnessImageTag = publisher.getFullImageName(sdkName)
+  String pythonHarnessImageTag = publisher.getFullImageName('python2.7_sdk')
 
   def datasetName = loadTestsBuilder.getBigQueryDataset('load_test', triggeringContext)
   def numberOfWorkers = 5
   List<Map> testScenarios = scenarios(datasetName, pythonHarnessImageTag)
 
-  publisher.publish(":sdks:${sdkName}:container:docker", sdkName)
+  publisher.publish(':sdks:python:container:py2:docker', 'python2.7_sdk')
   publisher.publish('runners:flink:1.7:job-server-container:docker', 'flink-job-server')
   def flink = new Flink(scope, 'beam_LoadTests_Python_CoGBK_Flink_Batch')
   flink.setUp([pythonHarnessImageTag], numberOfWorkers, publisher.getFullImageName('flink-job-server'))
 
-  loadTestsBuilder.loadTests(scope, sdk, testScenarios, 'CoGBK', 'batch')
+  loadTestsBuilder.loadTests(scope, CommonTestProperties.SDK.PYTHON, testScenarios, 'CoGBK', 'batch')
 }
 
 PhraseTriggeringPostCommitBuilder.postCommitJob(

@@ -39,7 +39,7 @@ import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.POutput;
 import org.apache.beam.sdk.values.Row;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.calcite.v1_20_0.com.google.common.annotations.VisibleForTesting;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -49,15 +49,14 @@ import org.slf4j.LoggerFactory;
  */
 @Experimental
 class BigQueryTable extends BaseBeamTable implements Serializable {
-  @VisibleForTesting final static String METHOD_PROPERTY = "method";
+  @VisibleForTesting static final String METHOD_PROPERTY = "method";
   @VisibleForTesting final String bqLocation;
   private final ConversionOptions conversionOptions;
   private BeamTableStatistics rowCountStatistics = null;
   private static final Logger LOGGER = LoggerFactory.getLogger(BigQueryTable.class);
-  @VisibleForTesting Method method;
+  @VisibleForTesting final Method method;
 
-  BigQueryTable(Table table, BigQueryUtils.ConversionOptions options)
-      throws InvalidPropertyException {
+  BigQueryTable(Table table, BigQueryUtils.ConversionOptions options) {
     super(table.getSchema());
     this.conversionOptions = options;
     this.bqLocation = table.getLocation();
@@ -71,14 +70,15 @@ class BigQueryTable extends BaseBeamTable implements Serializable {
       if (validMethods.contains(selectedMethod)) {
         method = Method.valueOf(selectedMethod);
       } else {
-        InvalidPropertyException e = new InvalidPropertyException(
-            "Invalid method "
-            + "'"
-            + selectedMethod
-            + "'. "
-            + "Supported methods are: "
-            + validMethods.toString()
-            + ".");
+        InvalidPropertyException e =
+            new InvalidPropertyException(
+                "Invalid method "
+                    + "'"
+                    + selectedMethod
+                    + "'. "
+                    + "Supported methods are: "
+                    + validMethods.toString()
+                    + ".");
 
         throw e;
       }
@@ -146,8 +146,8 @@ class BigQueryTable extends BaseBeamTable implements Serializable {
     return BeamTableStatistics.BOUNDED_UNKNOWN;
   }
 
-  private static class InvalidPropertyException extends RuntimeException {
-    public InvalidPropertyException(String s) {
+  public static class InvalidPropertyException extends UnsupportedOperationException {
+    private InvalidPropertyException(String s) {
       super(s);
     }
   }

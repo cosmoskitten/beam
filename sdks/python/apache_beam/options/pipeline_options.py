@@ -680,6 +680,16 @@ class DebugOptions(PipelineOptions):
          'enabled with this flag. Please sync with the owners of the runner '
          'before enabling any experiments.'))
 
+    parser.add_argument(
+        '--number_of_worker_harness_threads',
+        type=int,
+        default=None,
+        help=
+        ('Number of threads per worker to use on the runner. If left '
+         'unspecified, the runner will compute an appropriate number of '
+         'threads to use. Currently only enabled for DataflowRunner when '
+         'experiment \'use_unified_worker\' is enabled.'))
+
   def add_experiment(self, experiment):
     # pylint: disable=access-member-before-definition
     if self.experiments is None:
@@ -816,7 +826,10 @@ class PortableOptions(PipelineOptions):
     parser.add_argument(
         '--environment_type', default=None,
         help=('Set the default environment type for running '
-              'user code. Possible options are DOCKER and PROCESS.'))
+              'user code. DOCKER (default) runs user code in a container. '
+              'PROCESS runs user code in processes that are automatically '
+              'started on each worker node. LOOPBACK runs user code on the '
+              'same process that originally submitted the job.'))
     parser.add_argument(
         '--environment_config', default=None,
         help=('Set environment configuration for running the user code.\n For '

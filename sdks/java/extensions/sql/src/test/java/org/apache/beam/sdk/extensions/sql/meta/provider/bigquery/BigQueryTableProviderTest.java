@@ -56,31 +56,37 @@ public class BigQueryTableProviderTest {
   @Test
   public void testDefaultMethod_whenPropertiesAreNotSet() {
     Table table = fakeTable("hello");
-    BigQueryTable sqlTable = (BigQueryTable)provider.buildBeamSqlTable(table);
+    BigQueryTable sqlTable = (BigQueryTable) provider.buildBeamSqlTable(table);
 
     assertEquals(Method.DEFAULT, sqlTable.method);
   }
 
   @Test
   public void testSelectDefaultMethodExplicitly() {
-    Table table = fakeTableWithProperties("hello", "{ " + METHOD_PROPERTY + ": \"DEFAULT\" }");
-    BigQueryTable sqlTable = (BigQueryTable)provider.buildBeamSqlTable(table);
+    Table table =
+        fakeTableWithProperties(
+            "hello", "{ " + METHOD_PROPERTY + ": " + "\"" + Method.DEFAULT.toString() + "\" }");
+    BigQueryTable sqlTable = (BigQueryTable) provider.buildBeamSqlTable(table);
 
     assertEquals(Method.DEFAULT, sqlTable.method);
   }
 
   @Test
   public void testSelectDirectReadMethod() {
-    Table table = fakeTableWithProperties("hello", "{ " + METHOD_PROPERTY + ": \"DIRECT_READ\" }");
-    BigQueryTable sqlTable = (BigQueryTable)provider.buildBeamSqlTable(table);
+    Table table =
+        fakeTableWithProperties(
+            "hello", "{ " + METHOD_PROPERTY + ": " + "\"" + Method.DIRECT_READ.toString() + "\" }");
+    BigQueryTable sqlTable = (BigQueryTable) provider.buildBeamSqlTable(table);
 
     assertEquals(Method.DIRECT_READ, sqlTable.method);
   }
 
   @Test
   public void testSelectExportMethod() {
-    Table table = fakeTableWithProperties("hello", "{ " + METHOD_PROPERTY + ": \"EXPORT\" }");
-    BigQueryTable sqlTable = (BigQueryTable)provider.buildBeamSqlTable(table);
+    Table table =
+        fakeTableWithProperties(
+            "hello", "{ " + METHOD_PROPERTY + ": " + "\"" + Method.EXPORT.toString() + "\" }");
+    BigQueryTable sqlTable = (BigQueryTable) provider.buildBeamSqlTable(table);
 
     assertEquals(Method.EXPORT, sqlTable.method);
   }
@@ -89,18 +95,22 @@ public class BigQueryTableProviderTest {
   public void testRuntimeExceptionThrown_whenAnInvalidPropertyIsSpecified() {
     Table table = fakeTableWithProperties("hello", "{ " + METHOD_PROPERTY + ": \"blahblah\" }");
 
-    assertThrows(RuntimeException.class, () -> {
-      provider.buildBeamSqlTable(table);
-    });
+    assertThrows(
+        RuntimeException.class,
+        () -> {
+          provider.buildBeamSqlTable(table);
+        });
   }
 
   @Test
   public void testRuntimeExceptionThrown_whenAPropertyOfInvalidTypeIsSpecified() {
     Table table = fakeTableWithProperties("hello", "{ " + METHOD_PROPERTY + ": 1337 }");
 
-    assertThrows(RuntimeException.class, () -> {
-      provider.buildBeamSqlTable(table);
-    });
+    assertThrows(
+        RuntimeException.class,
+        () -> {
+          provider.buildBeamSqlTable(table);
+        });
   }
 
   private static Table fakeTable(String name) {
@@ -124,8 +134,8 @@ public class BigQueryTableProviderTest {
         .location("project:dataset.table")
         .schema(
             Stream.of(
-                Schema.Field.nullable("id", Schema.FieldType.INT32),
-                Schema.Field.nullable("name", Schema.FieldType.STRING))
+                    Schema.Field.nullable("id", Schema.FieldType.INT32),
+                    Schema.Field.nullable("name", Schema.FieldType.STRING))
                 .collect(toSchema()))
         .type("bigquery")
         .properties(JSON.parseObject(properties))
