@@ -81,7 +81,7 @@ function get_version() {
 #   $2 - python interpreter version: python2.7, python3.5, ...
 #######################################
 function download_files() {
-  VERSION=$(get_version)
+  echo "Download Files in Version = $VERSION"
 
   if [[ $1 = *"wheel"* ]]; then
     if [[ $2 == "python2.7" ]]; then
@@ -322,7 +322,7 @@ function verify_hourly_team_score() {
 
 # Python RC configurations
 VERSION=$(get_version)
-RC_STAGING_URL="https://dist.apache.org/repos/dist/dev/beam/$VERSION/"
+RC_STAGING_URL="https://dist.apache.org/repos/dist/dev/beam/$VERSION/python"
 
 # Cloud Configurations
 PROJECT_ID='apache-beam-testing'
