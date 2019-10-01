@@ -30,7 +30,7 @@ import org.apache.beam.model.jobmanagement.v1.ArtifactStagingServiceGrpc;
 
 /**
  * An {@link ArtifactStagingServiceGrpc.ArtifactStagingServiceImplBase} that loads artifacts into a
- * Java FileSystem.
+ * Java {@link }FileSystem}.
  */
 public class JavaFilesystemArtifactStagingService extends AbstractArtifactStagingService {
 

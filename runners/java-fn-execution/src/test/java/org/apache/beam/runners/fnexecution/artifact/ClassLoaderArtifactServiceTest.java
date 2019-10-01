@@ -17,8 +17,6 @@
  */
 package org.apache.beam.runners.fnexecution.artifact;
 
-import com.google.common.base.Charsets;
-import com.google.common.collect.ImmutableMap;
 import java.io.ByteArrayOutputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
@@ -31,7 +29,6 @@ import java.nio.file.FileSystems;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
@@ -49,6 +46,8 @@ import org.apache.beam.vendor.grpc.v1p21p0.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.grpc.v1p21p0.io.grpc.ManagedChannel;
 import org.apache.beam.vendor.grpc.v1p21p0.io.grpc.inprocess.InProcessChannelBuilder;
 import org.apache.beam.vendor.grpc.v1p21p0.io.grpc.stub.StreamObserver;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Charsets;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 import org.junit.Assert;
 import org.junit.Rule;
 import org.junit.Test;
@@ -71,36 +70,42 @@ public class ClassLoaderArtifactServiceTest {
 
   public interface ArtifactServicePair extends AutoCloseable {
 
-    public String getStagingToken(String nonce);
+    String getStagingToken(String nonce);
 
-    public ArtifactStagingServiceGrpc.ArtifactStagingServiceStub createStagingStub()
+    ArtifactStagingServiceGrpc.ArtifactStagingServiceStub createStagingStub() throws Exception;
+
+    ArtifactStagingServiceGrpc.ArtifactStagingServiceBlockingStub createStagingBlockingStub()
         throws Exception;
 
-    public ArtifactStagingServiceGrpc.ArtifactStagingServiceBlockingStub createStagingBlockingStub()
+    ArtifactRetrievalServiceGrpc.ArtifactRetrievalServiceStub createRetrievalStub()
         throws Exception;
 
-    public ArtifactRetrievalServiceGrpc.ArtifactRetrievalServiceStub createRetrievalStub()
+    ArtifactRetrievalServiceGrpc.ArtifactRetrievalServiceBlockingStub createRetrievalBlockingStub()
         throws Exception;
-
-    public ArtifactRetrievalServiceGrpc.ArtifactRetrievalServiceBlockingStub
-        createRetrievalBlockingStub() throws Exception;
   }
 
+  /**
+   * An ArtifactServicePair that loads artifacts into a jar file and then serves them up via a
+   * ClassLoader using out of that jar.
+   */
   private ArtifactServicePair classLoaderService() throws IOException {
     return new ArtifactServicePair() {
 
+      Path jarPath = Paths.get(tempFolder.newFile("jar.jar").getPath());
+
+      // These are initialized when the staging service is requested.
+      FileSystem jarFilesystem;
       JavaFilesystemArtifactStagingService stagingService;
       GrpcFnServer<JavaFilesystemArtifactStagingService> stagingServer;
       ClassLoaderArtifactRetrievalService retrievalService;
       GrpcFnServer<ClassLoaderArtifactRetrievalService> retrievalServer;
 
+      // These are initialized when the retrieval service is requested, closing the jar file
+      // created above.
       ArtifactStagingServiceGrpc.ArtifactStagingServiceStub stagingStub;
       ArtifactStagingServiceGrpc.ArtifactStagingServiceBlockingStub stagingBlockingStub;
       ArtifactRetrievalServiceGrpc.ArtifactRetrievalServiceStub retrievalStub;
       ArtifactRetrievalServiceGrpc.ArtifactRetrievalServiceBlockingStub retrievalBlockingStub;
-
-      Path jarPath = Paths.get(tempFolder.newFile("jar.jar").getPath());
-      FileSystem jarFilesystem;
 
       @Override
       public void close() throws Exception {

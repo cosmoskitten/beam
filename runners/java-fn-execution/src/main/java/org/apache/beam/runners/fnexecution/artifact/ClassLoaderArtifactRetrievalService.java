@@ -23,7 +23,7 @@ import java.io.InputStream;
 /**
  * An {@link ArtifactRetrievalService} that loads artifacts as {@link ClassLoader} resources.
  *
- * <p>The retrieval token should be a path to a JSON-formatted ProxyManifest accessible vai {@link
+ * <p>The retrieval token should be a path to a JSON-formatted ProxyManifest accessible via {@link
  * ClassLoader#getResource(String)} whose resource locations also point to paths loadable via {@link
  * ClassLoader#getResource(String)}.
  */
