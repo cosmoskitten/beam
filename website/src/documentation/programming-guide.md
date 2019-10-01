@@ -39,6 +39,9 @@ how to implement Beam concepts in your pipelines.
   </ul>
 </nav>
 
+{:.language-py}
+New versions of the Python SDK will only support Python 3.5 or higher. Currently, the Python SDK still supports Python 2.7.x. We recommend using the latest Python 3 version.
+
 ## 1. Overview {#overview}
 
 To use Beam, you need to first create a driver program using the classes in one

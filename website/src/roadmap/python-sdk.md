@@ -22,7 +22,7 @@ limitations under the License.
 
 ## Python 3 Support
 
-Apache Beam first offered Python 3.5 support with the 2.11.0 SDK release and added Python 3.6, Python 3.7 support with the 2.14.0 version. However, we continue to polish some [rough edges](https://issues.apache.org/jira/browse/BEAM-1251?focusedCommentId=16890504&page=com.atlassian.jira.plugin.system.issuetabpanels%3Acomment-tabpanel#comment-1689050) and strengthen Beam's Python 3 offering:
+Apache Beam supports Python 3.5 or higher with the 2.16.0 SDK release. Python 3.5 beta support was first offered with the 2.11.0 SDK release; beta support for Python 3.6, Python 3.7 was added with the 2.14.0 version. We continue to polish some [rough edges](https://issues.apache.org/jira/browse/BEAM-1251?focusedCommentId=16890504&page=com.atlassian.jira.plugin.system.issuetabpanels%3Acomment-tabpanel#comment-1689050) and strengthen Beam's Python 3 offering:
  
 
  - [Kanban Board](https://issues.apache.org/jira/secure/RapidBoard.jspa?rapidView=245&view=detail)
