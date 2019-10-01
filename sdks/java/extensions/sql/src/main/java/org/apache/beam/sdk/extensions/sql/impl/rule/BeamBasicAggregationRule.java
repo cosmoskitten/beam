@@ -17,14 +17,24 @@
  */
 package org.apache.beam.sdk.extensions.sql.impl.rule;
 
+import java.util.ArrayList;
+import java.util.List;
+import java.util.stream.Collectors;
 import org.apache.beam.sdk.extensions.sql.impl.rel.BeamAggregationRel;
 import org.apache.beam.sdk.extensions.sql.impl.rel.BeamLogicalConvention;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.plan.RelOptRule;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.plan.RelOptRuleCall;
+import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.plan.volcano.RelSubset;
+import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.AbstractRelNode;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.RelNode;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.core.Aggregate;
+import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.core.Calc;
+import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.core.Filter;
+import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.core.Project;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.core.RelFactories;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.core.TableScan;
+import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rex.RexCall;
+import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rex.RexNode;
+import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.sql.SqlKind;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.tools.RelBuilderFactory;
 
 /**
@@ -40,13 +50,19 @@ public class BeamBasicAggregationRule extends RelOptRule {
 
   public BeamBasicAggregationRule(
       Class<? extends Aggregate> aggregateClass, RelBuilderFactory relBuilderFactory) {
-    super(operand(aggregateClass, operand(TableScan.class, any())), relBuilderFactory, null);
+    super(operand(aggregateClass, operand(AbstractRelNode.class, any())), relBuilderFactory, null);
   }
 
   @Override
   public void onMatch(RelOptRuleCall call) {
     Aggregate aggregate = call.rel(0);
-    TableScan tableScan = call.rel(1);
+    AbstractRelNode tableScan = call.rel(1);
+
+    if (tableScan instanceof Project || tableScan instanceof Calc || tableScan instanceof Filter) {
+      if (isWindowed(tableScan) || hasWindowedParents(tableScan)) {
+        return;
+      }
+    }
 
     RelNode newTableScan = tableScan.copy(tableScan.getTraitSet(), tableScan.getInputs());
 
@@ -62,5 +78,51 @@ public class BeamBasicAggregationRule extends RelOptRule {
             aggregate.getAggCallList(),
             null,
             -1));
+  }
+
+  private static boolean isWindowed(RelNode node) {
+    List<RexNode> projects = null;
+
+    if (node instanceof Project) {
+      projects = new ArrayList<>(((Project)node).getProjects());
+    } else if (node instanceof Calc) {
+      projects = ((Calc) node).getProgram().getProjectList().stream().map(
+          rexLocalRef -> ((Calc) node).getProgram().getExprList().get(rexLocalRef.getIndex()))
+          .collect(Collectors.toList());
+    }
+
+    if (projects != null) {
+      for (RexNode projNode : projects) {
+        if (!(projNode instanceof RexCall)) {
+          continue;
+        }
+
+        SqlKind sqlKind = ((RexCall) projNode).op.kind;
+        if (sqlKind == SqlKind.SESSION || sqlKind == SqlKind.HOP || sqlKind == SqlKind.TUMBLE) {
+          return true;
+        }
+      }
+    }
+
+    return false;
+  }
+
+  private static boolean hasWindowedParents(AbstractRelNode node) {
+    List<RelNode> parents = new ArrayList<>();
+
+    for (RelNode inputNode : node.getInputs()) {
+      if (inputNode instanceof RelSubset) {
+        parents.addAll(((RelSubset) inputNode).getParentRels());
+        parents.addAll(((RelSubset) inputNode).getRelList());
+      }
+    }
+
+    for (RelNode parent : parents) {
+      if (isWindowed(parent)) {
+        return true;
+      }
+    }
+
+    return false;
   }
 }
