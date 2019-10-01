@@ -18,6 +18,7 @@
 package org.apache.beam.sdk.extensions.sql.zetasql;
 
 import com.google.zetasql.Value;
+import com.google.zetasql.LanguageOptions;
 import com.google.zetasql.resolvedast.ResolvedNodes.ResolvedQueryStmt;
 import com.google.zetasql.resolvedast.ResolvedNodes.ResolvedStatement;
 import java.io.Reader;
@@ -181,5 +182,9 @@ public class ZetaSQLPlannerImpl implements Planner {
   @Override
   public RelTraitSet getEmptyTraitSet() {
     throw new RuntimeException("getEmptyTraitSet() is not implemented.");
+  }
+
+  public static LanguageOptions getLanguageOptions() {
+    return SqlAnalyzer.initAnalyzerOptions().getLanguageOptions();
   }
 }
