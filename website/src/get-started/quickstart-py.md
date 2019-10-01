@@ -31,10 +31,10 @@ If you're interested in contributing to the Apache Beam Python codebase, see the
 
 ### Check your Python version
 
-The Beam SDK requires Python 2 users to use Python 2.7 and Python 3 users to use Python 3.5 or higher. Check your version by running:
+The Beam SDK requires Python 3.5 or higher. Check your version by running:
 
 ```
-python --version
+python3 --version
 ```
 
 ### Install pip
@@ -42,7 +42,7 @@ python --version
 Install [pip](https://pip.pypa.io/en/stable/installing/), Python's package manager. Check that you have version 7.0.0 or newer by running:
 
 ```
-pip --version
+python3 -m pip --version
 ```
 
 If you do not have `pip` version 7.0.0 or newer, run the following command to
@@ -98,12 +98,12 @@ A virtual environment is a directory tree containing its own Python distribution
 
 {:.shell-unix}
 ```
-virtualenv /path/to/directory
+python3 -m venv /path/to/directory
 ```
 
 {:.shell-PowerShell}
 ```
-PS> virtualenv C:\path\to\directory
+PS> python3 -m venv C:\path\to\directory
 ```
 
 A virtual environment needs to be activated for each shell that is to use it.

@@ -70,7 +70,7 @@ To contribute code, you need
  - [Docker](https://www.docker.com/) installed for some tasks including building worker containers and testing website
    changes locally
  - [Go](https://golang.org) 1.10 or later installed for Go SDK development
- - Python, virtualenv, and tox installed for Python SDK development
+ - Python 3.5 or higher, virtualenv, and tox installed for Python SDK development
  - for large contributions, a signed [Individual Contributor License
    Agreement](https://www.apache.org/licenses/icla.pdf) (ICLA) to the Apache
    Software Foundation (ASF).
