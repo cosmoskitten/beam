@@ -41,13 +41,15 @@ type JobOptions struct {
 	// Pipeline options
 	Options runtime.RawOptions
 
-	Project     string
-	Region      string
-	Zone        string
-	Network     string
-	NumWorkers  int64
-	MachineType string
-	Labels      map[string]string
+	Project             string
+	Region              string
+	Zone                string
+	Network             string
+	Subnetwork          string
+	NumWorkers          int64
+	MachineType         string
+	Labels              map[string]string
+	ServiceAccountEmail string
 
 	// Autoscaling settings
 	Algorithm     string
@@ -108,6 +110,7 @@ func Translate(p *pb.Pipeline, opts *JobOptions, workerURL, jarURL, modelURL str
 		Name:      opts.Name,
 		Type:      jobType,
 		Environment: &df.Environment{
+			ServiceAccountEmail: opts.ServiceAccountEmail,
 			UserAgent: newMsg(userAgent{
 				Name:    "Apache Beam SDK for Go",
 				Version: "0.5.0",
@@ -135,6 +138,7 @@ func Translate(p *pb.Pipeline, opts *JobOptions, workerURL, jarURL, modelURL str
 				NumWorkers:                  1,
 				MachineType:                 opts.MachineType,
 				Network:                     opts.Network,
+				Subnetwork:                  opts.Subnetwork,
 				Zone:                        opts.Zone,
 			}},
 			TempStoragePrefix: opts.TempLocation,
@@ -241,6 +245,7 @@ func printOptions(opts *JobOptions, images []string) []*displayData {
 	addIfNonEmpty("region", opts.Region)
 	addIfNonEmpty("zone", opts.Zone)
 	addIfNonEmpty("network", opts.Network)
+	addIfNonEmpty("subnetwork", opts.Subnetwork)
 	addIfNonEmpty("machine_type", opts.MachineType)
 	addIfNonEmpty("container_images", strings.Join(images, ","))
 	addIfNonEmpty("temp_location", opts.TempLocation)

@@ -21,6 +21,7 @@ import static org.apache.beam.runners.fnexecution.translation.PipelineTranslator
 import static org.apache.beam.runners.fnexecution.translation.PipelineTranslatorUtils.getWindowingStrategy;
 import static org.apache.beam.runners.fnexecution.translation.PipelineTranslatorUtils.instantiateCoder;
 
+import com.google.auto.service.AutoService;
 import java.io.IOException;
 import java.util.Collections;
 import java.util.List;
@@ -33,8 +34,8 @@ import org.apache.beam.model.pipeline.v1.RunnerApi.Components;
 import org.apache.beam.model.pipeline.v1.RunnerApi.ExecutableStagePayload.SideInputId;
 import org.apache.beam.model.pipeline.v1.RunnerApi.PCollection;
 import org.apache.beam.runners.core.SystemReduceFn;
+import org.apache.beam.runners.core.construction.NativeTransforms;
 import org.apache.beam.runners.core.construction.PTransformTranslation;
-import org.apache.beam.runners.core.construction.ReadTranslation;
 import org.apache.beam.runners.core.construction.graph.ExecutableStage;
 import org.apache.beam.runners.core.construction.graph.PipelineNode;
 import org.apache.beam.runners.core.construction.graph.PipelineNode.PCollectionNode;
@@ -42,37 +43,36 @@ import org.apache.beam.runners.core.construction.graph.PipelineNode.PTransformNo
 import org.apache.beam.runners.core.construction.graph.QueryablePipeline;
 import org.apache.beam.runners.fnexecution.wire.WireCoders;
 import org.apache.beam.runners.spark.SparkPipelineOptions;
-import org.apache.beam.runners.spark.io.SourceRDD;
 import org.apache.beam.runners.spark.metrics.MetricsAccumulator;
 import org.apache.beam.runners.spark.util.ByteArray;
 import org.apache.beam.sdk.coders.ByteArrayCoder;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.KvCoder;
-import org.apache.beam.sdk.io.BoundedSource;
 import org.apache.beam.sdk.transforms.join.RawUnionValue;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
-import org.apache.beam.sdk.transforms.windowing.TimestampCombiner;
 import org.apache.beam.sdk.transforms.windowing.WindowFn;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.util.WindowedValue.WindowedValueCoder;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.WindowingStrategy;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.BiMap;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableMap;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableSet;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Iterables;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Sets;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.BiMap;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
 import org.apache.spark.HashPartitioner;
 import org.apache.spark.Partitioner;
 import org.apache.spark.api.java.JavaPairRDD;
 import org.apache.spark.api.java.JavaRDD;
-import org.apache.spark.api.java.JavaSparkContext;
 import org.apache.spark.broadcast.Broadcast;
 import org.apache.spark.storage.StorageLevel;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import scala.Tuple2;
 
 /** Translates a bounded portable pipeline into a Spark job. */
 public class SparkBatchPortablePipelineTranslator {
+
+  private static final Logger LOG =
+      LoggerFactory.getLogger(SparkBatchPortablePipelineTranslator.class);
 
   private final ImmutableMap<String, PTransformTranslator> urnToTransformTranslator;
 
@@ -84,12 +84,7 @@ public class SparkBatchPortablePipelineTranslator {
   }
 
   public Set<String> knownUrns() {
-    // Do not expose Read as a known URN because we only want to support Read
-    // through the Java ExpansionService. We can't translate Reads for other
-    // languages.
-    return Sets.difference(
-        urnToTransformTranslator.keySet(),
-        ImmutableSet.of(PTransformTranslation.READ_TRANSFORM_URN));
+    return urnToTransformTranslator.keySet();
   }
 
   public SparkBatchPortablePipelineTranslator() {
@@ -106,8 +101,8 @@ public class SparkBatchPortablePipelineTranslator {
         PTransformTranslation.FLATTEN_TRANSFORM_URN,
         SparkBatchPortablePipelineTranslator::translateFlatten);
     translatorMap.put(
-        PTransformTranslation.READ_TRANSFORM_URN,
-        SparkBatchPortablePipelineTranslator::translateRead);
+        PTransformTranslation.RESHUFFLE_URN,
+        SparkBatchPortablePipelineTranslator::translateReshuffle);
     this.urnToTransformTranslator = translatorMap.build();
   }
 
@@ -177,8 +172,7 @@ public class SparkBatchPortablePipelineTranslator {
 
     JavaRDD<WindowedValue<KV<K, Iterable<V>>>> groupedByKeyAndWindow;
     Partitioner partitioner = getPartitioner(context);
-    if (windowingStrategy.getWindowFn().isNonMerging()
-        && windowingStrategy.getTimestampCombiner() == TimestampCombiner.END_OF_WINDOW) {
+    if (GroupNonMergingWindowsFunctions.isEligibleForGroupByWindow(windowingStrategy)) {
       // we can have a memory sensitive translation for non-merging windows
       groupedByKeyAndWindow =
           GroupNonMergingWindowsFunctions.groupByKeyAndWindow(
@@ -259,6 +253,7 @@ public class SparkBatchPortablePipelineTranslator {
               stagePayload,
               context.jobInfo,
               outputExtractionMap,
+              SparkExecutableStageContextFactory.getInstance(),
               broadcastVariablesBuilder.build(),
               MetricsAccumulator.getInstance(),
               windowCoder);
@@ -270,6 +265,7 @@ public class SparkBatchPortablePipelineTranslator {
               stagePayload,
               context.jobInfo,
               outputExtractionMap,
+              SparkExecutableStageContextFactory.getInstance(),
               broadcastVariablesBuilder.build(),
               MetricsAccumulator.getInstance(),
               windowCoder);
@@ -361,27 +357,13 @@ public class SparkBatchPortablePipelineTranslator {
     context.pushDataset(getOutputId(transformNode), new BoundedDataset<>(unionRDD));
   }
 
-  private static <T> void translateRead(
+  private static <T> void translateReshuffle(
       PTransformNode transformNode, RunnerApi.Pipeline pipeline, SparkTranslationContext context) {
-    String stepName = transformNode.getTransform().getUniqueName();
-    final JavaSparkContext jsc = context.getSparkContext();
-
-    BoundedSource boundedSource;
-    try {
-      boundedSource =
-          ReadTranslation.boundedSourceFromProto(
-              RunnerApi.ReadPayload.parseFrom(transformNode.getTransform().getSpec().getPayload()));
-    } catch (IOException e) {
-      throw new RuntimeException("Failed to extract BoundedSource from ReadPayload.", e);
-    }
-
-    // create an RDD from a BoundedSource.
-    JavaRDD<WindowedValue<T>> input =
-        new SourceRDD.Bounded<>(
-                jsc.sc(), boundedSource, context.serializablePipelineOptions, stepName)
-            .toJavaRDD();
-
-    context.pushDataset(getOutputId(transformNode), new BoundedDataset<>(input));
+    String inputId = getInputId(transformNode);
+    WindowedValueCoder<T> coder = getWindowedValueCoder(inputId, pipeline.getComponents());
+    JavaRDD<WindowedValue<T>> inRDD = ((BoundedDataset<T>) context.popDataset(inputId)).getRDD();
+    JavaRDD<WindowedValue<T>> reshuffled = GroupCombineFunctions.reshuffle(inRDD, coder);
+    context.pushDataset(getOutputId(transformNode), new BoundedDataset<>(reshuffled));
   }
 
   @Nullable
@@ -417,5 +399,15 @@ public class SparkBatchPortablePipelineTranslator {
 
   private static String getExecutableStageIntermediateId(PTransformNode transformNode) {
     return transformNode.getId();
+  }
+
+  /** Predicate to determine whether a URN is a Spark native transform. */
+  @AutoService(NativeTransforms.IsNativeTransform.class)
+  public static class IsSparkNativeTransform implements NativeTransforms.IsNativeTransform {
+    @Override
+    public boolean test(RunnerApi.PTransform pTransform) {
+      return PTransformTranslation.RESHUFFLE_URN.equals(
+          PTransformTranslation.urnForTransformOrNull(pTransform));
+    }
   }
 }

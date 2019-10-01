@@ -31,6 +31,8 @@ import static org.junit.Assert.assertThat;
 import com.google.api.client.util.Clock;
 import java.io.IOException;
 import java.io.Serializable;
+import java.nio.charset.StandardCharsets;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Objects;
 import java.util.Set;
@@ -42,6 +44,7 @@ import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.AvroCoder;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderException;
+import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.io.AvroGeneratedUser;
 import org.apache.beam.sdk.io.gcp.pubsub.PubsubClient.IncomingMessage;
 import org.apache.beam.sdk.io.gcp.pubsub.PubsubClient.SubscriptionPath;
@@ -52,12 +55,14 @@ import org.apache.beam.sdk.options.ValueProvider;
 import org.apache.beam.sdk.options.ValueProvider.StaticValueProvider;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
+import org.apache.beam.sdk.transforms.SimpleFunction;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.transforms.display.DisplayDataEvaluator;
 import org.apache.beam.sdk.util.CoderUtils;
 import org.apache.beam.sdk.values.PCollection;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.base.MoreObjects;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.MoreObjects;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
 import org.junit.After;
 import org.junit.Rule;
 import org.junit.Test;
@@ -67,7 +72,6 @@ import org.junit.runner.Description;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 import org.junit.runners.model.Statement;
-import org.testng.collections.Lists;
 
 /** Tests for PubsubIO Read and Write transforms. */
 @RunWith(JUnit4.class)
@@ -468,5 +472,34 @@ public class PubsubIOTest {
     assertThat(displayData, hasDisplayItem("topic", topic));
     assertThat(displayData, hasDisplayItem("timestampAttribute", "myTimestamp"));
     assertThat(displayData, hasDisplayItem("idAttribute", "myId"));
+  }
+
+  static class StringPayloadParseFn extends SimpleFunction<PubsubMessage, String> {
+    @Override
+    public String apply(PubsubMessage input) {
+      return new String(input.getPayload(), StandardCharsets.UTF_8);
+    }
+  }
+
+  @Test
+  public void testReadMessagesWithCoderAndParseFn() {
+    Coder<PubsubMessage> coder = PubsubMessagePayloadOnlyCoder.of();
+    List<PubsubMessage> inputs =
+        ImmutableList.of(
+            new PubsubMessage("foo".getBytes(StandardCharsets.UTF_8), new HashMap<>()),
+            new PubsubMessage("bar".getBytes(StandardCharsets.UTF_8), new HashMap<>()));
+    setupTestClient(inputs, coder);
+
+    PCollection<String> read =
+        readPipeline.apply(
+            PubsubIO.readMessagesWithCoderAndParseFn(
+                    StringUtf8Coder.of(), new StringPayloadParseFn())
+                .fromSubscription(SUBSCRIPTION.getPath())
+                .withClock(CLOCK)
+                .withClientFactory(clientFactory));
+
+    List<String> outputs = ImmutableList.of("foo", "bar");
+    PAssert.that(read).containsInAnyOrder(outputs);
+    readPipeline.run();
   }
 }

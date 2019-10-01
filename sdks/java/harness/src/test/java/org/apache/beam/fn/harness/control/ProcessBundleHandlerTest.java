@@ -51,9 +51,9 @@ import org.apache.beam.sdk.function.ThrowingConsumer;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.util.WindowedValue;
-import org.apache.beam.vendor.grpc.v1p13p1.com.google.protobuf.Message;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableMap;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.util.concurrent.Uninterruptibles;
+import org.apache.beam.vendor.grpc.v1p21p0.com.google.protobuf.Message;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.util.concurrent.Uninterruptibles;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
@@ -143,8 +143,7 @@ public class ProcessBundleHandlerTest {
         BeamFnApi.InstructionRequest.newBuilder()
             .setInstructionId("999L")
             .setProcessBundle(
-                BeamFnApi.ProcessBundleRequest.newBuilder()
-                    .setProcessBundleDescriptorReference("1L"))
+                BeamFnApi.ProcessBundleRequest.newBuilder().setProcessBundleDescriptorId("1L"))
             .build());
 
     // Processing of transforms is performed in reverse order.
@@ -197,8 +196,7 @@ public class ProcessBundleHandlerTest {
     handler.processBundle(
         BeamFnApi.InstructionRequest.newBuilder()
             .setProcessBundle(
-                BeamFnApi.ProcessBundleRequest.newBuilder()
-                    .setProcessBundleDescriptorReference("1L"))
+                BeamFnApi.ProcessBundleRequest.newBuilder().setProcessBundleDescriptorId("1L"))
             .build());
   }
 
@@ -245,8 +243,7 @@ public class ProcessBundleHandlerTest {
     handler.processBundle(
         BeamFnApi.InstructionRequest.newBuilder()
             .setProcessBundle(
-                BeamFnApi.ProcessBundleRequest.newBuilder()
-                    .setProcessBundleDescriptorReference("1L"))
+                BeamFnApi.ProcessBundleRequest.newBuilder().setProcessBundleDescriptorId("1L"))
             .build());
   }
 
@@ -293,8 +290,7 @@ public class ProcessBundleHandlerTest {
     handler.processBundle(
         BeamFnApi.InstructionRequest.newBuilder()
             .setProcessBundle(
-                BeamFnApi.ProcessBundleRequest.newBuilder()
-                    .setProcessBundleDescriptorReference("1L"))
+                BeamFnApi.ProcessBundleRequest.newBuilder().setProcessBundleDescriptorId("1L"))
             .build());
   }
 
@@ -331,7 +327,7 @@ public class ProcessBundleHandlerTest {
                         // Simulate sleeping which introduces a race which most of the time requires
                         // the ProcessBundleHandler to block.
                         Uninterruptibles.sleepUninterruptibly(500, TimeUnit.MILLISECONDS);
-                        switch (stateRequestBuilder.getInstructionReference()) {
+                        switch (stateRequestBuilder.getInstructionId()) {
                           case "SUCCESS":
                             completableFuture.complete(StateResponse.getDefaultInstance());
                             break;
@@ -378,18 +374,15 @@ public class ProcessBundleHandlerTest {
 
                   private void doStateCalls(BeamFnStateClient beamFnStateClient) {
                     beamFnStateClient.handle(
-                        StateRequest.newBuilder().setInstructionReference("SUCCESS"),
-                        successfulResponse);
+                        StateRequest.newBuilder().setInstructionId("SUCCESS"), successfulResponse);
                     beamFnStateClient.handle(
-                        StateRequest.newBuilder().setInstructionReference("FAIL"),
-                        unsuccessfulResponse);
+                        StateRequest.newBuilder().setInstructionId("FAIL"), unsuccessfulResponse);
                   }
                 }));
     handler.processBundle(
         BeamFnApi.InstructionRequest.newBuilder()
             .setProcessBundle(
-                BeamFnApi.ProcessBundleRequest.newBuilder()
-                    .setProcessBundleDescriptorReference("1L"))
+                BeamFnApi.ProcessBundleRequest.newBuilder().setProcessBundleDescriptorId("1L"))
             .build());
 
     assertTrue(successfulResponse.isDone());
@@ -442,15 +435,14 @@ public class ProcessBundleHandlerTest {
                     thrown.expect(IllegalStateException.class);
                     thrown.expectMessage("State API calls are unsupported");
                     beamFnStateClient.handle(
-                        StateRequest.newBuilder().setInstructionReference("SUCCESS"),
+                        StateRequest.newBuilder().setInstructionId("SUCCESS"),
                         new CompletableFuture<>());
                   }
                 }));
     handler.processBundle(
         BeamFnApi.InstructionRequest.newBuilder()
             .setProcessBundle(
-                BeamFnApi.ProcessBundleRequest.newBuilder()
-                    .setProcessBundleDescriptorReference("1L"))
+                BeamFnApi.ProcessBundleRequest.newBuilder().setProcessBundleDescriptorId("1L"))
             .build());
   }
 

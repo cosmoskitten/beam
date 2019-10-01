@@ -17,11 +17,12 @@
  */
 package org.apache.beam.sdk.io.kinesis;
 
-import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkNotNull;
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkNotNull;
 
 import java.io.IOException;
 import java.util.NoSuchElementException;
 import org.apache.beam.sdk.io.UnboundedSource;
+import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.slf4j.Logger;
@@ -141,13 +142,19 @@ class KinesisReader extends UnboundedSource.UnboundedReader<KinesisRecord> {
   }
 
   /**
-   * Returns total size of all records that remain in Kinesis stream after current watermark. When
-   * currently processed record is not further behind than {@link #upToDateThreshold} then this
-   * method returns 0.
+   * Returns total size of all records that remain in Kinesis stream after current watermark. If the
+   * watermark was not already set then it returns {@link
+   * UnboundedSource.UnboundedReader#BACKLOG_UNKNOWN}. When currently processed record is not
+   * further behind than {@link #upToDateThreshold} then this method returns 0.
    */
   @Override
   public long getTotalBacklogBytes() {
     Instant watermark = getWatermark();
+
+    if (watermark.equals(BoundedWindow.TIMESTAMP_MIN_VALUE)) {
+      return UnboundedSource.UnboundedReader.BACKLOG_UNKNOWN;
+    }
+
     if (watermark.plus(upToDateThreshold).isAfterNow()) {
       return 0L;
     }

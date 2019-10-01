@@ -79,11 +79,11 @@ import sys
 import warnings
 
 
-if sys.version_info[0] == 3:
+if sys.version_info[0] == 2 and sys.version_info[1] == 7:
   warnings.warn(
-      'Running the Apache Beam SDK on Python 3 is not yet fully supported. '
-      'You may encounter buggy behavior or missing features.')
-elif sys.version_info[0] == 2 and sys.version_info[1] == 7:
+      'You are using Apache Beam with Python 2. '
+      'New releases of Apache Beam will soon support Python 3 only.')
+elif sys.version_info[0] == 3:
   pass
 else:
   raise RuntimeError(

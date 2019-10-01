@@ -48,7 +48,7 @@ import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.WindowingStrategy;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Lists;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
 import org.apache.flink.api.common.functions.RichGroupReduceFunction;
 import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.configuration.Configuration;
@@ -69,6 +69,7 @@ public class FlinkStatefulDoFnFunction<K, V, OutputT>
   private final Coder<KV<K, V>> inputCoder;
   private final Map<TupleTag<?>, Coder<?>> outputCoderMap;
   private final DoFnSchemaInformation doFnSchemaInformation;
+  private final Map<String, PCollectionView<?>> sideInputMapping;
   private transient DoFnInvoker doFnInvoker;
 
   public FlinkStatefulDoFnFunction(
@@ -81,7 +82,8 @@ public class FlinkStatefulDoFnFunction<K, V, OutputT>
       TupleTag<OutputT> mainOutputTag,
       Coder<KV<K, V>> inputCoder,
       Map<TupleTag<?>, Coder<?>> outputCoderMap,
-      DoFnSchemaInformation doFnSchemaInformation) {
+      DoFnSchemaInformation doFnSchemaInformation,
+      Map<String, PCollectionView<?>> sideInputMapping) {
 
     this.dofn = dofn;
     this.stepName = stepName;
@@ -93,6 +95,7 @@ public class FlinkStatefulDoFnFunction<K, V, OutputT>
     this.inputCoder = inputCoder;
     this.outputCoderMap = outputCoderMap;
     this.doFnSchemaInformation = doFnSchemaInformation;
+    this.sideInputMapping = sideInputMapping;
   }
 
   @Override
@@ -149,7 +152,8 @@ public class FlinkStatefulDoFnFunction<K, V, OutputT>
             inputCoder,
             outputCoderMap,
             windowingStrategy,
-            doFnSchemaInformation);
+            doFnSchemaInformation,
+            sideInputMapping);
 
     if ((serializedOptions.get().as(FlinkPipelineOptions.class)).getEnableMetrics()) {
       doFnRunner = new DoFnRunnerWithMetricsUpdate<>(stepName, doFnRunner, getRuntimeContext());

@@ -35,8 +35,8 @@ import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.LengthPrefixCoder;
 import org.apache.beam.sdk.fn.test.TestStreams;
 import org.apache.beam.sdk.util.WindowedValue;
-import org.apache.beam.vendor.grpc.v1p13p1.com.google.protobuf.ByteString;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Iterables;
+import org.apache.beam.vendor.grpc.v1p21p0.com.google.protobuf.ByteString;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -140,8 +140,8 @@ public class BeamFnDataBufferingOutboundObserverTest {
         BeamFnApi.Elements.newBuilder(messageWithData(new byte[1]))
             .addData(
                 BeamFnApi.Elements.Data.newBuilder()
-                    .setInstructionReference(OUTPUT_LOCATION.getInstructionId())
-                    .setPtransformId(OUTPUT_LOCATION.getPTransformId()))
+                    .setInstructionId(OUTPUT_LOCATION.getInstructionId())
+                    .setTransformId(OUTPUT_LOCATION.getTransformId()))
             .build(),
         Iterables.get(values, 1));
   }
@@ -154,8 +154,8 @@ public class BeamFnDataBufferingOutboundObserverTest {
     return BeamFnApi.Elements.newBuilder()
         .addData(
             BeamFnApi.Elements.Data.newBuilder()
-                .setInstructionReference(OUTPUT_LOCATION.getInstructionId())
-                .setPtransformId(OUTPUT_LOCATION.getPTransformId())
+                .setInstructionId(OUTPUT_LOCATION.getInstructionId())
+                .setTransformId(OUTPUT_LOCATION.getTransformId())
                 .setData(output.toByteString()))
         .build();
   }

@@ -17,40 +17,33 @@
 
 from __future__ import absolute_import
 
-import atexit
 import functools
 import itertools
 import json
 import logging
-import os
-import subprocess
 import sys
 import threading
 import time
-from concurrent import futures
 
 import grpc
 
+from apache_beam import version as beam_version
 from apache_beam import metrics
 from apache_beam.options.pipeline_options import DebugOptions
 from apache_beam.options.pipeline_options import PortableOptions
 from apache_beam.options.pipeline_options import SetupOptions
 from apache_beam.options.pipeline_options import StandardOptions
 from apache_beam.portability import common_urns
-from apache_beam.portability.api import beam_fn_api_pb2
-from apache_beam.portability.api import beam_fn_api_pb2_grpc
 from apache_beam.portability.api import beam_job_api_pb2
-from apache_beam.portability.api import beam_job_api_pb2_grpc
 from apache_beam.portability.api import beam_runner_api_pb2
 from apache_beam.portability.api import endpoints_pb2
 from apache_beam.runners import runner
 from apache_beam.runners.job import utils as job_utils
 from apache_beam.runners.portability import fn_api_runner_transforms
-from apache_beam.runners.portability import local_job_service
+from apache_beam.runners.portability import job_server
 from apache_beam.runners.portability import portable_stager
-from apache_beam.runners.portability.job_server import DockerizedJobServer
-from apache_beam.runners.worker import sdk_worker
 from apache_beam.runners.worker import sdk_worker_main
+from apache_beam.runners.worker import worker_pool_main
 
 __all__ = ['PortableRunner']
 
@@ -81,34 +74,23 @@ class PortableRunner(runner.PipelineRunner):
     running and managing the job lies with the job service used.
   """
   def __init__(self):
-    self._job_endpoint = None
+    self._dockerized_job_server = None
 
   @staticmethod
   def default_docker_image():
-    if 'USER' in os.environ:
-      if sys.version_info[0] == 2:
-        version_suffix = ''
-      elif sys.version_info[0:2] == (3, 5):
-        version_suffix = '3'
-      else:
-        version_suffix = '3'
-        # TODO(BEAM-7474): Use an image which has correct Python minor version.
-        logging.warning('Make sure that locally built Python SDK docker image '
-                        'has Python %d.%d interpreter. See also: BEAM-7474.' % (
-                            sys.version_info[0], sys.version_info[1]))
+    sdk_version = beam_version.__version__
+    version_suffix = '.'.join([str(i) for i in sys.version_info[0:2]])
+    logging.warning('Make sure that locally built Python SDK docker image '
+                    'has Python %d.%d interpreter.' % (
+                        sys.version_info[0], sys.version_info[1]))
 
-      # Perhaps also test if this was built?
-      image = ('{user}-docker-apache.bintray.io/beam/python'
-               '{version_suffix}:latest'.format(
-                   user=os.environ['USER'],
-                   version_suffix=version_suffix))
-      logging.info(
-          'Using latest locally built Python SDK docker image: %s.' % image)
-      return image
-
-    else:
-      logging.warning('Could not find a Python SDK docker image.')
-      return 'unknown'
+    image = ('apachebeam/python{version_suffix}_sdk:{tag}'.format(
+        version_suffix=version_suffix, tag=sdk_version))
+    logging.info(
+        'Using Python SDK docker image: %s. If the image is not '
+        'available at local, we will try to pull from hub.docker.com'
+        % (image))
+    return image
 
   @staticmethod
   def _create_environment(options):
@@ -159,30 +141,32 @@ class PortableRunner(runner.PipelineRunner):
           payload=(portable_options.environment_config.encode('ascii')
                    if portable_options.environment_config else None))
 
-  def init_dockerized_job_server(self):
+  def default_job_server(self, options):
     # TODO Provide a way to specify a container Docker URL
     # https://issues.apache.org/jira/browse/BEAM-6328
-    docker = DockerizedJobServer()
-    self._job_endpoint = docker.start()
+    if not self._dockerized_job_server:
+      self._dockerized_job_server = job_server.StopOnExitJobServer(
+          job_server.DockerizedJobServer())
+    return self._dockerized_job_server
+
+  def create_job_service(self, options):
+    job_endpoint = options.view_as(PortableOptions).job_endpoint
+    if job_endpoint:
+      if job_endpoint == 'embed':
+        server = job_server.EmbeddedJobServer()
+      else:
+        server = job_server.ExternalJobServer(job_endpoint)
+    else:
+      server = self.default_job_server(options)
+    return server.start()
 
   def run_pipeline(self, pipeline, options):
     portable_options = options.view_as(PortableOptions)
-    job_endpoint = portable_options.job_endpoint
 
     # TODO: https://issues.apache.org/jira/browse/BEAM-5525
     # portable runner specific default
     if options.view_as(SetupOptions).sdk_location == 'default':
       options.view_as(SetupOptions).sdk_location = 'container'
-
-    if not job_endpoint:
-      if not self._job_endpoint:
-        self.init_dockerized_job_server()
-      job_endpoint = self._job_endpoint
-      job_service = None
-    elif job_endpoint == 'embed':
-      job_service = local_job_service.LocalJobServicer()
-    else:
-      job_service = None
 
     # This is needed as we start a worker server if one is requested
     # but none is provided.
@@ -191,10 +175,10 @@ class PortableRunner(runner.PipelineRunner):
           DebugOptions).lookup_experiment(
               'use_loopback_process_worker', False)
       portable_options.environment_config, server = (
-          BeamFnExternalWorkerPoolServicer.start(
+          worker_pool_main.BeamFnExternalWorkerPoolServicer.start(
               sdk_worker_main._get_worker_count(options),
+              state_cache_size=sdk_worker_main._get_state_cache_size(options),
               use_process=use_loopback_process_worker))
-      globals()['x'] = server
       cleanup_callbacks = [functools.partial(server.stop, 1)]
     else:
       cleanup_callbacks = []
@@ -257,12 +241,7 @@ class PortableRunner(runner.PipelineRunner):
             known_runner_urns=flink_known_urns,
             partial=True)
 
-    if not job_service:
-      channel = grpc.insecure_channel(job_endpoint)
-      grpc.channel_ready_future(channel).result()
-      job_service = beam_job_api_pb2_grpc.JobServiceStub(channel)
-    else:
-      channel = None
+    job_service = self.create_job_service(options)
 
     # fetch runner options from job service
     # retries in case the channel is not ready
@@ -272,8 +251,6 @@ class PortableRunner(runner.PipelineRunner):
         try:
           # This reports channel is READY but connections may fail
           # Seems to be only an issue on Mac with port forwardings
-          if channel:
-            grpc.channel_ready_future(channel).result()
           return job_service.DescribePipelineOptions(
               beam_job_api_pb2.DescribePipelineOptionsRequest())
         except grpc._channel._Rendezvous as e:
@@ -361,7 +338,9 @@ class PortableRunner(runner.PipelineRunner):
 
 
 class PortableMetrics(metrics.metric.MetricResults):
-  def __init__(self):
+  def __init__(self, job_metrics_response):
+    # TODO(lgajowy): Convert portable metrics to MetricResults
+    # and allow querying them (BEAM-4775)
     pass
 
   def query(self, filter=None):
@@ -381,6 +360,7 @@ class PipelineResult(runner.PipelineResult):
     self._message_stream = message_stream
     self._state_stream = state_stream
     self._cleanup_callbacks = cleanup_callbacks
+    self._metrics = None
 
   def cancel(self):
     try:
@@ -406,7 +386,13 @@ class PipelineResult(runner.PipelineResult):
     return beam_job_api_pb2.JobState.Enum.Value(pipeline_state)
 
   def metrics(self):
-    return PortableMetrics()
+    if not self._metrics:
+
+      job_metrics_response = self._job_service.GetJobMetrics(
+          beam_job_api_pb2.GetJobMetricsRequest(job_id=self._job_id))
+
+      self._metrics = PortableMetrics(job_metrics_response)
+    return self._metrics
 
   def _last_error_message(self):
     # Filter only messages with the "message_response" and error messages.
@@ -466,51 +452,3 @@ class PipelineResult(runner.PipelineResult):
     self._cleanup_callbacks = ()
     if has_exception:
       raise
-
-
-class BeamFnExternalWorkerPoolServicer(
-    beam_fn_api_pb2_grpc.BeamFnExternalWorkerPoolServicer):
-
-  def __init__(self, worker_threads, use_process=False):
-    self._worker_threads = worker_threads
-    self._use_process = use_process
-
-  @classmethod
-  def start(cls, worker_threads=1, use_process=False):
-    worker_server = grpc.server(futures.ThreadPoolExecutor(max_workers=10))
-    worker_address = 'localhost:%s' % worker_server.add_insecure_port('[::]:0')
-    beam_fn_api_pb2_grpc.add_BeamFnExternalWorkerPoolServicer_to_server(
-        cls(worker_threads, use_process=use_process), worker_server)
-    worker_server.start()
-    return worker_address, worker_server
-
-  def NotifyRunnerAvailable(self, start_worker_request, context):
-    try:
-      if self._use_process:
-        command = ['python', '-c',
-                   'from apache_beam.runners.worker.sdk_worker '
-                   'import SdkHarness; '
-                   'SdkHarness("%s",worker_count=%d,worker_id="%s").run()' % (
-                       start_worker_request.control_endpoint.url,
-                       self._worker_threads,
-                       start_worker_request.worker_id)]
-        logging.warn("Starting worker with command %s" % (command))
-        worker_process = subprocess.Popen(command, stdout=subprocess.PIPE)
-
-        # Register to kill the subprocess on exit.
-        atexit.register(worker_process.kill)
-      else:
-        worker = sdk_worker.SdkHarness(
-            start_worker_request.control_endpoint.url,
-            worker_count=self._worker_threads,
-            worker_id=start_worker_request.worker_id)
-        worker_thread = threading.Thread(
-            name='run_worker_%s' % start_worker_request.worker_id,
-            target=worker.run)
-        worker_thread.daemon = True
-        worker_thread.start()
-
-      return beam_fn_api_pb2.NotifyRunnerAvailableResponse()
-    except Exception as exn:
-      return beam_fn_api_pb2.NotifyRunnerAvailableResponse(
-          error=str(exn))

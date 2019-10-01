@@ -80,10 +80,10 @@ import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.ValueInSingleWindow.Coder;
-import org.apache.beam.vendor.grpc.v1p13p1.com.google.protobuf.ByteString;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableList;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableMap;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableTable;
+import org.apache.beam.vendor.grpc.v1p21p0.com.google.protobuf.ByteString;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableTable;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -233,8 +233,7 @@ public class RegisterAndProcessBundleOperationTest {
         BeamFnApi.InstructionRequest.newBuilder()
             .setInstructionId("778")
             .setProcessBundle(
-                BeamFnApi.ProcessBundleRequest.newBuilder()
-                    .setProcessBundleDescriptorReference("555"))
+                BeamFnApi.ProcessBundleRequest.newBuilder().setProcessBundleDescriptorId("555"))
             .build());
     operation.finish();
 
@@ -245,8 +244,7 @@ public class RegisterAndProcessBundleOperationTest {
         BeamFnApi.InstructionRequest.newBuilder()
             .setInstructionId("779")
             .setProcessBundle(
-                BeamFnApi.ProcessBundleRequest.newBuilder()
-                    .setProcessBundleDescriptorReference("555"))
+                BeamFnApi.ProcessBundleRequest.newBuilder().setProcessBundleDescriptorId("555"))
             .build());
     operation.finish();
   }
@@ -516,8 +514,7 @@ public class RegisterAndProcessBundleOperationTest {
         BeamFnApi.InstructionRequest.newBuilder()
             .setInstructionId("778")
             .setProcessBundle(
-                BeamFnApi.ProcessBundleRequest.newBuilder()
-                    .setProcessBundleDescriptorReference("555"))
+                BeamFnApi.ProcessBundleRequest.newBuilder().setProcessBundleDescriptorId("555"))
             .build());
   }
 
@@ -549,7 +546,7 @@ public class RegisterAndProcessBundleOperationTest {
                                   StateKey.newBuilder()
                                       .setBagUserState(
                                           StateKey.BagUserState.newBuilder()
-                                              .setPtransformId("testPTransformId")
+                                              .setTransformId("testPTransformId")
                                               .setWindow(ByteString.EMPTY)
                                               .setUserStateId("testUserStateId")))
                               .buildPartial();
@@ -657,7 +654,7 @@ public class RegisterAndProcessBundleOperationTest {
                           StateKey.newBuilder()
                               .setMultimapSideInput(
                                   StateKey.MultimapSideInput.newBuilder()
-                                      .setPtransformId("testPTransformId")
+                                      .setTransformId("testPTransformId")
                                       .setSideInputId("testSideInputId")
                                       .setWindow(
                                           ByteString.copyFrom(

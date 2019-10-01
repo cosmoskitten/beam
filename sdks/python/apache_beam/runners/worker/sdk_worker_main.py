@@ -31,9 +31,9 @@ from builtins import object
 from google.protobuf import text_format
 
 from apache_beam.internal import pickler
-from apache_beam.options import pipeline_options
 from apache_beam.options.pipeline_options import DebugOptions
 from apache_beam.options.pipeline_options import PipelineOptions
+from apache_beam.options.pipeline_options import ProfilingOptions
 from apache_beam.portability.api import endpoints_pb2
 from apache_beam.runners.internal import names
 from apache_beam.runners.worker.log_handler import FnApiLogRecordHandler
@@ -74,7 +74,7 @@ class StatusServer(object):
         self.end_headers()
 
         for line in StatusServer.get_thread_dump():
-          self.wfile.write(line)
+          self.wfile.write(line.encode('utf-8'))
 
       def log_message(self, f, *args):
         """Do not log any messages."""
@@ -91,21 +91,27 @@ class StatusServer(object):
 def main(unused_argv):
   """Main entry point for SDK Fn Harness."""
   if 'LOGGING_API_SERVICE_DESCRIPTOR' in os.environ:
-    logging_service_descriptor = endpoints_pb2.ApiServiceDescriptor()
-    text_format.Merge(os.environ['LOGGING_API_SERVICE_DESCRIPTOR'],
-                      logging_service_descriptor)
+    try:
+      logging_service_descriptor = endpoints_pb2.ApiServiceDescriptor()
+      text_format.Merge(os.environ['LOGGING_API_SERVICE_DESCRIPTOR'],
+                        logging_service_descriptor)
 
-    # Send all logs to the runner.
-    fn_log_handler = FnApiLogRecordHandler(logging_service_descriptor)
-    # TODO(BEAM-5468): This should be picked up from pipeline options.
-    logging.getLogger().setLevel(logging.INFO)
-    logging.getLogger().addHandler(fn_log_handler)
-    logging.info('Logging handler created.')
+      # Send all logs to the runner.
+      fn_log_handler = FnApiLogRecordHandler(logging_service_descriptor)
+      # TODO(BEAM-5468): This should be picked up from pipeline options.
+      logging.getLogger().setLevel(logging.INFO)
+      logging.getLogger().addHandler(fn_log_handler)
+      logging.info('Logging handler created.')
+    except Exception:
+      logging.error("Failed to set up logging handler, continuing without.",
+                    exc_info=True)
+      fn_log_handler = None
   else:
     fn_log_handler = None
 
   # Start status HTTP server thread.
-  thread = threading.Thread(target=StatusServer().start)
+  thread = threading.Thread(name='status_http_server',
+                            target=StatusServer().start)
   thread.daemon = True
   thread.setName('status-server-demon')
   thread.start()
@@ -122,6 +128,7 @@ def main(unused_argv):
     semi_persistent_directory = None
 
   logging.info('semi_persistent_directory: %s', semi_persistent_directory)
+  _worker_id = os.environ.get('WORKER_ID', None)
 
   try:
     _load_main_session(semi_persistent_directory)
@@ -141,8 +148,10 @@ def main(unused_argv):
     SdkHarness(
         control_address=service_descriptor.url,
         worker_count=_get_worker_count(sdk_pipeline_options),
+        worker_id=_worker_id,
+        state_cache_size=_get_state_cache_size(sdk_pipeline_options),
         profiler_factory=profiler.Profile.factory_from_options(
-            sdk_pipeline_options.view_as(pipeline_options.ProfilingOptions))
+            sdk_pipeline_options.view_as(ProfilingOptions))
     ).run()
     logging.info('Python sdk harness exiting.')
   except:  # pylint: disable=broad-except
@@ -195,6 +204,28 @@ def _get_worker_count(pipeline_options):
                    experiment).group('worker_threads'))
 
   return 12
+
+
+def _get_state_cache_size(pipeline_options):
+  """Defines the upper number of state items to cache.
+
+  Note: state_cache_size is an experimental flag and might not be available in
+  future releases.
+
+  Returns:
+    an int indicating the maximum number of items to cache.
+      Default is 0 (disabled)
+  """
+  experiments = pipeline_options.view_as(DebugOptions).experiments
+  experiments = experiments if experiments else []
+
+  for experiment in experiments:
+    # There should only be 1 match so returning from the loop
+    if re.match(r'state_cache_size=', experiment):
+      return int(
+          re.match(r'state_cache_size=(?P<state_cache_size>.*)',
+                   experiment).group('state_cache_size'))
+  return 0
 
 
 def _load_main_session(semi_persistent_directory):

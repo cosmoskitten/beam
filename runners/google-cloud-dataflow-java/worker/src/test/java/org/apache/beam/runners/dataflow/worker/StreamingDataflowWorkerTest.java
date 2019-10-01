@@ -30,7 +30,10 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
+import static org.mockito.ArgumentMatchers.nullable;
+import static org.mockito.Matchers.any;
 import static org.mockito.Mockito.atLeast;
+import static org.mockito.Mockito.atLeastOnce;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -134,15 +137,15 @@ import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.ValueWithRecordId;
 import org.apache.beam.sdk.values.WindowingStrategy;
 import org.apache.beam.sdk.values.WindowingStrategy.AccumulationMode;
-import org.apache.beam.vendor.grpc.v1p13p1.com.google.protobuf.ByteString;
-import org.apache.beam.vendor.grpc.v1p13p1.com.google.protobuf.ByteString.Output;
-import org.apache.beam.vendor.grpc.v1p13p1.com.google.protobuf.TextFormat;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Optional;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableList;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableMap;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Lists;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.primitives.UnsignedLong;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.util.concurrent.Uninterruptibles;
+import org.apache.beam.vendor.grpc.v1p21p0.com.google.protobuf.ByteString;
+import org.apache.beam.vendor.grpc.v1p21p0.com.google.protobuf.ByteString.Output;
+import org.apache.beam.vendor.grpc.v1p21p0.com.google.protobuf.TextFormat;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Optional;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.primitives.UnsignedLong;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.util.concurrent.Uninterruptibles;
 import org.hamcrest.Matcher;
 import org.hamcrest.Matchers;
 import org.joda.time.Duration;
@@ -219,6 +222,7 @@ public class StreamingDataflowWorkerTest {
   @Rule public ErrorCollector errorCollector = new ErrorCollector();
 
   WorkUnitClient mockWorkUnitClient = mock(WorkUnitClient.class);
+  HotKeyLogger hotKeyLogger = mock(HotKeyLogger.class);
 
   private final Supplier<Long> idGenerator =
       new Supplier<Long>() {
@@ -315,7 +319,8 @@ public class StreamingDataflowWorkerTest {
                     null /* side input views */,
                     null /* input coder */,
                     new TupleTag<>(PropertyNames.OUTPUT) /* main output id */,
-                    DoFnSchemaInformation.create()))));
+                    DoFnSchemaInformation.create(),
+                    Collections.emptyMap()))));
     return new ParallelInstruction()
         .setSystemName(DEFAULT_PARDO_SYSTEM_NAME)
         .setName(DEFAULT_PARDO_USER_NAME)
@@ -413,6 +418,7 @@ public class StreamingDataflowWorkerTest {
         messageBuilder.setMetadata(addPaneTag(PaneInfo.NO_FIRING, metadata));
       }
     }
+
     return builder.build();
   }
 
@@ -498,6 +504,9 @@ public class StreamingDataflowWorkerTest {
             + "    work_token: "
             + index
             + "    cache_token: 3"
+            + "    hot_key_info {"
+            + "      hot_key_age_usec: 1000000"
+            + "    }"
             + "    message_bundles {"
             + "      source_computation_id: \""
             + DEFAULT_SOURCE_COMPUTATION_ID
@@ -634,7 +643,8 @@ public class StreamingDataflowWorkerTest {
             options,
             null /* pipeline */,
             SdkHarnessRegistries.emptySdkHarnessRegistry(),
-            publishCounters);
+            publishCounters,
+            hotKeyLogger);
     worker.addStateNameMappings(
         ImmutableMap.of(DEFAULT_PARDO_USER_NAME, DEFAULT_PARDO_STATE_FAMILY));
     return worker;
@@ -665,6 +675,8 @@ public class StreamingDataflowWorkerTest {
       assertEquals(
           makeExpectedOutput(i, TimeUnit.MILLISECONDS.toMicros(i)).build(), result.get((long) i));
     }
+
+    verify(hotKeyLogger, atLeastOnce()).logHotKeyDetection(nullable(String.class), any());
   }
 
   @Test
@@ -702,6 +714,8 @@ public class StreamingDataflowWorkerTest {
       assertEquals(
           makeExpectedOutput(i, TimeUnit.MILLISECONDS.toMicros(i)).build(), result.get((long) i));
     }
+
+    verify(hotKeyLogger, atLeastOnce()).logHotKeyDetection(nullable(String.class), any());
   }
 
   static class BlockingFn extends DoFn<String, String> implements TestRule {
@@ -2093,22 +2107,22 @@ public class StreamingDataflowWorkerTest {
     ByteString key2 = ByteString.copyFromUtf8("key2");
 
     MockWork m1 = new MockWork(1);
-    computationState.activateWork(key1, m1);
+    assertTrue(computationState.activateWork(key1, m1));
     Mockito.verify(mockExecutor).execute(m1);
     computationState.completeWork(key1, 1);
     Mockito.verifyNoMoreInteractions(mockExecutor);
 
     // Verify work queues.
     MockWork m2 = new MockWork(2);
-    computationState.activateWork(key1, m2);
+    assertTrue(computationState.activateWork(key1, m2));
     Mockito.verify(mockExecutor).execute(m2);
     MockWork m3 = new MockWork(3);
-    computationState.activateWork(key1, m3);
+    assertTrue(computationState.activateWork(key1, m3));
     Mockito.verifyNoMoreInteractions(mockExecutor);
 
     // Verify another key is a separate queue.
     MockWork m4 = new MockWork(4);
-    computationState.activateWork(key2, m4);
+    assertTrue(computationState.activateWork(key2, m4));
     Mockito.verify(mockExecutor).execute(m4);
     computationState.completeWork(key2, 4);
     Mockito.verifyNoMoreInteractions(mockExecutor);
@@ -2118,9 +2132,12 @@ public class StreamingDataflowWorkerTest {
     computationState.completeWork(key1, 3);
     Mockito.verifyNoMoreInteractions(mockExecutor);
 
+    // Verify duplicate work dropped.
     MockWork m5 = new MockWork(5);
     computationState.activateWork(key1, m5);
     Mockito.verify(mockExecutor).execute(m5);
+    assertFalse(computationState.activateWork(key1, m5));
+    Mockito.verifyNoMoreInteractions(mockExecutor);
     computationState.completeWork(key1, 5);
     Mockito.verifyNoMoreInteractions(mockExecutor);
   }

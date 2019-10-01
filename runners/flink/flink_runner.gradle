@@ -27,7 +27,8 @@ import groovy.json.JsonOutput
 
 apply plugin: 'org.apache.beam.module'
 applyJavaNature(
-    archivesBaseName: project.hasProperty('archives_base_name') ? archives_base_name : archivesBaseName
+    automaticModuleName: 'org.apache.beam.runners.flink',
+    archivesBaseName: (project.hasProperty('archives_base_name') ? archives_base_name : archivesBaseName)
 )
 
 description = "Apache Beam :: Runners :: Flink $flink_version"
@@ -63,6 +64,17 @@ sourceSets {
   }
 }
 
+/*
+ * By default, Spotless operates on the project files only.
+ * BeamModulePlugin sets a custom configuration which we override here in order
+ * for the Flink Runner's multiple source directories to be all scanned.
+ */
+spotless {
+  java {
+    target project.sourceSets.main.allJava + project.sourceSets.test.allJava
+  }
+}
+
 test {
   systemProperty "log4j.configuration", "log4j-test.properties"
   //systemProperty "org.slf4j.simpleLogger.defaultLogLevel", "debug"
@@ -72,14 +84,7 @@ test {
   }
   // TODO Running tests of all Flink versions in parallel can be too harsh on Jenkins memory
   // Run them serially for now, to avoid "Exit code 137", i.e. Jenkins host killing the Gradle test process
-  if (project.path == ":runners:flink:1.6") {
-    mustRunAfter(":runners:flink:1.5:test")
-  } else if (project.path == ":runners:flink:1.7") {
-    mustRunAfter(":runners:flink:1.5:test")
-    mustRunAfter(":runners:flink:1.6:test")
-  } else if (project.path == ":runners:flink:1.8") {
-    mustRunAfter(":runners:flink:1.5:test")
-    mustRunAfter(":runners:flink:1.6:test")
+  if (project.path == ":runners:flink:1.8") {
     mustRunAfter(":runners:flink:1.7:test")
   }
 }
@@ -89,13 +94,14 @@ configurations {
 }
 
 dependencies {
-  compile library.java.vendored_guava_20_0
+  compileOnly project(":sdks:java:build-tools")
+  compile library.java.vendored_guava_26_0_jre
   compile project(path: ":sdks:java:core", configuration: "shadow")
   compile project(":runners:core-java")
   compile project(":runners:core-construction-java")
   compile project(":runners:java-fn-execution")
-  compile project(":sdks:java:build-tools")
-  compile library.java.vendored_grpc_1_13_1
+  compile project(":sdks:java:extensions:google-cloud-platform-core")
+  compile library.java.vendored_grpc_1_21_0
   compile library.java.jackson_annotations
   compile library.java.slf4j_api
   compile library.java.joda_time
@@ -114,6 +120,7 @@ dependencies {
   testCompile library.java.hamcrest_core
   testCompile library.java.junit
   testCompile library.java.mockito_core
+  testCompile library.java.powermock
   testCompile library.java.google_api_services_bigquery
   testCompile project(":sdks:java:io:google-cloud-platform")
   testCompile library.java.jackson_dataformat_yaml
@@ -161,6 +168,9 @@ def createValidatesRunnerTask(Map m) {
         excludeCategories 'org.apache.beam.sdk.testing.UsesUnboundedSplittableParDo'
         excludeCategories 'org.apache.beam.sdk.testing.UsesTestStream'
       }
+      // TODO[BEAM-8205]: figure out if we can make the test work on Flink runner, or maybe create a
+      // new category tag and change the following line to: excludeCategories '<category tag>'.
+      exclude '**/AvroSchemaTest.class'
     }
   }
 }
@@ -175,5 +185,5 @@ task validatesRunner {
   dependsOn validatesRunnerStreaming
 }
 
-// Generates :runners:flink:1.5:runQuickstartJavaFlinkLocal
+// Generates :runners:flink:1.8:runQuickstartJavaFlinkLocal
 createJavaExamplesArchetypeValidationTask(type: 'Quickstart', runner: 'FlinkLocal')

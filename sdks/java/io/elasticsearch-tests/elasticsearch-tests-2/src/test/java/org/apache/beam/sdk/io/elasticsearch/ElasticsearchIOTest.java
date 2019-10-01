@@ -116,7 +116,7 @@ public class ElasticsearchIOTest implements Serializable {
 
   @Before
   public void before() throws Exception {
-    ElasticSearchIOTestUtils.deleteIndex(connectionConfiguration, restClient);
+    ElasticsearchIOTestUtils.deleteIndex(connectionConfiguration, restClient);
   }
 
   @Test
@@ -131,9 +131,15 @@ public class ElasticsearchIOTest implements Serializable {
   }
 
   @Test
-  public void testReadWithQuery() throws Exception {
+  public void testReadWithQueryString() throws Exception {
     elasticsearchIOTestCommon.setPipeline(pipeline);
-    elasticsearchIOTestCommon.testReadWithQuery();
+    elasticsearchIOTestCommon.testReadWithQueryString();
+  }
+
+  @Test
+  public void testReadWithQueryValueProvider() throws Exception {
+    elasticsearchIOTestCommon.setPipeline(pipeline);
+    elasticsearchIOTestCommon.testReadWithQueryValueProvider();
   }
 
   @Test

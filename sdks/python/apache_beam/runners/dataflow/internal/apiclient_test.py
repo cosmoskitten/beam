@@ -288,6 +288,18 @@ class UtilTest(unittest.TestCase):
         env.proto.workerPools[0].ipConfiguration,
         dataflow.WorkerPool.IpConfigurationValueValuesEnum.WORKER_IP_PRIVATE)
 
+  def test_number_of_worker_harness_threads(self):
+    pipeline_options = PipelineOptions(
+        ['--temp_location', 'gs://any-location/temp',
+         '--number_of_worker_harness_threads', '2'])
+    env = apiclient.Environment([],
+                                pipeline_options,
+                                '2.0.0',
+                                FAKE_PIPELINE_URL)
+    self.assertEqual(
+        env.proto.workerPools[0].numThreadsPerWorker,
+        2)
+
   @mock.patch('apache_beam.runners.dataflow.internal.apiclient.'
               'beam_version.__version__', '2.2.0')
   def test_harness_override_present_in_released_sdks(self):
@@ -510,6 +522,16 @@ class UtilTest(unittest.TestCase):
         env.proto.workerPools[0].workerHarnessContainerImage,
         'some:image')
 
+  @mock.patch('apache_beam.runners.dataflow.internal.apiclient.Job.'
+              'job_id_for_name', return_value='test_id')
+  def test_transform_name_mapping(self, mock_job):
+    pipeline_options = PipelineOptions(
+        ['--project', 'test_project', '--job_name', 'test_job_name',
+         '--temp_location', 'gs://test-location/temp', '--update',
+         '--transform_name_mapping', '{\"from\":\"to\"}'])
+    job = apiclient.Job(pipeline_options, FAKE_PIPELINE_URL)
+    self.assertIsNotNone(job.proto.transformNameMapping)
+
   def test_labels(self):
     pipeline_options = PipelineOptions(
         ['--project', 'test_project', '--job_name', 'test_job_name',
@@ -617,6 +639,13 @@ class UtilTest(unittest.TestCase):
     self.assertRaises(
         Exception,
         apiclient._verify_interpreter_version_is_supported, pipeline_options)
+
+  def test_get_response_encoding(self):
+    encoding = apiclient.get_response_encoding()
+    version_to_encoding = {3: 'utf8',
+                           2: None}
+
+    assert encoding == version_to_encoding[sys.version_info[0]]
 
 
 if __name__ == '__main__':

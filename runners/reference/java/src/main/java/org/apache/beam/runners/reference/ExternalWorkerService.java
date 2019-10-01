@@ -18,14 +18,14 @@
 package org.apache.beam.runners.reference;
 
 import org.apache.beam.fn.harness.FnHarness;
-import org.apache.beam.model.fnexecution.v1.BeamFnApi.NotifyRunnerAvailableRequest;
-import org.apache.beam.model.fnexecution.v1.BeamFnApi.NotifyRunnerAvailableResponse;
+import org.apache.beam.model.fnexecution.v1.BeamFnApi.StartWorkerRequest;
+import org.apache.beam.model.fnexecution.v1.BeamFnApi.StartWorkerResponse;
 import org.apache.beam.model.fnexecution.v1.BeamFnExternalWorkerPoolGrpc.BeamFnExternalWorkerPoolImplBase;
 import org.apache.beam.runners.fnexecution.FnService;
 import org.apache.beam.runners.fnexecution.GrpcFnServer;
 import org.apache.beam.runners.fnexecution.ServerFactory;
 import org.apache.beam.sdk.options.PipelineOptions;
-import org.apache.beam.vendor.grpc.v1p13p1.io.grpc.stub.StreamObserver;
+import org.apache.beam.vendor.grpc.v1p21p0.io.grpc.stub.StreamObserver;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -44,9 +44,8 @@ public class ExternalWorkerService extends BeamFnExternalWorkerPoolImplBase impl
   }
 
   @Override
-  public void notifyRunnerAvailable(
-      NotifyRunnerAvailableRequest request,
-      StreamObserver<NotifyRunnerAvailableResponse> responseObserver) {
+  public void startWorker(
+      StartWorkerRequest request, StreamObserver<StartWorkerResponse> responseObserver) {
     LOG.info(
         "Starting worker {} pointing at {}.",
         request.getWorkerId(),
@@ -70,7 +69,7 @@ public class ExternalWorkerService extends BeamFnExternalWorkerPoolImplBase impl
     th.setDaemon(true);
     th.start();
 
-    responseObserver.onNext(NotifyRunnerAvailableResponse.newBuilder().build());
+    responseObserver.onNext(StartWorkerResponse.newBuilder().build());
     responseObserver.onCompleted();
   }
 

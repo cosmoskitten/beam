@@ -17,8 +17,8 @@
  */
 package org.apache.beam.sdk.values;
 
-import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkArgument;
-import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkState;
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkState;
 
 import java.util.Collections;
 import java.util.Map;
@@ -296,7 +296,7 @@ public class PCollection<T> extends PValueBase implements PValue {
   /**
    * Sets a schema on this PCollection.
    *
-   * <p>Can only be called on a {@link PCollection}.
+   * <p>Can only be called on a {@link PCollection<Row>}.
    */
   @Experimental(Kind.SCHEMAS)
   public PCollection<T> setRowSchema(Schema schema) {

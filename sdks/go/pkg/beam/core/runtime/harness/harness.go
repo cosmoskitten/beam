@@ -76,7 +76,7 @@ func Main(ctx context.Context, loggingEndpoint, controlEndpoint string) error {
 			log.Debugf(ctx, "RESP: %v", proto.MarshalTextString(resp))
 
 			if err := client.Send(resp); err != nil {
-				log.Errorf(ctx, "Failed to respond: %v", err)
+				log.Errorf(ctx, "control.Send: Failed to respond: %v", err)
 			}
 		}
 	}()
@@ -102,7 +102,7 @@ func Main(ctx context.Context, loggingEndpoint, controlEndpoint string) error {
 				recordFooter()
 				return nil
 			}
-			return errors.Wrapf(err, "recv failed")
+			return errors.Wrapf(err, "control.Recv failed")
 		}
 
 		// Launch a goroutine to handle the control message.
@@ -180,7 +180,7 @@ func (c *control) handleInstruction(ctx context.Context, req *fnpb.InstructionRe
 
 		log.Debugf(ctx, "PB: %v", msg)
 
-		ref := msg.GetProcessBundleDescriptorReference()
+		ref := msg.GetProcessBundleDescriptorId()
 		c.mu.Lock()
 		plan, ok := c.plans[ref]
 		// Make the plan active, and remove it from candidates
@@ -194,10 +194,10 @@ func (c *control) handleInstruction(ctx context.Context, req *fnpb.InstructionRe
 		}
 
 		data := NewScopedDataManager(c.data, id)
-		side := NewScopedSideInputReader(c.state, id)
-		err := plan.Execute(ctx, id, exec.DataContext{Data: data, SideInput: side})
+		state := NewScopedStateReader(c.state, id)
+		err := plan.Execute(ctx, id, exec.DataContext{Data: data, State: state})
 		data.Close()
-		side.Close()
+		state.Close()
 
 		m := plan.Metrics()
 		// Move the plan back to the candidate state
@@ -224,7 +224,7 @@ func (c *control) handleInstruction(ctx context.Context, req *fnpb.InstructionRe
 
 		// log.Debugf(ctx, "PB Progress: %v", msg)
 
-		ref := msg.GetInstructionReference()
+		ref := msg.GetInstructionId()
 		c.mu.Lock()
 		plan, ok := c.active[ref]
 		c.mu.Unlock()
@@ -247,7 +247,7 @@ func (c *control) handleInstruction(ctx context.Context, req *fnpb.InstructionRe
 		msg := req.GetProcessBundleSplit()
 
 		log.Debugf(ctx, "PB Split: %v", msg)
-		ref := msg.GetInstructionReference()
+		ref := msg.GetInstructionId()
 		c.mu.Lock()
 		plan, ok := c.active[ref]
 		c.mu.Unlock()

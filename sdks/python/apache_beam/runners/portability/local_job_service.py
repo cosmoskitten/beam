@@ -127,9 +127,17 @@ class LocalJobServicer(beam_job_api_pb2_grpc.JobServiceServicer):
     self._jobs[job_id].start()
     return beam_job_api_pb2.RunJobResponse(job_id=job_id)
 
+  def GetJobs(self, request, context=None):
+    return beam_job_api_pb2.GetJobsResponse(
+        [job.to_runner_api(context) for job in self._jobs.values()])
+
   def GetState(self, request, context=None):
     return beam_job_api_pb2.GetJobStateResponse(
         state=self._jobs[request.job_id].state)
+
+  def GetPipeline(self, request, context=None):
+    return beam_job_api_pb2.GetJobPipelineResponse(
+        pipeline=self._jobs[request.job_id]._pipeline_proto)
 
   def Cancel(self, request, context=None):
     self._jobs[request.job_id].cancel()
@@ -169,9 +177,10 @@ class SubprocessSdkWorker(object):
   """Manages a SDK worker implemented as a subprocess communicating over grpc.
     """
 
-  def __init__(self, worker_command_line, control_address):
+  def __init__(self, worker_command_line, control_address, worker_id=None):
     self._worker_command_line = worker_command_line
     self._control_address = control_address
+    self._worker_id = worker_id
 
   def run(self):
     logging_server = grpc.server(futures.ThreadPoolExecutor(max_workers=10))
@@ -186,13 +195,20 @@ class SubprocessSdkWorker(object):
     control_descriptor = text_format.MessageToString(
         endpoints_pb2.ApiServiceDescriptor(url=self._control_address))
 
-    p = subprocess.Popen(
-        self._worker_command_line,
-        shell=True,
-        env=dict(
-            os.environ,
-            CONTROL_API_SERVICE_DESCRIPTOR=control_descriptor,
-            LOGGING_API_SERVICE_DESCRIPTOR=logging_descriptor))
+    env_dict = dict(
+        os.environ,
+        CONTROL_API_SERVICE_DESCRIPTOR=control_descriptor,
+        LOGGING_API_SERVICE_DESCRIPTOR=logging_descriptor
+    )
+    # only add worker_id when it is set.
+    if self._worker_id:
+      env_dict['WORKER_ID'] = self._worker_id
+
+    with fn_api_runner.SUBPROCESS_LOCK:
+      p = subprocess.Popen(
+          self._worker_command_line,
+          shell=True,
+          env=env_dict)
     try:
       p.wait()
       if p.returncode:
@@ -282,6 +298,13 @@ class BeamJob(threading.Thread):
       yield msg
       if isinstance(msg, int):
         current_state = msg
+
+  def to_runner_api(self, context):
+    return beam_job_api_pb2.JobInfo(
+        job_id=self._job_id,
+        job_name=self._provision_info.job_name,
+        pipeline_options=self._pipeline_options,
+        state=self.state)
 
 
 class BeamFnLoggingServicer(beam_fn_api_pb2_grpc.BeamFnLoggingServicer):

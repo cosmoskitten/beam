@@ -71,11 +71,11 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.WindowingStrategy;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Function;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.FluentIterable;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableList;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableMap;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Iterables;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Function;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.FluentIterable;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.functions.KeySelector;
@@ -92,7 +92,7 @@ import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
-import org.mockito.internal.util.reflection.Whitebox;
+import org.powermock.reflect.Whitebox;
 
 /** Tests for {@link DoFnOperator}. */
 @RunWith(JUnit4.class)
@@ -141,7 +141,8 @@ public class DoFnOperatorTest {
             PipelineOptionsFactory.as(FlinkPipelineOptions.class),
             null,
             null,
-            DoFnSchemaInformation.create());
+            DoFnSchemaInformation.create(),
+            Collections.emptyMap());
 
     OneInputStreamOperatorTestHarness<WindowedValue<String>, WindowedValue<String>> testHarness =
         new OneInputStreamOperatorTestHarness<>(doFnOperator);
@@ -202,7 +203,8 @@ public class DoFnOperatorTest {
             PipelineOptionsFactory.as(FlinkPipelineOptions.class),
             null,
             null,
-            DoFnSchemaInformation.create());
+            DoFnSchemaInformation.create(),
+            Collections.emptyMap());
 
     OneInputStreamOperatorTestHarness<WindowedValue<String>, WindowedValue<String>> testHarness =
         new OneInputStreamOperatorTestHarness<>(doFnOperator);
@@ -316,7 +318,8 @@ public class DoFnOperatorTest {
             PipelineOptionsFactory.as(FlinkPipelineOptions.class),
             VarIntCoder.of(), /* key coder */
             WindowedValue::getValue,
-            DoFnSchemaInformation.create());
+            DoFnSchemaInformation.create(),
+            Collections.emptyMap());
 
     OneInputStreamOperatorTestHarness<WindowedValue<Integer>, WindowedValue<String>> testHarness =
         new KeyedOneInputStreamOperatorTestHarness<>(
@@ -409,7 +412,8 @@ public class DoFnOperatorTest {
             PipelineOptionsFactory.as(FlinkPipelineOptions.class),
             VarIntCoder.of(), /* key coder */
             WindowedValue::getValue,
-            DoFnSchemaInformation.create());
+            DoFnSchemaInformation.create(),
+            Collections.emptyMap());
 
     OneInputStreamOperatorTestHarness<WindowedValue<Integer>, WindowedValue<String>> testHarness =
         new KeyedOneInputStreamOperatorTestHarness<>(
@@ -517,7 +521,8 @@ public class DoFnOperatorTest {
             PipelineOptionsFactory.as(FlinkPipelineOptions.class),
             StringUtf8Coder.of(), /* key coder */
             kvWindowedValue -> kvWindowedValue.getValue().getKey(),
-            DoFnSchemaInformation.create());
+            DoFnSchemaInformation.create(),
+            Collections.emptyMap());
 
     KeyedOneInputStreamOperatorTestHarness<
             String, WindowedValue<KV<String, Integer>>, WindowedValue<KV<String, Integer>>>
@@ -622,7 +627,8 @@ public class DoFnOperatorTest {
             PipelineOptionsFactory.as(FlinkPipelineOptions.class),
             keyCoder,
             keyed ? WindowedValue::getValue : null,
-            DoFnSchemaInformation.create());
+            DoFnSchemaInformation.create(),
+            Collections.emptyMap());
 
     TwoInputStreamOperatorTestHarness<WindowedValue<String>, RawUnionValue, WindowedValue<String>>
         testHarness = new TwoInputStreamOperatorTestHarness<>(doFnOperator);
@@ -793,7 +799,8 @@ public class DoFnOperatorTest {
                   PipelineOptionsFactory.as(FlinkPipelineOptions.class),
                   null,
                   null,
-                  DoFnSchemaInformation.create());
+                  DoFnSchemaInformation.create(),
+                  Collections.emptyMap());
 
           return new TwoInputStreamOperatorTestHarness<>(doFnOperator);
         });
@@ -831,7 +838,8 @@ public class DoFnOperatorTest {
                   PipelineOptionsFactory.as(FlinkPipelineOptions.class),
                   keyCoder,
                   WindowedValue::getValue,
-                  DoFnSchemaInformation.create());
+                  DoFnSchemaInformation.create(),
+                  Collections.emptyMap());
 
           return new KeyedTwoInputStreamOperatorTestHarness<>(
               doFnOperator,
@@ -928,7 +936,8 @@ public class DoFnOperatorTest {
                   PipelineOptionsFactory.as(FlinkPipelineOptions.class),
                   null,
                   null,
-                  DoFnSchemaInformation.create());
+                  DoFnSchemaInformation.create(),
+                  Collections.emptyMap());
 
           return new TwoInputStreamOperatorTestHarness<>(doFnOperator);
         });
@@ -967,7 +976,8 @@ public class DoFnOperatorTest {
                   PipelineOptionsFactory.as(FlinkPipelineOptions.class),
                   keyCoder,
                   WindowedValue::getValue,
-                  DoFnSchemaInformation.create());
+                  DoFnSchemaInformation.create(),
+                  Collections.emptyMap());
 
           return new KeyedTwoInputStreamOperatorTestHarness<>(
               doFnOperator,
@@ -1142,7 +1152,8 @@ public class DoFnOperatorTest {
             PipelineOptionsFactory.as(FlinkPipelineOptions.class),
             VarIntCoder.of() /* key coder */,
             keySelector,
-            DoFnSchemaInformation.create());
+            DoFnSchemaInformation.create(),
+            Collections.emptyMap());
 
     return new KeyedOneInputStreamOperatorTestHarness<>(doFnOperator, keySelector, keyCoderInfo);
   }
@@ -1189,7 +1200,8 @@ public class DoFnOperatorTest {
             options,
             null,
             null,
-            DoFnSchemaInformation.create());
+            DoFnSchemaInformation.create(),
+            Collections.emptyMap());
 
     OneInputStreamOperatorTestHarness<WindowedValue<String>, WindowedValue<String>> testHarness =
         new OneInputStreamOperatorTestHarness<>(doFnOperator);
@@ -1238,7 +1250,8 @@ public class DoFnOperatorTest {
             options,
             null,
             null,
-            DoFnSchemaInformation.create());
+            DoFnSchemaInformation.create(),
+            Collections.emptyMap());
 
     OneInputStreamOperatorTestHarness<WindowedValue<String>, WindowedValue<String>> newHarness =
         new OneInputStreamOperatorTestHarness<>(newDoFnOperator);
@@ -1331,7 +1344,8 @@ public class DoFnOperatorTest {
             options,
             keyCoder,
             keySelector,
-            DoFnSchemaInformation.create());
+            DoFnSchemaInformation.create(),
+            Collections.emptyMap());
 
     OneInputStreamOperatorTestHarness<
             WindowedValue<KV<String, String>>, WindowedValue<KV<String, String>>>
@@ -1387,7 +1401,8 @@ public class DoFnOperatorTest {
             options,
             keyCoder,
             keySelector,
-            DoFnSchemaInformation.create());
+            DoFnSchemaInformation.create(),
+            Collections.emptyMap());
 
     testHarness =
         new KeyedOneInputStreamOperatorTestHarness(
@@ -1470,7 +1485,8 @@ public class DoFnOperatorTest {
                 options,
                 null,
                 null,
-                DoFnSchemaInformation.create());
+                DoFnSchemaInformation.create(),
+                Collections.emptyMap());
 
     DoFnOperator<String, String> doFnOperator = doFnOperatorSupplier.get();
     OneInputStreamOperatorTestHarness<WindowedValue<String>, WindowedValue<String>> testHarness =
@@ -1585,7 +1601,8 @@ public class DoFnOperatorTest {
                 options,
                 keyCoder,
                 keySelector,
-                DoFnSchemaInformation.create());
+                DoFnSchemaInformation.create(),
+                Collections.emptyMap());
 
     DoFnOperator<KV<String, String>, KV<String, String>> doFnOperator = doFnOperatorSupplier.get();
     OneInputStreamOperatorTestHarness<
@@ -1614,10 +1631,10 @@ public class DoFnOperatorTest {
     assertThat(
         stripStreamRecordFromWindowedValue(testHarness.getOutput()),
         contains(
-            WindowedValue.valueInGlobalWindow(KV.of("key2", "c")),
-            WindowedValue.valueInGlobalWindow(KV.of("key2", "d")),
             WindowedValue.valueInGlobalWindow(KV.of("key", "a")),
             WindowedValue.valueInGlobalWindow(KV.of("key", "b")),
+            WindowedValue.valueInGlobalWindow(KV.of("key2", "c")),
+            WindowedValue.valueInGlobalWindow(KV.of("key2", "d")),
             WindowedValue.valueInGlobalWindow(KV.of("key3", "finishBundle"))));
 
     doFnOperator = doFnOperatorSupplier.get();
@@ -1635,10 +1652,10 @@ public class DoFnOperatorTest {
     assertThat(
         stripStreamRecordFromWindowedValue(testHarness.getOutput()),
         contains(
-            WindowedValue.valueInGlobalWindow(KV.of("key2", "c")),
-            WindowedValue.valueInGlobalWindow(KV.of("key2", "d")),
             WindowedValue.valueInGlobalWindow(KV.of("key", "a")),
             WindowedValue.valueInGlobalWindow(KV.of("key", "b")),
+            WindowedValue.valueInGlobalWindow(KV.of("key2", "c")),
+            WindowedValue.valueInGlobalWindow(KV.of("key2", "d")),
             WindowedValue.valueInGlobalWindow(KV.of("key3", "finishBundle"))));
 
     // repeat to see if elements are evicted
@@ -1648,10 +1665,10 @@ public class DoFnOperatorTest {
     assertThat(
         stripStreamRecordFromWindowedValue(testHarness.getOutput()),
         contains(
-            WindowedValue.valueInGlobalWindow(KV.of("key2", "c")),
-            WindowedValue.valueInGlobalWindow(KV.of("key2", "d")),
             WindowedValue.valueInGlobalWindow(KV.of("key", "a")),
             WindowedValue.valueInGlobalWindow(KV.of("key", "b")),
+            WindowedValue.valueInGlobalWindow(KV.of("key2", "c")),
+            WindowedValue.valueInGlobalWindow(KV.of("key2", "d")),
             WindowedValue.valueInGlobalWindow(KV.of("key3", "finishBundle"))));
   }
 
@@ -1698,7 +1715,8 @@ public class DoFnOperatorTest {
         options,
         keyCoder,
         keySelector,
-        DoFnSchemaInformation.create());
+        DoFnSchemaInformation.create(),
+        Collections.emptyMap());
   }
 
   /**
@@ -1744,7 +1762,8 @@ public class DoFnOperatorTest {
             options,
             null,
             null,
-            DoFnSchemaInformation.create());
+            DoFnSchemaInformation.create(),
+            Collections.emptyMap());
 
     OneInputStreamOperatorTestHarness<WindowedValue<String>, WindowedValue<String>> testHarness =
         new OneInputStreamOperatorTestHarness<>(doFnOperator);

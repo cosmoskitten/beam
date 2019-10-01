@@ -147,12 +147,12 @@ type DataChannel struct {
 func newDataChannel(ctx context.Context, port exec.Port) (*DataChannel, error) {
 	cc, err := dial(ctx, port.URL, 15*time.Second)
 	if err != nil {
-		return nil, errors.Wrap(err, "failed to connect")
+		return nil, errors.Wrapf(err, "failed to connect to data service at %v", port.URL)
 	}
 	client, err := pb.NewBeamFnDataClient(cc).Data(ctx)
 	if err != nil {
 		cc.Close()
-		return nil, errors.Wrap(err, "failed to connect to data service")
+		return nil, errors.Wrapf(err, "failed to create data client on %v", port.URL)
 	}
 	return makeDataChannel(ctx, port.URL, client), nil
 }
@@ -184,10 +184,11 @@ func (c *DataChannel) read(ctx context.Context) {
 		if err != nil {
 			if err == io.EOF {
 				// TODO(herohde) 10/12/2017: can this happen before shutdown? Reconnect?
-				log.Warnf(ctx, "DataChannel %v closed", c.id)
+				log.Warnf(ctx, "DataChannel.read %v closed", c.id)
 				return
 			}
-			panic(errors.Wrapf(err, "channel %v bad", c.id))
+			log.Errorf(ctx, "DataChannel.read %v bad", c.id)
+			return
 		}
 
 		recordStreamReceive(msg)
@@ -197,7 +198,7 @@ func (c *DataChannel) read(ctx context.Context) {
 		// to reduce lock contention.
 
 		for _, elm := range msg.GetData() {
-			id := clientID{ptransformID: elm.PtransformId, instID: elm.GetInstructionReference()}
+			id := clientID{ptransformID: elm.TransformId, instID: elm.GetInstructionId()}
 
 			// log.Printf("Chan read (%v): %v\n", sid, elm.GetData())
 
@@ -332,8 +333,8 @@ func (w *dataWriter) Close() error {
 	msg := &pb.Elements{
 		Data: []*pb.Elements_Data{
 			{
-				InstructionReference: w.id.instID,
-				PtransformId:         w.id.ptransformID,
+				InstructionId: w.id.instID,
+				TransformId:   w.id.ptransformID,
 				// Empty data == sentinel
 			},
 		},
@@ -356,9 +357,9 @@ func (w *dataWriter) Flush() error {
 	msg := &pb.Elements{
 		Data: []*pb.Elements_Data{
 			{
-				InstructionReference: w.id.instID,
-				PtransformId:         w.id.ptransformID,
-				Data:                 w.buf,
+				InstructionId: w.id.instID,
+				TransformId:   w.id.ptransformID,
+				Data:          w.buf,
 			},
 		},
 	}

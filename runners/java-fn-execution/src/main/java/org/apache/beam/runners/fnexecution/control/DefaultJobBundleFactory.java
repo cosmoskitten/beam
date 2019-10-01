@@ -59,15 +59,14 @@ import org.apache.beam.sdk.fn.stream.OutboundObserverFactory;
 import org.apache.beam.sdk.function.ThrowingFunction;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PortablePipelineOptions;
-import org.apache.beam.sdk.util.WindowedValue;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.annotations.VisibleForTesting;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.cache.CacheBuilder;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.cache.CacheLoader;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.cache.LoadingCache;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.cache.RemovalNotification;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableMap;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Iterables;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.cache.CacheBuilder;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.cache.CacheLoader;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.cache.LoadingCache;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.cache.RemovalNotification;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -81,7 +80,9 @@ import org.slf4j.LoggerFactory;
 @ThreadSafe
 public class DefaultJobBundleFactory implements JobBundleFactory {
   private static final Logger LOG = LoggerFactory.getLogger(DefaultJobBundleFactory.class);
+  private static final IdGenerator factoryIdGenerator = IdGenerators.incrementingLongs();
 
+  private final String factoryId = factoryIdGenerator.getId();
   private final LoadingCache<Environment, WrappedSdkHarnessClient> environmentCache;
   private final Map<String, EnvironmentFactory.Provider> environmentFactoryProviderMap;
   private final ExecutorService executor;
@@ -90,18 +91,18 @@ public class DefaultJobBundleFactory implements JobBundleFactory {
   private final int environmentExpirationMillis;
 
   public static DefaultJobBundleFactory create(JobInfo jobInfo) {
+    PipelineOptions pipelineOptions =
+        PipelineOptionsTranslation.fromProto(jobInfo.pipelineOptions());
     Map<String, EnvironmentFactory.Provider> environmentFactoryProviderMap =
         ImmutableMap.of(
             BeamUrns.getUrn(StandardEnvironments.Environments.DOCKER),
-            new DockerEnvironmentFactory.Provider(
-                PipelineOptionsTranslation.fromProto(jobInfo.pipelineOptions())),
+            new DockerEnvironmentFactory.Provider(pipelineOptions),
             BeamUrns.getUrn(StandardEnvironments.Environments.PROCESS),
-            new ProcessEnvironmentFactory.Provider(),
+            new ProcessEnvironmentFactory.Provider(pipelineOptions),
             BeamUrns.getUrn(StandardEnvironments.Environments.EXTERNAL),
             new ExternalEnvironmentFactory.Provider(),
             Environments.ENVIRONMENT_EMBEDDED, // Non Public urn for testing.
-            new EmbeddedEnvironmentFactory.Provider(
-                PipelineOptionsTranslation.fromProto(jobInfo.pipelineOptions())));
+            new EmbeddedEnvironmentFactory.Provider(pipelineOptions));
     return new DefaultJobBundleFactory(jobInfo, environmentFactoryProviderMap);
   }
 
@@ -112,11 +113,11 @@ public class DefaultJobBundleFactory implements JobBundleFactory {
 
   DefaultJobBundleFactory(
       JobInfo jobInfo, Map<String, EnvironmentFactory.Provider> environmentFactoryMap) {
-    IdGenerator stageIdGenerator = IdGenerators.incrementingLongs();
+    IdGenerator stageIdSuffixGenerator = IdGenerators.incrementingLongs();
     this.environmentFactoryProviderMap = environmentFactoryMap;
     this.executor = Executors.newCachedThreadPool();
     this.clientPool = MapControlClientPool.create();
-    this.stageIdGenerator = stageIdGenerator;
+    this.stageIdGenerator = () -> factoryId + "-" + stageIdSuffixGenerator.getId();
     this.environmentExpirationMillis = getEnvironmentExpirationMillis(jobInfo);
     this.environmentCache =
         createEnvironmentCache(serverFactory -> createServerInfo(jobInfo, serverFactory));
@@ -243,10 +244,10 @@ public class DefaultJobBundleFactory implements JobBundleFactory {
       // than constructing the receiver map here. Every bundle factory will need this.
       ImmutableMap.Builder<String, RemoteOutputReceiver<?>> outputReceivers =
           ImmutableMap.builder();
-      for (Map.Entry<String, Coder<WindowedValue<?>>> remoteOutputCoder :
+      for (Map.Entry<String, Coder> remoteOutputCoder :
           processBundleDescriptor.getRemoteOutputCoders().entrySet()) {
         String outputTransform = remoteOutputCoder.getKey();
-        Coder<WindowedValue<?>> coder = remoteOutputCoder.getValue();
+        Coder coder = remoteOutputCoder.getValue();
         String bundleOutputPCollection =
             Iterables.getOnlyElement(
                 processBundleDescriptor
@@ -254,8 +255,7 @@ public class DefaultJobBundleFactory implements JobBundleFactory {
                     .getTransformsOrThrow(outputTransform)
                     .getInputsMap()
                     .values());
-        FnDataReceiver<WindowedValue<?>> outputReceiver =
-            outputReceiverFactory.create(bundleOutputPCollection);
+        FnDataReceiver outputReceiver = outputReceiverFactory.create(bundleOutputPCollection);
         outputReceivers.put(outputTransform, RemoteOutputReceiver.of(coder, outputReceiver));
       }
 
@@ -281,7 +281,7 @@ public class DefaultJobBundleFactory implements JobBundleFactory {
         }
 
         @Override
-        public Map<String, FnDataReceiver<WindowedValue<?>>> getInputReceivers() {
+        public Map<String, FnDataReceiver> getInputReceivers() {
           return bundle.getInputReceivers();
         }
 

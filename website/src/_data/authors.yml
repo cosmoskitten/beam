@@ -25,6 +25,9 @@ altay:
 angoenka:
     name: Ankur Goenka
     email: goenka@apache.org
+anton:
+    name: Anton Kedin
+    email: anton@apache.org
 ccy:
     name: Charles Chen
     email: ccy@apache.org
@@ -120,4 +123,8 @@ rez:
     name: Reza Rokni
     email: rez@google.com
     twitter: rarokni
+ttanay:
+    name: Tanay Tummalapalli
+    email: ttanay100@gmail.com
+    twitter: ttanay100
 

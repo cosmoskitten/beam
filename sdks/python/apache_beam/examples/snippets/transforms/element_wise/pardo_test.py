@@ -18,38 +18,38 @@
 
 from __future__ import absolute_import
 from __future__ import print_function
+from __future__ import unicode_literals
 
+import io
+import platform
+import sys
 import unittest
 
 import mock
 
-from apache_beam.examples.snippets.transforms.element_wise.pardo import *
 from apache_beam.testing.test_pipeline import TestPipeline
 from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
 
+from . import pardo
 
-@mock.patch('apache_beam.Pipeline', TestPipeline)
-# pylint: disable=line-too-long
-@mock.patch('apache_beam.examples.snippets.transforms.element_wise.pardo.print', lambda elem: elem)
-# pylint: enable=line-too-long
-class ParDoTest(unittest.TestCase):
-  def __init__(self, methodName):
-    super(ParDoTest, self).__init__(methodName)
-    # [START plants]
-    plants = [
-        '🍓Strawberry',
-        '🥕Carrot',
-        '🍆Eggplant',
-        '🍅Tomato',
-        '🥔Potato',
-    ]
-    # [END plants]
-    self.plants_test = lambda actual: assert_that(actual, equal_to(plants))
 
-    # pylint: disable=line-too-long
-    # [START dofn_params]
-    dofn_params = '''\
+def check_plants(actual):
+  # [START plants]
+  plants = [
+      '🍓Strawberry',
+      '🥕Carrot',
+      '🍆Eggplant',
+      '🍅Tomato',
+      '🥔Potato',
+  ]
+  # [END plants]
+  assert_that(actual, equal_to(plants))
+
+
+def check_dofn_params(actual):
+  # pylint: disable=line-too-long
+  dofn_params = '\n'.join('''[START dofn_params]
 # timestamp
 type(timestamp) -> <class 'apache_beam.utils.timestamp.Timestamp'>
 timestamp.micros -> 1584675660000000
@@ -60,17 +60,60 @@ timestamp.to_utc_datetime() -> datetime.datetime(2020, 3, 20, 3, 41)
 type(window) -> <class 'apache_beam.transforms.window.IntervalWindow'>
 window.start -> Timestamp(1584675660) (2020-03-20 03:41:00)
 window.end -> Timestamp(1584675690) (2020-03-20 03:41:30)
-window.max_timestamp() -> Timestamp(1584675689.999999) (2020-03-20 03:41:29.999999)'''
-    # [END dofn_params]
-    # pylint: enable=line-too-long
-    self.dofn_params_test = lambda actual: \
-        assert_that(actual, equal_to([dofn_params]))
+window.max_timestamp() -> Timestamp(1584675689.999999) (2020-03-20 03:41:29.999999)
+[END dofn_params]'''.splitlines()[1:-1])
+  # pylint: enable=line-too-long
+  assert_that(actual, equal_to([dofn_params]))
 
+
+def check_dofn_methods(actual):
+  # Return the expected stdout to check the ordering of the called methods.
+  return '''[START results]
+__init__
+setup
+start_bundle
+* process: 🍓
+* process: 🥕
+* process: 🍆
+* process: 🍅
+* process: 🥔
+* finish_bundle: 🌱🌳🌍
+teardown
+[END results]'''.splitlines()[1:-1]
+
+
+@mock.patch('apache_beam.Pipeline', TestPipeline)
+# pylint: disable=line-too-long
+@mock.patch('apache_beam.examples.snippets.transforms.element_wise.pardo.print', lambda elem: elem)
+# pylint: enable=line-too-long
+class ParDoTest(unittest.TestCase):
   def test_pardo_dofn(self):
-    pardo_dofn(self.plants_test)
+    pardo.pardo_dofn(check_plants)
 
+  # TODO: Remove this after Python 2 deprecation.
+  # https://issues.apache.org/jira/browse/BEAM-8124
+  @unittest.skipIf(sys.version_info[0] < 3 and platform.system() == 'Windows',
+                   'Python 2 on Windows uses `long` rather than `int`')
   def test_pardo_dofn_params(self):
-    pardo_dofn_params(self.dofn_params_test)
+    pardo.pardo_dofn_params(check_dofn_params)
+
+
+@mock.patch('apache_beam.Pipeline', TestPipeline)
+@mock.patch('sys.stdout', new_callable=io.StringIO)
+class ParDoStdoutTest(unittest.TestCase):
+  def test_pardo_dofn_methods(self, mock_stdout):
+    expected = pardo.pardo_dofn_methods(check_dofn_methods)
+    actual = mock_stdout.getvalue().splitlines()
+
+    # For the stdout, check the ordering of the methods, not of the elements.
+    actual_stdout = [line.split(':')[0] for line in actual]
+    expected_stdout = [line.split(':')[0] for line in expected]
+    self.assertEqual(actual_stdout, expected_stdout)
+
+    # For the elements, ignore the stdout and just make sure all elements match.
+    actual_elements = {line for line in actual if line.startswith('*')}
+    expected_elements = {line for line in expected if line.startswith('*')}
+    self.assertEqual(actual_elements, expected_elements)
 
 
 if __name__ == '__main__':
