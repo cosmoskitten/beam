@@ -813,10 +813,10 @@ class PortableOptions(PipelineOptions):
         help=('Job service endpoint to use. Should be in the form of address '
               'and port, e.g. localhost:3000'))
     parser.add_argument(
-            '--job_server_timeout', default=60, type=int,
-            help=('Job service request timeout in seconds. The timeout '
-                  'determines the max time the driver program will wait to '
-                  'get a response from the job server.'))
+        '--job-server-timeout', default=60, type=int,
+        help=('Job service request timeout in seconds. The timeout '
+              'determines the max time the driver program will wait to '
+              'get a response from the job server.'))
     parser.add_argument(
         '--environment_type', default=None,
         help=('Set the default environment type for running '

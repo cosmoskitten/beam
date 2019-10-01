@@ -149,17 +149,18 @@ class PortableRunner(runner.PipelineRunner):
           job_server.DockerizedJobServer())
     return self._dockerized_job_server
 
-  def create_job_service(self, portable_options):
-    job_endpoint = portable_options.job_endpoint
+  def create_job_service(self, options):
+    job_endpoint = options.view_as(
+                PortableOptions).job_endpoint
     if job_endpoint:
       if job_endpoint == 'embed':
         server = job_server.EmbeddedJobServer()
       else:
-        job_server_timeout = portable_options.view_as(
+        job_server_timeout = options.view_as(
                 PortableOptions).job_server_timeout
         server = job_server.ExternalJobServer(job_endpoint, job_server_timeout)
     else:
-      server = self.default_job_server(portable_options)
+      server = self.default_job_server(options)
     return server.start()
 
   def run_pipeline(self, pipeline, options):
@@ -242,7 +243,7 @@ class PortableRunner(runner.PipelineRunner):
             known_runner_urns=flink_known_urns,
             partial=True)
 
-    job_service = self.create_job_service(portable_options)
+    job_service = self.create_job_service(options)
 
     # fetch runner options from job service
     # retries in case the channel is not ready
