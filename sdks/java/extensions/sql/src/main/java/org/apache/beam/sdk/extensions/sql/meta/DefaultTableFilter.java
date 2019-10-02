@@ -18,28 +18,28 @@
 package org.apache.beam.sdk.extensions.sql.meta;
 
 import java.util.List;
-import org.apache.beam.sdk.values.PBegin;
-import org.apache.beam.sdk.values.PCollection;
-import org.apache.beam.sdk.values.Row;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rex.RexNode;
 
-/** Basic implementation of {@link BeamSqlTable} methods used by predicate and filter push-down. */
-public abstract class BaseBeamTable implements BeamSqlTable {
+/**
+ * This default implementation of {@link BeamSqlTableFilter} interface. Assumes that predicate
+ * push-down is not supported.
+ */
+public class DefaultTableFilter implements BeamSqlTableFilter {
+  private final List<RexNode> filters;
 
-  @Override
-  public PCollection<Row> buildIOReader(
-      PBegin begin, BeamSqlTableFilter filters, List<String> fieldNames) {
-    throw new UnsupportedOperationException(
-        this.getClass().getName() + " does not support predicate/project push-down yet.");
+  public DefaultTableFilter(List<RexNode> filters) {
+    this.filters = filters;
   }
 
+  /**
+   * Since predicate push-down is assumed not to be supported by default - return an unchanged list
+   * of filters to be preserved.
+   *
+   * @return Predicate {@code List<RexNode>} which are not supported. To make a single RexNode
+   *     expression all of the nodes must be joined by a logical AND.
+   */
   @Override
-  public BeamSqlTableFilter supportsFilter(List<RexNode> filter) {
-    return new DefaultTableFilter(filter);
-  }
-
-  @Override
-  public Boolean supportsProjects() {
-    return Boolean.FALSE;
+  public List<RexNode> getNotSupported() {
+    return filters;
   }
 }
