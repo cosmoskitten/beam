@@ -23,6 +23,7 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Objects;
+
 import org.apache.beam.model.pipeline.v1.MetricsApi;
 import org.apache.beam.sdk.metrics.MetricName;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Strings;
@@ -51,9 +52,14 @@ public class MonitoringInfoMetricName extends MetricName {
   @Override
   public String getNamespace() {
     if (labels.containsKey(MonitoringInfoConstants.Labels.NAMESPACE)) {
+      // User-generated metric
       return labels.getOrDefault(MonitoringInfoConstants.Labels.NAMESPACE, null);
+    } else if (labels.containsKey(MonitoringInfoConstants.Labels.PCOLLECTION)) {
+      // System-generated metric, prepend with a colon
+      return ":" + labels.getOrDefault(MonitoringInfoConstants.Labels.PCOLLECTION, null);
     } else if (labels.containsKey(MonitoringInfoConstants.Labels.PTRANSFORM)) {
-      return labels.getOrDefault(MonitoringInfoConstants.Labels.PTRANSFORM, null);
+      // System-generated metric, prepend with a colon
+      return ":" + labels.getOrDefault(MonitoringInfoConstants.Labels.PTRANSFORM, null);
     } else {
       return urn.split(":", 2)[0];
     }
