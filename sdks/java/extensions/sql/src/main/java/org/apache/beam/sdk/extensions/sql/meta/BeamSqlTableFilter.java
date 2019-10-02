@@ -18,28 +18,17 @@
 package org.apache.beam.sdk.extensions.sql.meta;
 
 import java.util.List;
-import org.apache.beam.sdk.values.PBegin;
-import org.apache.beam.sdk.values.PCollection;
-import org.apache.beam.sdk.values.Row;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rex.RexNode;
 
-/** Basic implementation of {@link BeamSqlTable} methods used by predicate and filter push-down. */
-public abstract class BaseBeamTable implements BeamSqlTable {
-
-  @Override
-  public PCollection<Row> buildIOReader(
-      PBegin begin, BeamSqlTableFilter filters, List<String> fieldNames) {
-    throw new UnsupportedOperationException(
-        this.getClass().getName() + " does not support predicate/project push-down yet.");
-  }
-
-  @Override
-  public BeamSqlTableFilter supportsFilter(List<RexNode> filter) {
-    return new DefaultTableFilter(filter);
-  }
-
-  @Override
-  public Boolean supportsProjects() {
-    return Boolean.FALSE;
-  }
+/** This interface defines Beam SQL Table Filter. */
+public interface BeamSqlTableFilter {
+  /**
+   * Identify parts of a predicate that are not supported by the IO push-down capabilities to be
+   * preserved in a {@code Calc} following {@code BeamIOSourceRel}.
+   *
+   * @return {@code List<RexNode>} unsupported by the IO API. Should be empty when an entire
+   *     condition is supported, or an unchanged {@code List<RexNode>} when predicate push-down is
+   *     not supported at all.
+   */
+  List<RexNode> getNotSupported();
 }
