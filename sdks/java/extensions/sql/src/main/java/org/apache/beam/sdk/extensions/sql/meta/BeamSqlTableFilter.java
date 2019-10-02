@@ -15,22 +15,21 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.extensions.sql.impl.schema;
+package org.apache.beam.sdk.extensions.sql.meta;
 
-import java.io.Serializable;
-import org.apache.beam.sdk.extensions.sql.BeamSqlTable;
-import org.apache.beam.sdk.schemas.Schema;
+import javax.annotation.Nullable;
+import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rex.RexNode;
 
-/** Each IO in Beam has one table schema, by extending {@link BaseBeamTable}. */
-public abstract class BaseBeamTable implements BeamSqlTable, Serializable {
-  protected Schema schema;
-
-  public BaseBeamTable(Schema schema) {
-    this.schema = schema;
-  }
-
-  @Override
-  public Schema getSchema() {
-    return schema;
-  }
+/** This interface defines Beam SQL Table Filter. */
+public interface BeamSqlTableFilter {
+  /**
+   * Identify parts of a predicate that are not supported by the IO push-down capabilities to be
+   * preserved in a {@code Calc} following {@code BeamIOSourceRel}.
+   *
+   * @return {@code RexNode} unsupported by the IO API. Should be null when an entire condition is
+   *     supported, or an unchanged {@code RexNode} when predicate push-down is not supported at
+   *     all.
+   */
+  @Nullable
+  RexNode getNotSupported();
 }
