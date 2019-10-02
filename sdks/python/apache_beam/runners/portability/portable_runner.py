@@ -150,14 +150,12 @@ class PortableRunner(runner.PipelineRunner):
     return self._dockerized_job_server
 
   def create_job_service(self, options):
-    job_endpoint = options.view_as(
-                PortableOptions).job_endpoint
+    job_endpoint = options.view_as(PortableOptions).job_endpoint
     if job_endpoint:
       if job_endpoint == 'embed':
         server = job_server.EmbeddedJobServer()
       else:
-        job_server_timeout = options.view_as(
-                PortableOptions).job_server_timeout
+        job_server_timeout = options.view_as(PortableOptions).job_server_timeout
         server = job_server.ExternalJobServer(job_endpoint, job_server_timeout)
     else:
       server = self.default_job_server(options)
@@ -255,7 +253,7 @@ class PortableRunner(runner.PipelineRunner):
           # Seems to be only an issue on Mac with port forwardings
           return job_service.DescribePipelineOptions(
               beam_job_api_pb2.DescribePipelineOptionsRequest(),
-                  timeout=portable_options.job_server_timeout)
+              timeout=portable_options.job_server_timeout)
         except grpc.FutureTimeoutError:
           # no retry for timeout errors
           raise
@@ -299,7 +297,7 @@ class PortableRunner(runner.PipelineRunner):
         beam_job_api_pb2.PrepareJobRequest(
             job_name='job', pipeline=proto_pipeline,
             pipeline_options=job_utils.dict_to_struct(p_options)),
-            timeout=portable_options.job_server_timeout)
+        timeout=portable_options.job_server_timeout)
     if prepare_response.artifact_staging_endpoint.url:
       stager = portable_stager.PortableStager(
           grpc.insecure_channel(prepare_response.artifact_staging_endpoint.url),
@@ -314,7 +312,7 @@ class PortableRunner(runner.PipelineRunner):
       state_stream = job_service.GetStateStream(
           beam_job_api_pb2.GetJobStateRequest(
               job_id=prepare_response.preparation_id),
-              timeout=portable_options.job_server_timeout)
+          timeout=portable_options.job_server_timeout)
       # If there's an error, we don't always get it until we try to read.
       # Fortunately, there's always an immediate current state published.
       state_stream = itertools.chain(
@@ -323,7 +321,7 @@ class PortableRunner(runner.PipelineRunner):
       message_stream = job_service.GetMessageStream(
           beam_job_api_pb2.JobMessagesRequest(
               job_id=prepare_response.preparation_id),
-              timeout=portable_options.job_server_timeout)
+          timeout=portable_options.job_server_timeout)
     except Exception:
       # TODO(BEAM-6442): Unify preparation_id and job_id for all runners.
       state_stream = message_stream = None
