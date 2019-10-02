@@ -15,30 +15,31 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.extensions.sql.impl.rel;
+package org.apache.beam.sdk.extensions.sql.meta;
 
-import java.util.HashMap;
-import java.util.Map;
-import org.apache.beam.sdk.Pipeline;
-import org.apache.beam.sdk.extensions.sql.impl.BeamSqlEnv;
-import org.apache.beam.sdk.extensions.sql.meta.BeamSqlTable;
+import java.util.List;
+import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.Row;
+import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rex.RexNode;
+import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rex.RexProgram;
 
-/** Base class for rel test. */
-public abstract class BaseRelTest {
-  private static Map<String, BeamSqlTable> tables = new HashMap<>();
-  protected static BeamSqlEnv env = BeamSqlEnv.readOnly("test", tables);
+/** Basic implementation of {@link BeamSqlTable} methods used by predicate and filter push-down. */
+public abstract class BaseBeamTable implements BeamSqlTable {
 
-  protected static PCollection<Row> compilePipeline(String sql, Pipeline pipeline) {
-    return BeamSqlRelUtils.toPCollection(pipeline, env.parseQuery(sql));
+  @Override
+  public PCollection<Row> buildIOReader(
+      PBegin begin, BeamSqlTableFilter filters, List<String> fieldNames) {
+    return buildIOReader(begin);
   }
 
-  protected static void registerTable(String tableName, BeamSqlTable table) {
-    tables.put(tableName, table);
+  @Override
+  public BeamSqlTableFilter supportsFilter(RexProgram program, RexNode filter) {
+    return new DefaultTableFilter(program, filter);
   }
 
-  protected static BeamSqlTable getTable(String tableName) {
-    return tables.get(tableName);
+  @Override
+  public Boolean supportsProjects() {
+    return Boolean.FALSE;
   }
 }
