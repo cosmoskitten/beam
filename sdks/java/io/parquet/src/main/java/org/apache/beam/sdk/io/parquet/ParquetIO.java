@@ -122,7 +122,10 @@ public class ParquetIO {
    * pattern).
    */
   public static Read read(Schema schema) {
-    return new AutoValue_ParquetIO_Read.Builder().setSchema(schema).build();
+    return new AutoValue_ParquetIO_Read.Builder()
+        .setSchema(schema)
+        .setInferBeamSchema(false)
+        .build();
   }
 
   /**
@@ -130,7 +133,23 @@ public class ParquetIO {
    * org.apache.beam.sdk.io.FileIO.ReadableFile}, which allows more flexible usage.
    */
   public static ReadFiles readFiles(Schema schema) {
-    return new AutoValue_ParquetIO_ReadFiles.Builder().setSchema(schema).build();
+    return new AutoValue_ParquetIO_ReadFiles.Builder()
+        .setSchema(schema)
+        .setInferBeamSchema(false)
+        .build();
+  }
+
+  private static <T> PCollection<T> setBeamSchema(
+      PCollection<T> pc, Class<T> clazz, @Nullable Schema schema) {
+    org.apache.beam.sdk.schemas.Schema beamSchema =
+        org.apache.beam.sdk.schemas.utils.AvroUtils.getSchema(clazz, schema);
+    if (beamSchema != null) {
+      pc.setSchema(
+          beamSchema,
+          org.apache.beam.sdk.schemas.utils.AvroUtils.getToRowFunction(clazz, schema),
+          org.apache.beam.sdk.schemas.utils.AvroUtils.getFromRowFunction(clazz));
+    }
+    return pc;
   }
 
   /** Implementation of {@link #read(Schema)}. */
@@ -143,6 +162,8 @@ public class ParquetIO {
     @Nullable
     abstract Schema getSchema();
 
+    abstract boolean getInferBeamSchema();
+
     abstract Builder toBuilder();
 
     @AutoValue.Builder
@@ -150,6 +171,8 @@ public class ParquetIO {
       abstract Builder setFilepattern(ValueProvider<String> filepattern);
 
       abstract Builder setSchema(Schema schema);
+
+      abstract Builder setInferBeamSchema(boolean infer);
 
       abstract Read build();
     }
@@ -164,22 +187,34 @@ public class ParquetIO {
       return from(ValueProvider.StaticValueProvider.of(filepattern));
     }
 
+    @Experimental(Experimental.Kind.SCHEMAS)
+    public Read withBeamSchemas(boolean withBeamSchemas) {
+      return toBuilder().setInferBeamSchema(withBeamSchemas).build();
+    }
+
     @Override
     public PCollection<GenericRecord> expand(PBegin input) {
       checkNotNull(getFilepattern(), "Filepattern cannot be null.");
 
-      return input
-          .apply("Create filepattern", Create.ofProvider(getFilepattern(), StringUtf8Coder.of()))
-          .apply(FileIO.matchAll())
-          .apply(FileIO.readMatches())
-          .apply(readFiles(getSchema()));
+      PCollection<GenericRecord> read =
+          input
+              .apply(
+                  "Create filepattern", Create.ofProvider(getFilepattern(), StringUtf8Coder.of()))
+              .apply(FileIO.matchAll())
+              .apply(FileIO.readMatches())
+              .apply(readFiles(getSchema()));
+
+      return getInferBeamSchema() ? setBeamSchema(read, GenericRecord.class, getSchema()) : read;
     }
 
     @Override
     public void populateDisplayData(DisplayData.Builder builder) {
       super.populateDisplayData(builder);
-      builder.add(
-          DisplayData.item("filePattern", getFilepattern()).withLabel("Input File Pattern"));
+      builder
+          .add(DisplayData.item("filePattern", getFilepattern()).withLabel("Input File Pattern"))
+          .add(
+              DisplayData.item("inferBeamSchema", getInferBeamSchema())
+                  .withLabel("Infer Beam Schema"));
     }
   }
 
@@ -191,17 +226,31 @@ public class ParquetIO {
     @Nullable
     abstract Schema getSchema();
 
+    abstract boolean getInferBeamSchema();
+
+    abstract Builder toBuilder();
+
     @AutoValue.Builder
     abstract static class Builder {
       abstract Builder setSchema(Schema schema);
 
+      abstract Builder setInferBeamSchema(boolean infer);
+
       abstract ReadFiles build();
+    }
+
+    @Experimental(Experimental.Kind.SCHEMAS)
+    public ReadFiles withBeamSchemas(boolean withBeamSchemas) {
+      return toBuilder().setInferBeamSchema(withBeamSchemas).build();
     }
 
     @Override
     public PCollection<GenericRecord> expand(PCollection<FileIO.ReadableFile> input) {
       checkNotNull(getSchema(), "Schema can not be null");
-      return input.apply(ParDo.of(new ReadFn())).setCoder(AvroCoder.of(getSchema()));
+      PCollection<GenericRecord> read =
+          input.apply(ParDo.of(new ReadFn())).setCoder(AvroCoder.of(getSchema()));
+
+      return getInferBeamSchema() ? setBeamSchema(read, GenericRecord.class, getSchema()) : read;
     }
 
     static class ReadFn extends DoFn<FileIO.ReadableFile, GenericRecord> {
@@ -256,6 +305,16 @@ public class ParquetIO {
           }
         };
       }
+    }
+
+    @Override
+    public void populateDisplayData(DisplayData.Builder builder) {
+      super.populateDisplayData(builder);
+      builder
+          .addIfNotNull(DisplayData.item("schema", String.valueOf(getSchema())))
+          .add(
+              DisplayData.item("inferBeamSchema", getInferBeamSchema())
+                  .withLabel("Infer Beam Schema"));
     }
   }
 

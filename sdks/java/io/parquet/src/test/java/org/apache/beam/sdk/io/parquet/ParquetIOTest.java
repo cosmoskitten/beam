@@ -33,7 +33,7 @@ import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.Values;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.values.PCollection;
-import org.junit.Assert;
+import org.hamcrest.MatcherAssert;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
@@ -124,6 +124,13 @@ public class ParquetIOTest implements Serializable {
   public void testReadDisplayData() {
     DisplayData displayData = DisplayData.from(ParquetIO.read(SCHEMA).from("foo.parquet"));
 
-    Assert.assertThat(displayData, hasDisplayItem("filePattern", "foo.parquet"));
+    MatcherAssert.assertThat(displayData, hasDisplayItem("filePattern", "foo.parquet"));
+    MatcherAssert.assertThat(displayData, hasDisplayItem("inferBeamSchema", false));
+  }
+
+  @Test
+  public void testReadFilesDisplayData() {
+    DisplayData displayData = DisplayData.from(ParquetIO.readFiles(SCHEMA).withBeamSchemas(true));
+    MatcherAssert.assertThat(displayData, hasDisplayItem("inferBeamSchema", true));
   }
 }
