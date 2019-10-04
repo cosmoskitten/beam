@@ -3,6 +3,8 @@ layout: section
 title: "Execution model"
 section_menu: section-menu/documentation.html
 permalink: /documentation/runtime/model/
+redirect_from:
+  - /documentation/execution-model/
 ---
 <!--
 Licensed under the Apache License, Version 2.0 (the "License");
