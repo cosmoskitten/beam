@@ -304,7 +304,8 @@ class BatchLoads<DestinationT, ElementT>
                             maxFilesPerPartition,
                             maxBytesPerPartition,
                             multiPartitionsTag,
-                            singlePartitionTag))
+                            singlePartitionTag,
+                            rowWriterFactory))
                     .withSideInputs(tempFilePrefixView)
                     .withOutputTags(multiPartitionsTag, TupleTagList.of(singlePartitionTag)));
     PCollection<KV<TableDestination, String>> tempTables =
@@ -374,7 +375,8 @@ class BatchLoads<DestinationT, ElementT>
                             maxFilesPerPartition,
                             maxBytesPerPartition,
                             multiPartitionsTag,
-                            singlePartitionTag))
+                            singlePartitionTag,
+                            rowWriterFactory))
                     .withSideInputs(tempFilePrefixView)
                     .withOutputTags(multiPartitionsTag, TupleTagList.of(singlePartitionTag)));
     PCollection<KV<TableDestination, String>> tempTables =

@@ -22,7 +22,6 @@ import java.util.Map;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.io.gcp.bigquery.WriteBundlesToFiles.Result;
 import org.apache.beam.sdk.transforms.DoFn;
-import org.apache.beam.sdk.transforms.SerializableFunctions;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.ShardedKey;
@@ -43,6 +42,7 @@ class WritePartition<DestinationT>
   private final PCollectionView<String> tempFilePrefix;
   private final int maxNumFiles;
   private final long maxSizeBytes;
+  private final RowWriterFactory<?, DestinationT> rowWriterFactory;
 
   @Nullable private TupleTag<KV<ShardedKey<DestinationT>, List<String>>> multiPartitionsTag;
   private TupleTag<KV<ShardedKey<DestinationT>, List<String>>> singlePartitionTag;
@@ -129,7 +129,8 @@ class WritePartition<DestinationT>
       int maxNumFiles,
       long maxSizeBytes,
       TupleTag<KV<ShardedKey<DestinationT>, List<String>>> multiPartitionsTag,
-      TupleTag<KV<ShardedKey<DestinationT>, List<String>>> singlePartitionTag) {
+      TupleTag<KV<ShardedKey<DestinationT>, List<String>>> singlePartitionTag,
+      RowWriterFactory<?, DestinationT> rowWriterFactory) {
     this.singletonTable = singletonTable;
     this.dynamicDestinations = dynamicDestinations;
     this.tempFilePrefix = tempFilePrefix;
@@ -137,6 +138,7 @@ class WritePartition<DestinationT>
     this.maxSizeBytes = maxSizeBytes;
     this.multiPartitionsTag = multiPartitionsTag;
     this.singlePartitionTag = singlePartitionTag;
+    this.rowWriterFactory = rowWriterFactory;
   }
 
   @ProcessElement
@@ -147,17 +149,16 @@ class WritePartition<DestinationT>
     // generate an empty table of that name.
     if (results.isEmpty() && singletonTable) {
       String tempFilePrefix = c.sideInput(this.tempFilePrefix);
-      TableRowWriter<?> writer =
-          new TableRowWriter<>(tempFilePrefix, SerializableFunctions.identity());
-      writer.close();
-      AbstractRowWriter.Result writerResult = writer.getResult();
       // Return a null destination in this case - the constant DynamicDestinations class will
       // resolve it to the singleton output table.
+      DestinationT destination = dynamicDestinations.getDestination(null);
+
+      AbstractRowWriter<?> writer = rowWriterFactory.createRowWriter(tempFilePrefix, destination);
+      writer.close();
+      AbstractRowWriter.Result writerResult = writer.getResult();
+
       results.add(
-          new Result<>(
-              writerResult.resourceId.toString(),
-              writerResult.byteSize,
-              dynamicDestinations.getDestination(null)));
+          new Result<>(writerResult.resourceId.toString(), writerResult.byteSize, destination));
     }
 
     Map<DestinationT, DestinationData> currentResults = Maps.newHashMap();
