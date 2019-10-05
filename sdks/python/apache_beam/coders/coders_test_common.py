@@ -155,6 +155,9 @@ class CodersTest(unittest.TestCase):
   def test_bytes_coder(self):
     self.check_coder(coders.BytesCoder(), b'a', b'\0', b'z' * 1000)
 
+  def test_bool_coder(self):
+    self.check_coder(coders.BooleanCoder(), True, False)
+
   def test_varint_coder(self):
     # Small ints.
     self.check_coder(coders.VarIntCoder(), *range(-10, 10))

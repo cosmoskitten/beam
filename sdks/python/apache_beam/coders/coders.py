@@ -420,6 +420,37 @@ class BytesCoder(FastCoder):
 Coder.register_structured_urn(common_urns.coders.BYTES.urn, BytesCoder)
 
 
+class BooleanCoder(Coder):
+  def __init__(self):
+    self._bytes_coder = BytesCoder()
+
+  def encode(self, value):
+    return self._bytes_coder.encode(b'\x01' if value else b'\x00')
+
+  def decode(self, encoded):
+    return self._bytes_coder.decode(encoded) == b'\x01'
+
+  def is_deterministic(self):
+    return True
+
+  def to_type_hint(self):
+    return bool
+
+  def as_cloud_object(self, coders_context=None):
+    return {
+        '@type': 'kind:bool',
+    }
+
+  def __eq__(self, other):
+    return type(self) == type(other)
+
+  def __hash__(self):
+    return hash(type(self))
+
+
+Coder.register_structured_urn(common_urns.coders.BOOL.urn, BooleanCoder)
+
+
 class VarIntCoder(FastCoder):
   """Variable-length integer coder."""
 

@@ -58,6 +58,14 @@ examples:
 ---
 
 coder:
+  urn: "beam:coder:bool:v1"
+examples:
+  "\0": False
+  "\u0001": True
+
+---
+
+coder:
   urn: "beam:coder:string_utf8:v1"
 nested: false
 examples:
