@@ -26,7 +26,7 @@ import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.IterableCoder;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.LengthPrefixCoder;
-import org.apache.beam.sdk.schemas.PortableSchemaCoder;
+import org.apache.beam.sdk.coders.RowCoder;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.util.InstanceBuilder;
@@ -124,20 +124,20 @@ class CoderTranslators {
     };
   }
 
-  static CoderTranslator<PortableSchemaCoder> row() {
-    return new CoderTranslator<PortableSchemaCoder>() {
+  static CoderTranslator<RowCoder> row() {
+    return new CoderTranslator<RowCoder>() {
       @Override
-      public List<? extends Coder<?>> getComponents(PortableSchemaCoder from) {
+      public List<? extends Coder<?>> getComponents(RowCoder from) {
         return ImmutableList.of();
       }
 
       @Override
-      public byte[] getPayload(PortableSchemaCoder from) {
+      public byte[] getPayload(RowCoder from) {
         return SchemaTranslation.schemaToProto(from.getSchema()).toByteArray();
       }
 
       @Override
-      public PortableSchemaCoder fromComponents(List<Coder<?>> components, byte[] payload) {
+      public RowCoder fromComponents(List<Coder<?>> components, byte[] payload) {
         checkArgument(
             components.isEmpty(), "Expected empty component list, but received: " + components);
         Schema schema;
@@ -146,7 +146,7 @@ class CoderTranslators {
         } catch (InvalidProtocolBufferException e) {
           throw new RuntimeException("Unable to parse schema for RowCoder: ", e);
         }
-        return PortableSchemaCoder.of(schema);
+        return RowCoder.of(schema);
       }
     };
   }

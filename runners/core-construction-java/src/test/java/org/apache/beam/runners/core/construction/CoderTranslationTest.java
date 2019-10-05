@@ -40,10 +40,11 @@ import org.apache.beam.sdk.coders.DoubleCoder;
 import org.apache.beam.sdk.coders.IterableCoder;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.LengthPrefixCoder;
+import org.apache.beam.sdk.coders.RowCoder;
 import org.apache.beam.sdk.coders.SerializableCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.coders.VarLongCoder;
-import org.apache.beam.sdk.schemas.PortableSchemaCoder;
+import org.apache.beam.sdk.schemas.LogicalTypes;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.Field;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
@@ -78,13 +79,12 @@ public class CoderTranslationTest {
                   IterableCoder.of(VarLongCoder.of()), IntervalWindowCoder.of()))
           .add(DoubleCoder.of())
           .add(
-              PortableSchemaCoder.of(
+              RowCoder.of(
                   Schema.of(
                       Field.of("i16", FieldType.INT16),
                       Field.of("array", FieldType.array(FieldType.STRING)),
-                      Field.of("map", FieldType.map(FieldType.STRING, FieldType.INT32)))))
-          // Can be uncommented when logical types are supported (BEAM-7855)
-          // Field.of("bar", FieldType.logicalType(LogicalTypes.FixedBytes.of(123)))
+                      Field.of("map", FieldType.map(FieldType.STRING, FieldType.INT32)),
+                      Field.of("bar", FieldType.logicalType(LogicalTypes.FixedBytes.of(123))))))
           .build();
 
   /**
