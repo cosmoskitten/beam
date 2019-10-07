@@ -1782,7 +1782,8 @@ class ParallelBundleManager(BundleManager):
 
     merged_result = None
     split_result_list = []
-    with CollapsingThreadPoolExecutor(max_workers=self._num_workers) as executor:
+    with (CollapsingThreadPoolExecutor(max_workers=self._num_workers)
+        as executor):
       for result, split_result in executor.map(lambda part: BundleManager(
           self._worker_handler_list, self._get_buffer,
           self._get_input_coder_impl, self._bundle_descriptor,
