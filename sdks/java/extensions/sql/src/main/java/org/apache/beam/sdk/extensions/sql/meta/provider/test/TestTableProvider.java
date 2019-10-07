@@ -32,12 +32,14 @@ import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.extensions.sql.impl.BeamTableStatistics;
 import org.apache.beam.sdk.extensions.sql.meta.BaseBeamTable;
 import org.apache.beam.sdk.extensions.sql.meta.BeamSqlTable;
+import org.apache.beam.sdk.extensions.sql.meta.BeamSqlTableFilter;
 import org.apache.beam.sdk.extensions.sql.meta.Table;
 import org.apache.beam.sdk.extensions.sql.meta.provider.InMemoryMetaTableProvider;
 import org.apache.beam.sdk.extensions.sql.meta.provider.TableProvider;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.SchemaCoder;
+import org.apache.beam.sdk.schemas.transforms.Select;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.ParDo;
@@ -46,6 +48,7 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PDone;
 import org.apache.beam.sdk.values.POutput;
 import org.apache.beam.sdk.values.Row;
+import org.apache.beam.vendor.calcite.v1_20_0.com.google.common.base.Preconditions;
 
 /**
  * Test in-memory table provider for use in tests.
@@ -55,6 +58,7 @@ import org.apache.beam.sdk.values.Row;
 @AutoService(TableProvider.class)
 public class TestTableProvider extends InMemoryMetaTableProvider {
   static final Map<Long, Map<String, TableWithRows>> GLOBAL_TABLES = new ConcurrentHashMap<>();
+  static final String PUSH_DOWN = "push_down";
 
   private static final AtomicLong INSTANCES = new AtomicLong(0);
   private final long instanceId = INSTANCES.getAndIncrement();
@@ -90,7 +94,38 @@ public class TestTableProvider extends InMemoryMetaTableProvider {
 
   @Override
   public synchronized BeamSqlTable buildBeamSqlTable(Table table) {
-    return new InMemoryTable(tables().get(table.getName()));
+    BeamSqlTable beamSqlTable;
+
+    if (table.getProperties().containsKey(PUSH_DOWN)) {
+      List<String> validPushDown =
+          Arrays.stream(PushDownOptions.values()).map(Enum::toString).collect(Collectors.toList());
+      // toUpperCase should make it case-insensitive
+      String selectedPushDown = table.getProperties().getString(PUSH_DOWN).toUpperCase();
+
+      if (validPushDown.contains(selectedPushDown)) {
+        switch (PushDownOptions.valueOf(selectedPushDown)) {
+          case PROJECT:
+            beamSqlTable = new InMemoryTableWithProjectPushDown(tables().get(table.getName()));
+            break;
+            // TODO: add PREDICATE and BOTH
+          case NONE:
+          default:
+            beamSqlTable = new InMemoryTable(tables().get(table.getName()));
+            break;
+        }
+      } else {
+        throw new InvalidPropertyException(
+            "Invalid push-down property '"
+                + selectedPushDown
+                + "'. Supported push-downs are: "
+                + validPushDown.toString()
+                + ".");
+      }
+    } else {
+      beamSqlTable = new InMemoryTable(tables().get(table.getName()));
+    }
+
+    return beamSqlTable;
   }
 
   public void addRows(String tableName, Row... rows) {
@@ -162,6 +197,27 @@ public class TestTableProvider extends InMemoryMetaTableProvider {
     }
   }
 
+  private static class InMemoryTableWithProjectPushDown extends InMemoryTable {
+    private TableWithRows tableWithRows;
+
+    public InMemoryTableWithProjectPushDown(TableWithRows tableWithRows) {
+      super(tableWithRows);
+    }
+
+    @Override
+    public PCollection<Row> buildIOReader(
+        PBegin begin, BeamSqlTableFilter filters, List<String> fieldNames) {
+      Preconditions.checkNotNull(fieldNames);
+
+      PCollection<Row> withAllFields = buildIOReader(begin);
+      if (fieldNames.isEmpty()) {
+        return withAllFields;
+      }
+
+      return withAllFields.apply(Select.fieldNames(fieldNames.toArray(new String[0])));
+    }
+  }
+
   private static final class CollectorFn extends DoFn<Row, Row> {
     private TableWithRows tableWithRows;
 
@@ -175,6 +231,19 @@ public class TestTableProvider extends InMemoryMetaTableProvider {
       String tableName = tableWithRows.table.getName();
       GLOBAL_TABLES.get(instanceId).get(tableName).rows.add(context.element());
       context.output(context.element());
+    }
+  }
+
+  enum PushDownOptions {
+    NONE,
+    PROJECT,
+    PREDICATE,
+    BOTH
+  }
+
+  public static class InvalidPropertyException extends UnsupportedOperationException {
+    private InvalidPropertyException(String s) {
+      super(s);
     }
   }
 }
