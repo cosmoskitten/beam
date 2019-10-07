@@ -35,6 +35,7 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 import com.google.zetasql.ArrayType;
+import com.google.zetasql.EnumType;
 import com.google.zetasql.Type;
 import com.google.zetasql.Value;
 import com.google.zetasql.ZetaSQLType.TypeKind;
@@ -53,7 +54,6 @@ import com.google.zetasql.resolvedast.ResolvedNodes.ResolvedParameter;
 import com.google.zetasql.resolvedast.ResolvedNodes.ResolvedProjectScan;
 import io.grpc.Status;
 import java.math.BigDecimal;
-import java.text.MessageFormat;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -517,13 +517,7 @@ public class ExpressionConverter {
         ret = convertValueToRexNode(resolvedLiteral.getType(), resolvedLiteral.getValue());
         break;
       default:
-        throw new RuntimeException(
-            MessageFormat.format(
-                "Unsupported ResolvedLiteral type: {0}, kind: {1}, value: {2}, class: {3}",
-                resolvedLiteral.getType().typeName(),
-                kind,
-                resolvedLiteral.getValue(),
-                resolvedLiteral.getClass()));
+        throw new RuntimeException("Unsupported ResolvedLiteral type.");
     }
 
     return ret;
@@ -549,12 +543,11 @@ public class ExpressionConverter {
         ret = convertArrayValueToRexNode(type.asArray(), value);
         break;
       case TYPE_ENUM:
-        ret = convertEnumToRexNode(type, value);
+        ret = convertEnumToRexNode(type.asEnum(), value);
         break;
       default:
         // TODO: convert struct literal.
-        throw new RuntimeException(
-            "Unsupported ResolvedLiteral kind: " + type.getKind() + " type: " + type.typeName());
+        throw new RuntimeException("Unsupported ResolvedLiteral kind.");
     }
 
     return ret;
@@ -630,7 +623,7 @@ public class ExpressionConverter {
         ret = rexBuilder().makeBinaryLiteral(new ByteString(value.getBytesValue().toByteArray()));
         break;
       default:
-        throw new RuntimeException("Unsupported column type: " + kind);
+        throw new RuntimeException("Unsupported column type.");
     }
 
     return ret;
@@ -650,23 +643,18 @@ public class ExpressionConverter {
     return rexBuilder().makeCall(SqlStdOperatorTable.ARRAY_VALUE_CONSTRUCTOR, operands);
   }
 
-  private RexNode convertEnumToRexNode(Type type, Value value) {
-    if (type.typeName().equals("`zetasql.functions.DateTimestampPart`")) {
+  private RexNode convertEnumToRexNode(EnumType type, Value value) {
+    if ("zetasql.functions.DateTimestampPart".equals(type.getDescriptor().getFullName())) {
       return convertTimeUnitRangeEnumToRexNode(type, value);
     } else {
-      throw new RuntimeException(
-          MessageFormat.format(
-              "Unsupported enum. Kind: {0} Type: {1}", type.getKind(), type.typeName()));
+      throw new RuntimeException("Unsupported enum.");
     }
   }
 
   private RexNode convertTimeUnitRangeEnumToRexNode(Type type, Value value) {
     TimeUnit mappedUnit = TIME_UNIT_CASTING_MAP.get(value.getEnumValue());
     if (mappedUnit == null) {
-      throw new RuntimeException(
-          MessageFormat.format(
-              "Unsupported enum value. Kind: {0} Type: {1} Value: {2} EnumName: {3}",
-              type.getKind(), type.typeName(), value.getEnumName(), value.getEnumValue()));
+      throw new RuntimeException("Unsupported enum value.");
     }
 
     TimeUnitRange mappedRange = TimeUnitRange.of(mappedUnit, null);
