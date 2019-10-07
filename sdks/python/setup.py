@@ -104,7 +104,7 @@ else:
 REQUIRED_PACKAGES = [
     'avro>=1.8.1,<2.0.0; python_version < "3.0"',
     'avro-python3>=1.8.1,<2.0.0; python_version >= "3.0"',
-    'collapsing-thread-pool-executor>=2018.6,<2019',
+    'collapsing-thread-pool-executor>=2019.10,<2020',
     'crcmod>=1.7,<2.0',
     # Dill doesn't guarantee comatibility between releases within minor version.
     'dill>=0.3.0,<0.3.1',
