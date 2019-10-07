@@ -107,6 +107,7 @@ REQUIRED_PACKAGES = [
     'crcmod>=1.7,<2.0',
     # Dill doesn't guarantee comatibility between releases within minor version.
     'dill>=0.3.0,<0.3.1',
+    'facets-overview>=1.0.0,<2',
     'fastavro>=0.21.4,<0.22',
     'funcsigs>=1.0.2,<2; python_version < "3.0"',
     'future>=0.16.0,<1.0.0',
@@ -114,6 +115,7 @@ REQUIRED_PACKAGES = [
     'grpcio>=1.12.1,<2',
     'hdfs>=2.1.0,<3.0.0',
     'httplib2>=0.8,<=0.12.0',
+    'jsons>=1.0.0,<2; python_version >= "3.5.0"',
     'mock>=1.0.1,<3.0.0',
     'pymongo>=3.8.0,<4.0.0',
     'oauth2client>=2.0.1,<4',
@@ -126,6 +128,7 @@ REQUIRED_PACKAGES = [
     'pytz>=2018.3',
     # [BEAM-5628] Beam VCF IO is not supported in Python 3.
     'pyvcf>=0.6.8,<0.7.0; python_version < "3.0"',
+    'timeloop>=1.0.2,<2',
     'typing>=3.6.0,<3.7.0; python_version < "3.5.0"',
     ]
 

@@ -25,6 +25,8 @@ application code or notebook.
 from __future__ import absolute_import
 
 import importlib
+import apache_beam as beam
+from apache_beam.runners import runner
 
 _interactive_beam_env = None
 
@@ -61,6 +63,11 @@ class InteractiveEnvironment(object):
     self._watching_set = set()
     # Holds variables list of (Dict[str, object]).
     self._watching_dict_list = []
+    # Holds results of pipeline runs as Dict[Pipeline, PipelineResult].
+    # Each key is a pipeline instance defined by the end user. The
+    # InteractiveRunner is responsible for populating this dictionary
+    # implicitly.
+    self._pipeline_results = {}
     # Always watch __main__ module.
     self.watch('__main__')
 
@@ -105,3 +112,33 @@ class InteractiveEnvironment(object):
   def cache_manager(self):
     """Gets the cache manager held by current Interactive Environment."""
     return self._cache_manager
+
+  def set_pipeline_result(self, pipeline, result):
+    """Sets the pipeline run result. Adds one if absent. Otherwise, replace."""
+    assert issubclass(type(pipeline), beam.Pipeline), (
+        'pipeline must be an instance of apache_beam.Pipeline or its subclass')
+    assert issubclass(type(result), runner.PipelineResult), (
+        'result must be an instance of '
+        'apache_beam.runners.runner.PipelineResult or its subclass')
+    self._pipeline_results[pipeline] = result
+
+  def evict_pipeline_result(self, pipeline):
+    """Evicts the tracking of given pipeline run. Noop if absent."""
+    return self._pipeline_results.pop(pipeline, None)
+
+  def pipeline_result(self, pipeline):
+    """Gets the pipeline run result. None if absent."""
+    return self._pipeline_results.get(pipeline, None)
+
+  def is_terminated(self, pipeline):
+    """Queries if the most recent job (by executing the given pipeline) state
+    is in a terminal state. False if absent."""
+    result = self.pipeline_result(pipeline)
+    if result:
+      return result.state in (
+          runner.PipelineState.DONE,
+          runner.PipelineState.FAILED,
+          runner.PipelineState.CANCELLED,
+          runner.PipelineState.UPDATED,
+          runner.PipelineState.DRAINED)
+    return False
