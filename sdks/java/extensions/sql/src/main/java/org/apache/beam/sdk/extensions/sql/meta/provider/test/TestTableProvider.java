@@ -32,12 +32,14 @@ import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.extensions.sql.impl.BeamTableStatistics;
 import org.apache.beam.sdk.extensions.sql.meta.BaseBeamTable;
 import org.apache.beam.sdk.extensions.sql.meta.BeamSqlTable;
+import org.apache.beam.sdk.extensions.sql.meta.BeamSqlTableFilter;
 import org.apache.beam.sdk.extensions.sql.meta.Table;
 import org.apache.beam.sdk.extensions.sql.meta.provider.InMemoryMetaTableProvider;
 import org.apache.beam.sdk.extensions.sql.meta.provider.TableProvider;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.SchemaCoder;
+import org.apache.beam.sdk.schemas.transforms.Select;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.ParDo;
@@ -46,6 +48,7 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PDone;
 import org.apache.beam.sdk.values.POutput;
 import org.apache.beam.sdk.values.Row;
+import org.apache.beam.vendor.calcite.v1_20_0.com.google.common.base.Preconditions;
 
 /**
  * Test in-memory table provider for use in tests.
@@ -151,9 +154,27 @@ public class TestTableProvider extends InMemoryMetaTableProvider {
     }
 
     @Override
+    public PCollection<Row> buildIOReader(
+        PBegin begin, BeamSqlTableFilter filters, List<String> fieldNames) {
+      Preconditions.checkNotNull(fieldNames);
+
+      PCollection<Row> withAllFields = buildIOReader(begin);
+      if (fieldNames.isEmpty()) {
+        return withAllFields;
+      }
+
+      return withAllFields.apply(Select.fieldNames(fieldNames.toArray(new String[0])));
+    }
+
+    @Override
     public POutput buildIOWriter(PCollection<Row> input) {
       input.apply(ParDo.of(new CollectorFn(tableWithRows)));
       return PDone.in(input.getPipeline());
+    }
+
+    @Override
+    public Boolean supportsProjects() {
+      return Boolean.TRUE;
     }
 
     @Override
