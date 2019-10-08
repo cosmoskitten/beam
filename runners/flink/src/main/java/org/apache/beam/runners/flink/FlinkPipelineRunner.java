@@ -142,14 +142,18 @@ public class FlinkPipelineRunner implements PortablePipelineRunner {
     FileSystems.setDefaultPipelineOptions(PipelineOptionsFactory.create());
 
     FlinkPipelineRunnerConfiguration configuration = parseArgs(args);
-    Pipeline pipeline = PortablePipelineJarUtils.getPipelineFromClasspath();
-    Struct originalOptions = PortablePipelineJarUtils.getPipelineOptionsFromClasspath();
+    String baseJobName =
+        configuration.baseJobName == null
+            ? PortablePipelineJarUtils.getDefaultJobName()
+            : configuration.baseJobName;
+    Pipeline pipeline = PortablePipelineJarUtils.getPipelineFromClasspath(baseJobName);
+    Struct originalOptions = PortablePipelineJarUtils.getPipelineOptionsFromClasspath(baseJobName);
 
     // Flink pipeline jars distribute and retrieve artifacts via the classpath.
     PortablePipelineOptions portablePipelineOptions =
         PipelineOptionsTranslation.fromProto(originalOptions).as(PortablePipelineOptions.class);
     portablePipelineOptions.setRetrievalServiceType(RetrievalServiceType.CLASSLOADER);
-    String retrievalToken = PortablePipelineJarUtils.ARTIFACT_MANIFEST_PATH;
+    String retrievalToken = PortablePipelineJarUtils.getArtifactManifestUri(baseJobName);
 
     FlinkPipelineOptions flinkOptions = portablePipelineOptions.as(FlinkPipelineOptions.class);
     String invocationId =
@@ -182,6 +186,13 @@ public class FlinkPipelineRunner implements PortablePipelineRunner {
                 + "These properties will be set to all jobs submitted to Flink and take precedence "
                 + "over configurations in FLINK_CONF_DIR.")
     private String flinkConfDir = null;
+
+    @Option(
+        name = "--base-job-name",
+        usage =
+            "The job to run. This must correspond to a subdirectory of the jar's BEAM-PIPELINE "
+                + "directory. *Only needs to be specified if the jar contains multiple pipelines.*")
+    private String baseJobName = null;
   }
 
   private static FlinkPipelineRunnerConfiguration parseArgs(String[] args) {

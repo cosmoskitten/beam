@@ -111,7 +111,7 @@ public class PortablePipelineJarCreatorTest implements Serializable {
         .thenReturn(GetManifestResponse.newBuilder().setManifest(manifest).build());
 
     ProxyManifest proxyManifest =
-        jarCreator.copyStagedArtifacts("retrievalToken", retrievalServiceStub);
+        jarCreator.copyStagedArtifacts("retrievalToken", retrievalServiceStub, "job");
 
     assertEquals(manifest, proxyManifest.getManifest());
     List<String> outputArtifactNames =
@@ -131,7 +131,7 @@ public class PortablePipelineJarCreatorTest implements Serializable {
     when(retrievalServiceStub.getManifest(any()))
         .thenReturn(GetManifestResponse.newBuilder().setManifest(manifest).build());
 
-    jarCreator.copyStagedArtifacts("retrievalToken", retrievalServiceStub);
+    jarCreator.copyStagedArtifacts("retrievalToken", retrievalServiceStub, "job");
 
     verify(outputStream, times(2)).putNextEntry(any());
   }
@@ -144,17 +144,19 @@ public class PortablePipelineJarCreatorTest implements Serializable {
 
   @Test
   public void testCreateManifest_withMainMethod() {
-    Manifest manifest = jarCreator.createManifest(FakePipelineRunnner.class);
+    Manifest manifest = jarCreator.createManifest(FakePipelineRunnner.class, "job");
     assertEquals(
         FakePipelineRunnner.class.getName(),
         manifest.getMainAttributes().getValue(Name.MAIN_CLASS));
+    assertEquals(
+        "job", manifest.getMainAttributes().getValue(PortablePipelineJarUtils.DEFAULT_BEAM_JOB));
   }
 
   private static class EmptyPipelineRunner {}
 
   @Test
   public void testCreateManifest_withoutMainMethod() {
-    Manifest manifest = jarCreator.createManifest(EmptyPipelineRunner.class);
+    Manifest manifest = jarCreator.createManifest(EmptyPipelineRunner.class, "job");
     assertNull(manifest.getMainAttributes().getValue(Name.MAIN_CLASS));
   }
 
@@ -166,7 +168,7 @@ public class PortablePipelineJarCreatorTest implements Serializable {
 
   @Test
   public void testCreateManifest_withInvalidMainMethod() {
-    Manifest manifest = jarCreator.createManifest(EvilPipelineRunner.class);
+    Manifest manifest = jarCreator.createManifest(EvilPipelineRunner.class, "job");
     assertNull(manifest.getMainAttributes().getValue(Name.MAIN_CLASS));
   }
 }
