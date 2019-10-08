@@ -18,18 +18,21 @@
 """Module visualizes PCollection data.
 
 For internal use only; no backwards-compatibility guarantees.
+Only works with Python 3.5+.
 """
 from __future__ import absolute_import
 
-import apache_beam as beam
 import base64
 import jsons
 import logging
-from IPython.core.display import display, display_javascript, HTML, Javascript, update_display
+import sys
+
+import apache_beam as beam
 from apache_beam.runners.interactive import interactive_environment as ie
 from apache_beam.runners.interactive import pipeline_instrument as instr
 from datetime import timedelta
 from facets_overview.generic_feature_statistics_generator import GenericFeatureStatisticsGenerator
+from IPython.core.display import display, display_javascript, HTML, Javascript, update_display
 from pandas.io.json import json_normalize
 from timeloop import Timeloop
 
@@ -86,6 +89,8 @@ def visualize(pcoll, dynamical_plotting_interval=None):
 
   If dynamical_plotting is not enabled (by default), None is returned.
   """
+  if sys.version_info < (3,):
+    return None
   pv = PCollVisualization(pcoll)
   pv.display_facets()
 
@@ -96,16 +101,13 @@ def visualize(pcoll, dynamical_plotting_interval=None):
 
     @tl.job(interval=timedelta(seconds=dynamical_plotting_interval))
     def continuous_update_display():
-      # pylint: disable=all
       nonlocal pcoll
-      # pylint: disable=all
       nonlocal pv
       # Always creates a new PCollVisualization instance when the PCollection
       # materialization is being updated and dynamical plotting is in-process.
       updated_pv = PCollVisualization(pcoll)
       updated_pv.display_facets(updating_pv=pv)
       if ie.current_env().is_terminated(pcoll.pipeline):
-        # pylint: disable=all
         nonlocal tl
         try:
           tl.stop()
