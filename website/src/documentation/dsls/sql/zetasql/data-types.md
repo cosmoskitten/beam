@@ -381,8 +381,7 @@ ARRAY&lt;STRUCT&lt;ARRAY&lt;INT64&gt;&gt;&gt;
 <td>An ARRAY of ARRAYS of 64-bit integers. Notice that there is a STRUCT between
 the two ARRAYs because ARRAYs cannot hold other ARRAYs directly.</td>
 </tr>
-<tbody>
-</tbody></tbody></table>
+</tbody></table>
 {:.table}
 <h2 id="struct-type">Struct type</h2>
 <table>
@@ -442,8 +441,7 @@ STRUCT&lt;inner_array ARRAY&lt;INT64&gt;&gt;
 <td>A STRUCT containing an ARRAY named <code>inner_array</code> that holds
 64-bit integer elements.</td>
 </tr>
-<tbody>
-</tbody></tbody></table>
+</tbody></table>
 {:.table}
 
 <h3 id="limited-comparisons-for-struct">Limited comparisons for STRUCT</h3>
