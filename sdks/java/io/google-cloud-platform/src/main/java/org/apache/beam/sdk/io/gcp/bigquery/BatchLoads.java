@@ -584,18 +584,18 @@ class BatchLoads<DestinationT, ElementT>
         .apply(
             "MultiPartitionsWriteTables",
             new WriteTables<>(
-                    true,
-                    bigQueryServices,
-                    jobIdTokenView,
-                    WriteDisposition.WRITE_EMPTY,
-                    CreateDisposition.CREATE_IF_NEEDED,
-                    sideInputs,
-                    destinations,
-                    loadJobProjectId,
-                    maxRetryJobs,
-                    ignoreUnknownValues,
-                    kmsKey)
-                .withSchemaUpdateOptions(schemaUpdateOptions));
+                true,
+                bigQueryServices,
+                jobIdTokenView,
+                WriteDisposition.WRITE_EMPTY,
+                CreateDisposition.CREATE_IF_NEEDED,
+                sideInputs,
+                destinations,
+                loadJobProjectId,
+                maxRetryJobs,
+                ignoreUnknownValues,
+                kmsKey,
+                schemaUpdateOptions));
   }
 
   // In the case where the files fit into a single load job, there's no need to write temporary
@@ -618,18 +618,18 @@ class BatchLoads<DestinationT, ElementT>
         .apply(
             "SinglePartitionWriteTables",
             new WriteTables<>(
-                    false,
-                    bigQueryServices,
-                    loadJobIdPrefixView,
-                    writeDisposition,
-                    createDisposition,
-                    sideInputs,
-                    dynamicDestinations,
-                    loadJobProjectId,
-                    maxRetryJobs,
-                    ignoreUnknownValues,
-                    kmsKey)
-                .withSchemaUpdateOptions(schemaUpdateOptions));
+                false,
+                bigQueryServices,
+                loadJobIdPrefixView,
+                writeDisposition,
+                createDisposition,
+                sideInputs,
+                dynamicDestinations,
+                loadJobProjectId,
+                maxRetryJobs,
+                ignoreUnknownValues,
+                kmsKey,
+                schemaUpdateOptions));
   }
 
   private WriteResult writeResult(Pipeline p) {
