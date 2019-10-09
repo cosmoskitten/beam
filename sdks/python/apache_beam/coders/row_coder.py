@@ -84,20 +84,20 @@ class RowCoder(FastCoder):
   def from_type_hint(named_tuple_type, registry):
     return RowCoder(named_tuple_to_schema(named_tuple_type))
 
-
   @staticmethod
   def coder_from_type(field_type):
     type_info = field_type.WhichOneof("type_info")
     if type_info == "atomic_type":
       if field_type.atomic_type in (schema_pb2.INT32,
-                               schema_pb2.INT64):
+                                    schema_pb2.INT64):
         return VarIntCoder()
       elif field_type.atomic_type == schema_pb2.DOUBLE:
         return FloatCoder()
       elif field_type.atomic_type == schema_pb2.STRING:
         return StrUtf8Coder()
     elif type_info == "array_type":
-      return IterableCoder(RowCoder.coder_from_type(field_type.array_type.element_type))
+      return IterableCoder(
+          RowCoder.coder_from_type(field_type.array_type.element_type))
 
     # The Java SDK supports several more types, but the coders are not yet
     # standard, and are not implemented in Python.
