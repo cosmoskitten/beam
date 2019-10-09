@@ -53,7 +53,7 @@ class RowCoder(FastCoder):
     """
     self.schema = schema
     self.components = [
-        coder_from_type(field.type) for field in self.schema.fields
+        RowCoder.coder_from_type(field.type) for field in self.schema.fields
     ]
 
   def _create_impl(self):
@@ -85,30 +85,31 @@ class RowCoder(FastCoder):
     return RowCoder(named_tuple_to_schema(named_tuple_type))
 
 
-def coder_from_type(type_):
-  type_info = type_.WhichOneof("type_info")
-  if type_info == "atomic_type":
-    if type_.atomic_type in (schema_pb2.INT32,
-                             schema_pb2.INT64):
-      return VarIntCoder()
-    elif type_.atomic_type == schema_pb2.DOUBLE:
-      return FloatCoder()
-    elif type_.atomic_type == schema_pb2.STRING:
-      return StrUtf8Coder()
-  elif type_info == "array_type":
-    return IterableCoder(coder_from_type(type_.array_type.element_type))
+  @staticmethod
+  def coder_from_type(field_type):
+    type_info = field_type.WhichOneof("type_info")
+    if type_info == "atomic_type":
+      if field_type.atomic_type in (schema_pb2.INT32,
+                               schema_pb2.INT64):
+        return VarIntCoder()
+      elif field_type.atomic_type == schema_pb2.DOUBLE:
+        return FloatCoder()
+      elif field_type.atomic_type == schema_pb2.STRING:
+        return StrUtf8Coder()
+    elif type_info == "array_type":
+      return IterableCoder(RowCoder.coder_from_type(field_type.array_type.element_type))
 
-  # The Java SDK supports several more types, but the coders are not yet
-  # standard, and are not implemented in Python.
-  raise ValueError(
-      "Encountered a type that is not currently supported by RowCoder: %s" %
-      type_)
+    # The Java SDK supports several more types, but the coders are not yet
+    # standard, and are not implemented in Python.
+    raise ValueError(
+        "Encountered a type that is not currently supported by RowCoder: %s" %
+        field_type)
 
 
 class RowCoderImpl(StreamCoderImpl):
   """For internal use only; no backwards-compatibility guarantees."""
   SIZE_CODER = VarIntCoder().get_impl()
-  NULL_CODER = BytesCoder().get_impl()
+  NULL_MARKER_CODER = BytesCoder().get_impl()
 
   def __init__(self, schema, components):
     self.schema = schema
@@ -130,7 +131,7 @@ class RowCoderImpl(StreamCoderImpl):
         for i, is_null in enumerate(nulls):
           words[i//8] |= is_null << (i % 8)
 
-    self.NULL_CODER.encode_to_stream(words.tostring(), out, True)
+    self.NULL_MARKER_CODER.encode_to_stream(words.tostring(), out, True)
 
     for c, field, attr in zip(self.components, self.schema.fields, attrs):
       if attr is None:
@@ -144,7 +145,7 @@ class RowCoderImpl(StreamCoderImpl):
   def decode_from_stream(self, in_stream, nested):
     nvals = self.SIZE_CODER.decode_from_stream(in_stream, True)
     words = array('B')
-    words.fromstring(self.NULL_CODER.decode_from_stream(in_stream, True))
+    words.fromstring(self.NULL_MARKER_CODER.decode_from_stream(in_stream, True))
 
     if words:
       nulls = ((words[i // 8] >> (i % 8)) & 0x01 for i in range(nvals))
