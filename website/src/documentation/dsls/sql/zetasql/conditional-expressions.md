@@ -1,6 +1,6 @@
 ---
 layout: section
-title: "Beam SQL conditional expressions for ZetaSQL"
+title: "Beam ZetaSQL conditional expressions"
 section_menu: section-menu/sdks.html
 permalink: /documentation/dsls/sql/zetasql/conditional-expressions/
 ---
@@ -18,9 +18,9 @@ See the License for the specific language governing permissions and
 limitations under the License.
 -->
 
-# Beam SQL conditional expressions for ZetaSQL
+# Beam ZetaSQL conditional expressions
 
-This page documents scalar functions supported by Beam SQL when using ZetaSQL.
+This page documents the ZetaSQL scalar functions supported by Beam ZetaSQL.
 
 <table>
 <thead>

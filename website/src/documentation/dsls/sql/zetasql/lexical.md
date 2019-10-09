@@ -1,6 +1,6 @@
 ---
 layout: section
-title: "Beam SQL lexical structure (ZetaSQL)"
+title: "Beam ZetaSQL lexical structure"
 section_menu: section-menu/sdks.html
 permalink: /documentation/dsls/sql/zetasql/lexical/
 ---
@@ -18,9 +18,9 @@ See the License for the specific language governing permissions and
 limitations under the License.
 -->
 
-# Beam SQL lexical structure (ZetaSQL)
+# Beam ZetaSQL lexical structure
 
-<p>ZetaSQL statements are comprised of a series of tokens. Tokens include
+<p>Beam ZetaSQL statements are comprised of a series of tokens. Tokens include
 <em>identifiers,</em> <em>quoted identifiers, literals</em>, <em>keywords</em>, <em>operators</em>, and
 <em>special characters</em>. Tokens can be separated by whitespace (space, backspace,
 tab, newline) or comments.</p>

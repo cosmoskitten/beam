@@ -1,6 +1,6 @@
 ---
 layout: section
-title: "Beam SQL string functions for ZetaSQL"
+title: "Beam ZetaSQL string functions"
 section_menu: section-menu/sdks.html
 permalink: /documentation/dsls/sql/zetasql/string-functions/
 ---
@@ -18,9 +18,9 @@ See the License for the specific language governing permissions and
 limitations under the License.
 -->
 
-# Beam SQL string functions for ZetaSQL
+# Beam ZetaSQL string functions
 
-This page documents scalar functions supported by Beam SQL when using ZetaSQL.
+This page documents the ZetaSQL string functions supported by Beam ZetaSQL.
 
 These string functions work on STRING data. STRING values must be well-formed UTF-8. All string comparisons are done byte-by-byte, without regard to Unicode
 canonical equivalence.

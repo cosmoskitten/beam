@@ -1,6 +1,6 @@
 ---
 layout: section
-title: "Beam SQL operators for ZetaSQL"
+title: "Beam ZetaSQL operators"
 section_menu: section-menu/sdks.html
 permalink: /documentation/dsls/sql/zetasql/operators/
 ---
@@ -18,7 +18,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 -->
 
-# Beam SQL operators for ZetaSQL
+# Beam ZetaSQL operators
 
 Operators are represented by special characters or keywords; they do not use
 function call syntax. An operator manipulates any number of data inputs, also

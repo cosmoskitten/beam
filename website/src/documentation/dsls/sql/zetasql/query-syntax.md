@@ -1,6 +1,6 @@
 ---
 layout: section
-title: "Beam SQL query syntax (ZetaSQL)"
+title: "Beam ZetaSQL query syntax"
 section_menu: section-menu/sdks.html
 permalink: /documentation/dsls/sql/zetasql/query-syntax/
 ---
@@ -18,7 +18,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 -->
 
-# Beam SQL query syntax (ZetaSQL)
+# Beam ZetaSQL query syntax
 
 <p>Query statements scan one or more tables, streams, or expressions and return
   the computed result rows.</p>

@@ -1,6 +1,6 @@
 ---
 layout: section
-title: "Beam SQL aggregate functions for ZetaSQL"
+title: "Beam ZetaSQL aggregate functions"
 section_menu: section-menu/sdks.html
 permalink: /documentation/dsls/sql/zetasql/aggregate-functions/
 ---
@@ -18,9 +18,9 @@ See the License for the specific language governing permissions and
 limitations under the License.
 -->
 
-# Beam SQL aggregate functions for ZetaSQL
+# Beam ZetaSQL aggregate functions
 
-This page documents aggregate functions supported by Beam SQL when using ZetaSQL.
+This page documents the ZetaSQL aggregate functions supported by Beam ZetaSQL.
 
 | Operator syntax | Description |
 | ---- | ---- |

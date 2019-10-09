@@ -1,6 +1,6 @@
 ---
 layout: section
-title: "Beam SQL data types (ZetaSQL)"
+title: "Beam ZetaSQL data types"
 section_menu: section-menu/sdks.html
 permalink: /documentation/dsls/sql/zetasql/data-types/
 ---
@@ -18,10 +18,10 @@ See the License for the specific language governing permissions and
 limitations under the License.
 -->
 
-# Beam SQL lexical structure (ZetaSQL)
+# Beam ZetaSQL lexical structure
 
 <p>
-Beam SQL supports standard SQL scalar data types as well as extensions including arrays, maps, and nested rows. This page documents supported data types in Beam SQL when using the ZetaSQL dialect.
+Beam ZetaSQL supports standard SQL scalar data types as well as extensions including arrays, maps, and nested rows. This page documents the ZetaSQL data types supported in Beam ZetaSQL.
 </p>
 
 <h2 id="data-type-properties">Data type properties</h2>

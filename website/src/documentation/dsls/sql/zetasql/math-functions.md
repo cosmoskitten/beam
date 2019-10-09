@@ -1,6 +1,6 @@
 ---
 layout: section
-title: "Beam SQL mathematical functions for ZetaSQL"
+title: "Beam ZetaSQL mathematical functions"
 section_menu: section-menu/sdks.html
 permalink: /documentation/dsls/sql/zetasql/math-functions/
 ---
@@ -18,9 +18,9 @@ See the License for the specific language governing permissions and
 limitations under the License.
 -->
 
-# Beam SQL mathematical functions for ZetaSQL
+# Beam ZetaSQL mathematical functions
 
-This page documents scalar functions supported by Beam SQL when using ZetaSQL.
+This page documents ZetaSQL scalar functions supported by Beam ZetaSQL.
 
 All mathematical functions return `NULL` if any of the input parameters is `NULL`.
 

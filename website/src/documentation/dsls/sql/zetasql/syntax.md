@@ -1,6 +1,6 @@
 ---
 layout: section
-title: "Beam SQL function call rules for ZetaSQL"
+title: "Beam ZetaSQL function call rules"
 section_menu: section-menu/sdks.html
 permalink: /documentation/dsls/sql/zetasql/syntax/
 ---
@@ -18,7 +18,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 -->
 
-# Beam SQL function call rules for ZetaSQL
+# Beam ZetaSQL function call rules
 
 The following rules apply to all functions unless explicitly indicated otherwise in the function description:
 

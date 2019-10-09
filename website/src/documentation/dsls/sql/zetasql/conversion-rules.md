@@ -1,6 +1,6 @@
 ---
 layout: section
-title: "Beam SQL conversion rules for ZetaSQL"
+title: "Beam ZetaSQL conversion rules"
 section_menu: section-menu/sdks.html
 permalink: /documentation/dsls/sql/zetasql/conversion-rules/
 ---
@@ -18,7 +18,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 -->
 
-# Beam SQL conversion rules for ZetaSQL
+# Beam ZetaSQL conversion rules
 
 Conversion includes, but is not limited to, casting and coercion:
 

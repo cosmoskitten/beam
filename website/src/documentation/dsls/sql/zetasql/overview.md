@@ -1,6 +1,6 @@
 ---
 layout: section
-title: "ZetaSQL in Beam SQL: Overview"
+title: "Beam ZetaSQL overview"
 section_menu: section-menu/sdks.html
 permalink: /documentation/dsls/sql/zetasql/overview/
 ---
@@ -17,27 +17,27 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 -->
-# ZetaSQL support overview
+# Beam ZetaSQL overview
 Beam SQL supports a varient of the [ZetaSQL](https://github.com/google/zetasql) language. ZetaSQL is similar to the language in BigQuery's SQL framework. This Beam SQL dialect is especially useful in pipelines that [write to or read from BigQuery tables](https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/io/gcp/bigquery/BigQueryIO.html).
 
-Beam SQL has additional extensions leveraging Beam’s unified batch/streaming model and processing complex data types. You can use these extensions with all Beam SQL dialects, including ZetaSQL.
+Beam SQL has additional extensions leveraging Beam’s unified batch/streaming model and processing complex data types. You can use these extensions with all Beam SQL dialects, including Beam ZetaSQL.
 
 ## Query syntax
-Query statements scan tables or expressions and return the computed result rows. For more information about query statements in the Beam SQL ZetaSQL dialect, see the [Query syntax]({{ site.baseurl
+Query statements scan tables or expressions and return the computed result rows. For more information about query statements in Beam ZetaSQL, see the [Query syntax]({{ site.baseurl
 }}/documentation/dsls/sql/zetasql/query-syntax) reference and [Function call rules]({{ site.baseurl
 }}/documentation/dsls/sql/zetasql/syntax).
 
 ## Lexical structure 
-A Beam SQL statement comprises a series of tokens. For more information about tokens in the Beam SQL ZetaSQL dialect, see the [Lexical structure]({{ site.baseurl
+A Beam SQL statement comprises a series of tokens. For more information about tokens in Beam ZetaSQL, see the [Lexical structure]({{ site.baseurl
 }}/documentation/dsls/sql/zetasql/lexical) reference.
 
 ## Data types
-Beam SQL supports standard SQL scalar data types as well as extensions including arrays, maps, and nested rows. For more information about scalar data in Beam SQL, see the [Data types]({{ site.baseurl }}/documentation/dsls/sql/zetasql/data-types) reference.
+Beam SQL supports standard SQL scalar data types as well as extensions including arrays, maps, and nested rows. For more information about scalar data in Beam ZetaSQL, see the [Data types]({{ site.baseurl }}/documentation/dsls/sql/zetasql/data-types) reference.
 
 ## Functions and operators
-The following table summarizes the [ZetaSQL functions](https://github.com/google/zetasql/blob/master/docs/functions-and-operators.md) and operators supported by Beam SQL.
+The following table summarizes the [ZetaSQL functions and operators](https://github.com/google/zetasql/blob/master/docs/functions-and-operators.md) supported by Beam ZetaSQL.
 <table class="table-bordered table-striped">
-  <tr><th>Operators and functions</th><th>Beam SQL support status</th></tr>
+  <tr><th>Operators and functions</th><th>Beam ZetaSQL support</th></tr>
   <tr><td><a href="https://github.com/google/zetasql/blob/master/docs/conversion_rules.md">Type conversion</a></td><td>Yes</td></tr>
   <tr><td><a href="https://github.com/google/zetasql/blob/master/docs/aggregate_functions.md">Aggregate functions</a></td><td>See Beam SQL <a href="{{ site.baseurl }}/documentation/dsls/sql/zetasql/aggregate-functions">aggregate functions</a></td></tr>
   <tr><td><a href="https://github.com/google/zetasql/blob/master/docs/statistical_aggregate_functions.md">Statistical aggregate functions</a></td><td>No</td></tr>
